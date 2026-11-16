@@ -168,7 +168,7 @@ bool opt_runtime_compile(oop m)
     if (trace) {
         print();
     }
-    opt_regalloc_allocate(ob_param_slots, ob_valid_slots); });
+    (!opt_full) && opt_regalloc_allocate(ob_param_slots, ob_valid_slots); });
     if ((!ok) && ps_unboxed) {
         ps_unbox_off = true;
         ok = build(m, rt_unit_start, (rt_unit_osr & 0xFFFF) - 1, rt_unit_depth, (rt_unit_osr & 0x10000) != 0) && ({
@@ -176,7 +176,7 @@ bool opt_runtime_compile(oop m)
     if (trace) {
         print();
     }
-    opt_regalloc_allocate(ob_param_slots, ob_valid_slots); });
+    (!opt_full) && opt_regalloc_allocate(ob_param_slots, ob_valid_slots); });
         ps_unbox_off = false;
     }
     ok = ok && ({

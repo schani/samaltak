@@ -1412,6 +1412,7 @@ extern int32_t opt_node_count;
 extern opt_node opt_nodes[16384];
 extern int32_t opt_operands[131072];
 extern int32_t opt_osr_entry;
+extern uint64_t opt_osr_floats;
 extern uint64_t opt_osr_numbers;
 extern int32_t opt_osr_state;
 extern int32_t opt_state_count;

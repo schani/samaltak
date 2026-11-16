@@ -1,5 +1,5 @@
 OptModule subclass: #OptIR
-	instanceVariableNames: 'optNodes optNodeCount optBlocks optBlockCount optEdges optEdgeCount optOperands optOperandCount optStates optStateCount optActs optActCount optFull optCurAct optCurPc optOsrEntry optOsrState optOsrNumbers'
+	instanceVariableNames: 'optNodes optNodeCount optBlocks optBlockCount optEdges optEdgeCount optOperands optOperandCount optStates optStateCount optActs optActCount optFull optCurAct optCurPc optOsrEntry optOsrState optOsrNumbers optOsrFloats'
 	classVariableNames: ''
 	package: 'VM-Jit'!
 
@@ -13,7 +13,7 @@ declarations
 		(optOperands 'int32_t[OPT_MAX_OPERANDS]') (optOperandCount int32_t)
 		(optStates 'OptState[OPT_MAX_STATES]') (optStateCount int32_t)
 		(optActs 'OptAct[OPT_MAX_ACTS]') (optActCount int32_t)
-		(optFull bool) (optCurAct int32_t) (optCurPc int32_t) (optOsrEntry int32_t) (optOsrState int32_t) (optOsrNumbers uint64_t))
+		(optFull bool) (optCurAct int32_t) (optCurPc int32_t) (optOsrEntry int32_t) (optOsrState int32_t) (optOsrNumbers uint64_t) (optOsrFloats uint64_t))
 ! !
 
 !OptIR methodsFor: 'accessing'!
@@ -82,10 +82,17 @@ osrNumbers
 	"Bit i: the frame's slot i held a number when the loop unit was compiled."
 	^optOsrNumbers
 !
+osrFloats
+	"Bit i: the frame's slot i held a SmallFloat64 when the loop unit was compiled."
+	^optOsrFloats
+!
 osrEntry: b state: s numbers: bits
 	optOsrEntry := b.
 	optOsrState := s.
 	optOsrNumbers := bits
+!
+osrFloats: bits
+	optOsrFloats := bits
 ! !
 
 !OptIR methodsFor: 'building'!
@@ -102,7 +109,8 @@ reset
 	optCurPc := 0.
 	optOsrEntry := -1.
 	optOsrState := -1.
-	optOsrNumbers := 0
+	optOsrNumbers := 0.
+	optOsrFloats := 0
 !
 newBlock
 	"A new empty block."

@@ -16,6 +16,7 @@ opt_node opt_nodes[16384];
 static int32_t opt_operand_count;
 int32_t opt_operands[131072];
 int32_t opt_osr_entry;
+uint64_t opt_osr_floats;
 uint64_t opt_osr_numbers;
 int32_t opt_osr_state;
 int32_t opt_state_count;
@@ -322,6 +323,7 @@ void reset(void)
     opt_osr_entry = -1;
     opt_osr_state = -1;
     opt_osr_numbers = 0;
+    opt_osr_floats = 0;
 }
 
 /* OptIR>>resolve: */

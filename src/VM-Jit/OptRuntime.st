@@ -439,7 +439,7 @@ buildAndAllocate: m trace: trace
 	^(builder build: m start: rtUnitStart osr: (rtUnitOsr bitAnd: 16rFFFF) - 1 depth: rtUnitDepth resident: (rtUnitOsr bitAnd: 16r10000) ~= 0) and: [
 		passes cleanup: builder entryBlock.
 		trace ifTrue: [ir print].
-		regalloc allocate: builder paramSlots valid: builder validSlots]
+		ir full not and: [regalloc allocate: builder paramSlots valid: builder validSlots]]
 !
 extraBytes
 	"What the optimized code's header needs after its notes: the safepoint table, the records, the dependencies, the inline caches and the return map."

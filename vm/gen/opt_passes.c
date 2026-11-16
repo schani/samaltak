@@ -6,11 +6,13 @@ static int32_t ps_chain[16384];
 static int32_t ps_child[2048];
 static int32_t ps_heads[4096];
 static int32_t ps_idom[2048];
+static int32_t ps_loop_outer[2048];
 int32_t ps_order[2048];
 int32_t ps_order_count;
 static int32_t ps_post[2048];
 static int32_t ps_pre[2048];
 static int32_t ps_sibling[2048];
+static int32_t ps_twin[16384];
 bool ps_unbox_off;
 bool ps_unboxed;
 static uint8_t ps_visit_mark[2048];
@@ -19,15 +21,21 @@ static int32_t ps_work_list[16384];
 static void compute_order(int32_t entry);
 static void count_uses(void);
 static void dominators(int32_t entry);
+static void drop_boxes(void);
+static void find_loops(void);
 static void forward_unboxes(void);
 static void hoist_guards(void);
 static void hoist_out_of(int32_t h);
+static int64_t opt_passes_loop(int32_t h, int32_t b, int64_t sp);
 static void remove_dead(void);
 static void remove_unreachable(void);
 static void resolve_operands(void);
 static void simplify_phis(void);
+static bool sinks(int32_t p, int32_t n, int i);
 static void split_critical_edges(void);
 static int32_t opt_passes_state(int32_t s, int64_t k, int32_t h);
+static int32_t twin_of(int32_t n);
+static void type_float_phis(void);
 static void type_phis(void);
 static void unbox_phis(void);
 static void unbox_states(void);
@@ -42,12 +50,17 @@ void cleanup(int32_t entry)
     resolve_operands();
     type_phis();
     resolve_operands();
+    type_float_phis();
     forward_unboxes();
     resolve_operands();
     ps_unboxed = false;
     if ((!ps_unbox_off) && ((jit_flags & JIT_FLAG_UNBOX) != 0)) {
         unbox_phis();
+        drop_boxes();
         resolve_operands();
+    }
+    if (opt_full) {
+        return;
     }
     split_critical_edges();
     compute_order(entry);
@@ -284,6 +297,283 @@ static void dominators(int32_t entry)
     }
 }
 
+/* OptPasses>>dropBoxes */
+static void drop_boxes(void)
+{
+    int32_t count;
+    int32_t n;
+    bool r_is_float_phi;
+    opt_node *nd_2;
+    int32_t n_2;
+    opt_node *nd;
+    int32_t v_2;
+    int32_t p;
+    bool r_is_float_phi_2;
+    opt_node *nd_3;
+    int32_t v_3;
+    int32_t p_2;
+    bool r_is_float_phi_3;
+    opt_node *nd_4;
+    int32_t v_4;
+    int32_t p_3;
+    bool r_is_float_phi_4;
+    opt_node *nd_5;
+    int32_t i;
+    int32_t i_2;
+    int32_t i_3;
+    int32_t v_5;
+    int32_t p_4;
+    bool r_is_float_phi_5;
+    opt_node *nd_6;
+    int32_t a;
+    int32_t v_6;
+    int32_t v_7;
+    bool changed;
+    int32_t n_3;
+    int32_t i_4;
+    int32_t i_5;
+    int32_t v;
+    int32_t n_4;
+    bool r_is_float_phi_6;
+    opt_node *nd_7;
+    int32_t n_5;
+    int32_t p_5;
+    int64_t r_box;
+    opt_node *nd_8;
+    int32_t b;
+    int32_t p_6;
+    int64_t r_box_2;
+    opt_node *nd_9;
+    int32_t b_2;
+    int32_t p_7;
+    int64_t r_box_3;
+    opt_node *nd_10;
+    int32_t b_3;
+    int32_t n_6;
+    bool r_is_float_phi_7;
+    opt_node *nd_11;
+    int32_t t;
+    if (opt_full) {
+        return;
+    }
+    count = opt_node_count;
+    for (n = 0; n <= count - 1; n++) {
+        ps_work_list[n] = ({
+    nd_2 = opt_nodes + n;
+    r_is_float_phi = ((int32_t)nd_2->op == O_PHI) && ((nd_2->fwd < 0) && ((nd_2->block >= 0) && (((int32_t)nd_2->rep == R_OOP) && ((int32_t)nd_2->tkind == T_FLOAT))));
+    r_is_float_phi; }) || (((int32_t)(opt_nodes + n)->op == O_BOXF) && ((opt_nodes + n)->block >= 0)) ? 1 : 0;
+    }
+    find_loops();
+    for (n_2 = 0; n_2 <= count - 1; n_2++) {
+        nd = opt_nodes + n_2;
+        if (nd->block >= 0) {
+            if (nd->a >= 0) {
+                v_2 = nd->a;
+                p = opt_ir_resolve(v_2);
+                if ((ps_work_list[p] == 1) && ((!({
+    nd_3 = opt_nodes + n_2;
+    r_is_float_phi_2 = ((int32_t)nd_3->op == O_PHI) && ((nd_3->fwd < 0) && ((nd_3->block >= 0) && (((int32_t)nd_3->rep == R_OOP) && ((int32_t)nd_3->tkind == T_FLOAT))));
+    r_is_float_phi_2; })) && (!sinks(p, n_2, 0)))) {
+                    ps_work_list[p] = 2;
+                }
+            }
+            if (nd->b >= 0) {
+                v_3 = nd->b;
+                p_2 = opt_ir_resolve(v_3);
+                if ((ps_work_list[p_2] == 1) && ((!({
+    nd_4 = opt_nodes + n_2;
+    r_is_float_phi_3 = ((int32_t)nd_4->op == O_PHI) && ((nd_4->fwd < 0) && ((nd_4->block >= 0) && (((int32_t)nd_4->rep == R_OOP) && ((int32_t)nd_4->tkind == T_FLOAT))));
+    r_is_float_phi_3; })) && (!sinks(p_2, n_2, 1)))) {
+                    ps_work_list[p_2] = 2;
+                }
+            }
+            if ((nd->c >= 0) && ((int32_t)nd->op != O_SEND)) {
+                v_4 = nd->c;
+                p_3 = opt_ir_resolve(v_4);
+                if ((ps_work_list[p_3] == 1) && ((!({
+    nd_5 = opt_nodes + n_2;
+    r_is_float_phi_4 = ((int32_t)nd_5->op == O_PHI) && ((nd_5->fwd < 0) && ((nd_5->block >= 0) && (((int32_t)nd_5->rep == R_OOP) && ((int32_t)nd_5->tkind == T_FLOAT))));
+    r_is_float_phi_4; })) && (!sinks(p_3, n_2, 2)))) {
+                    ps_work_list[p_3] = 2;
+                }
+            }
+            for (i = 0; i <= (int32_t)nd->nargs - 1; i++) {
+                i_2 = nd->args + i;
+                if (opt_operands[i_2] >= 0) {
+                    i_3 = nd->args + i;
+                    v_5 = opt_operands[i_3];
+                    p_4 = opt_ir_resolve(v_5);
+                    if ((ps_work_list[p_4] == 1) && ((!({
+    nd_6 = opt_nodes + n_2;
+    r_is_float_phi_5 = ((int32_t)nd_6->op == O_PHI) && ((nd_6->fwd < 0) && ((nd_6->block >= 0) && (((int32_t)nd_6->rep == R_OOP) && ((int32_t)nd_6->tkind == T_FLOAT))));
+    r_is_float_phi_5; })) && (!sinks(p_4, n_2, 3)))) {
+                        ps_work_list[p_4] = 2;
+                    }
+                }
+            }
+        }
+    }
+    for (a = 0; a <= opt_act_count - 1; a++) {
+        v_6 = (opt_acts + a)->receiver;
+        if ((v_6 >= 0) && (ps_work_list[opt_ir_resolve(v_6)] == 1)) {
+            ps_work_list[opt_ir_resolve(v_6)] = 2;
+        }
+        v_7 = (opt_acts + a)->closure;
+        if ((v_7 >= 0) && (ps_work_list[opt_ir_resolve(v_7)] == 1)) {
+            ps_work_list[opt_ir_resolve(v_7)] = 2;
+        }
+    }
+    changed = true;
+    while (changed) {
+        changed = false;
+        for (n_3 = 0; n_3 <= count - 1; n_3++) {
+            nd = opt_nodes + n_3;
+            if (ps_work_list[n_3] == 2) {
+                for (i_4 = 0; i_4 <= (int32_t)nd->nargs - 1; i_4++) {
+                    i_5 = nd->args + i_4;
+                    v = opt_ir_resolve(opt_operands[i_5]);
+                    if (ps_work_list[v] == 1) {
+                        ps_work_list[v] = 2;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+    for (n_4 = 0; n_4 <= count - 1; n_4++) {
+        if ((ps_work_list[n_4] == 1) && ({
+    nd_7 = opt_nodes + n_4;
+    r_is_float_phi_6 = ((int32_t)nd_7->op == O_PHI) && ((nd_7->fwd < 0) && ((nd_7->block >= 0) && (((int32_t)nd_7->rep == R_OOP) && ((int32_t)nd_7->tkind == T_FLOAT))));
+    r_is_float_phi_6; })) {
+            twin_of(n_4);
+            if (opt_full) {
+                return;
+            }
+        }
+    }
+    for (n_5 = 0; n_5 <= count - 1; n_5++) {
+        nd = opt_nodes + n_5;
+        if (nd->block >= 0) {
+            if (((int32_t)nd->op == O_INDEXSTORE) && (ps_work_list[opt_ir_resolve(nd->c)] == 1)) {
+                p_5 = opt_ir_resolve(nd->c);
+                nd->c = ({
+    nd_8 = opt_nodes + n_5;
+    b = new_node(O_BOXF, R_OOP);
+    if (opt_full) {
+        r_box = -1;
+        goto exit_box;
+    }
+    (opt_nodes + b)->a = (int32_t)(opt_nodes + p_5)->op == O_PHI ? ps_twin[p_5] : opt_ir_resolve((opt_nodes + p_5)->a);
+    (opt_nodes + b)->state = nd_8->state;
+    (opt_nodes + b)->tkind = T_FLOAT;
+    (opt_nodes + b)->flags = NF_GUARD;
+    (opt_nodes + b)->aux2 = -1;
+    (opt_nodes + b)->bcact = nd_8->bcact;
+    (opt_nodes + b)->bcpc = nd_8->bcpc;
+    insert(b, n_5);
+    r_box = b;
+exit_box:;
+    r_box; });
+            }
+            if (((int32_t)nd->op == O_STOREFIELD) && (ps_work_list[opt_ir_resolve(nd->b)] == 1)) {
+                p_6 = opt_ir_resolve(nd->b);
+                nd->b = ({
+    nd_9 = opt_nodes + n_5;
+    b_2 = new_node(O_BOXF, R_OOP);
+    if (opt_full) {
+        r_box_2 = -1;
+        goto exit_box_2;
+    }
+    (opt_nodes + b_2)->a = (int32_t)(opt_nodes + p_6)->op == O_PHI ? ps_twin[p_6] : opt_ir_resolve((opt_nodes + p_6)->a);
+    (opt_nodes + b_2)->state = nd_9->state;
+    (opt_nodes + b_2)->tkind = T_FLOAT;
+    (opt_nodes + b_2)->flags = NF_GUARD;
+    (opt_nodes + b_2)->aux2 = -1;
+    (opt_nodes + b_2)->bcact = nd_9->bcact;
+    (opt_nodes + b_2)->bcpc = nd_9->bcpc;
+    insert(b_2, n_5);
+    r_box_2 = b_2;
+exit_box_2:;
+    r_box_2; });
+            }
+            if (((int32_t)nd->op == O_RETURN) && (ps_work_list[opt_ir_resolve(nd->a)] == 1)) {
+                p_7 = opt_ir_resolve(nd->a);
+                nd->a = ({
+    nd_10 = opt_nodes + n_5;
+    b_3 = new_node(O_BOXF, R_OOP);
+    if (opt_full) {
+        r_box_3 = -1;
+        goto exit_box_3;
+    }
+    (opt_nodes + b_3)->a = (int32_t)(opt_nodes + p_7)->op == O_PHI ? ps_twin[p_7] : opt_ir_resolve((opt_nodes + p_7)->a);
+    (opt_nodes + b_3)->state = nd_10->state;
+    (opt_nodes + b_3)->tkind = T_FLOAT;
+    (opt_nodes + b_3)->flags = NF_GUARD;
+    (opt_nodes + b_3)->aux2 = -1;
+    (opt_nodes + b_3)->bcact = nd_10->bcact;
+    (opt_nodes + b_3)->bcpc = nd_10->bcpc;
+    insert(b_3, n_5);
+    r_box_3 = b_3;
+exit_box_3:;
+    r_box_3; });
+            }
+            if (opt_full) {
+                return;
+            }
+        }
+    }
+    for (n_6 = 0; n_6 <= count - 1; n_6++) {
+        if ((ps_work_list[n_6] == 1) && ({
+    nd_11 = opt_nodes + n_6;
+    r_is_float_phi_7 = ((int32_t)nd_11->op == O_PHI) && ((nd_11->fwd < 0) && ((nd_11->block >= 0) && (((int32_t)nd_11->rep == R_OOP) && ((int32_t)nd_11->tkind == T_FLOAT))));
+    r_is_float_phi_7; })) {
+            t = ps_twin[n_6];
+            (opt_nodes + n_6)->fwd = t;
+            opt_ir_unlink(n_6);
+        }
+    }
+}
+
+/* OptPasses>>findLoops */
+static void find_loops(void)
+{
+    int32_t i;
+    int32_t i_2;
+    int32_t h;
+    int64_t sp;
+    int32_t e;
+    int32_t b;
+    int32_t b_2;
+    for (i = 0; i <= opt_block_count - 1; i++) {
+        (opt_blocks + i)->loop = -1;
+        ps_loop_outer[i] = -1;
+    }
+    for (i_2 = ps_order_count - 1; i_2 >= 0; i_2--) {
+        h = ps_order[i_2];
+        if (((opt_blocks + h)->flags & BF_LOOP) != 0) {
+            sp = 0;
+            e = (opt_blocks + h)->preds;
+            while (e >= 0) {
+                b = (opt_edges + e)->from;
+                if ((opt_blocks + b)->rpo >= (opt_blocks + h)->rpo) {
+                    (opt_blocks + h)->loop = h;
+                    sp = opt_passes_loop(h, b, sp);
+                }
+                e = (opt_edges + e)->next;
+            }
+            while (sp > 0) {
+                sp = sp - 1;
+                b_2 = ps_heads[sp];
+                e = (opt_blocks + b_2)->preds;
+                while (e >= 0) {
+                    sp = opt_passes_loop(h, (opt_edges + e)->from, sp);
+                    e = (opt_edges + e)->next;
+                }
+            }
+        }
+    }
+}
+
 /* OptPasses>>forwardUnboxes */
 static void forward_unboxes(void)
 {
@@ -433,6 +723,30 @@ exit_is_hoistable:;
             n = next;
         }
     }
+}
+
+/* OptPasses>>loop:reaches:sp: */
+static int64_t opt_passes_loop(int32_t h, int32_t b, int64_t sp)
+{
+    int32_t x;
+    if (b == h) {
+        return sp;
+    }
+    if ((opt_blocks + b)->loop < 0) {
+        (opt_blocks + b)->loop = h;
+        ps_heads[sp] = b;
+        return sp + 1;
+    }
+    x = (opt_blocks + b)->loop;
+    while (ps_loop_outer[x] >= 0) {
+        x = ps_loop_outer[x];
+    }
+    if (x == h) {
+        return sp;
+    }
+    ps_loop_outer[x] = h;
+    ps_heads[sp] = x;
+    return sp + 1;
 }
 
 /* OptPasses>>removeDead */
@@ -649,6 +963,61 @@ static void simplify_phis(void)
     }
 }
 
+/* OptPasses>>sinks:into:operand: */
+static bool sinks(int32_t p, int32_t n, int i)
+{
+    opt_node *nd;
+    int32_t op;
+    int32_t s;
+    opt_state *st;
+    int32_t a;
+    int32_t b;
+    int32_t h;
+    int32_t b_2;
+    int32_t l;
+    nd = opt_nodes + n;
+    op = (int32_t)nd->op;
+    if (!(((op == O_INDEXSTORE) && (i == 2)) || (((op == O_STOREFIELD) && (i == 1)) || ((op == O_RETURN) && (i == 0))))) {
+        return false;
+    }
+    if (nd->state < 0) {
+        return false;
+    }
+    s = nd->state;
+    st = opt_states + s;
+    if ((op == O_RETURN) && (st->parent >= 0)) {
+        return false;
+    }
+    a = st->act;
+    if (!((flags_at((opt_acts + a)->method, st->pc) & FB_DEOPT_OTHER) == 0)) {
+        return false;
+    }
+    b = (opt_nodes + p)->block;
+    h = (opt_blocks + b)->loop;
+    if ((int32_t)(opt_nodes + p)->op == O_PHI) {
+        if (h == b) {
+            h = ps_loop_outer[h];
+        }
+    } else {
+        if (h < 0) {
+            return false;
+        }
+        h = ps_loop_outer[h];
+    }
+    b_2 = nd->block;
+    l = (opt_blocks + b_2)->loop;
+    if (l < 0) {
+        return true;
+    }
+    while (h >= 0) {
+        if (h == l) {
+            return true;
+        }
+        h = ps_loop_outer[h];
+    }
+    return false;
+}
+
 /* OptPasses>>splitCriticalEdges */
 static void split_critical_edges(void)
 {
@@ -729,6 +1098,190 @@ static int32_t opt_passes_state(int32_t s, int64_t k, int32_t h)
     return n;
 }
 
+/* OptPasses>>twinOf: */
+static int32_t twin_of(int32_t n)
+{
+    opt_node *nd;
+    int32_t p2;
+    int32_t b;
+    int32_t e;
+    int64_t k;
+    int64_t i;
+    int32_t o;
+    int32_t b_2;
+    int64_t r_unboxed;
+    int32_t g;
+    int64_t v;
+    int64_t x;
+    int64_t i_2;
+    if (ps_twin[n] >= 0) {
+        return ps_twin[n];
+    }
+    nd = opt_nodes + n;
+    ps_unboxed = true;
+    p2 = new_node(O_PHI, R_DBL);
+    if (opt_full) {
+        return -1;
+    }
+    (opt_nodes + p2)->bcact = nd->bcact;
+    (opt_nodes + p2)->bcpc = nd->bcpc;
+    (opt_nodes + p2)->tkind = T_FLOAT;
+    (opt_nodes + p2)->nargs = nd->nargs;
+    (opt_nodes + p2)->args = alloc_operands((int32_t)nd->nargs);
+    if (opt_full) {
+        return -1;
+    }
+    insert(p2, n);
+    ps_twin[n] = p2;
+    b = nd->block;
+    e = (opt_blocks + b)->preds;
+    k = 0;
+    while (e >= 0) {
+        i = nd->args + k;
+        o = opt_ir_resolve(opt_operands[i]);
+        x = (int32_t)(opt_nodes + o)->op == O_BOXF ? opt_ir_resolve((opt_nodes + o)->a) : ((int32_t)(opt_nodes + o)->op == O_CONST) && (((opt_nodes + o)->aux & 7) == 4) ? o : ({
+    if ((int32_t)(opt_nodes + o)->op == O_PHI) {
+        v = twin_of(o);
+    } else {
+        b_2 = (opt_edges + e)->from;
+        v = ({
+    g = new_node(O_UNBOXF, R_DBL);
+    if (opt_full) {
+        r_unboxed = -1;
+        goto exit_unboxed;
+    }
+    (opt_nodes + g)->a = o;
+    (opt_nodes + g)->flags = NF_PURE;
+    (opt_nodes + g)->bcact = (opt_nodes + o)->bcact;
+    (opt_nodes + g)->bcpc = (opt_nodes + o)->bcpc;
+    insert(g, (opt_blocks + b_2)->last);
+    r_unboxed = g;
+exit_unboxed:;
+    r_unboxed; });
+    }
+    v; });
+        if (opt_full) {
+            return -1;
+        }
+        i_2 = (opt_nodes + p2)->args + k;
+        opt_operands[i_2] = x;
+        k = k + 1;
+        e = (opt_edges + e)->next;
+    }
+    return p2;
+}
+
+/* OptPasses>>typeFloatPhis */
+static void type_float_phis(void)
+{
+    int64_t count;
+    int32_t n;
+    opt_node *nd;
+    bool changed;
+    int64_t i;
+    int32_t n_2;
+    int32_t b;
+    int32_t e;
+    int64_t k;
+    int64_t i_2;
+    int32_t v;
+    bool r_is_frame_float;
+    opt_node *nd_2;
+    int64_t i_3;
+    int32_t n_3;
+    int32_t b_2;
+    int64_t i_4;
+    bool r_is_frame_float_2;
+    opt_node *nd_3;
+    int32_t r_float_guard_of;
+    int32_t n_4;
+    int32_t g;
+    int64_t i_5;
+    count = 0;
+    for (n = 0; n <= opt_node_count - 1; n++) {
+        nd = opt_nodes + n;
+        if (((int32_t)nd->op == O_PHI) && ((nd->fwd < 0) && ((nd->block >= 0) && (((int32_t)nd->rep == R_OOP) && (((int32_t)nd->tkind == T_ANY) && ((int32_t)nd->nargs > 0)))))) {
+            nd->tkind = T_FLOAT;
+            ps_work_list[count] = n;
+            count = count + 1;
+        }
+    }
+    changed = true;
+    while (changed) {
+        changed = false;
+        for (i = 0; i <= count - 1; i++) {
+            n_2 = ps_work_list[i];
+            nd = opt_nodes + n_2;
+            b = nd->block;
+            e = (opt_blocks + b)->preds;
+            k = 0;
+            while (((int32_t)nd->tkind == T_FLOAT) && (e >= 0)) {
+                i_2 = nd->args + k;
+                v = opt_ir_resolve(opt_operands[i_2]);
+                if (!((((int32_t)(opt_nodes + v)->tkind == T_FLOAT) && ((int32_t)(opt_nodes + v)->rep == R_OOP)) || (((opt_edges + e)->from == opt_osr_entry) && ({
+    nd_2 = opt_nodes + v;
+    r_is_frame_float = (opt_osr_state >= 0) && (((int32_t)nd_2->op == O_PARAM) && ((nd_2->aux >= 0) && ((nd_2->aux < 64) && ((opt_osr_floats & (1LL << nd_2->aux)) != 0))));
+    r_is_frame_float; })))) {
+                    nd->tkind = T_ANY;
+                    changed = true;
+                }
+                k = k + 1;
+                e = (opt_edges + e)->next;
+            }
+        }
+    }
+    for (i_3 = 0; i_3 <= count - 1; i_3++) {
+        n_3 = ps_work_list[i_3];
+        nd = opt_nodes + n_3;
+        if ((int32_t)nd->tkind == T_FLOAT) {
+            b_2 = nd->block;
+            e = (opt_blocks + b_2)->preds;
+            k = 0;
+            while (e >= 0) {
+                i_4 = nd->args + k;
+                v = opt_ir_resolve(opt_operands[i_4]);
+                if (((opt_edges + e)->from == opt_osr_entry) && ({
+    nd_3 = opt_nodes + v;
+    r_is_frame_float_2 = (opt_osr_state >= 0) && (((int32_t)nd_3->op == O_PARAM) && ((nd_3->aux >= 0) && ((nd_3->aux < 64) && ((opt_osr_floats & (1LL << nd_3->aux)) != 0))));
+    r_is_frame_float_2; })) {
+                    v = ({
+    n_4 = (opt_blocks + opt_osr_entry)->first;
+    while (n_4 >= 0) {
+        if (((int32_t)(opt_nodes + n_4)->op == O_GUARDCLASS) && (((opt_nodes + n_4)->a == v) && ((opt_nodes + n_4)->aux == (int64_t)cls_smallfloat))) {
+            r_float_guard_of = n_4;
+            goto exit_float_guard_of;
+        }
+        n_4 = (opt_nodes + n_4)->next;
+    }
+    g = new_node(O_GUARDCLASS, R_OOP);
+    if (opt_full) {
+        r_float_guard_of = -1;
+        goto exit_float_guard_of;
+    }
+    (opt_nodes + g)->a = v;
+    (opt_nodes + g)->aux = (int64_t)cls_smallfloat;
+    (opt_nodes + g)->state = opt_osr_state;
+    (opt_nodes + g)->flags = NF_GUARD;
+    (opt_nodes + g)->tkind = T_FLOAT;
+    (opt_nodes + g)->bcact = (opt_states + opt_osr_state)->act;
+    (opt_nodes + g)->bcpc = (opt_states + opt_osr_state)->pc;
+    insert(g, (opt_blocks + opt_osr_entry)->last);
+    r_float_guard_of = g;
+exit_float_guard_of:;
+    r_float_guard_of; });
+                    if (opt_full) {
+                        return;
+                    }
+                    i_5 = nd->args + k;
+                    opt_operands[i_5] = v;
+                }
+                k = k + 1;
+                e = (opt_edges + e)->next;
+            }
+        }
+    }
+}
+
 /* OptPasses>>typePhis */
 static void type_phis(void)
 {
@@ -784,6 +1337,13 @@ static void type_phis(void)
 /* OptPasses>>unboxPhis */
 static void unbox_phis(void)
 {
+    int32_t i;
+    int32_t i_2;
+    opt_node *nd;
+    int32_t n_2;
+    bool r_is_float_phi;
+    opt_node *nd_2;
+    int32_t u;
     int32_t h;
     opt_block *hb;
     int32_t lo;
@@ -792,32 +1352,49 @@ static void unbox_phis(void)
     int32_t b;
     int32_t b_2;
     int32_t n;
-    opt_node *nd;
     bool ok;
     int64_t k;
-    int64_t i;
+    int64_t i_3;
     int32_t o;
     bool r_is_frame_number;
-    opt_node *nd_2;
-    int64_t uses;
-    int64_t i_2;
-    int32_t b_3;
-    int32_t u;
     opt_node *nd_3;
+    int64_t uses;
+    int64_t i_4;
+    int32_t b_3;
+    opt_node *nd_4;
     int32_t p2;
     int32_t e_2;
     int64_t k_2;
-    int64_t i_3;
+    int64_t i_5;
     int32_t o_2;
     int32_t g;
     int32_t b_4;
     int32_t v;
     int32_t x;
-    int64_t i_4;
-    int64_t i_5;
+    int64_t i_6;
+    int64_t i_7;
     int32_t b_5;
     int32_t u_2;
     int32_t nu;
+    for (i = 0; i <= opt_node_count - 1; i++) {
+        ps_twin[i] = -1;
+    }
+    for (i_2 = 0; i_2 <= opt_node_count - 1; i_2++) {
+        nd = opt_nodes + i_2;
+        if (((int32_t)nd->op == O_UNBOXF) && ((nd->fwd < 0) && ((nd->block >= 0) && ({
+    n_2 = opt_ir_resolve(nd->a);
+    ({
+    nd_2 = opt_nodes + n_2;
+    r_is_float_phi = ((int32_t)nd_2->op == O_PHI) && ((nd_2->fwd < 0) && ((nd_2->block >= 0) && (((int32_t)nd_2->rep == R_OOP) && ((int32_t)nd_2->tkind == T_FLOAT))));
+    r_is_float_phi; }); })))) {
+            u = twin_of(opt_ir_resolve(nd->a));
+            if (opt_full) {
+                return;
+            }
+            nd->fwd = u;
+            opt_ir_unlink(i_2);
+        }
+    }
     for (h = 0; h <= opt_block_count - 1; h++) {
         hb = opt_blocks + h;
         if ((hb->rpo >= 0) && ((hb->flags & BF_LOOP) != 0)) {
@@ -840,19 +1417,19 @@ static void unbox_phis(void)
                     e = hb->preds;
                     k = 0;
                     while (ok && (e >= 0)) {
-                        i = nd->args + k;
-                        o = opt_ir_resolve(opt_operands[i]);
+                        i_3 = nd->args + k;
+                        o = opt_ir_resolve(opt_operands[i_3]);
                         ok = (o == n) || (((int32_t)(opt_nodes + o)->op == O_BOXF) || ((((int32_t)(opt_nodes + o)->op == O_CONST) && (((opt_nodes + o)->aux & 7) == 4)) || (((opt_edges + e)->from == opt_osr_entry) && ({
-    nd_2 = opt_nodes + o;
-    r_is_frame_number = (opt_osr_state >= 0) && (((int32_t)nd_2->op == O_PARAM) && ((nd_2->aux >= 0) && ((nd_2->aux < 64) && ((opt_osr_numbers & (1LL << nd_2->aux)) != 0))));
+    nd_3 = opt_nodes + o;
+    r_is_frame_number = (opt_osr_state >= 0) && (((int32_t)nd_3->op == O_PARAM) && ((nd_3->aux >= 0) && ((nd_3->aux < 64) && ((opt_osr_numbers & (1LL << nd_3->aux)) != 0))));
     r_is_frame_number; }))));
                         k = k + 1;
                         e = (opt_edges + e)->next;
                     }
                     uses = 0;
                     if (ok) {
-                        for (i_2 = lo; i_2 <= hi; i_2++) {
-                            b_3 = ps_order[i_2];
+                        for (i_4 = lo; i_4 <= hi; i_4++) {
+                            b_3 = ps_order[i_4];
                             u = (opt_blocks + b_3)->first;
                             while (u >= 0) {
                                 if (((int32_t)(opt_nodes + u)->op == O_UNBOXF) && (opt_ir_resolve((opt_nodes + u)->a) == n)) {
@@ -863,19 +1440,19 @@ static void unbox_phis(void)
                         }
                     }
                     if (uses > 0) {
-                        nd_3 = opt_nodes + n;
+                        nd_4 = opt_nodes + n;
                         p2 = new_node(O_PHI, R_DBL);
-                        (opt_nodes + p2)->bcact = nd_3->bcact;
-                        (opt_nodes + p2)->bcpc = nd_3->bcpc;
+                        (opt_nodes + p2)->bcact = nd_4->bcact;
+                        (opt_nodes + p2)->bcpc = nd_4->bcpc;
                         (opt_nodes + p2)->tkind = T_FLOAT;
-                        (opt_nodes + p2)->nargs = nd_3->nargs;
-                        (opt_nodes + p2)->args = alloc_operands((int32_t)nd_3->nargs);
+                        (opt_nodes + p2)->nargs = nd_4->nargs;
+                        (opt_nodes + p2)->args = alloc_operands((int32_t)nd_4->nargs);
                         insert(p2, n);
                         e_2 = (opt_blocks + h)->preds;
                         k_2 = 0;
                         while (e_2 >= 0) {
-                            i_3 = nd_3->args + k_2;
-                            o_2 = opt_ir_resolve(opt_operands[i_3]);
+                            i_5 = nd_4->args + k_2;
+                            o_2 = opt_ir_resolve(opt_operands[i_5]);
                             x = o_2 == n ? p2 : (int32_t)(opt_nodes + o_2)->op == O_BOXF ? opt_ir_resolve((opt_nodes + o_2)->a) : ({
     if (((int32_t)(opt_nodes + o_2)->op == O_CONST) && (((opt_nodes + o_2)->aux & 7) == 4)) {
         v = o_2;
@@ -884,20 +1461,20 @@ static void unbox_phis(void)
         (opt_nodes + g)->a = o_2;
         (opt_nodes + g)->state = opt_osr_state;
         (opt_nodes + g)->flags = NF_GUARD;
-        (opt_nodes + g)->bcact = nd_3->bcact;
-        (opt_nodes + g)->bcpc = nd_3->bcpc;
+        (opt_nodes + g)->bcact = nd_4->bcact;
+        (opt_nodes + g)->bcpc = nd_4->bcpc;
         b_4 = (opt_edges + e_2)->from;
         insert(g, (opt_blocks + b_4)->last);
         v = g;
     }
     v; });
-                            i_4 = (opt_nodes + p2)->args + k_2;
-                            opt_operands[i_4] = x;
+                            i_6 = (opt_nodes + p2)->args + k_2;
+                            opt_operands[i_6] = x;
                             k_2 = k_2 + 1;
                             e_2 = (opt_edges + e_2)->next;
                         }
-                        for (i_5 = lo; i_5 <= hi; i_5++) {
-                            b_5 = ps_order[i_5];
+                        for (i_7 = lo; i_7 <= hi; i_7++) {
+                            b_5 = ps_order[i_7];
                             u_2 = (opt_blocks + b_5)->first;
                             while (u_2 >= 0) {
                                 nu = (opt_nodes + u_2)->next;

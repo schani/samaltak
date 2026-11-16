@@ -162,6 +162,7 @@ buildOsr: a
 			ifFalse: [(obArgFlags at: (self var: a slot: i)) = 2 ifFalse: [self write: (self var: a slot: i) value: (self param: i)]].
 		self noteClosureIn: i act: a].
 	ir osrEntry: obCurBlock state: (self stateAct: a pc: obOsrPc depth: obValidSlots) numbers: self frameNumbers.
+	ir osrFloats: self frameFloats.
 	b := self blockAt: obOsrPc act: a.
 	self goto: b.
 	self buildAct: a.
@@ -178,6 +179,16 @@ frameNumbers
 		v := obFrame fp at: i.
 		((self isInt: v) or: [(v bitAnd: 7) = 4 or: [(self isPtr: v) and: [(self rawClass: v) = memory clsBoxedfloat]]]) ifTrue: [
 			bits := bits bitOr: 1 asUInt64 << i]].
+	^bits
+!
+frameFloats
+	"Bit i: the frame's slot i holds a SmallFloat64 (the first 64)."
+	| bits v |
+	bits := 0 asUInt64.
+	obFrame isNull ifTrue: [^bits].
+	0 to: (obValidSlots min: 64) - 1 do: [:i |
+		v := obFrame fp at: i.
+		(v bitAnd: 7) = 4 ifTrue: [bits := bits bitOr: 1 asUInt64 << i]].
 	^bits
 !
 markResident: a

@@ -488,6 +488,141 @@ testDoublePhisThatSwap
 		self assert: (o swapScaled: 100000) equals: 200000.0.
 		self assert: (o swapScaled: 100001) equals: 200001.5]
 !
+testFloatSumsBoxedWhereTheirLoopIsDone
+	"A loop's running Float that only the loop's arithmetic reads has no box in the loop (frame states name its double): its sum leaves SmallFloat64's range and comes back without deoptimizing. Returned, stored into an Array's element or an instance variable after the loop it is boxed there: out of SmallFloat64's range that deoptimizes, the interpreter makes the BoxedFloat64."
+	| o arr big before deopts r |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'sum: n by: x | r | r := 0.0. 1 to: n do: [:i | r := r + x]. ^r'.
+	self define: 'upDown: n by: x | r | r := 0.0. 1 to: n do: [:i | r := r + x]. 1 to: n do: [:i | r := r - x]. ^r'.
+	self define: 'sumInto: arr n: n by: x | r | r := 0.0. 1 to: n do: [:i | r := r + x]. arr at: 2 put: r. ^arr'.
+	self define: 'sumIntoA: n by: x | r | r := 0.0. 1 to: n do: [:i | r := r + x]. a := r. ^a'.
+	o := JitRuntimeTestSubject new.
+	arr := Array new: 3.
+	1 to: 3000 do: [:k |
+		self assert: (o sum: 10 by: 0.5) equals: 5.0.
+		self assert: (o upDown: 10 by: 0.5) equals: 0.0.
+		self assert: ((o sumInto: arr n: 10 by: 0.5) at: 2) equals: 5.0.
+		self assert: (o sumIntoA: 10 by: 0.5) equals: 5.0].
+	big := (2 raisedTo: 127) asFloat.
+	before := self statistics.
+	r := o upDown: 10 by: big.
+	deopts := (self statistics - before) optDeoptimizations.
+	self assert: r equals: 0.0.
+	self assert: r class equals: SmallFloat64.
+	self stressed ifFalse: [self assert: deopts equals: 0].
+	r := o sum: 10 by: big.
+	self assert: r equals: big * 10.
+	self assert: r class equals: BoxedFloat64.
+	r := (o sumInto: arr n: 10 by: big) at: 2.
+	self assert: r equals: big * 10.
+	self assert: r class equals: BoxedFloat64.
+	r := o sumIntoA: 10 by: big.
+	self assert: r equals: big * 10.
+	self assert: r class equals: BoxedFloat64.
+	self stressed ifFalse: [self assert: (self statistics - before) optDeoptimizations >= 3].
+	self assert: (o sum: 10 by: 0.5) equals: 5.0.
+	self assert: ((o sumInto: arr n: 10 by: 0.5) at: 2) equals: 5.0.
+	self assert: (o sumIntoA: 10 by: 0.5) equals: 5.0
+!
+testFloatPhisOfNestedLoopsMergesAndSwaps
+	"Without boxes in their loops: a running Float carried across two nested loops, one that adds what a conditional made (a phi of Floats where its branches meet), two Floats that swap every turn; out of SmallFloat64's range they are boxed (deoptimizing) where they are returned."
+	| o big r |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'nested: n by: x | r | r := 0.0. 1 to: n do: [:i | 1 to: n do: [:j | r := r + x]]. ^r'.
+	self define: 'merge: n by: x | r | r := 0.0. 1 to: n do: [:i | r := r + (i odd ifTrue: [x * 2.0] ifFalse: [x + 1.0])]. ^r'.
+	self define: 'swap: x and: y n: n | a b t | a := x * 1.0. b := y * 1.0. t := 0.0. 1 to: n do: [:i | t := a. a := b. b := t]. ^a'.
+	o := JitRuntimeTestSubject new.
+	1 to: 3000 do: [:k |
+		self assert: (o nested: 4 by: 0.5) equals: 8.0.
+		self assert: (o merge: 4 by: 0.5) equals: 5.0.
+		self assert: (o swap: 1.5 and: 2.5 n: 3) equals: 2.5.
+		self assert: (o swap: 1.5 and: 2.5 n: 4) equals: 1.5].
+	big := (2 raisedTo: 127) asFloat.
+	r := o nested: 4 by: big.
+	self assert: r equals: big * 16.
+	self assert: r class equals: BoxedFloat64.
+	r := o merge: 4 by: big.
+	self assert: r equals: big * 6.
+	self assert: r class equals: BoxedFloat64.
+	r := o swap: big * 2.0 and: 2.5 n: 4.
+	self assert: r equals: big * 2.0.
+	self assert: r class equals: BoxedFloat64.
+	r := o swap: big * 2.0 and: 2.5 n: 3.
+	self assert: r equals: 2.5.
+	self assert: r class equals: SmallFloat64.
+	self assert: (o nested: 4 by: 0.5) equals: 8.0.
+	self assert: (o merge: 4 by: 0.5) equals: 5.0
+!
+testFloatSumOnlyOnDoublesWhereAGuardFails
+	"A guard fails in a loop whose running Float is only a double there (its box went): the interpreter goes on with it as a SmallFloat64, or a BoxedFloat64 out of that range, on the loop's first turn as on a later one."
+	| o halves big arr r |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'sumFirst: arr | r | r := 0.0. 1 to: arr size do: [:i | r := r + (arr at: i)]. ^r'.
+	self define: 'sumLater: arr | r | r := 0.0. 1 to: arr size do: [:i | r := r + (arr at: i)]. ^r'.
+	self define: 'sumBig: arr | r | r := 0.0. 1 to: arr size do: [:i | r := r + (arr at: i)]. ^r'.
+	o := JitRuntimeTestSubject new.
+	halves := (1 to: 10) asArray collect: [:i | i * 0.5].
+	1 to: 3000 do: [:k |
+		self assert: (o sumFirst: halves) equals: 27.5.
+		self assert: (o sumLater: halves) equals: 27.5.
+		self assert: (o sumBig: halves) equals: 27.5].
+	arr := halves copy.
+	arr at: 1 put: 1/2.
+	r := o sumFirst: arr.
+	self assert: r equals: 27.5.
+	self assert: r class equals: SmallFloat64.
+	arr := halves copy.
+	arr at: 7 put: 7/2.
+	r := o sumLater: arr.
+	self assert: r equals: 27.5.
+	self assert: r class equals: SmallFloat64.
+	big := (2 raisedTo: 127) asFloat.
+	arr := Array new: 10 withAll: big.
+	arr at: 7 put: 1/2.
+	r := o sumBig: arr.
+	self assert: r equals: (arr inject: 0.0 into: [:sum :e | sum + e]).
+	self assert: r class equals: BoxedFloat64
+!
+testFloatSumSentInItsLoopKeepsItsBox
+	"A running Float that the loop sends keeps its box in the loop: out of SmallFloat64's range it deoptimizes there, as before."
+	| o big before r |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'big: x | a | a := x. ' , ((1 to: 150) inject: '' into: [:all :i | all , 'a := a. ']) , '^a'.
+	self define: 'sumSent: n by: x | r | r := 0.0. 1 to: n do: [:i | self big: r. r := r + x]. ^r'.
+	o := JitRuntimeTestSubject new.
+	1 to: 3000 do: [:k | self assert: (o sumSent: 10 by: 0.5) equals: 5.0].
+	big := (2 raisedTo: 127) asFloat.
+	before := self statistics.
+	r := o sumSent: 10 by: big.
+	self assert: r equals: big * 10.
+	self assert: r class equals: BoxedFloat64.
+	self stressed ifFalse: [self assert: (self statistics - before) optDeoptimizations > 0].
+	self assert: (o sumSent: 10 by: 0.5) equals: 5.0
+!
+testLoopUnitEnteredWithAFloatOrNot
+	"A loop's unit compiled where its running Float was a SmallFloat64 guards the frame's slot where it is entered: a SmallFloat64 passes (no deoptimization), a SmallInteger (osrA:) or a BoxedFloat64 (osrB:) fails it and the interpreter goes on from the loop's head, as after a Fraction in the unit compiled again. The method's own unit is never compiled (a literal Array is not), so every call enters the loop's unit."
+	| o before deopts r |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'osrA: r0 n: n | r | r := {r0} first. 1 to: n do: [:i | r := r + i]. ^r'.
+	self define: 'osrB: r0 n: n | r | r := {r0} first. 1 to: n do: [:i | r := r + i]. ^r'.
+	o := JitRuntimeTestSubject new.
+	self assert: (o osrA: 0.5 n: 100000) equals: 5000050000.5.
+	self assert: (o osrB: 0.5 n: 100000) equals: 5000050000.5.
+	before := self statistics.
+	r := (o osrA: 0.5 n: 100000) + (o osrB: 0.5 n: 100000).
+	deopts := (self statistics - before) optDeoptimizations.
+	self assert: r equals: 10000100001.0.
+	self stressed ifFalse: [self assert: deopts equals: 0].
+	r := o osrA: 1 n: 100000.
+	self assert: r equals: 5000050001.
+	self assert: r class equals: SmallInteger.
+	r := o osrB: 1.0e300 n: 100000.
+	self assert: r equals: 1.0e300.
+	self assert: r class equals: BoxedFloat64.
+	self assert: (o osrA: 1/2 n: 100000) equals: 10000100001 / 2.
+	self assert: (o osrA: 0.5 n: 100000) equals: 5000050000.5.
+	self assert: (o osrB: 0.5 n: 100000) equals: 5000050000.5
+!
 testDeoptimizationStress
 	"--jit-flags deopt: optimized code deoptimizes every so often at its guards and safepoints; the compiler's tests still pass."
 	| run |

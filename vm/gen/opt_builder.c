@@ -504,36 +504,41 @@ static bool build_once(oop m)
     int32_t i_3;
     oop v_4;
     uint64_t bits_2;
+    uint64_t r_frame_floats;
+    uint64_t bits_3;
+    int32_t i_4;
+    oop v_5;
+    uint64_t bits_4;
     int32_t b_2;
     int32_t k;
-    int32_t i_4;
+    int32_t i_5;
     int32_t var_3;
     int32_t r_param_5;
     int32_t r_add_7;
     int32_t n_18;
     int32_t n_17;
-    int32_t v_5;
+    int32_t v_6;
     int32_t r_add_8;
     int32_t n_20;
     int32_t n_19;
     int32_t n_21;
-    int32_t i_5;
+    int32_t i_6;
     int32_t var_4;
-    int32_t v_6;
+    int32_t v_7;
     int32_t r_add_9;
     int32_t n_23;
     int32_t n_22;
     int32_t n_24;
     uint64_t o_4;
     uint64_t o_5;
-    int32_t i_6;
-    int32_t var_5;
     int32_t i_7;
+    int32_t var_5;
+    int32_t i_8;
     int32_t r_param_6;
     int32_t r_add_10;
     int32_t n_26;
     int32_t n_25;
-    int32_t v_7;
+    int32_t v_8;
     int32_t r_add_11;
     int32_t n_28;
     int32_t n_27;
@@ -790,6 +795,22 @@ exit_frame_numbers:;
     opt_osr_entry = ob_cur_block;
     opt_osr_state = s;
     opt_osr_numbers = bits_2;
+    bits_4 = ({
+    bits_3 = 0ULL;
+    if (ob_frame == NULL) {
+        r_frame_floats = bits_3;
+        goto exit_frame_floats;
+    }
+    for (i_4 = 0; i_4 <= (ob_valid_slots < 64 ? ob_valid_slots : 64) - 1; i_4++) {
+        v_5 = ob_frame->fp[i_4];
+        if ((v_5 & 7) == 4) {
+            bits_3 = bits_3 | (1LL << i_4);
+        }
+    }
+    r_frame_floats = bits_3;
+exit_frame_floats:;
+    r_frame_floats; });
+    opt_osr_floats = bits_4;
     b_2 = block_at(ob_osr_pc, a);
     goto_(b_2);
     build_act(a);
@@ -807,19 +828,19 @@ exit_build_osr:;
     r_build_osr; });
     }
     ob_valid_slots = (opt_acts + a)->num_args + (opt_acts + a)->num_temps;
-    for (i_4 = 0; i_4 <= (opt_acts + a)->num_args - 1; i_4++) {
-        var_3 = (opt_acts + a)->var_base + i_4;
-        v_5 = ({
+    for (i_5 = 0; i_5 <= (opt_acts + a)->num_args - 1; i_5++) {
+        var_3 = (opt_acts + a)->var_base + i_5;
+        v_6 = ({
     n_17 = ({
     n_18 = new_node(O_PARAM, R_OOP);
     append(n_18, ob_cur_block);
     r_add_7 = n_18;
     r_add_7; });
-    (opt_nodes + n_17)->aux = i_4;
+    (opt_nodes + n_17)->aux = i_5;
     r_param_5 = n_17;
     r_param_5; });
         if (var_3 < OPT_MAX_VARS) {
-            ob_arg_vals[var_3] = v_5;
+            ob_arg_vals[var_3] = v_6;
             ob_arg_flags[var_3] = 1;
         }
         if ((var_3 < OPT_MAX_VARS) && (ob_arg_flags[var_3] == 2)) {
@@ -828,29 +849,29 @@ exit_build_osr:;
     append(n_20, ob_cur_block);
     r_add_8 = n_20;
     r_add_8; });
-            (opt_nodes + n_19)->a = v_5;
+            (opt_nodes + n_19)->a = v_6;
             n_21 = ob_arg_vals[var_3];
             (opt_nodes + n_19)->aux = (opt_nodes + n_21)->aux;
             goto exit_write_3;
         }
-        opt_builder_write(var_3, v_5, ob_cur_block);
+        opt_builder_write(var_3, v_6, ob_cur_block);
     exit_write_3:;
     }
-    for (i_5 = (opt_acts + a)->num_args; i_5 <= (opt_acts + a)->num_args + (opt_acts + a)->num_temps - 1; i_5++) {
-        var_4 = (opt_acts + a)->var_base + i_5;
-        v_6 = constant(nil_oop);
+    for (i_6 = (opt_acts + a)->num_args; i_6 <= (opt_acts + a)->num_args + (opt_acts + a)->num_temps - 1; i_6++) {
+        var_4 = (opt_acts + a)->var_base + i_6;
+        v_7 = constant(nil_oop);
         if ((var_4 < OPT_MAX_VARS) && (ob_arg_flags[var_4] == 2)) {
             n_22 = ({
     n_23 = new_node(O_STORESLOT, R_NONE);
     append(n_23, ob_cur_block);
     r_add_9 = n_23;
     r_add_9; });
-            (opt_nodes + n_22)->a = v_6;
+            (opt_nodes + n_22)->a = v_7;
             n_24 = ob_arg_vals[var_4];
             (opt_nodes + n_22)->aux = (opt_nodes + n_24)->aux;
             goto exit_write_4;
         }
-        opt_builder_write(var_4, v_6, ob_cur_block);
+        opt_builder_write(var_4, v_7, ob_cur_block);
     exit_write_4:;
     }
     if (((opt_acts + a)->num_temps > 0) && ((ob_unit_start == 0) && ({
@@ -858,16 +879,16 @@ exit_build_osr:;
     ((o_4 & 1) != 0) && ({
     o_5 = *(uint64_t *)(m + 16 + 56);
     ((((int64_t)o_5) >> 1) & CM_PRIM_ERROR_FLAG) != 0; }); }))) {
-        i_6 = (opt_acts + a)->num_args;
-        var_5 = (opt_acts + a)->var_base + i_6;
         i_7 = (opt_acts + a)->num_args;
-        v_7 = ({
+        var_5 = (opt_acts + a)->var_base + i_7;
+        i_8 = (opt_acts + a)->num_args;
+        v_8 = ({
     n_25 = ({
     n_26 = new_node(O_PARAM, R_OOP);
     append(n_26, ob_cur_block);
     r_add_10 = n_26;
     r_add_10; });
-    (opt_nodes + n_25)->aux = i_7;
+    (opt_nodes + n_25)->aux = i_8;
     r_param_6 = n_25;
     r_param_6; });
         if ((var_5 < OPT_MAX_VARS) && (ob_arg_flags[var_5] == 2)) {
@@ -876,12 +897,12 @@ exit_build_osr:;
     append(n_28, ob_cur_block);
     r_add_11 = n_28;
     r_add_11; });
-            (opt_nodes + n_27)->a = v_7;
+            (opt_nodes + n_27)->a = v_8;
             n_29 = ob_arg_vals[var_5];
             (opt_nodes + n_27)->aux = (opt_nodes + n_29)->aux;
             goto exit_write_5;
         }
-        opt_builder_write(var_5, v_7, ob_cur_block);
+        opt_builder_write(var_5, v_8, ob_cur_block);
     exit_write_5:;
         ob_param_slots = (opt_acts + a)->num_args + 1;
     }
