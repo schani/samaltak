@@ -63,6 +63,9 @@ void cleanup(int32_t entry)
         return;
     }
     split_critical_edges();
+    if (opt_full) {
+        return;
+    }
     compute_order(entry);
     if (((jit_flags & JIT_FLAG_GVN) != 0) || ((jit_flags & JIT_FLAG_HOIST) != 0)) {
         dominators(entry);
@@ -73,6 +76,9 @@ void cleanup(int32_t entry)
     }
     if ((jit_flags & JIT_FLAG_HOIST) != 0) {
         hoist_guards();
+    }
+    if (opt_full) {
+        return;
     }
     unbox_states();
     count_uses();

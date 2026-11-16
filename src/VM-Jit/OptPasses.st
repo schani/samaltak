@@ -49,12 +49,14 @@ cleanup: entry
 		self resolveOperands].
 	ir full ifTrue: [^self].
 	self splitCriticalEdges.
+	ir full ifTrue: [^self].
 	self computeOrder: entry.
 	((runtime flag: runtime gvnFlag) or: [runtime flag: runtime hoistFlag]) ifTrue: [self dominators: entry].
 	(runtime flag: runtime gvnFlag) ifTrue: [
 		self valueNumbers.
 		self resolveOperands].
 	(runtime flag: runtime hoistFlag) ifTrue: [self hoistGuards].
+	ir full ifTrue: [^self].
 	self unboxStates.
 	self countUses.
 	self removeDead.
