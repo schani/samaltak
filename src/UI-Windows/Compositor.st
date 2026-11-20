@@ -443,6 +443,7 @@ reportError: anException
 	| now |
 	now := Time millisecondClockValue.
 	lastError := anException.
+	[Transcript show: 'PROBE compositor error in world ', world identityHash printString, ' current=', (World current == world) printString, ': ', (Smalltalk errorReportFor: anException); cr] on: Error do: [:e | e return: nil].
 	now - lastErrorTime < 2000 ifTrue: [^self].
 	lastErrorTime := now.
 	Transcript show: 'Compositor error: ', ([anException messageText asString] on: Error do: [:e | e return: anException class name]); cr

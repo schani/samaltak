@@ -1,9 +1,16 @@
 TestCase subclass: #DebuggerUITest
-	instanceVariableNames: 'world previous savedOpener savedErrorHandler savedRegistry savedPointer savedWindowId cleanups'
+	instanceVariableNames: 'world previous savedOpener savedErrorHandler savedRegistry savedPointer savedWindowId cleanups lastResponse'
 	classVariableNames: ''
 	package: 'Tests-Tools-Debugger'!
 
 DebuggerUITest comment: 'End-to-end tests of the debugging tools in a real World on a hidden host window: code runs in a workspace (the core tools'' Workspace when loaded, else DebuggerTestWorkspace) in its own ''Workspace doIt'' Process, every interaction is real input injected through remote control (clicks and keys on refs like @w4.over, @w4.context.evaluator, @menu.integer), and the tests check the live Debugger, Notifier and Breakpoints windows and the debugged Processes. The walkthrough scenarios: a breakpoint on Integer>>gcd:, stepping Over by statements, a temporary''s value, a + b printed in the frame, Proceed; 3 zork, Create in Integer, edit and accept, Proceed; a watchpoint on p := 3 @ 4 hit by a forked mover, Unwatch, Proceed.'!
+
+!DebuggerUITest class methodsFor: 'probe'!
+testSelectors
+	| only |
+	only := Smalltalk vm getenv: 'SAMALTAK_PROBE_ONLY'.
+	^(only isNil or: [only isEmpty]) ifTrue: [super testSelectors] ifFalse: [Array with: only asSymbol]
+! !
 
 !DebuggerUITest methodsFor: 'running'!
 setUp
@@ -21,7 +28,14 @@ setUp
 !
 tearDown
 	"Whatever closing the windows does, the World stops and what setUp and the test replaced comes back: a World left running composites, records frames and takes remote input during the tests after this one, with this test's breakpoints still set."
-	[self trackDoIts.
+	(((Smalltalk vm getenv: 'SAMALTAK_PROBE') ifNil: ['']) = 'leak-raw' and: [testSelector == #testFullStackIntoRestartRunToHere]) ifTrue: [
+		"As before the tearDown was protected: this World stays."
+		world windows first close.
+		self error: 'probe: tearDown cut short after closing the first window, the World left running'].
+	[((Smalltalk vm getenv: 'SAMALTAK_PROBE') = 'leak' and: [testSelector == #testFullStackIntoRestartRunToHere]) ifTrue: [
+		world windows first close.
+		self error: 'probe: tearDown cut short after closing the first window'].
+	 self trackDoIts.
 	 world windows copy do: [:each | each close].
 	 world waitUntilSettled: 2000.
 	 self terminateForkedProcesses]
@@ -47,6 +61,7 @@ remote: aCommand with: pairs
 	pairs do: [:each | request at: each key put: each value].
 	"Remote input reduces Fractions (Integer>>gcd:): never stop at the tests' own breakpoints here."
 	response := Breakpoint ignoreDuring: [RemoteControl dispatch: (RemoteRequest on: request)].
+	lastResponse := aCommand -> response.
 	self assert: (response at: 'ok') description: aCommand, ' ', pairs printString, ' failed: ', (response at: 'error' ifAbsent: ['?']) asString.
 	^response
 !
@@ -71,7 +86,40 @@ ref: aWindow at: aString
 
 !DebuggerUITest methodsFor: 'support'!
 waitFor: aBlock description: aString
-	self assert: (self waitFor: aBlock timeout: 10000) description: ['timed out waiting for ', aString, ' (', self windowStates, ')']
+	| ok |
+	ok := self waitFor: aBlock timeout: 10000.
+	ok ifFalse: [
+		self probeDump: aString.
+		(Delay forMilliseconds: 3000) wait.
+		self probeDump: aString, ' (3 s later)'].
+	self assert: ok description: ['timed out waiting for ', aString, ' (', self windowStates, ')']
+!
+probeLine: aBlock
+	[Transcript show: 'PROBE ', aBlock value asString; cr] on: Error do: [:e |
+		Transcript show: 'PROBE (error: ', ([e messageText asString] on: Error do: [:e2 | e2 return: e class name]), ')'; cr.
+		e return: nil]
+!
+probeStack: aProcess named: aString
+	self probeLine: ['stack of ', aString, ': ', aProcess printString, ' state ', (RemoteControl processStateName: aProcess)].
+	[| frames |
+	 frames := aProcess stack.
+	 (frames copyFrom: 1 to: (frames size min: 16)) do: [:ctx | self probeLine: ['    ', ctx printString]]] on: Error do: [:e | self probeLine: ['    (no stack: ', e messageText asString, ')']. e return: nil]
+!
+probeDump: aString
+	| d |
+	self probeLine: ['---- ', testSelector, ' timed out waiting for ', aString].
+	self probeLine: ['last response: ', lastResponse printString].
+	world windows do: [:w |
+		self probeLine: ['window ', w remoteName printString, ' ', w title printString, ' ', w content class name, ' process=', w processState, ' readOnly=', w isReadOnlyObject printString, ' pending=', w hasPendingWork printString, ' busy=', w isBusy printString, ' focused=', w isFocused printString, ' bounds=', w bounds printString, ' keyboardFocus=', w keyboardFocus printString].
+		self probeLine: ['    text: ', ((w content widgetNamed: 'text') ifNil: ['(none)'] ifNotNil: [:e | e text printString])].
+		self probeStack: w process named: 'window ', w title].
+	self probeLine: ['closing ', world closingWindows size printString, ' overlays ', world overlays size printString, ' active ', (world activeWindow ifNil: ['nil'] ifNotNil: [:w | w title printString]), ' keyTarget ', (world keyTarget ifNil: ['nil'] ifNotNil: [:w | w title printString]), ' settled ', world isSettled printString, ' current ', (World current == world) printString].
+	d := world dispatcher.
+	self probeLine: ['dispatcher idle=', d isIdle printString, ' standIn=', d standIn printString, ' gesture=', d gesture printString, ' pressed=', (d instVarNamed: 'pressed') printString, ' capture=', (d instVarNamed: 'captureWindow') printString, ' inbox=', (d instVarNamed: 'inbox') size printString, ' excess=', (d instVarNamed: 'semaphore') excessSignals printString, ' running=', (d instVarNamed: 'running') printString, ' pointer=', d pointer printString, ' dispatchers=', InputDispatcher running size printString, ' last=', (InputDispatcher running last == d) printString].
+	self probeStack: d process named: 'dispatcher'.
+	self probeLine: ['watchpoints ', Watchpoint all printString, ' remote pointer ', RemoteInputDevice default pointer printString].
+	Processor allProcesses do: [:p |
+		self probeLine: ['process ', p name printString, ' pri ', p priority printString, ' ', (RemoteControl processStateName: p)]]
 !
 windowStates
 	"The open windows, each with the state of its Process: a window whose Process is suspended (a Notifier holds it) takes no input."

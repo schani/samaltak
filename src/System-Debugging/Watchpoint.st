@@ -149,6 +149,7 @@ diversionFor: anException
 	| target watchpoint |
 	(anException isKindOf: ModificationForbidden) ifFalse: [^nil].
 	target := anException object.
+	self probeStall: 'race-divert'.
 	^Lock critical: [
 		(self isWatching: target)
 			ifTrue: [
@@ -209,6 +210,11 @@ changed: aWatchpoint
 ! !
 
 !Watchpoint class methodsFor: 'private'!
+probeStall: aString
+	"CI probe: a window's Process stalls here, so that an unwatch from another Process lands in between."
+	((Smalltalk vm getenv: 'SAMALTAK_PROBE') = aString and: [Processor activeProcess window notNil])
+		ifTrue: [(Delay forMilliseconds: 30) wait]
+!
 handleModification: aModificationForbidden watchpoint: aWatchpointOrNil
 	"A store into a watched object failed. Halt for a matching watchpoint, then perform the store and answer the stored value."
 	(aWatchpointOrNil notNil and: [Breakpoint scope: aWatchpointOrNil scope accepts: Processor activeProcess]) ifTrue: [
@@ -225,6 +231,7 @@ performStore: aModificationForbidden
 	target := aModificationForbidden object.
 	error := Lock critical: [ | wasReadOnly |
 		wasReadOnly := target isReadOnlyObject.
+		self probeStall: 'race-store'.
 		target beWritableObject.
 		[[aModificationForbidden fieldIndex isNil
 			ifTrue: [target perform: aModificationForbidden retrySelector with: aModificationForbidden newValue]

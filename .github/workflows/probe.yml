@@ -1,0 +1,60 @@
+name: Probe
+
+# CI probe, not for merging: amplifies DebuggerUITest under the deoptimization-stress JIT flags.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.mode }} ${{ matrix.n }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mode: only, n: 1 }
+          - { mode: only, n: 2 }
+          - { mode: only, n: 3 }
+          - { mode: only, n: 4 }
+          - { mode: only-load, n: 1 }
+          - { mode: only-load, n: 2 }
+          - { mode: race-divert, n: 1 }
+          - { mode: race-store, n: 1 }
+          - { mode: class, n: 1 }
+          - { mode: class, n: 2 }
+          - { mode: files, n: 1 }
+          - { mode: leak, n: 1 }
+          - { mode: leak-raw, n: 1 }
+          - { mode: leak-raw, n: 2 }
+    runs-on: ubuntu-24.04
+    container: debian:bookworm-slim
+    timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      SDL_VIDEODRIVER: x11
+      SDL_VIDEO_X11_SCALING_FACTOR: '2'
+      VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+      XDG_RUNTIME_DIR: /tmp/samaltak-runtime
+      SAMALTAK_PROBE: ${{ matrix.mode }}
+    steps:
+      - name: Install build and test dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git build-essential nodejs python3 perl less \
+            xvfb xauth mesa-vulkan-drivers \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+      - uses: actions/checkout@v6
+      - name: Install SDL3 and shaderc
+        run: .agents/setup
+      - name: Build
+        run: make image
+      - name: Probe ${{ matrix.mode }}
+        run: |
+          mkdir -p .context "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          xvfb-run -a -s '-screen 0 1280x1024x24' tests/probe.sh "$SAMALTAK_PROBE"
