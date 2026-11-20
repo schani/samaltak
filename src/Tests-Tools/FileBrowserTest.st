@@ -15,8 +15,7 @@ setUp
 	self assert: (self waitFor: [window isFocused]) description: 'the window did not get the focus'
 !
 tearDown
-	"Settled first: a window closed while it draws fails in Canvas>>record:'s unwinding."
-	window isNil ifFalse: [self settle. window close].
+	window isNil ifFalse: [window close].
 	super tearDown
 ! !
 

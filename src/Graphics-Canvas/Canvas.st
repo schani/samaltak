@@ -167,7 +167,7 @@ image: anImage from: sourceRect in: aRectangle
 	self replicateVertexAt: p
 !
 record: aBlock
-	"Draw aBlock and answer a DisplaySegment of what it drew, for replay: on a later canvas."
+	"Draw aBlock and answer a DisplaySegment of what it drew, for replay: on a later canvas. If aBlock does not complete (an exception, or another Process terminates mine wherever it is, as Window>>close does) there is no segment: what was drawn belongs to the segment recorded around this one."
 	| segment |
 	self closeRun.
 	segment := DisplaySegment scale: scale opacity: opacity deviceX: originX * scale deviceY: originY * scale
@@ -175,13 +175,15 @@ record: aBlock
 	segment glyphGeneration: GlyphGeneration.
 	segment runStart: next - 1 // 40.
 	building addLast: segment.
-	aBlock ensure: [
-		self closeRun.
-		"Down to segment: an inner record:'s ensure block cut short (its Process terminated by another) leaves its segment on top."
-		[building removeLast == segment] whileFalse.
-		segment finish.
-		building isEmpty ifTrue: [segment compactVertices].
-		building isEmpty ifFalse: [building last addPart: segment dx: 0 dy: 0; runStart: next - 1 // 40]].
+	aBlock ifCurtailed: [
+		"Only drop segment and those left on it: a Process terminated between two stores leaves their parts and runs half made, not to be read."
+		[building isEmpty or: [building removeLast == segment]] whileFalse].
+	self closeRun.
+	building removeLast.
+	segment finish.
+	building isEmpty
+		ifTrue: [segment compactVertices]
+		ifFalse: [building last addPart: segment dx: 0 dy: 0; runStart: next - 1 // 40].
 	^segment
 ! !
 

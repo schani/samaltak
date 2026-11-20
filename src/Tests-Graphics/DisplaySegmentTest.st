@@ -28,24 +28,6 @@ record
 ! !
 
 !DisplaySegmentTest methodsFor: 'tests'!
-testTerminatedInAnInnerRecordsEnsureBlock
-	"Another Process terminates one stopped in an inner record:'s ensure block (as Window>>close may): the outer record: still unwinds."
-	| c p sim pops |
-	c := Canvas extent: 200 @ 100 scale: 2.
-	p := [c record: [
-		c fillRect: (0 @ 0 extent: 4 @ 4) color: Color black.
-		c record: [c fillRect: (4 @ 0 extent: 4 @ 4) color: Color black].
-		c record: [c fillRect: (8 @ 0 extent: 4 @ 4) color: Color black]]] newProcess.
-	sim := Simulator new process: p.
-	pops := 0.
-	"To the second inner record:'s ensure block, before it pops its segment."
-	[sim isStopped or: [(sim top method == (Canvas >> #record:) and: [sim top isBlockContext
-		and: [sim top instructionStream peekInstruction arguments includes: #removeLast]]) and: [(pops := pops + 1) = 2]]]
-			whileFalse: [sim stepProcess].
-	self deny: sim isStopped.
-	p terminate.
-	self assert: c displayList quadCount equals: 3
-!
 testReplayDrawsLikeDrawingAnew
 	| segment replayed drawn |
 	segment := self record.

@@ -3,7 +3,7 @@ TestCase subclass: #CanvasTest
 	classVariableNames: ''
 	package: 'Tests-Graphics'!
 
-CanvasTest comment: 'I check what a Canvas records into a DisplayList (no GPU needed): device-pixel snapping, translation, clipping into scissored batches and culling, texture batching, opacity.'!
+CanvasTest comment: 'I check what a Canvas records into a DisplayList (no GPU needed): device-pixel snapping, translation, clipping into scissored batches and culling, texture batching, opacity; a record: cut short (an exception, its Process terminated by another) leaves its drawing to the segment around it and the Canvas recording.'!
 
 !CanvasTest methodsFor: 'running'!
 setUp
@@ -180,4 +180,55 @@ testScratchBufferCanBeReusedAfterConsumption
 	canvas := Canvas extent: 200 @ 100 scale: 2.
 	canvas append: segment dx: 0 dy: 0.
 	self assert: (((canvas displayList) quadAt: 1) at: #rect) equals: (Rectangle left: 0 right: 2 top: 0 bottom: 2)
+!
+testRecordCutShortLeavesItsDrawingToTheOuterSegment
+	| outer list |
+	outer := canvas record: [
+		canvas fillRect: (0 @ 0 extent: 4 @ 4) color: Color black.
+		[canvas record: [
+			canvas fillRect: (4 @ 0 extent: 4 @ 4) color: Color black.
+			1 / 0]] on: ZeroDivide do: [:e | e return: nil].
+		canvas fillRect: (8 @ 0 extent: 4 @ 4) color: Color black].
+	self assert: outer quadCount equals: 3.
+	canvas := Canvas extent: 200 @ 100 scale: 2.
+	self assert: (canvas replay: outer).
+	list := canvas displayList.
+	self assert: list quadCount equals: 3.
+	self assert: ((list quadAt: 2) at: #rect) equals: (Rectangle left: 8 right: 16 top: 0 bottom: 8)
+!
+testTerminatedWhereAnInnerRecordEnds
+	"Another Process terminates one stopped where an inner record: ends, its segment not yet popped (as Window>>close may): the outer record: still unwinds, and I record again."
+	| p sim pops segment |
+	p := [canvas record: [
+		canvas fillRect: (0 @ 0 extent: 4 @ 4) color: Color black.
+		canvas record: [canvas fillRect: (4 @ 0 extent: 4 @ 4) color: Color black].
+		canvas record: [canvas fillRect: (8 @ 0 extent: 4 @ 4) color: Color black]]] newProcess.
+	sim := Simulator new process: p.
+	pops := 0.
+	"To the end of the second inner record:, before it pops its segment."
+	[sim isStopped or: [(sim top method == (Canvas >> #record:)
+		and: [sim top instructionStream peekInstruction arguments includes: #removeLast]) and: [(pops := pops + 1) = 2]]]
+			whileFalse: [sim stepProcess].
+	self deny: sim isStopped.
+	p terminate.
+	segment := canvas record: [canvas fillRect: (12 @ 0 extent: 4 @ 4) color: Color black].
+	self assert: segment isLeaf.
+	self assert: segment quadCount equals: 1.
+	self assert: canvas displayList quadCount equals: 4
+!
+testTerminatedWhileASegmentTakesAPart
+	"Another Process terminates one stopped while the segment it records takes a part, the part added but not yet its move (as Window>>close may, the window's Process drawing): the unwinding reads no segment, and I record again."
+	| p sim adds segment |
+	p := [canvas record: [canvas record: []]] newProcess.
+	sim := Simulator new process: p.
+	adds := 0.
+	[sim isStopped or: [(sim top method == (DisplaySegment >> #addPart:dx:dy:)
+		and: [sim top instructionStream peekInstruction arguments includes: #add:]) and: [(adds := adds + 1) = 2]]]
+			whileFalse: [sim stepProcess].
+	self deny: sim isStopped.
+	p terminate.
+	segment := canvas record: [canvas fillRect: (0 @ 0 extent: 4 @ 4) color: Color black].
+	self assert: segment isLeaf.
+	self assert: segment quadCount equals: 1.
+	self assert: canvas displayList quadCount equals: 1
 ! !
