@@ -20,18 +20,20 @@ setUp
 	world waitUntilSettled: 3000
 !
 tearDown
-	self trackDoIts.
-	world windows copy do: [:each | each close].
-	world waitUntilSettled: 2000.
-	self terminateForkedProcesses.
-	cleanups reverseDo: [:each | [each value] on: Error do: [:e | e return: nil]].
-	UIRemote uninstall.
-	RemoteControl registryState: savedRegistry.
-	RemoteInputDevice default pointer: savedPointer; windowId: savedWindowId.
-	world stop.
-	World current: previous.
-	DebugSession openerBlock: savedOpener.
-	Window errorHandler: savedErrorHandler
+	"Whatever closing the windows does, the World stops and what setUp and the test replaced comes back: a World left running composites, records frames and takes remote input during the tests after this one, with this test's breakpoints still set."
+	[self trackDoIts.
+	 world windows copy do: [:each | each close].
+	 world waitUntilSettled: 2000.
+	 self terminateForkedProcesses]
+		ensure: [
+			cleanups reverseDo: [:each | [each value] on: Error do: [:e | e return: nil]].
+			UIRemote uninstall.
+			RemoteControl registryState: savedRegistry.
+			RemoteInputDevice default pointer: savedPointer; windowId: savedWindowId.
+			world stop.
+			World current: previous.
+			DebugSession openerBlock: savedOpener.
+			Window errorHandler: savedErrorHandler]
 !
 timeLimitMilliseconds
 	^60000
