@@ -1,16 +1,18 @@
 Object subclass: #GlyphAtlasPage
-	instanceVariableNames: 'size pixels shelves dirtyTop dirtyBottom texture uploadedGeneration'
+	instanceVariableNames: 'size pixels shelves dirty texture uploadedGeneration'
 	classVariableNames: ''
 	package: 'Graphics-Canvas'!
 
-GlyphAtlasPage comment: 'I am one square R8 page of a GlyphAtlas: the CPU copy of the coverage (pixels, a ByteArray, rows top to bottom), shelf packing state, and the GPU texture, which I upload when rows changed (only the dirty band) or when the texture lost its contents (new session).'!
+GlyphAtlasPage comment: 'I am one square R8 page of a GlyphAtlas: the CPU copy of the coverage (pixels, a ByteArray, rows top to bottom), shelf packing state, and the GPU texture, which I upload when rows changed (only the dirty band) or when the texture lost its contents (new session).
+
+A window''s Process stores a glyph while a compositor uploads, and two Worlds'' compositors upload at once: dirty, the rows changed since the last upload ({top. bottom}, or nil), is one object that store:width:height:at: replaces and textureOn: takes, never a pair of variables changed one after the other.'!
 
 !GlyphAtlasPage methodsFor: 'initialization'!
 setSize: anInteger
 	size := anInteger.
 	pixels := ByteArray new: anInteger * anInteger.
 	shelves := OrderedCollection new.
-	dirtyTop := nil.
+	dirty := nil.
 	uploadedGeneration := nil
 ! !
 
@@ -50,35 +52,43 @@ allocateWidth: w height: h
 	^0 @ y
 !
 store: coverage width: w height: h at: aPoint
-	"Copy a w×h coverage ByteArray into my pixels at aPoint (0-based)."
+	"Copy a w×h coverage ByteArray into my pixels at aPoint (0-based). One Process at a time (GlyphAtlas>>add:width:height:); an upload may take the dirty rows meanwhile: mine are then dirty with those it took."
 	| x y |
 	x := aPoint x.
 	y := aPoint y.
 	0 to: h - 1 do: [:row |
 		pixels replaceFrom: (y + row) * size + x + 1 to: (y + row) * size + x + w with: coverage startingAt: row * w + 1].
-	dirtyTop isNil
-		ifTrue: [dirtyTop := y. dirtyBottom := y + h]
-		ifFalse: [dirtyTop := dirtyTop min: y. dirtyBottom := dirtyBottom max: y + h]
+	self dirtyFrom: y to: y + h
+!
+dirtyFrom: top to: bottom
+	"The rows top to bottom - 1 are to be uploaded, with those already dirty."
+	| band |
+	band := dirty.
+	dirty := band isNil
+		ifTrue: [Array with: top with: bottom]
+		ifFalse: [Array with: (band first min: top) with: (band last max: bottom)]
 ! !
 
 !GlyphAtlasPage methodsFor: 'rendering'!
 textureOn: aDevice
-	"Answer my GPU texture, uploading what changed since the last upload."
-	| generation band |
+	"Answer my GPU texture, uploading what changed since the last upload. The dirty rows are taken before they are uploaded: what is stored meanwhile is dirty again."
+	| generation band top bottom |
 	(texture isNil or: [texture device ~~ aDevice]) ifTrue: [
 		texture := aDevice textureWidth: size height: size format: #r8 usage: #(#sampler).
 		uploadedGeneration := nil].
 	generation := texture generation.
+	band := dirty.
+	dirty := nil.
 	uploadedGeneration = generation
 		ifFalse: [
 			texture upload: pixels.
-			uploadedGeneration := generation.
-			dirtyTop := nil]
+			uploadedGeneration := generation]
 		ifTrue: [
-			dirtyTop isNil ifFalse: [
-				band := pixels copyFrom: dirtyTop * size + 1 to: dirtyBottom * size.
-				texture upload: band x: 0 y: dirtyTop width: size height: dirtyBottom - dirtyTop bytesPerRow: size.
-				dirtyTop := nil]].
+			band isNil ifFalse: [
+				top := band first.
+				bottom := band last.
+				[texture upload: (pixels copyFrom: top * size + 1 to: bottom * size) x: 0 y: top width: size height: bottom - top bytesPerRow: size]
+					ifCurtailed: [self dirtyFrom: top to: bottom]]].
 	^texture
 !
 isLinearFiltered
