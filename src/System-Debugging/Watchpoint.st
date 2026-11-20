@@ -1,9 +1,11 @@
 Object subclass: #Watchpoint
 	instanceVariableNames: 'object fieldName fieldIndex hits enabled scope'
-	classVariableNames: 'Watches ReadOnlyBefore Listeners'
+	classVariableNames: 'Watches ReadOnlyBefore Listeners Lock'
 	package: 'System-Debugging'!
 
 Watchpoint comment: 'I halt the process that stores into a field of a watched object ("halt on write"). Watching sets the object''s immutability bit, so the VM''s existing store check catches the write (ModificationForbidden): no cost for anything else. A store into my field signals WatchpointHit; proceeding then performs the store and the object stays watched. Stores into other fields of a watched object are performed silently. unwatch makes the object writable again (unless it was read-only before).
+
+Processes store into a watched object while another adds or removes its watchpoints (a window''s Process handles events while the Debugger''s unwatches the window): Lock makes watching, unwatching, the decision about a refused store and the store itself exclude each other, and a store refused while the object was watched is performed even if the watchpoint has gone by then.
 
 	w := Watchpoint on: aPoint instVarNamed: #x.
 	w := Watchpoint on: anArray.	"any write"
@@ -85,12 +87,13 @@ matches: aModificationForbidden
 unwatch
 	"Stop watching; the object becomes writable again unless it was read-only before or other watchpoints remain."
 	| list |
-	list := Watches at: object ifAbsent: [^self].
-	list remove: self ifAbsent: [^self].
-	list isEmpty ifTrue: [
-		Watches removeKey: object.
-		(ReadOnlyBefore at: object ifAbsent: [false]) ifFalse: [object beWritableObject].
-		ReadOnlyBefore removeKey: object ifAbsent: [nil]].
+	Lock critical: [
+		list := Watches at: object ifAbsent: [^self].
+		list remove: self ifAbsent: [^self].
+		list isEmpty ifTrue: [
+			Watches removeKey: object.
+			(ReadOnlyBefore at: object ifAbsent: [false]) ifFalse: [object beWritableObject].
+			ReadOnlyBefore removeKey: object ifAbsent: [nil]]].
 	self class changed: self
 !
 remove
@@ -111,13 +114,14 @@ setObject: anObject fieldName: aStringOrNil
 !
 install
 	| list |
-	list := Watches at: object ifAbsent: [nil].
-	list isNil ifTrue: [
-		ReadOnlyBefore at: object put: object isReadOnlyObject.
-		list := OrderedCollection new.
-		Watches at: object put: list].
-	list add: self.
-	object beReadOnlyObject.
+	Lock critical: [
+		list := Watches at: object ifAbsent: [nil].
+		list isNil ifTrue: [
+			ReadOnlyBefore at: object put: object isReadOnlyObject.
+			list := OrderedCollection new.
+			Watches at: object put: list].
+		list add: self.
+		object beReadOnlyObject].
 	self class changed: self
 !
 hit
@@ -135,19 +139,25 @@ initialize
 	Watches isNil ifTrue: [Watches := IdentityDictionary new].
 	ReadOnlyBefore isNil ifTrue: [ReadOnlyBefore := IdentityDictionary new].
 	Listeners isNil ifTrue: [Listeners := OrderedCollection new].
+	Lock isNil ifTrue: [Lock := Mutex new].
 	Exception signalHook: [:anException | Watchpoint diversionFor: anException]
 ! !
 
 !Watchpoint class methodsFor: 'diverting stores'!
 diversionFor: anException
-	"Exception signal hook: a store into a watched object goes to its Watchpoints instead of the handlers (a watched field halts with a WatchpointHit, other fields are stored silently). Answer nil to let anException be handled as usual, else the block that handles it (its value is the stored value)."
-	| watchpoint |
-	Watches isEmpty ifTrue: [^nil].
+	"Exception signal hook: a store into a watched object goes to its Watchpoints instead of the handlers (a watched field halts with a WatchpointHit, other fields are stored silently). So does a store whose object is not read-only any more: it was refused while the object was watched, and another process has removed the watchpoint since. Answer nil to let anException be handled as usual, else the block that handles it (its value is the stored value)."
+	| target watchpoint |
 	(anException isKindOf: ModificationForbidden) ifFalse: [^nil].
-	(self isWatching: anException object) ifFalse: [^nil].
-	watchpoint := self watchpointFor: anException.
-	(watchpoint isNil and: [self wasReadOnlyBeforeWatching: anException object]) ifTrue: [^nil].
-	^[self handleModification: anException watchpoint: watchpoint]
+	target := anException object.
+	^Lock critical: [
+		(self isWatching: target)
+			ifTrue: [
+				watchpoint := self watchpointFor: anException.
+				(watchpoint isNil and: [self wasReadOnlyBeforeWatching: target]) ifFalse: [
+					[self handleModification: anException watchpoint: watchpoint]]]
+			ifFalse: [
+				(target isReadOnlyObject or: [anException retrySelector isNil]) ifFalse: [
+					[self performStore: anException]]]]
 ! !
 
 !Watchpoint class methodsFor: 'instance creation'!
@@ -200,7 +210,7 @@ changed: aWatchpoint
 
 !Watchpoint class methodsFor: 'private'!
 handleModification: aModificationForbidden watchpoint: aWatchpointOrNil
-	"A store into a watched object failed. Halt for a matching watchpoint, then perform the store (temporarily lifting the read-only bit if the object is still watched) and answer the stored value."
+	"A store into a watched object failed. Halt for a matching watchpoint, then perform the store and answer the stored value."
 	(aWatchpointOrNil notNil and: [Breakpoint scope: aWatchpointOrNil scope accepts: Processor activeProcess]) ifTrue: [
 		aWatchpointOrNil hit.
 		WatchpointHit new
@@ -210,13 +220,17 @@ handleModification: aModificationForbidden watchpoint: aWatchpointOrNil
 	^self performStore: aModificationForbidden
 !
 performStore: aModificationForbidden
-	| target wasReadOnly |
+	"Perform the refused store, the read-only bit lifted for it if the object has it (it is still watched), and answer the stored value. No watchpoint comes or goes meanwhile. An error of the store itself (an index out of bounds) is signaled once the object is as it was."
+	| target error |
 	target := aModificationForbidden object.
-	wasReadOnly := target isReadOnlyObject.
-	target beWritableObject.
-	[aModificationForbidden fieldIndex isNil
-		ifTrue: [target perform: aModificationForbidden retrySelector with: aModificationForbidden newValue]
-		ifFalse: [target perform: aModificationForbidden retrySelector with: aModificationForbidden fieldIndex with: aModificationForbidden newValue]]
-		ensure: [wasReadOnly ifTrue: [target beReadOnlyObject]].
+	error := Lock critical: [ | wasReadOnly |
+		wasReadOnly := target isReadOnlyObject.
+		target beWritableObject.
+		[[aModificationForbidden fieldIndex isNil
+			ifTrue: [target perform: aModificationForbidden retrySelector with: aModificationForbidden newValue]
+			ifFalse: [target perform: aModificationForbidden retrySelector with: aModificationForbidden fieldIndex with: aModificationForbidden newValue].
+		  nil] on: Error do: [:e | e return: e]]
+			ensure: [wasReadOnly ifTrue: [target beReadOnlyObject]]].
+	error isNil ifFalse: [^error signal].
 	^aModificationForbidden newValue
 ! !

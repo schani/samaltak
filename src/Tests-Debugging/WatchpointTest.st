@@ -3,7 +3,7 @@ DebuggingTestCase subclass: #WatchpointTest
 	classVariableNames: ''
 	package: 'Tests-Debugging'!
 
-WatchpointTest comment: 'Tests of watchpoints: a forked process storing into a watched field stops; proceeding performs the store.'!
+WatchpointTest comment: 'Tests of watchpoints: a forked process storing into a watched field stops; proceeding performs the store; a watchpoint removed by another process while a store into its object is under way leaves the store performed and the object writable.'!
 
 !WatchpointTest methodsFor: 'running'!
 tearDown
@@ -153,4 +153,55 @@ testUnwatchRestoresReadOnlyState
 	wp unwatch.
 	self assert: literal isReadOnlyObject.
 	self assert: Watchpoint all isEmpty
+!
+testUnwatchedBetweenTheRefusedStoreAndItsDiversion
+	"A process's store into a watched object is refused; before the signal hook has looked for the watchpoint, another process removes it (the Debugger's Unwatch while the watched window's Process handles events): the store is performed, not reported as an error."
+	| p wp mover sim |
+	p := 3 @ 4.
+	wp := Watchpoint on: p instVarNamed: #x.
+	mover := [p y: 10] newProcess.
+	self track: mover.
+	sim := Simulator new process: mover.
+	[sim isStopped or: [sim top method == (Watchpoint class >> #diversionFor:)]] whileFalse: [sim stepProcess].
+	self deny: sim isStopped.
+	self assert: p y equals: 4.
+	wp unwatch.
+	mover resume.
+	self waitUntilTerminated: mover.
+	self assert: p equals: 3 @ 10.
+	self deny: p isReadOnlyObject.
+	self assert: sessions isEmpty
+!
+testUnwatchedWhileTheRefusedStoreIsPerformed
+	"A process performs its refused store, the read-only bit about to be lifted for it; another process removes the watchpoint meanwhile: the object ends writable."
+	| p wp mover sim unwatcher |
+	p := 3 @ 4.
+	wp := Watchpoint on: p instVarNamed: #x.
+	mover := [p y: 10] newProcess.
+	self track: mover.
+	sim := Simulator new process: mover.
+	[sim isStopped or: [sim top method == (Watchpoint class >> #performStore:)
+		and: [sim top instructionStream peekInstruction arguments includes: #beWritableObject]]] whileFalse: [sim stepProcess].
+	self deny: sim isStopped.
+	unwatcher := self fork: [wp unwatch].
+	Processor yield.
+	mover resume.
+	self waitUntilTerminated: mover.
+	self waitUntilTerminated: unwatcher.
+	self assert: p equals: 3 @ 10.
+	self deny: p isReadOnlyObject description: 'the unwatched object stayed read-only'.
+	self assert: Watchpoint all isEmpty
+!
+testAStoreThatFailsWhileWatched
+	"A store into a watched object that fails for another reason (an index out of bounds) is that error in the storing process; the object stays watched and its next store is performed."
+	| array |
+	array := Array new: 2.
+	Watchpoint on: array.
+	Breakpoint processFilter: [:process | false].
+	self assert: ([array at: 3 put: #c. #stored] on: SubscriptOutOfBounds do: [:e | e return: #bounds]) equals: #bounds.
+	self assert: array isReadOnlyObject.
+	array at: 1 put: #a.
+	self assert: array equals: #(#a nil).
+	self assert: array isReadOnlyObject.
+	self assert: sessions isEmpty
 ! !

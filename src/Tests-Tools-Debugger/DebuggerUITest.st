@@ -71,7 +71,14 @@ ref: aWindow at: aString
 
 !DebuggerUITest methodsFor: 'support'!
 waitFor: aBlock description: aString
-	self assert: (self waitFor: aBlock timeout: 10000) description: 'timed out waiting for ', aString
+	self assert: (self waitFor: aBlock timeout: 10000) description: ['timed out waiting for ', aString, ' (', self windowStates, ')']
+!
+windowStates
+	"The open windows, each with the state of its Process: a window whose Process is suspended (a Notifier holds it) takes no input."
+	^String new: 100 streamContents: [:s |
+		world windows
+			do: [:each | s nextPutAll: each title; nextPutAll: ': '; nextPutAll: each processState]
+			separatedBy: [s nextPutAll: ', ']]
 !
 trackDoIts
 	"Have the workspaces' do-its (and the Processes the core Workspace's do-its forked) terminated after the test."
