@@ -1,0 +1,64 @@
+name: Probe
+
+# CI probe, not for merging: AgentWindowTest>>testATurnShowsItsItems many times under the deoptimization stress
+# flags, with the sources of main (before) and of this branch (after); "forced" holds ask: between its two
+# state changes.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: before 1, src: before, forced: no, count: 100, rounds: 5, strict: no}
+          - {name: before 2, src: before, forced: no, count: 100, rounds: 5, strict: no}
+          - {name: before 3, src: before, forced: no, count: 100, rounds: 5, strict: no}
+          - {name: after 1, src: after, forced: no, count: 100, rounds: 5, strict: yes}
+          - {name: after 2, src: after, forced: no, count: 100, rounds: 5, strict: yes}
+          - {name: after 3, src: after, forced: no, count: 100, rounds: 5, strict: yes}
+          - {name: before forced, src: before, forced: yes, count: 20, rounds: 1, strict: no}
+          - {name: after forced, src: after, forced: yes, count: 20, rounds: 1, strict: yes}
+    runs-on: ubuntu-24.04
+    container: debian:bookworm-slim
+    timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      SDL_VIDEODRIVER: x11
+      SDL_VIDEO_X11_SCALING_FACTOR: '2'
+      VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+      XDG_RUNTIME_DIR: /tmp/samaltak-runtime
+      BASE: a77c695e48a69c104dd2860d563fdd1334757fa7
+    steps:
+      - name: Install build and test dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git build-essential nodejs python3 perl less \
+            xvfb xauth mesa-vulkan-drivers \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install SDL3 and shaderc
+        run: .agents/setup
+      - name: Sources of ${{ matrix.src }}, forced ${{ matrix.forced }}
+        run: |
+          git config --global --add safe.directory '*'
+          if [ "${{ matrix.src }}" = before ]; then git checkout "$BASE" -- src/System-Agent src/Tests-Agent src/Tests-Tools-Agent; fi
+          sed "s/PROBE_COUNT/${{ matrix.count }}/" .github/probe/AgentAskProbeTest.st >src/Tests-Tools-Agent/AgentAskProbeTest.st
+          if [ "${{ matrix.forced }}" = yes ]; then python3 -I .github/probe/force.py src/System-Agent/AgentConversation.st "${{ matrix.src }}"; fi
+          git status --short
+          git diff -- src/System-Agent/AgentConversation.st
+      - name: Probe
+        run: |
+          mkdir -p .context "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          xvfb-run -a -s '-screen 0 1280x1024x24' sh .github/probe/run.sh ${{ matrix.rounds }} 30 ${{ matrix.strict }}
