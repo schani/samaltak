@@ -168,6 +168,21 @@ testStopDuringCell
 	self assert: (request collect: [:each | each at: 'type']) equals: #('message' 'message' 'custom_tool_call' 'custom_tool_call_output' 'message').
 	self assert: ((request at: 4) at: 'output') equals: 'error: stopped by the user'
 !
+testACellEndsWithTheProcessWaitingForIt
+	"Wherever that Process is terminated (Stop terminates the turn's): step a Process through a cell's evaluation until the cell's Process runs, and terminate it there."
+	| item session cells left |
+	item := AgentItem call: (self code: '(Delay forSeconds: 30) wait' call: 'c1') kind: #code text: '(Delay forSeconds: 30) wait'.
+	session := DebugSession debugProcess: (self track: [(conversation toolNamed: 'code-mode') evaluate: item in: conversation] newProcess).
+	cells := [Processor allProcesses select: [:p | p name = 'agent code-mode']].
+	[session interruptedContext selector == #evaluate:in:] whileFalse: [session stepInto].
+	[cells value isEmpty] whileTrue: [session stepThrough].
+	session stepThrough.
+	self deny: cells value first isSuspended description: 'the cell''s Process does not run yet'.
+	session terminate.
+	left := cells value.
+	left do: [:each | each terminate].
+	self assert: left isEmpty description: 'the cell''s Process is still there'
+!
 testProviderError
 	provider fail: 'The network is down'.
 	self assert: (conversation ask: 'hi'; wait) equals: 'The network is down'.

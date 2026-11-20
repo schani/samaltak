@@ -42,20 +42,20 @@ run: aCallDictionary in: anAgentConversation
 	^item result
 !
 evaluate: anAgentItem in: anAgentConversation
-	"Run anAgentItem's source in a new Process and wait for it; give anAgentItem its value or error and its output."
+	"Run anAgentItem's source in a new Process and wait for it; give anAgentItem its value or error and its output. That Process ends with the wait, also when the waiting Process is terminated, wherever it is."
 	| done value text error process |
 	done := Semaphore new.
-	process := [
+	[process := [
 		[[[value := anAgentConversation context evaluate: anAgentItem text bindings: anAgentConversation objectBindings.
 		   text := self printStringOf: value]
 			on: SyntaxError do: [:e | error := 'syntax error: ', e messageText asString. e return: nil]]
 			on: UnhandledError do: [:e | error := self describeError: e exception. e return: nil]]
 				ensure: [done signal]] newProcess.
-	process priority: Processor userSchedulingPriority; name: 'agent code-mode'.
-	process resume.
-	[(done waitTimeoutMSecs: (timeout * 1000) rounded)
+	 process priority: Processor userSchedulingPriority; name: 'agent code-mode'.
+	 process resume.
+	 (done waitTimeoutMSecs: (timeout * 1000) rounded)
 		ifTrue: [error := 'error: terminated after ', timeout printString, ' s']]
-			ensure: [process terminate].
+			ensure: [process isNil ifFalse: [process terminate]].
 	(error isNil and: [text isNil]) ifTrue: [error := 'error: terminated'].
 	error notNil ifTrue: [
 		anAgentItem failed: true.
