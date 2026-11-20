@@ -181,6 +181,19 @@ testBusy
 	self should: [conversation ask: 'two'] raise: Error.
 	conversation stop
 !
+testBusyBeforeTheMessageIsThere
+	"Whenever another Process looks: step a Process through its ask:, looking after every step."
+	| session frame |
+	provider block.
+	session := DebugSession debugProcess: (self track: [conversation ask: 'hi'] newProcess).
+	[session interruptedContext selector == #ask:images:] whileFalse: [session stepInto].
+	frame := session interruptedContext.
+	[frame isDead] whileFalse: [
+		session stepOver: frame.
+		self assert: (conversation items isEmpty or: [conversation isBusy]) description: 'the message is there, the conversation not busy'].
+	self assert: conversation items size equals: 1.
+	session terminate
+!
 testOnChange
 	| texts busy |
 	texts := OrderedCollection new.

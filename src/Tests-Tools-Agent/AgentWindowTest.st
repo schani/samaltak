@@ -25,12 +25,13 @@ openAgent
 !
 ask: aString in: anAgentWindow
 	"Type aString into the ASK editor and press Return, as the user does; wait for the turn and the transcript."
-	| view |
+	| view asked |
 	view := anAgentWindow content.
+	asked := view conversation items size.
 	self in: anAgentWindow do: [view askEditor text: aString; focus].
 	self settle.
 	self key: #return modifiers: 0.
-	self assert: (self waitFor: [view conversation items notEmpty and: [view conversation isBusy not]]) description: 'the turn did not end'.
+	self assert: (self waitFor: [view conversation items size > asked and: [view conversation isBusy not]]) description: 'the turn did not end'.
 	self assert: (self waitFor: [anAgentWindow queue isEmpty and: [(self kindsIn: anAgentWindow) size = (self shownItemsIn: view)]]) description: 'the transcript did not follow'
 !
 shownItemsIn: anAgentWindowView

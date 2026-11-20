@@ -7,7 +7,7 @@ AgentConversation comment: 'I am a conversation with the coding agent (docs/agen
 
 	(AgentConversation new ask: ''how many classes are in UI-Widgets?'') wait
 
-ask: runs a turn in a Process of its own (''agent turn''): send the developer instructions and every item''s wire to the provider, show the streamed text, record the completed output items in order and run each tool call; while there were tool calls, send again. Any error ends the turn with an #error item. ask: while a turn runs is an error. stop ends a turn from another Process: the provider is cancelled, the turn''s Process and its running cell terminated, every tool call left without output answered ''error: stopped by the user'', so the next request is valid.
+ask: runs a turn in a Process of its own (''agent turn''): send the developer instructions and every item''s wire to the provider, show the streamed text, record the completed output items in order and run each tool call; while there were tool calls, send again. Any error ends the turn with an #error item. ask: while a turn runs is an error; I am busy (isBusy) from before the turn''s user message is among my items. stop ends a turn from another Process: the provider is cancelled, the turn''s Process and its running cell terminated, every tool call left without output answered ''error: stopped by the user'', so the next request is valid.
 
 The provider (late-bound, default a new CodexProvider) answers send:tools:onText:onItem: (blocking; the usage Dictionary or nil; AgentError on failure), cancel and modelName. My onChange: block is evaluated after every visible change: an item added, streaming text grown, a turn begun or ended.'!
 
@@ -178,13 +178,14 @@ on: anAgentContext
 
 !AgentConversation methodsFor: 'running'!
 ask: aString images: images
-	"Add a user message with image content and start a turn."
+	"Add a user message with image content and start a turn. I am busy before the message is there: another Process that sees it and sees me not busy sees a turn that is over."
+	| message |
 	self isBusy ifTrue: [^self error: 'The agent is busy: wait for it or stop it first'].
-	items add: (AgentItem user: aString images: images).
+	message := AgentItem user: aString images: images.
 	done := Semaphore new.
 	process := [self runTurn. self endTurn] newProcess.
 	process priority: Processor userSchedulingPriority; name: 'agent turn'.
-	self changed.
+	self add: message.
 	process resume
 ! !
 
