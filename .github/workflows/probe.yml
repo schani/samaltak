@@ -18,14 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {name: before 1, src: before, forced: no, count: 100, rounds: 5, strict: no}
-          - {name: before 2, src: before, forced: no, count: 100, rounds: 5, strict: no}
-          - {name: before 3, src: before, forced: no, count: 100, rounds: 5, strict: no}
-          - {name: after 1, src: after, forced: no, count: 100, rounds: 5, strict: yes}
-          - {name: after 2, src: after, forced: no, count: 100, rounds: 5, strict: yes}
-          - {name: after 3, src: after, forced: no, count: 100, rounds: 5, strict: yes}
-          - {name: before forced, src: before, forced: yes, count: 20, rounds: 1, strict: no}
-          - {name: after forced, src: after, forced: yes, count: 20, rounds: 1, strict: yes}
+          - {name: before 1, src: before, forced: no, count: 100, rounds: 100, strict: no}
+          - {name: before 2, src: before, forced: no, count: 100, rounds: 100, strict: no}
+          - {name: before 3, src: before, forced: no, count: 100, rounds: 100, strict: no}
+          - {name: after 1, src: after, forced: no, count: 100, rounds: 100, strict: yes}
+          - {name: after 2, src: after, forced: no, count: 100, rounds: 100, strict: yes}
+          - {name: after 3, src: after, forced: no, count: 100, rounds: 100, strict: yes}
+          - {name: before forced, src: before, forced: yes, count: 100, rounds: 1, strict: no}
+          - {name: after forced, src: after, forced: yes, count: 100, rounds: 1, strict: yes}
     runs-on: ubuntu-24.04
     container: debian:bookworm-slim
     timeout-minutes: 60
