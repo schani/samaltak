@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pi-orb setup hook: what `make` (VM and image) needs on Debian bookworm x86-64.
+# pi-orb setup hook: what `make` (VM and image) needs on Debian bookworm (CI's) or Ubuntu 24.04.
 set -euo pipefail
 
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then SUDO=sudo; else SUDO=; fi
@@ -22,7 +22,7 @@ if ! dpkg -s $PKGS >/dev/null 2>&1; then
 fi
 command -v node >/dev/null 2>&1 || $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs
 
-# bookworm has no SDL3: build once into $HOME (persists), install to /usr/local on every incarnation
+# bookworm and Ubuntu 24.04 have no SDL3: build once into $HOME (persists), install to /usr/local on every incarnation
 SDL=$HOME/src/SDL
 SDL_CONFIG=$SDL/build/include-config-release/build_config/SDL_build_config.h
 if [ -f "$SDL/build/libSDL3.so" ] && ! grep -q '^#define SDL_VIDEO_DRIVER_X11 1' "$SDL_CONFIG" 2>/dev/null; then
@@ -41,14 +41,23 @@ if [ ! -f /usr/local/lib/pkgconfig/sdl3.pc ] || [ ! -e /usr/local/lib/libSDL3.so
 fi
 
 # bookworm's libshaderc.so leaves glslang/SPIRV-Tools symbols undefined and its shaderc.pc
-# says only -lshaderc: shadow it in /usr/local (searched first) with the full link line.
+# says only -lshaderc: shadow it in /usr/local (searched first) with the full link line. Only where shaderc
+# does not link as it is: Ubuntu 24.04's does, and lacks libraries that line names (libOGLCompiler).
 PC=/usr/local/lib/pkgconfig/shaderc.pc
 WANT='Name: shaderc
 Description: shaderc with its static glslang and SPIRV-Tools dependencies (bookworm)
 Version: 2023.2.1
 Libs: -lshaderc_combined -Wl,--start-group -lglslang -lSPIRV -lMachineIndependent -lGenericCodeGen -lOSDependent -lOGLCompiler -lglslang-default-resource-limits -lSPIRV-Tools-opt -lSPIRV-Tools -Wl,--end-group -lstdc++ -lpthread -lm
 Cflags:'
-if [ "$(cat "$PC" 2>/dev/null)" != "$WANT" ]; then
+shaderc_links() {
+    local dir ok=0
+    dir=$(mktemp -d)
+    printf '#include <shaderc/shaderc.h>\nint main(void) { shaderc_compiler_release(shaderc_compiler_initialize()); return 0; }\n' > "$dir/t.c"
+    cc "$dir/t.c" -o "$dir/t" $(pkg-config --libs shaderc 2>/dev/null) >/dev/null 2>&1 || ok=1
+    rm -rf "$dir"
+    return $ok
+}
+if [ "$(cat "$PC" 2>/dev/null)" != "$WANT" ] && ! shaderc_links; then
     $SUDO mkdir -p "${PC%/*}"
     printf '%s\n' "$WANT" | $SUDO tee "$PC" >/dev/null
 fi
