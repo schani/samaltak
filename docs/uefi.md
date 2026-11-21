@@ -8,7 +8,7 @@ The VM runs as a UEFI application on x86-64 and arm64, with its UI on the firmwa
     make uefi-control UEFI_CONTROL_PORT=7341        # no window; its control service on 127.0.0.1:7341 (samaltak-ctl open --uefi)
     make test-uefi                                  # the tests that need no platform layer, the World, the network, a snapshot
 
-`UEFI_ARCH` is `x86_64` or `arm64`, this machine's by default. Needs clang, ld.lld, `qemu-system-x86_64` or `qemu-system-aarch64` and the firmware for it, OVMF or AAVMF (`.agents/setup` installs x86-64's; Homebrew's `qemu` has both). For this machine's CPU QEMU runs the VM on it, with KVM where `/dev/kvm` is there, else on macOS with Hypervisor.framework (QEMU 11.0 fails at its start on macOS 26; 11.1 works); for another CPU it emulates (TCG), and the VM still boots in about 5 s.
+`UEFI_ARCH` is `x86_64` or `arm64`, this machine's by default. Needs clang, ld.lld, `qemu-system-x86_64` or `qemu-system-aarch64` and the firmware for it, OVMF or AAVMF (`.agents/setup` installs this machine's; Homebrew's `qemu` has both). For this machine's CPU QEMU runs the VM on it, with KVM where `/dev/kvm` is there, else on macOS with Hypervisor.framework (QEMU 11.0 fails at its start on macOS 26; 11.1 works); for another CPU it emulates (TCG), and the VM still boots in about 5 s.
 
 `make uefi-control` forwards the guest's listener to host loopback. Direct boots with `--control` and no supplied token require firmware `GetRNG`; without it the control service does not listen. The auto-generated token is announced on the console. `tools/samaltak-ctl open --uefi` instead provides its own random token in private guest boot arguments. See [remote control authentication](remote-auth.md) before enabling the service on real hardware.
 

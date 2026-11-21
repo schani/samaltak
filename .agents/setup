@@ -6,8 +6,12 @@ if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" != 0 ]; then SUDO=sudo; else 
 
 # shaderc (GLSL -> SPIR-V for SDL_GPU on Vulkan); OpenSSL 3 (TLS); libwayland-client (desktop windows); cmake and ninja build SDL3
 PKGS="libshaderc-dev libssl-dev libwayland-dev cmake ninja-build libvulkan-dev spirv-tools pkg-config git"
-# the UEFI VM (make uefi, docs/uefi.md): a freestanding cross compiler and linker, QEMU and its UEFI firmware
-PKGS="$PKGS clang lld qemu-system-x86 ovmf"
+# the UEFI VM (make uefi, docs/uefi.md): a freestanding cross compiler and linker, QEMU and its UEFI firmware, for
+# this machine's CPU (make uefi's default UEFI_ARCH)
+case "$(uname -m)" in
+    aarch64|arm64) PKGS="$PKGS clang lld qemu-system-arm qemu-efi-aarch64" ;;
+    *) PKGS="$PKGS clang lld qemu-system-x86 ovmf" ;;
+esac
 # what CI's container installs before this hook: compilers, X11 for SDL3 (before it is built), Xvfb and
 # software Vulkan for the UI tests (.agents/resume starts the display), Node for tools/samaltak-ctl
 PKGS="$PKGS ca-certificates build-essential python3 perl less xvfb xauth mesa-vulkan-drivers
