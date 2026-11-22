@@ -25,7 +25,7 @@ static inline bool c4_heap_platform_files(void)
 #define C4_NO_WEAK UINT32_MAX
 #define C4_ENUM_LIMIT 4096
 
-enum c4_lane { C4_PINNED, C4_PLAIN };
+enum c4_lane { C4_PINNED, C4_PLAIN, C4_INTERVAL };
 
 #if SAMALTAK_C4_SUPPORTED
 
@@ -34,10 +34,15 @@ enum c4_lane { C4_PINNED, C4_PLAIN };
 bool c4_heap_supported(void);
 bool c4_heap_init(void *base, size_t capacity);
 bool c4_heap_init_moving(void *base, size_t capacity);
+bool c4_heap_prepare_interval(size_t image_bytes);
 size_t c4_heap_pinned_capacity(void);
 /* The two-slot lane uses image identities captured at startup. */
 void c4_heap_set_plain_classes(uint64_t point, uint64_t message, uint64_t association);
 bool c4_heap_plain_class(uint64_t cls);
+/* Optional exact three-slot class, validated by the boot image loader. */
+void c4_heap_set_interval_class(uint64_t cls);
+bool c4_heap_interval_class(uint64_t cls);
+bool c4_heap_is_imported(uint64_t obj);
 /* Configure the relocated image nil before importing weak objects. */
 void c4_heap_set_nil(uint64_t nil);
 bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_start);
@@ -51,7 +56,7 @@ void c4_heap_use_cached_method(uint64_t method);
 bool c4_heap_start(void);
 
 /* Returns logical oop; init_addr is private storage until publish.
- * The two-slot lane falls back only to C4's pinned lane when full.
+ * A full moving bank falls back only to C4's pinned lane.
  * Initialize privately, then publish before any safepoint.
  * No fit returns zero; allocation does not collect or wait for a cycle. refs
  * is the full slot count for pointer formats 1–4, zero for raw formats. */
@@ -132,10 +137,15 @@ static inline bool c4_heap_init(void *base, size_t capacity)
 { (void)base; (void)capacity; return false; }
 static inline bool c4_heap_init_moving(void *base, size_t capacity)
 { (void)base; (void)capacity; return false; }
+static inline bool c4_heap_prepare_interval(size_t image_bytes)
+{ (void)image_bytes; return false; }
 static inline size_t c4_heap_pinned_capacity(void) { return 0; }
 static inline void c4_heap_set_plain_classes(uint64_t point, uint64_t message, uint64_t association)
 { (void)point; (void)message; (void)association; }
 static inline bool c4_heap_plain_class(uint64_t cls) { (void)cls; return false; }
+static inline void c4_heap_set_interval_class(uint64_t cls) { (void)cls; }
+static inline bool c4_heap_interval_class(uint64_t cls) { (void)cls; return false; }
+static inline bool c4_heap_is_imported(uint64_t obj) { (void)obj; return false; }
 static inline void c4_heap_set_nil(uint64_t nil) { (void)nil; }
 static inline bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_start)
 { (void)obj; (void)bytes; (void)refs; (void)weak_start; return false; }

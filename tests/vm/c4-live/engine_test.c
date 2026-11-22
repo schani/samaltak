@@ -1504,6 +1504,227 @@ static void moving_oracle(void)
     assert(c4_heap_load_ref(weak, COUNT - 1) == cls);
 }
 
+static oop two_bank_start(size_t pinned, oop *interval_cls, oop *method_cls)
+{
+    const size_t bank = 4 * 16384;
+    size_t cap = pinned + 2 * bank;
+    void *base = mmap(NULL, cap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(base != MAP_FAILED && c4_heap_init_moving(base, cap));
+    assert(c4_heap_pinned_capacity() == pinned + bank);
+    assert(!c4_heap_prepare_interval(pinned + 1));
+    assert(c4_heap_prepare_interval(3 * 16));
+    assert(c4_heap_pinned_capacity() == pinned);
+    oop cls = (oop)(uintptr_t)base;
+    *interval_cls = cls + 16;
+    *method_cls = cls + 32;
+    for (oop o = cls; o <= *method_cls; o += 16) {
+        initialize(o, cls, F_EMPTY, 0);
+        assert(c4_heap_import(o, 16, 0, C4_NO_WEAK));
+    }
+    assert(c4_heap_is_imported(*interval_cls));
+    assert(!c4_heap_is_imported(*interval_cls + 8));
+    c4_heap_set_plain_classes(cls, 0, 0);
+    c4_heap_set_interval_class(*interval_cls);
+    c4_heap_set_method_class(*method_cls);
+    c4_heap_set_nil(cls);
+    assert(c4_heap_start());
+    assert(c4_heap_plain_class(cls) && !c4_heap_plain_class(*interval_cls));
+    assert(c4_heap_interval_class(*interval_cls) && !c4_heap_interval_class(cls));
+    return cls;
+}
+
+static oop interval(oop cls, bool expect_handle)
+{
+    oop address;
+    oop obj = c4_heap_reserve(40, C4_INTERVAL, &address);
+    assert(obj && c4_heap_movable(obj) == expect_handle);
+    initialize(address, cls, F_FIXED, 3);
+    c4_heap_publish(obj, 3, C4_NO_WEAK);
+    assert(c4_heap_address(obj) == address);
+    return obj;
+}
+
+static void interval_oracle(void)
+{
+    enum { N = 130, GROUP = 13, TOTAL = N * 2 };
+    oop interval_cls, method_cls;
+    oop cls = two_bank_start(16384, &interval_cls, &method_cls);
+    oop nodes[TOTAL], old[TOTAL], headers[TOTAL];
+    unsigned edges[TOTAL][2];
+    bool expected[TOTAL] = {false};
+    unsigned queue[TOTAL], head = 0, tail = 0;
+    oop weak = weak_owner(cls, TOTAL);
+    oop root = alloc_nil(cls, F_VAR, 130, C4_NO_WEAK, cls);
+    for (unsigned i = 0; i < TOTAL; ++i) {
+        nodes[i] = (i & 1) ? interval(interval_cls, true) : point(cls, true);
+        old[i] = c4_heap_address(nodes[i]);
+        headers[i] = body(nodes[i])[0] | H_IMMUTABLE | ((oop)(i + 1) << H_HASH_SHIFT);
+        ((oop *)(uintptr_t)old[i])[0] = headers[i];
+        for (unsigned j = 0; j < i; ++j) assert(nodes[j] != nodes[i] && old[j] != old[i]);
+    }
+    assert(old[2] - old[0] == 32 && old[3] - old[1] == 48);
+    for (unsigned i = 0; i < TOTAL; ++i) {
+        unsigned offset = i / 2 % GROUP, base = i / 2 / GROUP * (2 * GROUP);
+        edges[i][0] = base + 2 * (rand32() % GROUP) + (i & 1);
+        /* The ring cannot traverse an Interval without using its third slot. */
+        edges[i][1] = base + (i & 1 ? 2 * ((offset + 1) % GROUP) : 2 * offset + 1);
+        c4_heap_store_ref(nodes[i], 0, nodes[edges[i][0]]);
+        c4_heap_store_ref(nodes[i], 1 + (i & 1), nodes[edges[i][1]]);
+        c4_heap_store_ref(weak, i, nodes[i]);
+    }
+    const unsigned seeds[] = {0, 2 * GROUP, 4 * GROUP, 6 * GROUP, 8 * GROUP, 14 * GROUP};
+    for (unsigned i = 0; i < sizeof seeds / sizeof *seeds; ++i) {
+        expected[seeds[i]] = true;
+        queue[tail++] = seeds[i];
+        c4_heap_store_ref(root, 129 - i, nodes[seeds[i]]);
+    }
+    /* Oracle never reads heap slots or collector metadata. */
+    while (head < tail) {
+        unsigned i = queue[head++];
+        for (unsigned e = 0; e < 2; ++e) {
+            unsigned j = edges[i][e];
+            if (!expected[j]) {
+                expected[j] = true;
+                queue[tail++] = j;
+            }
+        }
+    }
+    assert(tail == 12 * GROUP && !expected[TOTAL - 1]);
+
+    for (unsigned bank = 0; bank < 2; ++bank) {
+        bool seen[TOTAL] = {false};
+        oop filter = bank ? interval_cls : cls;
+        atomic_store(&stall_enum, true);
+        atomic_store(&at_enum, false);
+        assert(c4_heap_enum_request(filter, 32, root, weak) && c4_heap_begin());
+        c4_heap_root(root);
+        c4_heap_root(weak);
+        c4_heap_root(nodes[1]); /* duplicate path, not a duplicate result */
+        c4_heap_end_roots();
+        while (!atomic_load(&at_enum)) sched_yield();
+        for (unsigned i = 0; i < 6; ++i)
+            c4_heap_store_ref(nodes[i], 1 + (i & 1), nodes[TOTAL - 1]);
+        c4_heap_store_ref(root, 129, nodes[TOTAL - 1]);
+        c4_heap_move_poll(); /* must not move or reuse during the cut */
+        atomic_store(&stall_enum, false);
+        int32_t count = enum_count();
+        assert(count == (int32_t)(tail / 2 + 2 * !bank));
+        unsigned nils = 0;
+        for (int32_t k = 0; k < count; ++k) {
+            oop obj = c4_heap_enum_at(k);
+            if (obj == cls || obj == interval_cls) { ++nils; continue; }
+            unsigned i = bank;
+            while (i < TOTAL && nodes[i] != obj) i += 2;
+            assert(i < TOTAL && expected[i] && !seen[i]);
+            seen[i] = true;
+        }
+        assert(nils == 2u * !bank);
+        for (unsigned i = bank; i < TOTAL; i += 2) assert(seen[i] == expected[i]);
+        c4_heap_enum_finish();
+        for (unsigned i = 0; i < 6; ++i)
+            c4_heap_store_ref(nodes[i], 1 + (i & 1), nodes[edges[i][1]]);
+        c4_heap_store_ref(root, 129, nodes[seeds[0]]);
+    }
+
+    assert(c4_heap_begin());
+    c4_heap_root(root); /* pinned lazy tail is the only strong root entry */
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_take_weak_clears() == TOTAL - tail);
+    for (unsigned i = 0; i < TOTAL; ++i) {
+        assert(c4_heap_load_ref(weak, i) == (expected[i] ? nodes[i] : cls));
+        if (expected[i]) assert(c4_heap_address(nodes[i]) == old[i]);
+    }
+    bool moved[TOTAL] = {false};
+    for (unsigned visit = 0; visit < 5; ++visit) {
+        assert(!c4_heap_begin());
+        c4_heap_move_poll();
+        unsigned copies[2] = {0};
+        for (unsigned i = 0; i < TOTAL; ++i) {
+            if (!expected[i]) continue;
+            if (!moved[i] && c4_heap_address(nodes[i]) != old[i]) {
+                moved[i] = true;
+                ++copies[i & 1];
+                assert(*(const oop *)(uintptr_t)old[i] == UINT64_C(0xdddddddddddddddd));
+            }
+            assert(body(nodes[i])[0] == headers[i]);
+            assert(body(nodes[i])[1] == ((i & 1) ? interval_cls : cls));
+            assert(body(nodes[i])[2] == nodes[edges[i][0]]);
+            assert(body(nodes[i])[3 + (i & 1)] == nodes[edges[i][1]]);
+            assert(c4_heap_load_ref(nodes[i], 1 + (i & 1)) == nodes[edges[i][1]]);
+        }
+        assert(copies[0] + copies[1] <= 64 && 32 * copies[0] + 48 * copies[1] <= 4096);
+        /* Both selected prefixes are wholly live. One shared budget, and
+         * the other bank gets the next full visit without starving. */
+        if (visit < 2) assert(copies[visit] == 64 && copies[1 - visit] == 0);
+        if (visit < 4) {
+            oop fresh = interval(interval_cls, true);
+            for (unsigned i = 1; i < TOTAL; i += 2) assert(fresh != nodes[i]);
+        }
+    }
+    for (unsigned i = 0; i < TOTAL; ++i) assert(moved[i] == expected[i]);
+    assert(interval(interval_cls, true) == nodes[TOTAL - 1]);
+    assert(point(cls, true) == nodes[TOTAL - 2]);
+    assert(c4_heap_load_ref(weak, TOTAL - 1) == cls && c4_heap_load_ref(weak, TOTAL - 2) == cls);
+    c4_heap_stats();
+}
+
+static void interval_saturated(void)
+{
+    enum { P = 512, I = 341 };
+    oop ic, mc;
+    oop cls = two_bank_start(48 + 40, &ic, &mc);
+    oop p[P], in[I];
+    for (unsigned i = 0; i < P; ++i) p[i] = point(cls, true);
+    for (unsigned i = 0; i < I; ++i) in[i] = interval(ic, true);
+    oop first = c4_heap_address(in[0]);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    for (unsigned i = 0; i < P; ++i) c4_heap_root(p[i]);
+    for (unsigned i = 0; i < I; ++i) c4_heap_root(in[i]);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    oop next = c4_heap_address(interval(ic, true));
+    for (unsigned i = 1; i < 2 * I; ++i) interval(ic, true);
+    assert(c4_heap_address(interval(ic, false)) == cls + 48);
+    oop addr;
+    assert(!c4_heap_reserve(40, C4_INTERVAL, &addr) && !addr);
+    /* A full 48-byte bank cannot steal capacity from the other bank. */
+    for (unsigned i = 0; i < 2 * P; ++i) point(cls, true);
+    assert(!c4_heap_reserve(32, C4_PLAIN, &addr) && !addr);
+    c4_heap_move_poll();
+    assert(c4_heap_address(in[0]) == first);
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    c4_heap_move_poll();  /* both dense first regions stay in place */
+    assert(c4_heap_address(in[0]) == first);
+
+    assert(c4_heap_begin());
+    c4_heap_end_roots();
+    finish_cycle();
+    for (unsigned i = 0; i < 14; ++i) c4_heap_move_poll();
+    assert(c4_heap_address(interval(ic, true)) == next);
+    c4_heap_stats();
+}
+
+static void interval_reject(const char *test)
+{
+    oop ic, mc;
+    oop cls = two_bank_start(16384, &ic, &mc);
+    oop obj = interval(ic, true);
+    if (!strcmp(test, "class"))
+        c4_heap_store_class(alloc(cls, F_FIXED, 3), obj);
+    else if (!strcmp(test, "literals"))
+        c4_heap_store_ref(alloc(mc, F_FIXED, 8), CM_LITERALS, obj);
+    else if (!strcmp(test, "bytes"))
+        c4_heap_store_ref(alloc(mc, F_FIXED, 8), CM_BYTECODES, obj);
+    else if (!strcmp(test, "borrow"))
+        c4_heap_note_code_bytes(obj);
+    else if (!strcmp(test, "wrong-class"))
+        interval(cls, true);
+}
+
 static void lazy_mark(void)
 {
     enum { SLOTS = 1025, FIRST_WORD = 512 };
@@ -1786,6 +2007,9 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "moving-general")) moving_general();
     else if (!strcmp(argv[1], "moving-oracle")) moving_oracle();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
+    else if (!strcmp(argv[1], "interval-oracle")) interval_oracle();
+    else if (!strcmp(argv[1], "interval-saturated")) interval_saturated();
+    else if (!strncmp(argv[1], "interval-reject-", 16)) interval_reject(argv[1] + 16);
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
     else if (!strcmp(argv[1], "enumeration-log-limit")) enumeration_log_limit();

@@ -605,6 +605,12 @@ finish
 	so at: SO_TIMER_SEMAPHORE put: nilOop.
 	so at: SO_EXTERNAL_OBJECTS put: (self array: (Array new: EXTERNAL_OBJECTS_SIZE withAll: nilOop)).
 	so at: SO_FINALIZATION_SEMAPHORE put: nilOop.
+	so at: SO_INTERVAL put: ((classes at: 'Interval' ifAbsent: [nil])
+		ifNil: [nilOop]
+		ifNotNil: [:c |
+			(c instSpec = F_FIXED and: [c allInstVarNames = #('start' 'stop' 'step')])
+				ifTrue: [c oop]
+				ifFalse: [nilOop]]).
 	so size = SO_COUNT ifFalse: [self fail: 'special objects: ' , so size printString , ' of ' , SO_COUNT printString].
 	self fillClasses.
 	(sysdict allInstVarNames first: 2) = #('tally' 'array') ifFalse: [self fail: 'SystemDictionary must start with instance variables: tally array'].

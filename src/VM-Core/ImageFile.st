@@ -62,6 +62,9 @@ loadImage: path
 	imagePath isNull ifTrue: [imagePath := libc strdup: path].
 	imagePath isNull ifTrue: [self fatal: 'out of memory'].
 	memory refreshSpecials.
+	(vmMain c4Moving and: [(memory special: SO_INTERVAL) ~= memory nilOop]) ifTrue: [
+		(c4 prepareInterval: h heapBytes)
+			ifFalse: [self fatal: 'image and C4 Interval bank exceed heap limit']].
 	vmMain c4Requested ifTrue: [self importC4]
 !
 importC4
@@ -96,7 +99,38 @@ importC4
 			((self isInt: sp) and: [(sp >> 1) <= (slots - CTX_FIXED)]) ifFalse: [
 				self fatal: 'bad C4 image Context stack pointer']].
 		(c4 import: p bytes: bytes refs: refs weakStart: first asUInt32) ifFalse: [self fatal: 'cannot import object into C4 heap'].
-		p := p + bytes]
+		p := p + bytes].
+	vmMain c4Moving ifTrue: [c4 intervalClass: self auditedIntervalClass]
+!
+auditedIntervalClass
+	"Optional appended special. Check only imported starts before dereferencing
+	the candidate descriptor and its layout metadata. Older images pin it."
+	<function>
+	| cls meta names |
+	cls := memory special: SO_INTERVAL.
+	(cls = memory nilOop or: [(c4 isImported: cls) not]) ifTrue: [^0].
+	((self formatOf: cls) = F_FIXED and: [(self numSlots: cls) > CLS_NAME])
+		ifFalse: [^0].
+	(memory c4FixedFieldsFor: cls spec: F_FIXED slots: 3) = 3 ifFalse: [^0].
+	meta := self rawClass: cls.
+	((c4 isImported: meta) and: [(self formatOf: meta) = F_FIXED and: [
+		(self numSlots: meta) > META_THISCLASS and: [(self loadRef: meta at: META_THISCLASS) = cls]]])
+		ifFalse: [^0].
+	(self classLayoutName: (self loadRef: cls at: CLS_NAME) is: 'Interval' length: 8) ifFalse: [^0].
+	names := self loadRef: cls at: CD_INSTVARS.
+	((c4 isImported: names) and: [(self formatOf: names) = F_VAR and: [(self numSlots: names) = 3]])
+		ifFalse: [^0].
+	((self classLayoutName: (self loadRef: names at: 0) is: 'start' length: 5) and: [
+		(self classLayoutName: (self loadRef: names at: 1) is: 'stop' length: 4) and: [
+		(self classLayoutName: (self loadRef: names at: 2) is: 'step' length: 4)]])
+		ifFalse: [^0].
+	^cls
+!
+classLayoutName: obj is: name length: n
+	<var: #name type: 'char *'>
+	<var: #n type: 'size_t'>
+	^((c4 isImported: obj) and: [(self formatOf: obj) >= F_BYTES and: [
+		(memory byteSize: obj) = n and: [(libc memcmp: (self bytesOf: obj) with: name size: n) = 0]]])
 ! !
 
 !ImageFile methodsFor: 'saving'!

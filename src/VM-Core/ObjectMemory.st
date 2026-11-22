@@ -236,6 +236,7 @@ c4FixedFieldsFor: cls spec: expected slots: n
 	<var: #n type: 'uint32_t'>
 	<returns: 'uint32_t'>
 	| fo spec fixed f |
+	(c4 movable: cls) ifTrue: [^16rFFFFFFFF].
 	((self isPtr: cls) and: [cls ~= 0 and: [(self numSlots: cls) > BEH_FORMAT]]) ifFalse: [^16rFFFFFFFF].
 	f := self formatOf: cls.
 	(f >= F_FIXED and: [f <= F_FIXVAR]) ifFalse: [^16rFFFFFFFF].
@@ -395,7 +396,8 @@ allocC4Try: cls format: fmt slots: n
 	"No cycle start, root enumeration or wait on allocation pressure."
 	<function>
 	<var: #n type: 'uint32_t'>
-	| o addr bytes refs first plain |
+	| o addr bytes refs first lane |
+	(c4 movable: cls) ifTrue: [^0].
 	refs := (self fmtHasPointers: fmt) ifTrue: [n] ifFalse: [0].
 	first := 16rFFFFFFFF asUInt32. "C4_NO_WEAK"
 	cls = clsContext ifTrue: [
@@ -406,8 +408,11 @@ allocC4Try: cls format: fmt slots: n
 		first = 16rFFFFFFFF ifTrue: [^0]].
 	bytes := 16 + (8 * n asUInt64).
 	addr := self local: 'uint64_t'.
-	plain := (vmMain c4Moving and: [fmt = F_FIXED and: [n = 2 and: [c4 plainClass: cls]]]) ifTrue: [1] ifFalse: [0].
-	o := c4 reserve: bytes plain: plain into: addr.
+	lane := 0. "C4_PINNED"
+	(vmMain c4Moving and: [fmt = F_FIXED]) ifTrue: [
+		(n = 2 and: [c4 plainClass: cls]) ifTrue: [lane := 1]. "C4_PLAIN"
+		(n = 3 and: [c4 intervalClassIs: cls]) ifTrue: [lane := 2]]. "C4_INTERVAL"
+	o := c4 reserve: bytes lane: lane asInt32 into: addr.
 	o = 0 ifTrue: [^0].
 	self initObjectAt: addr value class: cls format: fmt slots: n.
 	cls = clsContext ifTrue: [
@@ -541,6 +546,7 @@ instantiate: cls size: n error: err
 	<function>
 	| fo spec isize fmt nslots o |
 	err value: -1.
+	(vmMain c4Moving and: [c4 movable: cls]) ifTrue: [^nilOop].
 	((self isPtr: cls) not or: [(self numSlots: cls) <= BEH_FORMAT]) ifTrue: [^nilOop].
 	fo := self loadRef: cls at: BEH_FORMAT.
 	(self isInt: fo) ifFalse: [^nilOop].

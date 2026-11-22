@@ -25,12 +25,27 @@ initMoving: base capacity: bytes
 	<c: 'bool c4_heap_init_moving(void *base, size_t bytes)'>
 	^false
 !
+prepareInterval: imageBytes
+	<c: 'bool c4_heap_prepare_interval(size_t imageBytes)'>
+	^false
+!
 pinnedCapacity
 	<c: 'size_t c4_heap_pinned_capacity(void)'>
 	^0
 !
 plainPoint: point message: message association: association
 	<c: 'void c4_heap_set_plain_classes(uint64_t point, uint64_t message, uint64_t association)'>
+!
+intervalClass: cls
+	<c: 'void c4_heap_set_interval_class(uint64_t cls)'>
+!
+isImported: obj
+	<c: 'bool c4_heap_is_imported(uint64_t obj)'>
+	^false
+!
+intervalClassIs: cls
+	<c: 'bool c4_heap_interval_class(uint64_t cls)'>
+	^false
 !
 plainClass: cls
 	<c: 'bool c4_heap_plain_class(uint64_t cls)'>
@@ -64,7 +79,7 @@ report
 ! !
 
 !C4Heap methodsFor: 'allocation and stores'!
-reserve: bytes plain: lane into: address
+reserve: bytes lane: lane into: address
 	<c: 'uint64_t c4_heap_reserve(size_t bytes, int lane, uint64_t *address)'>
 	^0
 !

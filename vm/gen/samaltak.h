@@ -652,10 +652,11 @@ typedef void (*prim_fn)(void);
 #define SO_CHARACTER 6
 #define SO_COMPILEDMETHOD 14
 #define SO_CONTEXT 15
-#define SO_COUNT 37
+#define SO_COUNT 38
 #define SO_EXTERNAL_OBJECTS 32
 #define SO_FALSE 1
 #define SO_FINALIZATION_SEMAPHORE 35
+#define SO_INTERVAL 37
 #define SO_LARGENEG 21
 #define SO_LARGEPOS 20
 #define SO_MESSAGE 22

@@ -46,7 +46,7 @@ usage
   --c4              experimental headless heap (Linux x86-64)
                     NO_PLATFORM=1 supports optional --jit baseline
                     C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only
-  --c4-moving       --c4 with bounded relocation of exact two-slot instances
+  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
   --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized

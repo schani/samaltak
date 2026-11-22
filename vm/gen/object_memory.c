@@ -63,7 +63,7 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     uint64_t bytes;
     uint64_t local;
     uint64_t *addr;
-    int plain;
+    int64_t lane;
     uint64_t o;
     uint64_t p;
     oop *s;
@@ -72,6 +72,9 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     uint64_t an_address;
     uint64_t n_2;
     int64_t n_3;
+    if (c4_heap_movable(cls)) {
+        return 0;
+    }
     refs = (fmt >= 1) && (fmt <= 4) ? n : 0;
     first = 4294967295LL;
     if (cls == cls_context) {
@@ -88,8 +91,16 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     bytes = 16 + 8 * (uint64_t)n;
     memset(&local, 0, sizeof local);
     addr = &local;
-    plain = c4_moving && ((fmt == F_FIXED) && ((n == 2) && c4_heap_plain_class(cls))) ? 1 : 0;
-    o = c4_heap_reserve(bytes, plain, addr);
+    lane = 0;
+    if (c4_moving && (fmt == F_FIXED)) {
+        if ((n == 2) && c4_heap_plain_class(cls)) {
+            lane = 1;
+        }
+        if ((n == 3) && c4_heap_interval_class(cls)) {
+            lane = 2;
+        }
+    }
+    o = c4_heap_reserve(bytes, (int32_t)lane, addr);
     if (o == 0) {
         return 0;
     }
@@ -480,6 +491,9 @@ uint32_t c4_fixed_fields_for(oop cls, int expected, uint32_t n)
     oop fo;
     int64_t spec;
     uint32_t fixed;
+    if (c4_heap_movable(cls)) {
+        return 0xFFFFFFFFLL;
+    }
     if (!(((cls & 7) == 0) && ((cls != 0) && ((uint32_t)*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cls);
@@ -1487,6 +1501,9 @@ oop instantiate(oop cls, uint64_t n, int *err)
     uint64_t nslots;
     uint64_t o;
     *err = -1;
+    if (c4_moving && c4_heap_movable(cls)) {
+        return nil_oop;
+    }
     if ((!((cls & 7) == 0)) || ((uint32_t)*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cls);
