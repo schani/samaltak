@@ -27,6 +27,7 @@ static void import_c4(void)
     uint64_t r_object_address_7;
     oop sp;
     c4_heap_set_context_class(cls_context);
+    c4_heap_set_method_class(cls_compiledmethod);
     if (c4_moving) {
         association = object_memory_special(SO_ASSOCIATION);
         c4_heap_set_plain_classes(cls_point, cls_message, association);

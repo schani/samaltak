@@ -1,5 +1,5 @@
 VMCoreModule subclass: #Interpreter
-	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
+	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4CacheTags c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
 	classVariableNames: 'C4_FRAME_ROOTS CACHE_SIZE CSTACK_SLOTS ICACHE_SIZE MAX_FRAMES'
 	package: 'VM-Core'!
 
@@ -21,7 +21,7 @@ declarations
 		(stackLimit int64_t 1000000) (stackCheckAt uint64_t) (stackCheckDue bool) (stackCheckHash uint32_t) (safepointAtEntry bool)
 		(statMaterialized uint64_t) (statFlushes uint64_t) (frameEpoch uint64_t)
 		(cache 'CacheEntry[CACHE_SIZE]') (icache 'CacheEntry[ICACHE_SIZE]')
-		(c4Entry 'CacheEntry[1]') (c4Countdown int32_t)
+		(c4Entry 'CacheEntry[1]') (c4CacheTags 'uint64_t[CACHE_SIZE]') (c4Countdown int32_t)
 		(c4FrameNext size_t) (c4FrameLimit size_t) (c4StackNext size_t) (c4StackLimit size_t) (c4CodeNext int64_t) (c4CodeLimit int64_t)
 		(c4SavedFrames 'oop[C4_FRAME_ROOTS]') (c4SavedStack 'oop[CSTACK_SLOTS]')
 		(c4SavedFrameBits 'bool[MAX_FRAMES]') (c4SavedStackBits 'bool[CSTACK_SLOTS]')
@@ -665,18 +665,48 @@ icacheIndexOf: site
 !
 flushMethodCache
 	<function>
+	vmMain c4Enabled ifTrue: [^c4 invalidateCache].
 	libc memset: cache value: 0 size: (self sizeof: 'CacheEntry') * CACHE_SIZE.
 	libc memset: icache value: 0 size: (self sizeof: 'CacheEntry') * ICACHE_SIZE
 !
 flushMethodCacheSelector: aSelector
 	<function>
 	| e |
+	vmMain c4Enabled ifTrue: [^c4 invalidateCache].
 	0 to: CACHE_SIZE - 1 do: [:i |
 		e := cache + i.
 		e sel = aSelector ifTrue: [
 			e cls: 0.
 			e sel: 0]].
 	libc memset: icache value: 0 size: (self sizeof: 'CacheEntry') * ICACHE_SIZE
+!
+c4EntryFor: aClass selector: aSelector
+	<function>
+	| e index generation hit m |
+	index := self cacheIndexOf: aClass selector: aSelector.
+	generation := c4 cacheGeneration.
+	e := cache + index.
+	hit := (c4CacheTags at: index) = generation and: [e cls = aClass and: [e sel = aSelector]].
+	hit
+		ifTrue: [
+			m := e method.
+			c4 useCachedMethod: m]
+		ifFalse: [
+			m := self lookupMethod: aClass selector: aSelector.
+			m = 0 ifTrue: [^self null]].
+	"Native activation gets a fresh transient entry: do not retain code
+	headers or change which methods get quick-dispatched or compiled."
+	jit enabled ifTrue: [
+		hit ifFalse: [
+			e cls: aClass.
+			e sel: aSelector.
+			e method: m.
+			c4CacheTags at: index put: generation].
+		^self fillEntry: c4Entry + 0 method: m class: aClass selector: aSelector].
+	hit ifTrue: [^e].
+	self fillEntry: e method: m class: aClass selector: aSelector.
+	c4CacheTags at: index put: generation.
+	^e
 !
 lookupMethod: aClass selector: aSelector
 	<function>
@@ -712,12 +742,16 @@ methodPrim: m
 !
 fillCache: aClass selector: aSelector
 	<function>
-	| m e p pf bc na nt b n ok qc qv litsOop size |
+	| m |
 	m := self lookupMethod: aClass selector: aSelector.
 	m = 0 ifTrue: [^self null].
-	e := (self unlikely: vmMain c4Enabled)
-		ifTrue: [c4Entry + 0]
-		ifFalse: [cache + (self cacheIndexOf: aClass selector: aSelector)].
+	^self fillEntry: cache + (self cacheIndexOf: aClass selector: aSelector)
+		method: m class: aClass selector: aSelector
+!
+fillEntry: e method: m class: aClass selector: aSelector
+	<function>
+	<var: #e type: 'CacheEntry *'>
+	| p pf bc na nt b n ok qc qv litsOop size |
 	e cls: aClass.
 	e sel: aSelector.
 	e method: m.
@@ -733,6 +767,15 @@ fillCache: aClass selector: aSelector
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
 	e fsize < ((self intVal: na) + e ntemps) ifTrue: [e fsize: ((self intVal: na) + e ntemps) asInt32].
+	"Do not cache decisions based on writable bytecodes or values from
+	writable literals. The C4 entry only borrows the pinned storage."
+	(self unlikely: (vmMain c4Enabled and: [jit enabled not])) ifTrue: [
+		e quick: -1.
+		e nset: 0.
+		e prim: pf.
+		e kind: (pf isNull ifTrue: [0] ifFalse: [
+			(primitives isLeaf: p) ifTrue: [K_PRIM bitOr: K_LEAF] ifFalse: [K_PRIM]]) asUInt8.
+		^e].
 	"Quick methods (as in Smalltalk-80 and Squeak): a unary method whose bytecodes are exactly push inst var i, return top answers the receiver's slot i without activating a frame."
 	e quick: -1.
 	e nset: 0.
@@ -1146,7 +1189,7 @@ entryFor: aClass selector: aSelector
 	"The global method cache's entry for aClass and aSelector, filled if need be; null if aClass does not understand it."
 	<function>
 	| g |
-	vmMain c4Enabled ifTrue: [^self fillCache: aClass selector: aSelector].
+	vmMain c4Enabled ifTrue: [^self c4EntryFor: aClass selector: aSelector].
 	g := cache + (self cacheIndexOf: aClass selector: aSelector).
 	(g cls = aClass and: [g sel = aSelector]) ifTrue: [^g].
 	^self fillCache: aClass selector: aSelector
@@ -2108,7 +2151,6 @@ doSiteLookup
 	"Monomorphic inline caches, one per send site (direct-mapped by the site's address), filled from the global cache."
 	<label>
 	| e g |
-	"Do not make method caches roots or reuse stale addresses after reclaim."
 	(self unlikely: vmMain c4Enabled) ifTrue: [^self doLookup].
 	e := icache + (self icacheIndexOf: ip).
 	(self unlikely: (e cls ~= cls or: [e sel ~= (self cCoerce: ip to: 'oop')])) ifTrue: [
@@ -2130,7 +2172,7 @@ doLookup
 	<label>
 	| e |
 	(self unlikely: vmMain c4Enabled) ifTrue: [
-		e := self fillCache: cls selector: sel.
+		e := self c4EntryFor: cls selector: sel.
 		e isNull ifTrue: [^self sendDoesNotUnderstand].
 		^self haveEntry: e].
 	e := cache + (self cacheIndexOf: cls selector: sel).

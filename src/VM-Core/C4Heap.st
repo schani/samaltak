@@ -41,6 +41,9 @@ forwardByteClass: bytes wideClass: wide
 contextClass: cls
 	<c: 'void c4_heap_set_context_class(uint64_t cls)'>
 !
+methodClass: cls
+	<c: 'void c4_heap_set_method_class(uint64_t cls)'>
+!
 nilOop: obj
 	<c: 'void c4_heap_set_nil(uint64_t obj)'>
 !
@@ -128,6 +131,18 @@ enumAt: i
 !
 enumFinish
 	<c: 'void c4_heap_enum_finish(void)'>
+! !
+
+!C4Heap methodsFor: 'dispatch cache'!
+cacheGeneration
+	<c: 'uint64_t c4_heap_cache_gen(void)'>
+	^0
+!
+invalidateCache
+	<c: 'void c4_heap_invalidate_cache(void)'>
+!
+useCachedMethod: method
+	<c: 'void c4_heap_use_cached_method(uint64_t method)'>
 ! !
 
 !C4Heap methodsFor: 'cycles'!

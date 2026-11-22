@@ -69,6 +69,7 @@ importC4
 	<function>
 	| p fmt bytes slots refs sp cls first association |
 	c4 contextClass: memory clsContext.
+	c4 methodClass: memory clsCompiledmethod.
 	vmMain c4Moving ifTrue: [
 		association := memory special: SO_ASSOCIATION.
 		c4 plainPoint: memory clsPoint message: memory clsMessage association: association].

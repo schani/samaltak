@@ -33,6 +33,11 @@ void c4_heap_set_nil(uint64_t nil);
 bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_start);
 void c4_heap_set_threshold(size_t bytes);
 void c4_heap_set_context_class(uint64_t cls);
+void c4_heap_set_method_class(uint64_t cls);
+/* Mutator-only cache lease; changes before close ACK or forward publication. */
+extern uint64_t c4_heap_cache_generation;
+void c4_heap_invalidate_cache(void);
+void c4_heap_use_cached_method(uint64_t method);
 bool c4_heap_start(void);
 
 /* Returns logical oop; init_addr is private storage until publish.
@@ -123,6 +128,10 @@ static inline bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uin
 { (void)obj; (void)bytes; (void)refs; (void)weak_start; return false; }
 static inline void c4_heap_set_threshold(size_t bytes) { (void)bytes; }
 static inline void c4_heap_set_context_class(uint64_t cls) { (void)cls; }
+static inline void c4_heap_set_method_class(uint64_t cls) { (void)cls; }
+#define c4_heap_cache_generation UINT64_C(0)
+static inline void c4_heap_invalidate_cache(void) { }
+static inline void c4_heap_use_cached_method(uint64_t method) { (void)method; }
 static inline bool c4_heap_start(void) { return false; }
 static inline uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
 { (void)bytes; (void)lane; *init_addr = 0; return 0; }
@@ -163,4 +172,7 @@ static inline uint64_t c4_heap_top(void) { return 0; }
 static inline void c4_heap_stats(void) { }
 
 #endif
+
+static inline uint64_t c4_heap_cache_gen(void) { return c4_heap_cache_generation; }
+
 #endif

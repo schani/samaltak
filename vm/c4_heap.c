@@ -128,7 +128,7 @@ static struct {
 static struct {
     uintptr_t base;
     uint32_t capacity;              /* words */
-    uint64_t context_class, nil, bytes_class, wide_class;
+    uint64_t context_class, method_class, nil, bytes_class, wide_class;
     c4_bins bins;
     c4_cell *cells;
     _Atomic uint64_t *shadow;
@@ -392,6 +392,21 @@ void c4_heap_forbid_become(uint64_t obj)
     put_relaxed(&heap.shadow[at], C4_FORBID);
 }
 
+/* Mutator only. Tags start at zero; no generation can repeat. */
+uint64_t c4_heap_cache_generation = 1;
+
+void c4_heap_invalidate_cache(void)
+{
+    if (++c4_heap_cache_generation == 0) bad_contract("dispatch cache generation exhausted");
+}
+
+void c4_heap_use_cached_method(uint64_t method)
+{
+    /* A hit can introduce a frame or primitive root absent from the
+     * arm-time snapshot. CLOSE still accepts work and must retry. */
+    if (marking(acquire(&heap.phase))) shade_mutator(method);
+}
+
 bool c4_heap_become_forward(uint64_t from, uint64_t to)
 {
     require_raw_read_quiescence("forwarding during synchronous raw read");
@@ -419,6 +434,7 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
     if (sf < F_BYTES || sf > F_BYTES + 7 || (tf != F_W32 && tf != F_W32 + 1))
         return false;
 
+    c4_heap_invalidate_cache();
     if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
     if (viewing(phase)) preserve_word(view_row(src), &heap.shadow[src]);
     if (view.cls == heap.bytes_class) view.bytes_invalid = true;
@@ -902,6 +918,11 @@ void c4_heap_set_threshold(size_t bytes)
     heap.threshold = bytes ? bytes : 1;
 }
 
+void c4_heap_set_method_class(uint64_t cls)
+{
+    heap.method_class = cls;
+}
+
 void c4_heap_set_context_class(uint64_t cls)
 {
     if (heap.started) bad_contract("Context class after start");
@@ -1346,6 +1367,9 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
     if (index < cell->weak_start && viewing(phase))
         preserve_word(view_row(at) + 2 + index, field);
     release(field, value);
+    if (index >= CM_LITERALS && index <= CM_PRIMITIVE &&
+            relaxed(shadow_row(at)) == heap.method_class)
+        c4_heap_invalidate_cache();
     ((uint64_t *)(uintptr_t)c4_heap_address(obj))[2 + (size_t)index] = value;
 }
 
@@ -1548,6 +1572,9 @@ void c4_heap_finish_poll(void)
         release(&heap.phase, C4_MARK);
     } else {
         ++heap.closed;
+        /* No cache-only oop can escape after this point. Publish the ACK
+         * only after invalidating, including on the scheduler idle path. */
+        c4_heap_invalidate_cache();
         release(&heap.phase, C4_CLEAR);
     }
     wake_worker();

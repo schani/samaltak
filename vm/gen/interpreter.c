@@ -3,6 +3,7 @@
 #include "samaltak.h"
 
 oop active_ctx;
+static uint64_t c4_cache_tags[4096];
 int64_t c4_code_limit;
 int64_t c4_code_next;
 static int32_t c4_countdown;
@@ -43,9 +44,11 @@ oop tmp_roots[4];
 
 static void block_activate(int32_t n, bool from_array);
 static void c4_checkpoint_at(uint8_t *pc_pointer, oop *stack_top, oop *stack_base, frame *frame);
+static cache_entry *c4_entry_for(oop a_class, oop a_selector);
 static void interpreter_ctx(oop ctx, int64_t n);
 static oop ctx_home(oop a_context);
 static cache_entry *fill_cache(oop a_class, oop a_selector);
+static cache_entry *fill_entry(cache_entry *e, oop m, oop a_class, oop a_selector);
 static int64_t frame_size(frame *f);
 static void print_stack(oop a_context, FILE *f);
 static void refresh_prim_base(void);
@@ -1421,6 +1424,44 @@ exit_canonical_oop_3:;
     c4_poll();
 }
 
+/* Interpreter>>c4EntryFor:selector: */
+static cache_entry *c4_entry_for(oop a_class, oop a_selector)
+{
+    oop index;
+    uint64_t generation;
+    cache_entry *e;
+    bool hit;
+    oop m;
+    index = ((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095;
+    generation = c4_heap_cache_gen();
+    e = cache + index;
+    hit = (c4_cache_tags[index] == generation) && ((e->cls == a_class) && (e->sel == a_selector));
+    if (hit) {
+        m = e->method;
+        c4_heap_use_cached_method(m);
+    } else {
+        m = lookup_method(a_class, a_selector);
+        if (m == 0) {
+            return (cache_entry *)NULL;
+        }
+    }
+    if (jit_mode != JIT_NONE) {
+        if (!hit) {
+            e->cls = a_class;
+            e->sel = a_selector;
+            e->method = m;
+            c4_cache_tags[index] = generation;
+        }
+        return fill_entry(c4_entry + 0, m, a_class, a_selector);
+    }
+    if (hit) {
+        return e;
+    }
+    fill_entry(e, m, a_class, a_selector);
+    c4_cache_tags[index] = generation;
+    return e;
+}
+
 /* Interpreter>>c4Poll */
 void c4_poll(void)
 {
@@ -2017,7 +2058,7 @@ cache_entry *entry_for(oop a_class, oop a_selector)
 {
     cache_entry *g;
     if (c4_enabled) {
-        return fill_cache(a_class, a_selector);
+        return c4_entry_for(a_class, a_selector);
     }
     g = cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095);
     if ((g->cls == a_class) && (g->sel == a_selector)) {
@@ -2056,7 +2097,16 @@ void fatal_end(void)
 static cache_entry *fill_cache(oop a_class, oop a_selector)
 {
     oop m;
-    cache_entry *e;
+    m = lookup_method(a_class, a_selector);
+    if (m == 0) {
+        return (cache_entry *)NULL;
+    }
+    return fill_entry(cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095), m, a_class, a_selector);
+}
+
+/* Interpreter>>fillEntry:method:class:selector: */
+static cache_entry *fill_entry(cache_entry *e, oop m, oop a_class, oop a_selector)
+{
     int64_t r_method_prim;
     oop r_load_ref;
     uint64_t r_object_address;
@@ -2130,11 +2180,6 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     uint64_t r_object_address_26;
     uint64_t r_object_address_27;
     int16_t v_3;
-    m = lookup_method(a_class, a_selector);
-    if (m == 0) {
-        return (cache_entry *)NULL;
-    }
-    e = __builtin_expect(c4_enabled, 0) ? c4_entry + 0 : cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095);
     e->cls = a_class;
     e->sel = a_selector;
     e->method = m;
@@ -2407,6 +2452,13 @@ exit_load_ref_6:;
     if (e->fsize < (((int64_t)na) >> 1) + e->ntemps) {
         e->fsize = (int32_t)((((int64_t)na) >> 1) + e->ntemps);
     }
+    if (__builtin_expect(c4_enabled && (!(jit_mode != JIT_NONE)), 0)) {
+        e->quick = -1;
+        e->nset = 0;
+        e->prim = pf;
+        e->kind = (uint8_t)(pf == NULL ? 0 : is_leaf(p) ? 17 : K_PRIM);
+        return e;
+    }
     e->quick = -1;
     e->nset = 0;
     if ((p == 0) && ((na == 1ULL) && (((bc & 7) == 0) && (((int32_t)(((*(uint64_t *)({
@@ -2595,6 +2647,10 @@ void flush_if_married(uint64_t o)
 /* Interpreter>>flushMethodCache */
 void flush_method_cache(void)
 {
+    if (c4_enabled) {
+        c4_heap_invalidate_cache();
+        return;
+    }
     memset(cache, 0, sizeof(cache_entry) * CACHE_SIZE);
     memset(icache, 0, sizeof(cache_entry) * ICACHE_SIZE);
 }
@@ -2604,6 +2660,10 @@ void flush_method_cache_selector(uint64_t a_selector)
 {
     int i;
     cache_entry *e;
+    if (c4_enabled) {
+        c4_heap_invalidate_cache();
+        return;
+    }
     for (i = 0; i <= 4095; i++) {
         e = cache + i;
         if (e->sel == a_selector) {
@@ -65977,7 +66037,7 @@ exit_canonical_oop_755:;
     r_next_bytecode_248; })];
 do_lookup:;
     if (__builtin_expect(c4_enabled, 0)) {
-        e_5 = fill_cache(cls, sel);
+        e_5 = c4_entry_for(cls, sel);
         if (e_5 == NULL) {
             goto send_does_not_understand;
         }

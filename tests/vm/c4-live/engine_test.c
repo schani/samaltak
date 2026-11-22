@@ -162,6 +162,61 @@ static void hostile_close(void)
     assert(alloc(cls, F_VAR, 3) != child);
 }
 
+static void cache_close(void)
+{
+    arena(32 * 1024);
+    assert(c4_heap_start());
+    oop cls = alloc(1, F_EMPTY, 0);
+    c4_heap_set_method_class(cls);
+    oop method = alloc(cls, F_FIXED, CM_PRIMITIVE + 1);
+    oop code = alloc(1, F_BYTES, 4);
+    oop dead = alloc(cls, F_FIXED, 11);
+    oop guard = alloc(1, F_EMPTY, 0);
+    c4_heap_store_ref(method, CM_BYTECODES, code);
+    uint64_t generation = c4_heap_cache_gen();
+    c4_heap_store_ref(method, CM_FRAMESIZE, 7);
+    assert(c4_heap_cache_gen() != generation);
+    generation = c4_heap_cache_gen();
+
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(cls);
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+
+    /* Both methods are now white: they only have untraced cache aliases.
+     * Hit one after the close proposal, before the frame is installed. */
+    assert(c4_heap_cache_gen() == generation);
+    c4_heap_use_cached_method(method);
+    c4_heap_finish_poll();
+    assert(c4_heap_cache_gen() == generation); /* retry, not ACK */
+    atomic_store(&stall_close, false);
+    finish_cycle();
+
+    /* The cached borrow keeps its body. An untouched cache alias does not
+     * survive ACK (independently of whether its address has been reused). */
+    assert(atomic_load(&proposals) >= 2);
+    assert(c4_heap_cache_gen() != generation);
+    assert(c4_heap_load_ref(method, CM_BYTECODES) == code);
+    assert(alloc(cls, F_FIXED, 11) == dead);
+
+    generation = c4_heap_cache_gen();
+    atomic_store(&at_close, false);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(cls);
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    c4_heap_finish_poll();
+    assert(c4_heap_cache_gen() != generation); /* worker still parked */
+    assert(c4_heap_busy());
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(alloc(cls, F_FIXED, CM_PRIMITIVE + 1) == method);
+}
+
 static void shadow_snapshot(void)
 {
     const size_t size = 4096;
@@ -1048,8 +1103,11 @@ static void forward_after_ack(void)
         sched_yield();
     }
     /* Worker has passed slot 0. The old alias must survive this sweep. */
+    uint64_t generation = c4_heap_cache_gen();
     assert(!c4_heap_become_forward(white, to));
+    assert(c4_heap_cache_gen() == generation);
     assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_cache_gen() != generation);
     atomic_store(&stall_cas, false);
     finish_cycle();
     assert(alloc(nil, F_VAR, 5) == white);
@@ -1488,10 +1546,55 @@ static void lazy_enumeration(void)
     c4_heap_enum_finish();
 }
 
+/* The private semaphore/carrier stand-ins are roots, not result candidates.
+ * Borrowing a method during the view must not change its graph or enqueue
+ * collector work that survives into the next ordinary cycle. */
+static void cache_enumeration(void)
+{
+    oop nil = import_nil(arena(128 * 1024));
+    assert(c4_heap_start());
+    oop cls = alloc(nil, F_EMPTY, 0);
+    oop sem = alloc(cls, F_FIXED, 1), carrier = alloc(cls, F_FIXED, 1);
+    oop a = alloc(cls, F_EMPTY, 0), b = alloc(cls, F_EMPTY, 0);
+    oop method = alloc(nil, F_FIXED, 1), dead = alloc(cls, F_EMPTY, 0);
+    oop weak = weak_owner(nil, 1);
+    c4_heap_store_ref(sem, 0, a);
+    c4_heap_store_ref(carrier, 0, b);
+    c4_heap_store_ref(method, 0, dead);
+    c4_heap_store_ref(weak, 0, dead);
+
+    uint64_t generation = c4_heap_cache_gen();
+    assert(c4_heap_enum_request(cls, 32, sem, carrier));
+    assert(c4_heap_begin());
+    c4_heap_root(sem);
+    c4_heap_root(carrier);
+    c4_heap_root(weak);
+    c4_heap_use_cached_method(method);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    c4_heap_use_cached_method(method);
+    c4_heap_finish_poll();
+    atomic_store(&stall_enum, false);
+    assert(enum_count() == 2);
+    oop first = c4_heap_enum_at(0), second = c4_heap_enum_at(1);
+    assert((first == a && second == b) || (first == b && second == a));
+    c4_heap_enum_finish();
+    assert(c4_heap_cache_gen() == generation);
+
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_cache_gen() != generation);
+    assert(c4_heap_load_ref(weak, 0) == nil);
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
     if (!strcmp(argv[1], "close")) hostile_close();
+    else if (!strcmp(argv[1], "cache-close")) cache_close();
     else if (!strcmp(argv[1], "shadow")) shadow_snapshot();
     else if (!strcmp(argv[1], "oracle")) oracle();
     else if (!strcmp(argv[1], "weak-close")) weak_close();
@@ -1515,6 +1618,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
+    else if (!strcmp(argv[1], "cache-enumeration")) cache_enumeration();
     else return 2;
     return 0;
 }
