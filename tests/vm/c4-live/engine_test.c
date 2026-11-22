@@ -1205,14 +1205,15 @@ static int32_t enum_count(void)
     return n;
 }
 
-static oop pointer_start(size_t extra, oop *pc, oop *mc, oop *ac, bool moving)
+static oop pointer_start(size_t extra, oop *pc, oop *mc, oop *ac, bool moving, bool forwarding)
 {
     oop nil;
     if (moving) {
-        size_t size = (128 + 64) * 1024;
+        size_t size = 64 * 1024 + 4 * extent(0) + extra;
         void *base = mmap(NULL, size, PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         assert(base != MAP_FAILED && c4_heap_init_moving(base, size));
+        if (forwarding) assert(c4_heap_enable_moving_forward());
         nil = import_nil(base);
     } else {
         nil = import_nil(arena(4 * extent(0) + extra));
@@ -1233,7 +1234,7 @@ static oop pointer_start(size_t extra, oop *pc, oop *mc, oop *ac, bool moving)
 static void pointer_shape(void)
 {
     oop pc, mc, ac;
-    oop nil = pointer_start(4096, &pc, &mc, &ac, true);
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true, false);
     oop borrowed = alloc(pc, F_FIXED, 2);
     c4_heap_note_pinned_view(borrowed);
     oop fresh = alloc(pc, F_FIXED, 2), wrong = alloc(pc, F_FIXED, 3);
@@ -1284,7 +1285,7 @@ static void pointer_shape(void)
 static void pointer_satb(void)
 {
     oop pc, mc, ac;
-    oop nil = pointer_start(extent(4) + 4 * extent(2) + 2 * extent(1), &pc, &mc, &ac, false);
+    oop nil = pointer_start(extent(4) + 4 * extent(2) + 2 * extent(1), &pc, &mc, &ac, false, false);
     oop weak = weak_owner(nil, 4);
     oop from = alloc(pc, F_FIXED, 2), to = alloc(pc, F_FIXED, 2);
     oop white_from = alloc(pc, F_FIXED, 2), white_to = alloc(pc, F_FIXED, 2);
@@ -1322,7 +1323,7 @@ static void pointer_satb(void)
 static void pointer_claimed(void)
 {
     oop pc, mc, ac;
-    oop nil = pointer_start(extent(1) + 2 * extent(2) + extent(3), &pc, &mc, &ac, false);
+    oop nil = pointer_start(extent(1) + 2 * extent(2) + extent(3), &pc, &mc, &ac, false, false);
     oop holder = alloc(nil, F_VAR, 1);
     oop from = alloc(mc, F_FIXED, 2), to = alloc(mc, F_FIXED, 2);
     oop child = alloc(nil, F_VAR, 3);
@@ -1359,7 +1360,7 @@ static void pointer_claimed(void)
 static void pointer_after_ack(void)
 {
     oop pc, mc, ac;
-    oop nil = pointer_start(extent(2) + 4 * extent(2), &pc, &mc, &ac, false);
+    oop nil = pointer_start(extent(2) + 4 * extent(2), &pc, &mc, &ac, false, false);
     oop owner = weak_owner(nil, 2);
     oop to = alloc(ac, F_FIXED, 2), white = alloc(ac, F_FIXED, 2);
     oop from = alloc(ac, F_FIXED, 2), other = alloc(ac, F_FIXED, 2);
@@ -1425,14 +1426,14 @@ static void pointer_after_ack(void)
     assert(c4_heap_become_forward(to, other)); /* new incarnation */
 }
 
-static void pointer_enum(void)
+static void pointer_enum(bool moving)
 {
     oop pc, mc, ac;
-    oop nil = pointer_start(4096, &pc, &mc, &ac, false);
+    oop nil = pointer_start(4096, &pc, &mc, &ac, moving, moving);
     oop root = alloc(nil, F_VAR, 4);
-    oop from = alloc(mc, F_FIXED, 2), to = alloc(mc, F_FIXED, 2);
-    oop from2 = alloc(mc, F_FIXED, 2), from3 = alloc(mc, F_FIXED, 2);
-    oop before = alloc(ac, F_FIXED, 2), after = alloc(ac, F_FIXED, 2);
+    oop from = point(mc, moving), to = point(mc, moving);
+    oop from2 = point(mc, moving), from3 = point(mc, moving);
+    oop before = point(ac, moving), after = point(ac, moving);
     c4_heap_store_ref(from, 0, before);
     c4_heap_store_ref(to, 0, after);
     c4_heap_store_ref(root, 0, from);
@@ -2243,6 +2244,309 @@ static void cache_enumeration(void)
     assert(c4_heap_load_ref(weak, 0) == nil);
 }
 
+extern uint64_t c4_heap_test_weak_raw(uint64_t obj, uint32_t i);
+
+static void mforward_disabled(void)
+{
+    oop ic, mc;
+    oop pc = two_bank_start(4096, &ic, &mc);
+    oop a = point(pc, true), b = point(pc, true);
+    assert(!c4_heap_moving_forward_enabled());
+    assert(!c4_heap_enable_moving_forward()); /* not a runtime switch */
+    assert(!c4_heap_become_forward(a, b) && !c4_heap_has_forwarding());
+}
+
+static void mforward_roles(void)
+{
+    oop pc, mc, ac;
+    pointer_start(4096, &pc, &mc, &ac, true, true);
+    assert(c4_heap_moving_forward_enabled());
+    for (oop cls = pc; cls <= ac; cls += extent(0)) {
+        oop from = point(cls, true), to = point(cls, true);
+        oop other = point(cls, true), pinned = alloc(cls, F_FIXED, 2);
+        uint64_t gen = c4_heap_cache_gen();
+        assert(!c4_heap_become_forward(pinned, to));
+        assert(!c4_heap_become_forward(from, pinned));
+        assert(!c4_heap_become_forward(from, point(cls == pc ? mc : pc, true)));
+        assert(!c4_heap_become_forward(c4_heap_address(from), to));
+        assert(gen == c4_heap_cache_gen());
+        c4_heap_store_ref(from, 0, 25);
+        c4_heap_store_ref(to, 0, 91);
+        *(oop *)(uintptr_t)c4_heap_address(to) |= UINT64_C(991) << H_HASH_SHIFT;
+        uint64_t h = body(to)[0], old_from = c4_heap_address(from);
+        assert(c4_heap_become_forward(from, to) && gen != c4_heap_cache_gen());
+        assert(c4_heap_canonical(from) == to && c4_heap_address(from) == c4_heap_address(to));
+        assert(c4_heap_load_ref(from, 0) == 91 && body(from)[0] == h);
+        c4_heap_store_ref(from, 0, 99);
+        assert(c4_heap_load_ref(to, 0) == 99 && ((const oop *)(uintptr_t)old_from)[2] == 25);
+        assert(!c4_heap_become_forward(to, other));
+        assert(!c4_heap_become_forward(other, from));
+        assert(!c4_heap_become_forward(from, other));
+        assert(c4_heap_become_forward(other, to)); /* bounded fan-in */
+    }
+}
+
+static void mforward_satb(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true, true);
+    oop weak = weak_owner(nil, 6);
+    oop from = point(pc, true), to = point(pc, true);
+    oop white_from = point(pc, true), white_to = point(pc, true);
+    oop old_last = point(pc, true), dead = point(pc, true);
+    oop target_child = point(pc, true);
+    oop pinnedi = alloc(pc, F_FIXED, 2);
+    assert(!c4_heap_become_forward(pinnedi, from));
+    assert(!c4_heap_become_forward(from, pinnedi));
+    assert(!c4_heap_become_forward(from, point(mc, true)));
+    oop old_from = c4_heap_address(from), old_to = c4_heap_address(to);
+
+    c4_heap_store_ref(from, 1, old_last);
+    c4_heap_store_ref(white_from, 1, dead);
+    c4_heap_store_ref(to, 1, target_child);
+    oop watched[] = {from, old_last, white_from, dead, white_to, target_child};
+    for (unsigned i = 0; i < 6; ++i) c4_heap_store_ref(weak, i, watched[i]);
+    assert(c4_heap_begin());
+    /* Install before either source is claimed. The worker must read the
+     * new marker, trace the target and retain the old second slot. */
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_become_forward(white_from, white_to));
+    c4_heap_root(weak);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_test_weak_raw(weak, 0) == to);
+    assert(c4_heap_test_weak_raw(weak, 1) == old_last);
+    for (unsigned i = 2; i < 5; ++i) assert(c4_heap_test_weak_raw(weak, i) == nil);
+    assert(c4_heap_test_weak_raw(weak, 5) == target_child);
+    assert(c4_heap_take_weak_clears() == 3);
+    c4_heap_move_poll();
+    assert(c4_heap_address(from) == c4_heap_address(to) && c4_heap_address(to) != old_to);
+    assert(*(const oop *)(uintptr_t)old_from == UINT64_C(0xdddddddddddddddd));
+    assert(c4_heap_load_ref(from, 1) == target_child);
+
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_test_weak_raw(weak, 1) == nil); /* old edges for one cycle only */
+    assert(c4_heap_test_weak_raw(weak, 5) == target_child);
+}
+
+static void mforward_claimed(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true, true);
+    oop root = alloc(nil, F_VAR, 1), weak = weak_owner(nil, 2);
+    oop from = point(pc, true), to = point(pc, true);
+    oop first = point(pc, true), second = point(pc, true);
+    c4_heap_store_ref(root, 0, from);
+    c4_heap_store_ref(from, 1, first);
+    c4_heap_store_ref(to, 1, second);
+    c4_heap_store_ref(weak, 0, first);
+    c4_heap_store_ref(weak, 1, second);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    uint64_t gen = c4_heap_cache_gen();
+    assert(c4_heap_become_forward(from, to) && c4_heap_cache_gen() != gen);
+    /* Do not heal the referring slot here: its insertion barrier would
+     * accidentally shade the target even with a broken claim handshake. */
+    c4_heap_finish_poll();
+    assert(c4_heap_busy() && atomic_load(&proposals) == 1);
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(atomic_load(&proposals) >= 2);
+    assert(c4_heap_test_weak_raw(weak, 0) == first && c4_heap_test_weak_raw(weak, 1) == second);
+    c4_heap_move_poll();
+    assert(c4_heap_load_ref(root, 0) == to && c4_heap_load_ref(to, 1) == second);
+}
+
+static void mforward_weak_aba(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true, true);
+    oop weak = weak_owner(nil, 3);
+    oop healed = point(pc, true), keeper = point(pc, true);
+    oop dead = point(pc, true), dead_target = point(pc, true);
+    c4_heap_store_ref(weak, 0, healed);
+    c4_heap_store_ref(weak, 1, dead);
+    c4_heap_store_ref(weak, 2, dead_target);
+    assert(c4_heap_become_forward(healed, keeper));
+    assert(c4_heap_become_forward(dead, dead_target));
+
+    race_owner = weak; race_slot = 0; race_prev = healed;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(keeper);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) { c4_heap_finish_poll(); sched_yield(); }
+    assert(c4_heap_test_weak_raw(weak, 0) == healed);
+    assert(c4_heap_test_weak_raw(weak, 1) == dead);
+    for (unsigned i = 0; i < 128; ++i) c4_heap_move_poll();
+    oop newborn = point(pc, true);
+    assert(newborn != healed && newborn != dead && newborn != dead_target);
+    assert(!c4_heap_become_forward(newborn, dead_target)); /* white after ACK */
+    finish_during_load = true;
+    assert(c4_heap_load_ref(weak, 0) == keeper); /* local raw alias across sweep */
+    finish_during_load = false;
+    assert(c4_heap_test_weak_raw(weak, 0) == keeper);
+    assert(c4_heap_test_weak_raw(weak, 1) == nil && c4_heap_test_weak_raw(weak, 2) == nil);
+    assert(c4_heap_take_weak_clears() == 2);
+
+    c4_heap_move_poll();
+    assert(!c4_heap_become_forward(keeper, newborn)); /* no target downgrade */
+    oop reinc_target = point(pc, true), reinc_dead = point(pc, true);
+    oop reinc_healed = point(pc, true);
+    assert(reinc_target == dead_target && reinc_dead == dead && reinc_healed == healed);
+    assert(c4_heap_canonical(reinc_dead) == reinc_dead && c4_heap_canonical(reinc_healed) == reinc_healed);
+    assert(c4_heap_become_forward(reinc_target, reinc_healed)); /* old target guard gone */
+    assert(c4_heap_become_forward(reinc_dead, reinc_healed)); /* old alias guard gone */
+    assert(c4_heap_load_ref(weak, 0) == keeper && c4_heap_load_ref(weak, 1) == nil &&
+        c4_heap_load_ref(weak, 2) == nil);
+}
+
+static void mforward_late(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true, true);
+    oop weak = weak_owner(nil, 2);
+    oop late = point(pc, true), late_to = point(pc, true), white = point(pc, true);
+    oop from = point(pc, true), to = point(pc, true);
+    c4_heap_store_ref(weak, 0, late);
+    c4_heap_store_ref(weak, 1, from);
+    assert(c4_heap_become_forward(from, to));
+    race_owner = weak; race_slot = 1; race_prev = from;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(late);
+    c4_heap_root(late_to);
+    c4_heap_root(to);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) { c4_heap_finish_poll(); sched_yield(); }
+    /* CLEAR has already visited slot 0. Its raw alias may remain only
+     * because both endpoints are live in this cycle. CAS #1 must lose. */
+    assert(!c4_heap_become_forward(late, white));
+    assert(!c4_heap_become_forward(white, late_to));
+    assert(c4_heap_become_forward(late, late_to));
+    c4_heap_store_ref(weak, 1, late);
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+    assert(c4_heap_test_weak_raw(weak, 0) == late && c4_heap_test_weak_raw(weak, 1) == late_to);
+    c4_heap_move_poll();
+    assert(point(pc, true) == from);
+    assert(point(pc, true) == white);
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_test_weak_raw(weak, 0) == nil && c4_heap_test_weak_raw(weak, 1) == nil);
+    c4_heap_move_poll();
+    /* Round-robin sealed the previous newborn's region first. The two
+     * dead aliases are tombstones until their own region releases. */
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    c4_heap_move_poll();
+    assert(point(pc, true) == to);
+    assert(point(pc, true) == late_to);
+    assert(point(pc, true) == late);
+}
+
+static void mforward_saturated(void)
+{
+    enum { SLOTS = 512 };
+    oop pc, mc, ac;
+    pointer_start(2 * extent(2), &pc, &mc, &ac, true, true);
+    oop src = point(pc, true), dst = point(pc, true);
+    assert(c4_heap_become_forward(src, dst));
+    oop old = c4_heap_address(dst);
+    for (unsigned i = 2; i < SLOTS; ++i) point(pc, true);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(src);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+
+    /* The only spill space is these two exact pinned extents; the
+     * evacuation reserve stays unavailable to the mutator. */
+    for (unsigned i = 0; i < 2 * SLOTS; ++i) point(pc, true);
+    oop a = point(pc, false), b = point(pc, false);
+    uint64_t addr;
+    assert(!c4_heap_reserve(32, C4_PLAIN, &addr) && !addr);
+    assert(!c4_heap_become_forward(a, dst) && !c4_heap_become_forward(dst, b));
+    assert(c4_heap_become_forward(a, b));
+    c4_heap_move_poll();
+    assert(c4_heap_address(src) == old);
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    for (unsigned i = 0; i < SLOTS / 64; ++i) c4_heap_move_poll();
+    assert(c4_heap_canonical(src) == dst && c4_heap_address(src) != old);
+    assert(point(pc, true) != src);
+    c4_heap_stats();
+}
+
+static void mforward_budget(void)
+{
+    enum { SLOTS = 128, LIVE = 66 };
+    oop ic, pc;
+    const size_t cap = (4 + 2 * 64) * 1024;
+    void *base = mmap(NULL, cap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(base != MAP_FAILED && c4_heap_init_moving(base, cap));
+    assert(c4_heap_enable_moving_forward() && c4_heap_prepare_interval(48));
+    oop nil = import_nil(base);
+    pc = nil + 16;
+    ic = nil + 32;
+    for (oop cls = pc; cls <= ic; cls += 16) {
+        initialize(cls, nil, F_EMPTY, 0);
+        assert(c4_heap_import(cls, 16, 0, C4_NO_WEAK));
+    }
+    c4_heap_set_plain_classes(pc, 0, 0);
+    c4_heap_set_pointer_forward_classes(pc, 0, 0);
+    c4_heap_set_interval_class(ic);
+    assert(c4_heap_start());
+    oop ids[2][SLOTS], prev[2][SLOTS];
+    for (unsigned i = 0; i < SLOTS; ++i) {
+        ids[0][i] = point(pc, true);
+        ids[1][i] = interval(ic, true);
+        for (unsigned b = 0; b < 2; ++b) prev[b][i] = c4_heap_address(ids[b][i]);
+    }
+    assert(!c4_heap_become_forward(ids[0][0], ids[1][0]));
+    assert(!c4_heap_become_forward(ids[1][0], ids[0][0]));
+    for (unsigned i = 0; i < LIVE; i += 2) {
+        assert(c4_heap_become_forward(ids[0][i], ids[0][i + 1]));
+        assert(!c4_heap_become_forward(ids[1][i], ids[1][i + 1]));
+    }
+    assert(c4_heap_begin());
+    for (unsigned i = 0; i < LIVE; ++i) {
+        if (!(i & 1)) c4_heap_root(ids[0][i]);
+        c4_heap_root(ids[1][i]);
+    }
+    c4_heap_end_roots();
+    finish_cycle();
+    for (unsigned poll = 0; poll < 4; ++poll) {
+        assert(!c4_heap_begin());
+        c4_heap_move_poll();
+        for (unsigned b = 0; b < 2; ++b) {
+            for (unsigned i = 0; i < LIVE; i += 2) {
+                bool moved = poll >= b && (i < 64 || poll >= b + 2);
+                uint32_t terminal = i + (b == 0);
+                assert((c4_heap_address(ids[b][i]) != prev[b][terminal]) == moved);
+                assert(c4_heap_canonical(ids[b][i]) == ids[b][terminal]);
+                if (moved) assert(*(const oop *)(uintptr_t)prev[b][i] == UINT64_C(0xdddddddddddddddd));
+            }
+        }
+    }
+    c4_heap_stats(); /* verifies copy and withheld capacity counters in the runner */
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -2278,7 +2582,16 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "pointer-satb")) pointer_satb();
     else if (!strcmp(argv[1], "pointer-claimed")) pointer_claimed();
     else if (!strcmp(argv[1], "pointer-after-ack")) pointer_after_ack();
-    else if (!strcmp(argv[1], "pointer-enum")) pointer_enum();
+    else if (!strcmp(argv[1], "pointer-enum")) pointer_enum(false);
+    else if (!strcmp(argv[1], "mforward-disabled")) mforward_disabled();
+    else if (!strcmp(argv[1], "mforward-roles")) mforward_roles();
+    else if (!strcmp(argv[1], "mforward-satb")) mforward_satb();
+    else if (!strcmp(argv[1], "mforward-claimed")) mforward_claimed();
+    else if (!strcmp(argv[1], "mforward-weak-aba")) mforward_weak_aba();
+    else if (!strcmp(argv[1], "mforward-late")) mforward_late();
+    else if (!strcmp(argv[1], "mforward-enum")) pointer_enum(true);
+    else if (!strcmp(argv[1], "mforward-budget")) mforward_budget();
+    else if (!strcmp(argv[1], "mforward-saturated")) mforward_saturated();
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
     else if (!strcmp(argv[1], "enumeration-log-limit")) enumeration_log_limit();

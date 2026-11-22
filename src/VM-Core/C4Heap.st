@@ -25,6 +25,14 @@ initMoving: base capacity: bytes
 	<c: 'bool c4_heap_init_moving(void *base, size_t bytes)'>
 	^false
 !
+enableMovingForward
+	<c: 'bool c4_heap_enable_moving_forward(void)'>
+	^false
+!
+movingForwardEnabled
+	<c: 'bool c4_heap_moving_forward_enabled(void)'>
+	^false
+!
 prepareInterval: imageBytes
 	<c: 'bool c4_heap_prepare_interval(size_t imageBytes)'>
 	^false

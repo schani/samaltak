@@ -112,8 +112,8 @@ bodyAddress: o
 !
 pinnedBodyAddress: o
 	| owner |
-	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable object'].
 	owner := self canonicalOop: o.
+	(self unlikely: (vmMain c4Moving and: [c4 movable: owner])) ifTrue: [self fatal: 'raw body view of a movable object'].
 	(self unlikely: vmMain c4Enabled) ifTrue: [c4 notePinnedView: owner].
 	^owner + 16
 !

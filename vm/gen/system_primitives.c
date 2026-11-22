@@ -407,11 +407,6 @@ exit_canonical_oop_2:;
         goto exit_store_ref;
     }
     ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(o_3), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_3 = c4_heap_canonical(o_3);
@@ -420,6 +415,11 @@ exit_canonical_oop_2:;
     r_canonical_oop_3 = o_3;
 exit_canonical_oop_3:;
     r_canonical_oop_3; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner);
     }
@@ -451,11 +451,6 @@ exit_store_ref:;
         goto exit_store_ref_2;
     }
     ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(o_4), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_4 = c4_heap_canonical(o_4);
@@ -464,6 +459,11 @@ exit_store_ref:;
     r_canonical_oop_4 = o_4;
 exit_canonical_oop_4:;
     r_canonical_oop_4; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner_2), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner_2);
     }
@@ -482,11 +482,6 @@ exit_object_address_2:;
 exit_store_ref_2:;
     ctx = active_ctx;
     ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(ctx), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner_3 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_5 = c4_heap_canonical(ctx);
@@ -495,6 +490,11 @@ exit_store_ref_2:;
     r_canonical_oop_5 = ctx;
 exit_canonical_oop_5:;
     r_canonical_oop_5; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner_3), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner_3);
     }
@@ -824,11 +824,6 @@ exit_object_address_4:;
             goto exit_store_ref;
         }
         ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(a), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(a);
@@ -837,6 +832,11 @@ exit_object_address_4:;
     r_canonical_oop = a;
 exit_canonical_oop:;
     r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner);
     }
@@ -1273,11 +1273,6 @@ exit_object_address_4:;
             goto exit_store_ref;
         }
         ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
@@ -1286,6 +1281,11 @@ exit_object_address_4:;
     r_canonical_oop = o;
 exit_canonical_oop:;
     r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner);
     }

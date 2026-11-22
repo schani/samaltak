@@ -34,6 +34,9 @@ enum c4_lane { C4_PINNED, C4_PLAIN, C4_INTERVAL };
 bool c4_heap_supported(void);
 bool c4_heap_init(void *base, size_t capacity);
 bool c4_heap_init_moving(void *base, size_t capacity);
+/* Opt-in before start; never enabled by init_moving alone. */
+bool c4_heap_enable_moving_forward(void);
+bool c4_heap_moving_forward_enabled(void);
 bool c4_heap_prepare_interval(size_t image_bytes);
 size_t c4_heap_pinned_capacity(void);
 /* The two-slot lane uses image identities captured at startup. */
@@ -142,6 +145,8 @@ static inline bool c4_heap_init(void *base, size_t capacity)
 { (void)base; (void)capacity; return false; }
 static inline bool c4_heap_init_moving(void *base, size_t capacity)
 { (void)base; (void)capacity; return false; }
+static inline bool c4_heap_enable_moving_forward(void) { return false; }
+static inline bool c4_heap_moving_forward_enabled(void) { return false; }
 static inline bool c4_heap_prepare_interval(size_t image_bytes)
 { (void)image_bytes; return false; }
 static inline size_t c4_heap_pinned_capacity(void) { return 0; }

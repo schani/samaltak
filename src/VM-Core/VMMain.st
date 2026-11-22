@@ -3,7 +3,7 @@ VMCoreModule subclass: #VMMain
 	classVariableNames: ''
 	package: 'VM-Core'!
 
-VMMain comment: 'The entry point: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
+VMMain comment: 'The entry point: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
 
 !VMMain class methodsFor: 'declaring'!
 declarations
@@ -41,12 +41,13 @@ banner
 !
 usage
 	<noreturn>
-	libc fputs: 'usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
+	libc fputs: 'usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
   --c4              experimental headless heap (Linux x86-64)
                     NO_PLATFORM=1 supports optional --jit baseline
                     C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only
   --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances
+  --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
   --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized
@@ -60,9 +61,9 @@ main: n argv: v
 	<function>
 	<var: #n type: 'int'>
 	<var: #v type: 'char **'>
-	| maxHeap eden i image proc ctx explicitJit |
+	| maxHeap eden i image proc ctx explicitJit movingForward |
 	jit defaults.
-	explicitJit := false.
+	explicitJit := movingForward := false.
 	maxHeap := (4096 << 20) asUInt64.
 	eden := (16 << 20) asUInt64.
 	i := 1.
@@ -75,8 +76,11 @@ main: n argv: v
 				(libc strcmp: (v at: i) with: '--c4') = 0
 					ifTrue: [c4Requested := true]
 					ifFalse: [
-						(libc strcmp: (v at: i) with: '--c4-moving') = 0
-							ifTrue: [c4Requested := c4Moving := true]
+						((libc strcmp: (v at: i) with: '--c4-moving') = 0 or: [
+							(libc strcmp: (v at: i) with: '--c4-moving-forward') = 0])
+							ifTrue: [
+								(libc strcmp: (v at: i) with: '--c4-moving-forward') = 0 ifTrue: [movingForward := true].
+								c4Requested := c4Moving := true]
 							ifFalse: [
 								((libc strcmp: (v at: i) with: '--eden') = 0 and: [i + 1 < n])
 									ifTrue: [
@@ -98,6 +102,9 @@ main: n argv: v
 	argv := v.
 	argsStart := (i + 1) asInt32.
 	i + 1 to: n - 1 do: [:k | (libc strcmp: (v at: k) with: '--headless') = 0 ifTrue: [headless := true]].
+	movingForward ifTrue: [
+		(c4 supported and: [c4 platformFiles not]) ifFalse: [self fatal: '--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1'].
+		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: '--c4-moving-forward requires --jit none']].
 	c4 platformFiles ifTrue: [
 		c4Requested ifFalse: [self fatal: 'C4_PLATFORM_FILES=1 requires --c4 or --c4-moving'].
 		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: 'C4 platform files require --jit none']].
@@ -113,6 +120,8 @@ main: n argv: v
 			ifTrue: [c4 initMoving: (self ptr: gc oldLo) capacity: maxHeap]
 			ifFalse: [c4 init: (self ptr: gc oldLo) capacity: maxHeap])
 				ifFalse: [self fatal: 'cannot initialize C4 heap'].
+		(movingForward and: [c4 enableMovingForward not])
+			ifTrue: [self fatal: 'cannot enable C4 moving forwarding'].
 		c4 threshold: eden].
 	imageFile loadImage: image.
 	c4Requested ifTrue: [

@@ -79,13 +79,15 @@ jobs:
           OUT="$OUT/old" tests/vm/c4-live/run-context.sh "$old" "$C4_VM"
           tests/vm/c4-live/run-interval.sh "$image" "$C4_VM"
           tests/vm/c4-live/run-interval.sh "$old" "$C4_VM" old
+          tests/vm/c4-live/run-moving-forward.sh "$image" "$C4_VM"
+          tests/vm/c4-live/run-moving-forward.sh "$old" "$C4_VM" old
       - name: Baseline JIT and 128 MiB pressure
         run: |
           image="$OUT/samaltak.image"
           tests/vm/c4-jit-live/run.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-forward.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-enumeration.sh "$image" "$C4_VM"
-          for mode in c4 c4-moving; do
+          for mode in c4 c4-moving c4-moving-forward; do
             tests/vm/c4-live/run-low-cap.sh "$image" "$C4_VM" "$mode"
           done
       - uses: actions/upload-artifact@v4

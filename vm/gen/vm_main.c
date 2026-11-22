@@ -72,6 +72,7 @@ static bool jit_option(char **v, int32_t i, int n)
 /* VMMain>>main:argv: */
 int main(int n, char **v)
 {
+    bool moving_forward;
     bool explicit_jit;
     uint64_t max_heap;
     uint64_t eden;
@@ -94,7 +95,7 @@ int main(int n, char **v)
     uint64_t r_object_address_5;
     uint64_t r_object_address_6;
     defaults();
-    explicit_jit = false;
+    explicit_jit = moving_forward = false;
     max_heap = 4294967296ULL;
     eden = 16777216ULL;
     i = 1;
@@ -104,7 +105,10 @@ int main(int n, char **v)
             max_heap = ((uint64_t)atol(v[i])) << 20;
         } else if (strcmp(v[i], "--c4") == 0) {
             c4_requested = true;
-        } else if (strcmp(v[i], "--c4-moving") == 0) {
+        } else if ((strcmp(v[i], "--c4-moving") == 0) || (strcmp(v[i], "--c4-moving-forward") == 0)) {
+            if (strcmp(v[i], "--c4-moving-forward") == 0) {
+                moving_forward = true;
+            }
             c4_requested = c4_moving = true;
         } else if ((strcmp(v[i], "--eden") == 0) && (i + 1 < n)) {
             i = i + 1;
@@ -131,6 +135,18 @@ int main(int n, char **v)
     for (k = i + 1; k <= n - 1; k++) {
         if (strcmp(v[k], "--headless") == 0) {
             headless = true;
+        }
+    }
+    if (moving_forward) {
+        if (!(c4_heap_supported() && (!c4_heap_platform_files()))) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires --jit none");
+            fatal_end();
         }
     }
     if (c4_heap_platform_files()) {
@@ -175,6 +191,11 @@ int main(int n, char **v)
         if (!(c4_moving ? c4_heap_init_moving((void *)old_lo, max_heap) : c4_heap_init((void *)old_lo, max_heap))) {
             fatal_begin();
             fprintf(stderr, "cannot initialize C4 heap");
+            fatal_end();
+        }
+        if (moving_forward && (!c4_heap_enable_moving_forward())) {
+            fatal_begin();
+            fprintf(stderr, "cannot enable C4 moving forwarding");
             fatal_end();
         }
         c4_heap_set_threshold(eden);
@@ -256,11 +277,6 @@ exit_load_ref_2:;
         goto exit_store_ref;
     }
     ((oop *)({
-    if (__builtin_expect(c4_moving && c4_heap_movable(proc), 0)) {
-        fatal_begin();
-        fprintf(stderr, "raw body view of a movable object");
-        fatal_end();
-    }
     owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(proc);
@@ -269,6 +285,11 @@ exit_load_ref_2:;
     r_canonical_oop = proc;
 exit_canonical_oop:;
     r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
     if (__builtin_expect(c4_enabled, 0)) {
         c4_heap_note_pinned_view(owner);
     }
@@ -308,7 +329,7 @@ exit_object_address_6:;
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64)\n                    NO_PLATFORM=1 supports optional --jit baseline\n                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only\n  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64)\n                    NO_PLATFORM=1 supports optional --jit baseline\n                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only\n  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances\n  --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

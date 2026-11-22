@@ -117,6 +117,7 @@ typedef struct {
     uintptr_t tokens;
     uint64_t plain_classes[PLAIN_KINDS];
     c4_handle handles[MOVE_IDS];
+    _Atomic uint64_t *forwarding; /* optional two-slot bank, indexed by logical ID */
     c4_move_bank bank[BANKS];
     uint32_t bank_count, first_bank, max_inspected, max_copied;
     uint64_t moved_kind[PLAIN_KINDS];
@@ -276,9 +277,17 @@ static uint64_t forward_target(uint64_t marker)
     return (marker & 7) ? 0 : marker;
 }
 
+static _Atomic uint64_t *forward_slot(uint32_t at)
+{
+    if (at < heap.capacity) return &heap.shadow[at];
+    uint32_t id = at - heap.capacity;
+    return id < SMALL_IDS && heap.moving->forwarding ? &heap.moving->forwarding[id] : NULL;
+}
+
 static uint64_t forward_at(uint32_t at)
 {
-    return forward_target(acquire(&heap.shadow[at]));
+    _Atomic uint64_t *slot = forward_slot(at);
+    return slot ? forward_target(acquire(slot)) : 0;
 }
 
 bool c4_heap_has_forwarding(void)
@@ -289,6 +298,12 @@ bool c4_heap_has_forwarding(void)
 static uint64_t canonical(uint64_t obj)
 {
     uint32_t at;
+    if (heap.moving && heap.moving->forwarding && token_id(obj, &at)) {
+        /* A weak load may hold the raw ID over SWEEP but not over reuse
+         * on this sole mutator. The marker outlives the live layout. */
+        uint64_t target = forward_at(heap.capacity + at);
+        return target ? target : obj;
+    }
     if (offset(obj, &at) && at < acquire(&heap.top) &&
             layout_at(acquire(&cell_at(at)->layout), at)) {
         uint64_t target = forward_at(at);
@@ -517,6 +532,52 @@ static bool reserved_forward_operand(uint64_t obj)
         c4_heap_plain_class(obj) || c4_heap_interval_class(obj);
 }
 
+static void publish_forward(c4_cell *source, uint32_t src, _Atomic uint64_t *slot,
+    uint64_t to, uint64_t cls, unsigned phase)
+{
+    c4_heap_invalidate_cache();
+    if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
+    if (viewing(phase)) preserve_word(src, view_row(src), slot);
+    if (view.cls == cls) view.identity_invalid = true;
+    release(slot, to);
+    if (marking(phase)) {
+        /* RMW against claim(): if it already claimed the source, shade the
+         * inserted edge; otherwise its acquire claim observes publication.
+         * The original class edge is independently rooted. A white source
+         * does not keep its target alive merely by acquiring forwarding. */
+        uint32_t seen = atomic_fetch_or_explicit(&source->seen, 0, memory_order_acq_rel);
+        if (seen == relaxed(&heap.epoch)) shade_mutator(to);
+    }
+}
+
+static bool become_forward_moving(uint32_t src, uint64_t to, unsigned phase)
+{
+    c4_move_state *m = heap.moving;
+    uint32_t dst;
+    if (!m->forwarding || heap.unpublished || src >= SMALL_IDS ||
+            !token_id(to, &dst) || dst >= SMALL_IDS)
+        return false;
+    c4_handle *source = &m->handles[src], *target = &m->handles[dst];
+    _Atomic uint64_t *sm = &m->forwarding[src], *dm = &m->forwarding[dst];
+    uint64_t tm = relaxed(dm);
+    if (relaxed(sm) || (tm && tm != C4_FORWARD_TARGET) ||
+            (uint32_t)acquire(&source->trace.layout) != 2 ||
+            (uint32_t)acquire(&target->trace.layout) != 2 ||
+            source->trace.weak_start != C4_NO_WEAK || target->trace.weak_start != C4_NO_WEAK)
+        return false;
+    uint64_t cls = relaxed(&source->shadow[0]);
+    if (!pointer_forward_class(cls) || !c4_heap_plain_class(cls) ||
+            cls != relaxed(&target->shadow[0]))
+        return false;
+
+    /* Published live handles in this bank already have fixed two-slot
+     * bodies. Neither endpoint can have a pinned class or storage role. */
+    put_relaxed(dm, C4_FORWARD_TARGET);
+    if (marking(phase)) put_relaxed(&source->trace.context_limit, C4_FORWARD_SATB);
+    publish_forward(&source->trace, heap.capacity + src, sm, to, cls, phase);
+    return true;
+}
+
 bool c4_heap_become_forward(uint64_t from, uint64_t to)
 {
     require_raw_read_quiescence("forwarding during synchronous raw read");
@@ -530,6 +591,8 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
      * the worker cannot reclaim before this call finishes. */
     if ((phase == C4_CLEAR || phase == C4_SWEEP) &&
             (!post_close_live(from) || !post_close_live(to))) return false;
+    uint32_t id;
+    if (token_id(from, &id)) return become_forward_moving(id, to, phase);
     c4_cell *source = live_pinned(from, &src), *target = live_pinned(to, &dst);
     if (!source || !target || relaxed(&heap.shadow[src]) || forward_at(dst))
         return false;
@@ -556,19 +619,7 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
         return false;
     }
 
-    c4_heap_invalidate_cache();
-    if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
-    if (viewing(phase)) preserve_word(src, view_row(src), &heap.shadow[src]);
-    if (view.cls == sc) view.identity_invalid = true;
-    release(&heap.shadow[src], to);
-    if (marking(phase)) {
-        /* RMW against claim(): if it already claimed the source, shade the
-         * inserted edge; otherwise its acquire claim observes publication.
-         * The original class edge is independently rooted. A white source
-         * does not keep its target alive merely by acquiring forwarding. */
-        uint32_t seen = atomic_fetch_or_explicit(&source->seen, 0, memory_order_acq_rel);
-        if (seen == relaxed(&heap.epoch)) shade_mutator(to);
-    }
+    publish_forward(source, src, &heap.shadow[src], to, sc, phase);
     return true;
 }
 
@@ -736,7 +787,11 @@ static void sweep_bank(c4_move_state *m, c4_move_bank *b, uint64_t *reclaimed, u
     uint32_t epoch = relaxed(&heap.epoch);
     for (uint32_t id = b->first_id; id < b->end_id; ++id) {
         c4_cell *cell = &m->handles[id].trace;
-        if ((uint32_t)acquire(&cell->layout) < C4_RESERVED && relaxed(&cell->seen) != epoch) {
+        bool live = (uint32_t)acquire(&cell->layout) < C4_RESERVED;
+        if (live && id < SMALL_IDS && m->forwarding)
+            put_relaxed(&cell->context_limit, 0);
+        if (live && relaxed(&cell->seen) != epoch) {
+            /* Keep the marker for an in-flight mutator weak load. */
             put_relaxed(&cell->layout, C4_FREE);
             atomic_fetch_sub_explicit(&b->occupied, 1, memory_order_relaxed);
             ++*reclaimed;
@@ -807,8 +862,9 @@ static int32_t enumerate_view(void)
         work = cell->link;
         uint32_t row = view_row(at);
         bool pinned = at < heap.capacity;
-        if (pinned) {
-            uint64_t target = forward_target(read_view(row, &heap.shadow[at]));
+        _Atomic uint64_t *marker = forward_slot(at);
+        if (marker) {
+            uint64_t target = forward_target(read_view(row, marker));
             if (target) {
                 view_push(target, &work);
                 continue; /* never emit a forwarding source */
@@ -844,6 +900,16 @@ static int32_t enumerate_view(void)
 }
 
 #ifdef SAMALTAK_C4_TEST
+/* Test-only, nonhealing sample: observe CLEAR before any ID reuse. */
+uint64_t c4_heap_test_weak_raw(uint64_t obj, uint32_t i)
+{
+    uint32_t at, refs;
+    c4_cell *c = body_owner(obj, &at, &refs);
+    if (i < c->weak_start || i >= refs) bad_contract("test not a weak slot");
+    _Atomic uint64_t *field = shadow_field(at, i, refs, false);
+    return field ? acquire(field) : heap.nil;
+}
+
 /* The blocked-file test must not wait for CLOSE before root slices seal. */
 bool c4_heap_test_roots_sealed(void)
 {
@@ -871,8 +937,7 @@ static void *worker(void *unused)
                 c4_cell *cell = cell_at(at);
                 *source = cell->link;
                 ++marked;
-                uint64_t target = at < heap.capacity && c4_heap_has_forwarding()
-                    ? forward_at(at) : 0;
+                uint64_t target = c4_heap_has_forwarding() ? forward_at(at) : 0;
                 if (target) {
                     ++edges;
                     shade_worker(target, &local);
@@ -1047,6 +1112,20 @@ bool c4_heap_init_moving(void *base, size_t capacity)
     m->bank_count = 1;
     heap.moving = m;
     return true;
+}
+
+bool c4_heap_enable_moving_forward(void)
+{
+    c4_move_state *m = heap.moving;
+    if (c4_heap_platform_files() || !m || heap.started || m->forwarding)
+        return false;
+    m->forwarding = calloc(SMALL_IDS, sizeof *m->forwarding);
+    return m->forwarding != NULL;
+}
+
+bool c4_heap_moving_forward_enabled(void)
+{
+    return heap.moving && heap.moving->forwarding;
 }
 
 bool c4_heap_prepare_interval(size_t image_bytes)
@@ -1399,6 +1478,7 @@ static uint64_t reserve_moving(c4_move_state *m, c4_move_bank *b)
         if (handle->addr || (uint32_t)relaxed(&handle->trace.layout) != C4_FREE)
             bad_contract("recycling live moving handle");
         b->free_ids = handle->next_free;
+        if (id < SMALL_IDS && m->forwarding) put_relaxed(&m->forwarding[id], 0);
         handle->addr = take_slot(b, i, id);
         put_relaxed(&handle->trace.seen, relaxed(&heap.epoch));
         put_relaxed(&handle->trace.layout, C4_RESERVED);
@@ -1913,7 +1993,8 @@ void c4_heap_stats(void)
             " moved_point=%" PRIu64 " moved_message=%" PRIu64 " moved_association=%" PRIu64
             " max_inspected=%u max_copied=%u metadata_bytes=%zu\n",
             m->moved_kind[PLAIN_POINT], m->moved_kind[PLAIN_MESSAGE],
-            m->moved_kind[PLAIN_ASSOCIATION], m->max_inspected, m->max_copied, sizeof *m);
+            m->moved_kind[PLAIN_ASSOCIATION], m->max_inspected, m->max_copied, sizeof *m +
+            (m->forwarding ? SMALL_IDS * sizeof *m->forwarding : 0));
     }
 }
 

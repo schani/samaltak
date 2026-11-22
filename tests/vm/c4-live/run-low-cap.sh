@@ -1,5 +1,5 @@
 #!/bin/sh
-# Usage: tests/vm/c4-live/run-low-cap.sh STANDARD_STAGE2_IMAGE [C4_VM] [c4|c4-moving]
+# Usage: tests/vm/c4-live/run-low-cap.sh STANDARD_STAGE2_IMAGE [C4_VM] [c4|c4-moving|c4-moving-forward]
 set -eu
 cd "$(dirname "$0")/../../.."
 case "$(uname -s -m)" in
@@ -13,7 +13,8 @@ out=${OUT:-build}/c4-low-cap
 case "$mode" in
     c4) ;;
     c4-moving) out=$out-moving ;;
-    *) echo 'c4-low-cap: expected c4 or c4-moving' >&2; exit 2 ;;
+    c4-moving-forward) out=$out-moving-forward ;;
+    *) echo 'c4-low-cap: expected c4, c4-moving, or c4-moving-forward' >&2; exit 2 ;;
 esac
 
 # Run the same two tests, then check legacy collector counters in that process.
