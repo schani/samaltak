@@ -55,9 +55,9 @@ jobs:
 
           # Build a standard image from before the optional Interval special object.
           old_rev=5596a561e14a45110ac7f673008b990001d9519d
-          git fetch --no-tags --depth=1 origin "$old_rev"
+          git -c safe.directory="$PWD" fetch --no-tags --depth=1 origin "$old_rev"
           mkdir -p "$OUT/compat-src"
-          git archive "$old_rev" boot fonts src | tar -x -C "$OUT/compat-src"
+          git -c safe.directory="$PWD" archive "$old_rev" boot fonts src | tar -x -C "$OUT/compat-src"
           bootstrap="$PWD/$BOOTSTRAP_VM"
           old="$PWD/$OUT/old"
           (
