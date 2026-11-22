@@ -314,6 +314,7 @@ parseFlags: s
 setMode: m
 	"Switch compilers: all code is dropped at the next point without machine code on the native stack."
 	<function>
+	(vmMain c4Enabled and: [m ~= JIT_NONE]) ifTrue: [^false].
 	(m ~= JIT_NONE and: [self ensureOpen not]) ifTrue: [^false].
 	"optimized frames keep the cache from being flushed: they become Contexts"
 	self noOptFrames ifFalse: [interpreter materializeAll].

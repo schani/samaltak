@@ -88,7 +88,13 @@ test-c4: image
 		awk '$$0 == "samaltak: verify mark: full GC matched" { n++ } END { exit n != 1 }' "$$log" || { echo 'test-c4: expected exactly one native mark witness' >&2; exit 1; }
 ifeq ($(shell uname -s -m),Linux x86_64)
 	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-native/run.sh "$(OUT)/samaltak.image"
+	tests/vm/c4-live/run-engine.sh
+	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-live/run.sh
 endif
+
+test-c4-live:
+	tests/vm/c4-live/run-engine.sh
+	OUT="$(OUT)" tests/vm/c4-live/run.sh
 
 test-tools: image
 	$(PLATFORM_CHECK)
@@ -244,4 +250,4 @@ clean:
 	$(MAKE) -C vm clean
 	rm -rf build
 
-.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-tools test video mindblown-video jit-video clean
+.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-c4-live test-tools test video mindblown-video jit-video clean

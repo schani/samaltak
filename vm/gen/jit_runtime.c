@@ -120,7 +120,8 @@ void activated(frame *f)
     frame *g;
     uint64_t c_3;
     oop m;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -187,7 +188,14 @@ exit_best:;
             c_3 = g->code;
             if (!((c_3 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o_2 = *(uint64_t *)(m + 16 + 24);
+                o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
                 g->pc = (int32_t)(g->ip - (uint8_t *)(o_2 + 16));
             }
             sync_frame(g);
@@ -208,7 +216,8 @@ uint64_t address_for(frame *f)
     uint64_t c;
     jit_method *h;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t off;
     c = f->code;
     if (!(c > JIT_MAX_COUNT)) {
@@ -219,7 +228,14 @@ uint64_t address_for(frame *f)
         return opt_runtime_resume(f);
     }
     m = f->method;
-    o = *(uint64_t *)(m + 16 + 24);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
     off = map_offset_of(h, f->ip - (uint8_t *)(o + 16));
     if (off < 0) {
         return 0;
@@ -286,7 +302,8 @@ void jit_runtime_back_jump(frame *f)
     frame *g;
     uint64_t c_3;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -353,7 +370,14 @@ void jit_runtime_back_jump(frame *f)
             c_3 = g->code;
             if (!((c_3 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = *(uint64_t *)(m + 16 + 24);
+                o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
                 g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
             }
             sync_frame(g);
@@ -429,7 +453,7 @@ uint64_t jit_runtime_block_code_for(oop m)
 }
 
 /* JitRuntime>>cacheCodeFor: */
-uint64_t cache_code_for(uint64_t m)
+uint64_t cache_code_for(oop m)
 {
     jit_method *h;
     jit_method *r_best;
@@ -468,14 +492,16 @@ void class_changed(void)
 uint64_t jit_runtime_closure(frame *f)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     uint8_t *p;
     uint8_t na;
     uint8_t nt;
     uint8_t fs;
     int32_t startpc;
     oop bc;
-    uint64_t o_3;
+    oop r_load_ref_2;
+    oop o_3;
     int64_t isize;
     uint64_t b;
     oop *s;
@@ -485,7 +511,14 @@ uint64_t jit_runtime_closure(frame *f)
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     p = f->ip;
     na = p[1];
@@ -494,7 +527,14 @@ uint64_t jit_runtime_closure(frame *f)
     startpc = f->pc + 6;
     marry(f);
     bc = cls_block;
-    o_3 = *(uint64_t *)(bc + 16 + 16);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(bc, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(bc + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
     isize = (((int64_t)o_3) >> 1) & CLS_INSTSIZE_MASK;
     b = alloc_obj(bc, F_FIXED, (uint32_t)(isize < 5 ? 5 : isize));
     s = (oop *)(b + 16);
@@ -503,15 +543,19 @@ uint64_t jit_runtime_closure(frame *f)
     s[BC_NUMARGS] = (uint64_t)((((int64_t)na) << 1) | 1);
     s[BC_NUMTEMPS] = (uint64_t)((((int64_t)nt) << 1) | 1);
     s[BC_FRAMESIZE] = (uint64_t)((((int64_t)fs) << 1) | 1);
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((b & 7) == 0) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)b) & H_REMEMBERED) == 0))) {
         remember(b);
     }
+exit_remember_if_old:;
     f->fp[f->sp] = b;
     return 0;
 }
 
 /* JitRuntime>>codeAddressOf: */
-bool code_address_of(uint64_t m)
+bool code_address_of(oop m)
 {
     jit_method *h;
     if (jit_mode == JIT_NONE) {
@@ -784,15 +828,31 @@ exit_insert:;
 static uint64_t context_entry(bool looping)
 {
     oop c;
-    uint64_t m;
-    uint64_t pc;
+    oop r_load_ref;
+    oop m;
+    oop r_load_ref_2;
+    oop pc;
     jit_method *h;
     uint32_t i;
     int64_t n;
     int64_t off;
     c = active_ctx;
-    m = *(uint64_t *)(c + 16 + 24);
-    pc = *(uint64_t *)(c + 16 + 8);
+    m = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
+    pc = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(c, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(c + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
     if (!((pc & 1) != 0)) {
         return 0;
     }
@@ -823,7 +883,8 @@ static uint64_t context_entry(bool looping)
 uint64_t jit_runtime_context_field(frame *f)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     oop v;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
@@ -831,7 +892,14 @@ uint64_t jit_runtime_context_field(frame *f)
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     v = interpreter_context_field((int64_t)f->ip[1], f->fp[-1]);
     if (v == 0) {
@@ -863,9 +931,11 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     frame *g;
     int32_t status;
     int32_t r_error_code_for;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     int64_t r_method_prim;
-    uint64_t p;
+    oop r_load_ref_2;
+    oop p;
     oop r;
     uint32_t ns;
     bool ok;
@@ -874,25 +944,30 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint8_t i;
     oop v_2;
     int8_t i_2;
+    oop r_load_ref_3;
     uint64_t moved;
     uint64_t inv;
     oop v;
     oop m_2;
-    uint64_t o_3;
+    oop r_load_ref_4;
+    oop o_3;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
     oop m_3;
-    uint64_t o_4;
+    oop r_load_ref_5;
+    oop o_4;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
-    uint64_t o_5;
+    oop r_load_ref_6;
+    oop o_5;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    oop r_load_ref_7;
+    oop p_2;
     kind = e->kind;
     base = f->fp + (f->sp - n - 1);
     m = e->method;
@@ -934,9 +1009,23 @@ exit_best:;
         }
         return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_2 = *(uint64_t *)(m + 16 + 40);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 5U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 40);
+exit_load_ref:;
+    r_load_ref; });
     ((((int64_t)o_2) >> 1) > 0) && ((({
-    p = *(uint64_t *)(m + 16 + 56);
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_2 = c4_load_ref(m, 7U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_2:;
+    r_load_ref_2; });
     r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for = prim_error_code;
@@ -964,10 +1053,24 @@ exit_error_code_for:;
                 for (k_2 = 0; k_2 <= n - 1; k_2++) {
                     i = e->set_ivar[k_2];
                     v_2 = base[1 + k_2];
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)i, v_2)) {
+                            fatal_begin();
+                            fprintf(stderr, "C4 cannot replace compiled method storage");
+                            fatal_end();
+                        }
+                        if ((i == CTX_STACKP) && (*(uint64_t *)(r + 8) == cls_context)) {
+                            c4_store_context_stackp(r, v_2);
+                        } else {
+                            c4_heap_store_ref(r, (uint32_t)i, v_2);
+                        }
+                        goto exit_store_ref;
+                    }
                     *(uint64_t *)(r + 16 + 8 * i) = v_2;
                     if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0)))) {
                         remember(r);
                     }
+                exit_store_ref:;
                 }
                 return 0;
             }
@@ -977,7 +1080,14 @@ exit_error_code_for:;
         r = base[0];
         if (((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR) && ((uint32_t)*(uint64_t *)r > (uint32_t)e->quick))) {
             i_2 = e->quick;
-            base[0] = *(uint64_t *)(r + 16 + 8 * i_2);
+            base[0] = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_3 = c4_load_ref(r, (uint32_t)i_2);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(r + 16 + 8 * i_2);
+exit_load_ref_3:;
+    r_load_ref_3; });
             return 0;
         }
     }
@@ -1000,7 +1110,14 @@ exit_error_code_for:;
         base[0] = v;
         if (inv != invalidations) {
             m_2 = f->method;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
+            o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(m_2, 3U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m_2 + 16 + 24);
+exit_load_ref_4:;
+    r_load_ref_4; });
             pc = f->ip - (uint8_t *)(o_3 + 16);
             n_2 = f->sp - n;
             return ({
@@ -1024,7 +1141,14 @@ exit_leave_after:;
         }
         if (inv != invalidations) {
             m_3 = f->method;
-            o_4 = *(uint64_t *)(m_3 + 16 + 24);
+            o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(m_3, 3U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(m_3 + 16 + 24);
+exit_load_ref_5:;
+    r_load_ref_5; });
             pc_2 = f->ip - (uint8_t *)(o_4 + 16);
             n_3 = f->sp;
             return ({
@@ -1051,9 +1175,23 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = *(uint64_t *)(m + 16 + 40);
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(m, 5U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_6:;
+    r_load_ref_6; });
     ((((int64_t)o_5) >> 1) > 0) && ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
+    p_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_7 = c4_load_ref(m, 7U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_7:;
+    r_load_ref_7; });
     r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for_2 = prim_error_code;
@@ -1079,9 +1217,11 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     frame *g;
     int32_t status;
     int32_t r_error_code_for;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     int64_t r_method_prim;
-    uint64_t p;
+    oop r_load_ref_2;
+    oop p;
     oop r;
     uint32_t ns;
     bool ok;
@@ -1090,25 +1230,30 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint8_t i;
     oop v_2;
     int8_t i_2;
+    oop r_load_ref_3;
     uint64_t moved;
     uint64_t inv;
     oop v;
     oop m_2;
-    uint64_t o_3;
+    oop r_load_ref_4;
+    oop o_3;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
     oop m_3;
-    uint64_t o_4;
+    oop r_load_ref_5;
+    oop o_4;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
-    uint64_t o_5;
+    oop r_load_ref_6;
+    oop o_5;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    oop r_load_ref_7;
+    oop p_2;
     kind = e->kind;
     base = f->fp + (f->sp - n - 1);
     m = e->method;
@@ -1150,9 +1295,23 @@ exit_best:;
         }
         return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_2 = *(uint64_t *)(m + 16 + 40);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 5U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 40);
+exit_load_ref:;
+    r_load_ref; });
     ((((int64_t)o_2) >> 1) > 0) && ((({
-    p = *(uint64_t *)(m + 16 + 56);
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_2 = c4_load_ref(m, 7U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_2:;
+    r_load_ref_2; });
     r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for = prim_error_code;
@@ -1180,10 +1339,24 @@ exit_error_code_for:;
                 for (k_2 = 0; k_2 <= n - 1; k_2++) {
                     i = e->set_ivar[k_2];
                     v_2 = base[1 + k_2];
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)i, v_2)) {
+                            fatal_begin();
+                            fprintf(stderr, "C4 cannot replace compiled method storage");
+                            fatal_end();
+                        }
+                        if ((i == CTX_STACKP) && (*(uint64_t *)(r + 8) == cls_context)) {
+                            c4_store_context_stackp(r, v_2);
+                        } else {
+                            c4_heap_store_ref(r, (uint32_t)i, v_2);
+                        }
+                        goto exit_store_ref;
+                    }
                     *(uint64_t *)(r + 16 + 8 * i) = v_2;
                     if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0)))) {
                         remember(r);
                     }
+                exit_store_ref:;
                 }
                 return 0;
             }
@@ -1193,7 +1366,14 @@ exit_error_code_for:;
         r = base[0];
         if (((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR) && ((uint32_t)*(uint64_t *)r > (uint32_t)e->quick))) {
             i_2 = e->quick;
-            base[0] = *(uint64_t *)(r + 16 + 8 * i_2);
+            base[0] = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_3 = c4_load_ref(r, (uint32_t)i_2);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(r + 16 + 8 * i_2);
+exit_load_ref_3:;
+    r_load_ref_3; });
             return 0;
         }
     }
@@ -1216,7 +1396,14 @@ exit_error_code_for:;
         base[0] = v;
         if (inv != invalidations) {
             m_2 = f->method;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
+            o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(m_2, 3U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m_2 + 16 + 24);
+exit_load_ref_4:;
+    r_load_ref_4; });
             pc = f->ip - (uint8_t *)(o_3 + 16);
             n_2 = f->sp - n;
             return ({
@@ -1240,7 +1427,14 @@ exit_leave_after:;
         }
         if (inv != invalidations) {
             m_3 = f->method;
-            o_4 = *(uint64_t *)(m_3 + 16 + 24);
+            o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(m_3, 3U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(m_3 + 16 + 24);
+exit_load_ref_5:;
+    r_load_ref_5; });
             pc_2 = f->ip - (uint8_t *)(o_4 + 16);
             n_3 = f->sp;
             return ({
@@ -1267,9 +1461,23 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = *(uint64_t *)(m + 16 + 40);
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(m, 5U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_6:;
+    r_load_ref_6; });
     ((((int64_t)o_5) >> 1) > 0) && ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
+    p_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_7 = c4_load_ref(m, 7U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_7:;
+    r_load_ref_7; });
     r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for_2 = prim_error_code;
@@ -1362,14 +1570,22 @@ uint64_t entry_of_top(void)
 uint64_t exit_sync(frame *f)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     return 0;
 }
@@ -1887,7 +2103,8 @@ uint64_t interrupt_at_entry(frame *f)
 static uint64_t interrupt_frame(frame *f, bool at_entry)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     uint64_t moved;
     uint64_t inv;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
@@ -1896,7 +2113,14 @@ static uint64_t interrupt_frame(frame *f, bool at_entry)
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     if (state_block->stress <= 0) {
         state_block->stress = 37;
@@ -1979,7 +2203,8 @@ jit_method *jit_runtime_lookup(oop m)
 uint64_t jit_runtime_make_array(frame *f)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     uint8_t n;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
@@ -1987,7 +2212,14 @@ uint64_t jit_runtime_make_array(frame *f)
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     n = f->ip[1];
     f->fp[f->sp - n] = new_array(n, f->fp + f->sp - n);
@@ -2327,17 +2559,33 @@ void perf_map_at(uint64_t start, uint64_t n, const char *name)
 static void perf_map_code(jit_method *h, int32_t md)
 {
     oop o;
+    oop r_load_ref;
     oop o_2;
+    oop r_load_ref_2;
     int32_t r_unit_entry;
     int32_t r_unit_entry_2;
     int32_t r_unit_entry_3;
     fprintf(perf_map, "%llx %x ", (unsigned long long)h->code_start, h->code_size);
     fputs(md == JIT_OPT ? "opt:" : "bl:", perf_map);
     o = h->method;
-    print_class_name(*(uint64_t *)(o + 16 + 8), perf_map);
+    print_class_name(({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 8);
+exit_load_ref:;
+    r_load_ref; }), perf_map);
     fputs(">>", perf_map);
     o_2 = h->method;
-    print_symbol(*(uint64_t *)(o_2 + 16 + 0), perf_map);
+    print_symbol(({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(o_2, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; }), perf_map);
     if (md == JIT_OPT) {
         if (rt_unit_osr > 0) {
             fprintf(perf_map, " [loop %d]", ({
@@ -2389,14 +2637,22 @@ int64_t primitive_number_named(char *name)
 uint64_t push_context(frame *f)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     marry(f);
     f->fp[f->sp] = f->ctx;
@@ -2485,7 +2741,8 @@ void jit_runtime_resume(frame *f)
     frame *g;
     uint64_t c_2;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -2530,7 +2787,14 @@ void jit_runtime_resume(frame *f)
             c_2 = g->code;
             if (!((c_2 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = *(uint64_t *)(m + 16 + 24);
+                o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
                 g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
             }
             sync_frame(g);
@@ -2556,7 +2820,8 @@ void resume_context(bool looping)
     frame *g;
     uint64_t c_2;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -2605,7 +2870,14 @@ void resume_context(bool looping)
             c_2 = g->code;
             if (!((c_2 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = *(uint64_t *)(m + 16 + 24);
+                o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
                 g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
             }
             sync_frame(g);
@@ -2634,6 +2906,9 @@ void set_flags(uint32_t f)
 /* JitRuntime>>setMode: */
 bool set_mode(int32_t m)
 {
+    if (c4_enabled && (m != JIT_NONE)) {
+        return false;
+    }
     if ((m != JIT_NONE) && (!ensure_open())) {
         return false;
     }
@@ -2670,9 +2945,11 @@ oop special_fast(int32_t k, oop *base)
     bool a_boolean;
     bool a_boolean_2;
     int32_t i_2;
+    oop r_load_ref;
     uint32_t v_2;
     int64_t v_3;
     uint64_t i;
+    oop r_load_ref_2;
     uint8_t code_point;
     uint8_t v_4;
     oop v;
@@ -2737,7 +3014,14 @@ oop special_fast(int32_t k, oop *base)
     if ((k == 27) || (k == 28)) {
         if (((a & 7) == 0) && (*(uint64_t *)(a + 8) == cls_point)) {
             i_2 = k - 27;
-            return *(uint64_t *)(a + 16 + 8 * i_2);
+            return ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(a, (uint32_t)i_2);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(a + 16 + 8 * i_2);
+exit_load_ref:;
+    r_load_ref; });
         }
         return 0;
     }
@@ -2758,7 +3042,14 @@ oop special_fast(int32_t k, oop *base)
         if (((b & 1) != 0) && ((a & 7) == 0)) {
             i = (uint64_t)((((int64_t)b) >> 1) - 1);
             if ((*(uint64_t *)(a + 8) == cls_array) && (i < (uint32_t)*(uint64_t *)a)) {
-                return *(uint64_t *)(a + 16 + 8 * i);
+                return ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(a, (uint32_t)i);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(a + 16 + 8 * i);
+exit_load_ref_2:;
+    r_load_ref_2; });
             }
             if ((*(uint64_t *)(a + 8) == cls_bytestring) && (i < byte_size(a))) {
                 code_point = ((uint8_t *)(a + 16))[i];
@@ -2776,10 +3067,24 @@ oop special_fast(int32_t k, oop *base)
         if (((b & 1) != 0) && (((a & 7) == 0) && (!(((*(uint64_t *)a) & H_IMMUTABLE) != 0)))) {
             i = (uint64_t)((((int64_t)b) >> 1) - 1);
             if ((*(uint64_t *)(a + 8) == cls_array) && (i < (uint32_t)*(uint64_t *)a)) {
+                if (__builtin_expect(c4_enabled, 0)) {
+                    if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(a, (uint32_t)i, v)) {
+                        fatal_begin();
+                        fprintf(stderr, "C4 cannot replace compiled method storage");
+                        fatal_end();
+                    }
+                    if ((i == CTX_STACKP) && (*(uint64_t *)(a + 8) == cls_context)) {
+                        c4_store_context_stackp(a, v);
+                    } else {
+                        c4_heap_store_ref(a, (uint32_t)i, v);
+                    }
+                    goto exit_store_ref;
+                }
                 *(uint64_t *)(a + 16 + 8 * i) = v;
                 if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(a - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)a) & H_REMEMBERED) == 0)))) {
                     remember(a);
                 }
+            exit_store_ref:;
                 return v;
             }
             if ((*(uint64_t *)(a + 8) == cls_bytestring) && (((v & 7) == 2) && (((uint32_t)(v >> 3) < 256) && (i < byte_size(a))))) {
@@ -3033,14 +3338,22 @@ void jit_runtime_start(void)
 uint64_t jit_runtime_tier_up(frame *f, int64_t loop)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     return opt_runtime_tier_up(f, loop);
 }

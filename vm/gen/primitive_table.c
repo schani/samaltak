@@ -95,10 +95,24 @@ oop names_array(void)
         s = string_from_utf8(e->name, strlen(e->name));
         o = *root;
         i_3 = e->number - 1;
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((i_3 == CM_LITERALS) || ((i_3 == CM_BYTECODES) || (i_3 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(o, (uint32_t)i_3, s)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((i_3 == CTX_STACKP) && (*(uint64_t *)(o + 8) == cls_context)) {
+                c4_store_context_stackp(o, s);
+            } else {
+                c4_heap_store_ref(o, (uint32_t)i_3, s);
+            }
+            goto exit_store_ref;
+        }
         *(uint64_t *)(o + 16 + 8 * i_3) = s;
         if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
             remember(o);
         }
+    exit_store_ref:;
     }
     pop_root();
     return *root;

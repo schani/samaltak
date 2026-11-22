@@ -51,8 +51,8 @@ primDisplayOpen
 	(display open: (self int: 0) height: (self int: 1) cell: cell) ifFalse: [^self fail].
 	opened := true.
 	p := memory allocObj: memory clsPoint format: F_FIXED slots: 2.
-	(self slotsOf: p) at: 0 put: (self intOop: (cell at: 0)).
-	(self slotsOf: p) at: 1 put: (self intOop: (cell at: 1)).
+	self storeRef: p at: 0 put: (self intOop: (cell at: 0)).
+	self storeRef: p at: 1 put: (self intOop: (cell at: 1)).
 	self answer: p
 !
 primDisplayFill
@@ -97,7 +97,7 @@ primDisplayNextEvent
 	(opened and: [self argCount = 1 and: [(self isPtr: a) and: [(self formatOf: a) = F_VAR and: [(self numSlots: a) = 5 and: [(self isImmutable: a) not]]]]]) ifFalse: [^self fail].
 	event := self local: 'int64_t[5]'.
 	(display nextEvent: event) ifFalse: [^self answer: memory nilOop].
-	0 to: 4 do: [:i | (self slotsOf: a) at: i put: (self intOop: (event at: i))].
+	0 to: 4 do: [:i | self storeRef: a at: i put: (self intOop: (event at: i))].
 	self answer: a
 !
 primDisplayFlush

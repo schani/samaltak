@@ -3,6 +3,16 @@
 #include "samaltak.h"
 
 oop active_ctx;
+static int32_t c4_countdown;
+static cache_entry c4_entry[1];
+static size_t c4_frame_limit;
+static size_t c4_frame_next;
+static bool c4_saved_frame_bits[65536];
+static oop c4_saved_frames[196608];
+static oop c4_saved_stack[65536];
+static bool c4_saved_stack_bits[65536];
+static size_t c4_stack_limit;
+static size_t c4_stack_next;
 static cache_entry cache[4096];
 oop cstack[65536];
 size_t cstack_used;
@@ -30,6 +40,8 @@ oop tag_class[8];
 oop tmp_roots[4];
 
 static void block_activate(int32_t n, bool from_array);
+static void c4_checkpoint_at(uint8_t *pc_pointer, oop *stack_top, oop *stack_base, frame *frame);
+static void c4_poll(void);
 static void interpreter_ctx(oop ctx, int64_t n);
 static oop ctx_home(oop a_context);
 static cache_entry *fill_cache(oop a_class, oop a_selector);
@@ -81,6 +93,18 @@ void active_set_stackp(int64_t n)
     }
 }
 
+/* Interpreter>>activeSlot:put: */
+void active_slot(int64_t k, oop v)
+{
+    oop *p;
+    p = active_slots() + k;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p, v);
+    } else {
+        *p = v;
+    }
+}
+
 /* Interpreter>>activeSlots */
 oop *active_slots(void)
 {
@@ -99,18 +123,34 @@ void interpreter_after_gc(void)
     int32_t i;
     frame *f;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     oop o_2;
-    uint64_t o_3;
+    oop r_load_ref_2;
+    oop o_3;
     refresh_tag_classes();
     refresh_prim_base();
     for (i = 0; i <= nframes - 1; i++) {
         f = frames + i;
         m = f->method;
-        o = *(uint64_t *)(m + 16 + 24);
+        o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
         f->ip = (uint8_t *)(o + 16) + f->pc;
         o_2 = f->method;
-        o_3 = *(uint64_t *)(o_2 + 16 + 16);
+        o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(o_2, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
         f->lits = (oop *)(o_3 + 16);
     }
 }
@@ -122,13 +162,21 @@ void before_gc(void)
     frame *f;
     uint64_t c;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     for (i = 0; i <= nframes - 1; i++) {
         f = frames + i;
         c = f->code;
         if (!((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT))) {
             m = f->method;
-            o = *(uint64_t *)(m + 16 + 24);
+            o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
             f->pc = (int32_t)(f->ip - (uint8_t *)(o + 16));
         }
     }
@@ -142,26 +190,55 @@ static void block_activate(int32_t n, bool from_array)
     oop *b;
     oop cl;
     oop arr;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t ntemps;
-    uint64_t o_2;
+    oop r_load_ref_2;
+    oop o_2;
     int64_t fsize;
     oop *nfp;
-    uint64_t o_3;
-    int32_t i;
-    uint64_t o_4;
+    oop r_load_ref_3;
+    oop o_3;
+    oop r_load_ref_4;
+    oop v;
+    uint64_t i;
     int32_t i_2;
-    uint64_t outer;
-    uint64_t m;
+    oop *p;
+    oop r_load_ref_5;
+    oop v_2;
+    uint64_t i_3;
+    oop r_load_ref_6;
+    oop o_4;
+    oop r_load_ref_7;
+    oop v_3;
+    uint64_t i_4;
+    int32_t i_5;
+    oop *p_2;
+    oop r_load_ref_8;
+    oop v_4;
+    uint64_t i_6;
+    oop r_load_ref_9;
+    oop outer;
+    oop r_load_ref_10;
+    oop m;
     frame *f;
-    uint64_t o_5;
+    uint64_t i_7;
+    uint64_t k;
+    oop r_load_ref_11;
+    oop o_5;
     int32_t startpc;
     uint64_t r_frame_code_for;
-    uint64_t o_6;
-    uint64_t o_7;
-    uint64_t o_8;
-    uint64_t o_9;
-    int64_t i_3;
+    oop r_load_ref_12;
+    oop o_6;
+    oop r_load_ref_13;
+    oop o_7;
+    oop r_load_ref_14;
+    oop o_8;
+    oop r_load_ref_15;
+    oop o_9;
+    int64_t i_8;
+    oop *p_3;
+    uint64_t i_9;
     count = n;
     base = active_stackp() - 1 - (from_array ? 1 : count);
     b = active_slots() + base;
@@ -170,9 +247,23 @@ static void block_activate(int32_t n, bool from_array)
     if (from_array) {
         count = (int32_t)(uint32_t)*(uint64_t *)arr;
     }
-    o = *(uint64_t *)(cl + 16 + 24);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(cl, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(cl + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
     ntemps = ((int64_t)o) >> 1;
-    o_2 = *(uint64_t *)(cl + 16 + 32);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(cl, 4U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(cl + 16 + 32);
+exit_load_ref_2:;
+    r_load_ref_2; });
     fsize = ((int64_t)o_2) >> 1;
     if (fsize < count + ntemps) {
         fsize = count + ntemps;
@@ -185,30 +276,137 @@ static void block_activate(int32_t n, bool from_array)
             return;
         }
         (frames + (nframes - 1))->sp = (int32_t)base;
-        o_3 = *(uint64_t *)(cl + 16 + 0);
-        b[0] = *(uint64_t *)(o_3 + 16 + 40);
+        o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(cl, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(cl + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
+        v = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(o_3, 5U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(o_3 + 16 + 40);
+exit_load_ref_4:;
+    r_load_ref_4; });
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i = (uint64_t)(b - cstack);
+            if ((i >= c4_stack_next) && ((i < c4_stack_limit) && (!c4_saved_stack_bits[i]))) {
+                c4_saved_stack[i] = *b;
+                c4_saved_stack_bits[i] = true;
+            }
+        }
+        *b = v;
         if (from_array) {
-            for (i = 0; i <= count - 1; i++) {
-                nfp[i] = *(uint64_t *)(arr + 16 + 8 * i);
+            for (i_2 = 0; i_2 <= count - 1; i_2++) {
+                p = nfp + i_2;
+                v_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_5 = c4_load_ref(arr, (uint32_t)i_2);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(arr + 16 + 8 * i_2);
+exit_load_ref_5:;
+    r_load_ref_5; });
+                if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+                    i_3 = (uint64_t)(p - cstack);
+                    if ((i_3 >= c4_stack_next) && ((i_3 < c4_stack_limit) && (!c4_saved_stack_bits[i_3]))) {
+                        c4_saved_stack[i_3] = *p;
+                        c4_saved_stack_bits[i_3] = true;
+                    }
+                }
+                *p = v_2;
             }
         }
     } else {
-        o_4 = *(uint64_t *)(cl + 16 + 0);
-        cstack[0] = *(uint64_t *)(o_4 + 16 + 40);
-        for (i_2 = 0; i_2 <= count - 1; i_2++) {
-            cstack[1 + i_2] = from_array ? *(uint64_t *)(arr + 16 + 8 * i_2) : b[1 + i_2];
+        o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(cl, 0U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(cl + 16 + 0);
+exit_load_ref_6:;
+    r_load_ref_6; });
+        v_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_7 = c4_load_ref(o_4, 5U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(o_4 + 16 + 40);
+exit_load_ref_7:;
+    r_load_ref_7; });
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i_4 = (uint64_t)(cstack - cstack);
+            if ((i_4 >= c4_stack_next) && ((i_4 < c4_stack_limit) && (!c4_saved_stack_bits[i_4]))) {
+                c4_saved_stack[i_4] = *cstack;
+                c4_saved_stack_bits[i_4] = true;
+            }
+        }
+        *cstack = v_3;
+        for (i_5 = 0; i_5 <= count - 1; i_5++) {
+            p_2 = cstack + 1 + i_5;
+            v_4 = from_array ? ({
+    if (__builtin_expect(c4_enabled, 0) && (i_5 >= CTX_FIXED)) {
+        r_load_ref_8 = c4_load_ref(arr, (uint32_t)i_5);
+        goto exit_load_ref_8;
+    }
+    r_load_ref_8 = *(uint64_t *)(arr + 16 + 8 * i_5);
+exit_load_ref_8:;
+    r_load_ref_8; }) : b[1 + i_5];
+            if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+                i_6 = (uint64_t)(p_2 - cstack);
+                if ((i_6 >= c4_stack_next) && ((i_6 < c4_stack_limit) && (!c4_saved_stack_bits[i_6]))) {
+                    c4_saved_stack[i_6] = *p_2;
+                    c4_saved_stack_bits[i_6] = true;
+                }
+            }
+            *p_2 = v_4;
         }
         interpreter_ctx(active_ctx, base);
         nfp = cstack + 1;
     }
-    outer = *(uint64_t *)(cl + 16 + 0);
-    m = *(uint64_t *)(outer + 16 + 24);
+    outer = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_9 = c4_load_ref(cl, 0U);
+        goto exit_load_ref_9;
+    }
+    r_load_ref_9 = *(uint64_t *)(cl + 16 + 0);
+exit_load_ref_9:;
+    r_load_ref_9; });
+    m = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_10 = c4_load_ref(outer, 3U);
+        goto exit_load_ref_10;
+    }
+    r_load_ref_10 = *(uint64_t *)(outer + 16 + 24);
+exit_load_ref_10:;
+    r_load_ref_10; });
     f = frames + nframes;
     nframes = nframes + 1;
+    if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
+        i_7 = (uint64_t)(f - frames);
+        if ((i_7 >= c4_frame_next) && ((i_7 < c4_frame_limit) && (!c4_saved_frame_bits[i_7]))) {
+            k = i_7 * 3;
+            c4_saved_frames[k] = f->method;
+            c4_saved_frames[k + 1] = f->closure;
+            c4_saved_frames[k + 2] = f->ctx;
+            c4_saved_frame_bits[i_7] = true;
+        }
+    }
     f->method = m;
     f->closure = cl;
     f->ctx = nil_oop;
-    o_5 = *(uint64_t *)(cl + 16 + 8);
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_11 = c4_load_ref(cl, 1U);
+        goto exit_load_ref_11;
+    }
+    r_load_ref_11 = *(uint64_t *)(cl + 16 + 8);
+exit_load_ref_11:;
+    r_load_ref_11; });
     startpc = (int32_t)(((int64_t)o_5) >> 1);
     f->code = ({
     if (jit_mode == JIT_NONE) {
@@ -223,18 +421,205 @@ static void block_activate(int32_t n, bool from_array)
 exit_frame_code_for:;
     r_frame_code_for; });
     f->fp = nfp;
-    o_6 = *(uint64_t *)(cl + 16 + 8);
+    o_6 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_12 = c4_load_ref(cl, 1U);
+        goto exit_load_ref_12;
+    }
+    r_load_ref_12 = *(uint64_t *)(cl + 16 + 8);
+exit_load_ref_12:;
+    r_load_ref_12; });
     f->pc = (int32_t)(((int64_t)o_6) >> 1);
-    o_7 = *(uint64_t *)(m + 16 + 24);
-    o_8 = *(uint64_t *)(cl + 16 + 8);
+    o_7 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_13 = c4_load_ref(m, 3U);
+        goto exit_load_ref_13;
+    }
+    r_load_ref_13 = *(uint64_t *)(m + 16 + 24);
+exit_load_ref_13:;
+    r_load_ref_13; });
+    o_8 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_14 = c4_load_ref(cl, 1U);
+        goto exit_load_ref_14;
+    }
+    r_load_ref_14 = *(uint64_t *)(cl + 16 + 8);
+exit_load_ref_14:;
+    r_load_ref_14; });
     f->ip = (uint8_t *)(o_7 + 16) + (((int64_t)o_8) >> 1);
-    o_9 = *(uint64_t *)(m + 16 + 16);
+    o_9 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_15 = c4_load_ref(m, 2U);
+        goto exit_load_ref_15;
+    }
+    r_load_ref_15 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_15:;
+    r_load_ref_15; });
     f->lits = (oop *)(o_9 + 16);
     f->sp = (int32_t)(count + ntemps);
-    for (i_3 = count; i_3 <= count + ntemps - 1; i_3++) {
-        nfp[i_3] = nil_oop;
+    for (i_8 = count; i_8 <= count + ntemps - 1; i_8++) {
+        p_3 = nfp + i_8;
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i_9 = (uint64_t)(p_3 - cstack);
+            if ((i_9 >= c4_stack_next) && ((i_9 < c4_stack_limit) && (!c4_saved_stack_bits[i_9]))) {
+                c4_saved_stack[i_9] = *p_3;
+                c4_saved_stack_bits[i_9] = true;
+            }
+        }
+        *p_3 = nil_oop;
     }
     cstack_used = (uint64_t)(nfp + count + ntemps - cstack);
+}
+
+/* Interpreter>>c4CheckpointAt:stack:base:frame: */
+static void c4_checkpoint_at(uint8_t *pc_pointer, oop *stack_top, oop *stack_base, frame *frame)
+{
+    oop *s;
+    oop m;
+    oop r_load_ref;
+    oop o;
+    int64_t v;
+    uint64_t v_2;
+    if (frame == NULL) {
+        s = (oop *)(active_ctx + 16);
+        m = s[CTX_METHOD];
+        o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
+        v = pc_pointer - (uint8_t *)(o + 16);
+        v_2 = (uint64_t)((v << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_2);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_2;
+        }
+        interpreter_ctx(active_ctx, stack_top - stack_base + 1);
+    } else {
+        nframes = (int32_t)(frame - frames) + 1;
+        frame->ip = pc_pointer;
+        frame->sp = (int32_t)(stack_top - stack_base + 1);
+        cstack_used = (uint64_t)(stack_top + 1 - cstack);
+    }
+    c4_poll();
+}
+
+/* Interpreter>>c4Poll */
+static void c4_poll(void)
+{
+    int64_t budget;
+    int j;
+    int32_t j_2;
+    size_t i;
+    size_t k;
+    frame *f;
+    size_t w;
+    c4_heap_finish_poll();
+    budget = 64;
+    if ((c4_frame_next == c4_frame_limit) && (c4_stack_next == c4_stack_limit)) {
+        if (!c4_heap_should_collect()) {
+            return;
+        }
+        if (root_count != 0) {
+            fatal_begin();
+            fprintf(stderr, "native roots escaped to a C4 dispatch poll");
+            fatal_end();
+        }
+        if ((nframes < 0) || ((nframes > MAX_FRAMES) || (cstack_used > CSTACK_SLOTS))) {
+            fatal_begin();
+            fprintf(stderr, "invalid interpreter root extent");
+            fatal_end();
+        }
+        if (!c4_heap_begin()) {
+            return;
+        }
+        c4_frame_next = 0;
+        c4_frame_limit = (uint64_t)nframes;
+        c4_stack_next = 0;
+        c4_stack_limit = cstack_used;
+        c4_heap_root(specials_oop);
+        c4_heap_root(active_ctx);
+        c4_heap_root(last_preempted);
+        c4_heap_root(alloc_sample_class);
+        c4_heap_root(prim_result);
+        c4_heap_root(resend_selector);
+        for (j = 0; j <= 3; j++) {
+            c4_heap_root(tmp_roots[j]);
+        }
+        c4_heap_root(nil_oop);
+        c4_heap_root(true_oop);
+        c4_heap_root(false_oop);
+        c4_heap_root(cls_smallint);
+        c4_heap_root(cls_char);
+        c4_heap_root(cls_smallfloat);
+        c4_heap_root(cls_boxedfloat);
+        c4_heap_root(cls_array);
+        c4_heap_root(cls_context);
+        c4_heap_root(cls_block);
+        c4_heap_root(cls_point);
+        c4_heap_root(cls_bytestring);
+        c4_heap_root(cls_bytearray);
+        c4_heap_root(cls_message);
+        for (j_2 = 0; j_2 <= ledger_n - 1; j_2++) {
+            c4_heap_root(ledger_procs[j_2]);
+        }
+        budget = budget - 24 - ledger_n;
+    }
+    while ((c4_frame_next < c4_frame_limit) && (budget >= 3)) {
+        i = c4_frame_next;
+        if (c4_saved_frame_bits[i]) {
+            k = i * 3;
+            c4_heap_root(c4_saved_frames[k]);
+            c4_heap_root(c4_saved_frames[k + 1]);
+            c4_heap_root(c4_saved_frames[k + 2]);
+            c4_saved_frame_bits[i] = false;
+        } else {
+            f = frames + i;
+            c4_heap_root(f->method);
+            c4_heap_root(f->closure);
+            c4_heap_root(f->ctx);
+        }
+        c4_frame_next = i + 1;
+        budget = budget - 3;
+    }
+    while ((c4_stack_next < c4_stack_limit) && (budget > 0)) {
+        w = c4_stack_next;
+        if (c4_saved_stack_bits[w]) {
+            c4_heap_root(c4_saved_stack[w]);
+            c4_saved_stack_bits[w] = false;
+        } else {
+            c4_heap_root(cstack[w]);
+        }
+        c4_stack_next = w + 1;
+        budget = budget - 1;
+    }
+    if ((c4_frame_next == c4_frame_limit) && (c4_stack_next == c4_stack_limit)) {
+        c4_heap_end_roots();
+    }
+}
+
+/* Interpreter>>c4StackSlot:put: */
+void c4_stack_slot(oop *p, oop v)
+{
+    uintptr_t i;
+    uint64_t i_2;
+    i = (uintptr_t)p - (uintptr_t)cstack;
+    if (i < 524288) {
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i_2 = (uint64_t)(p - cstack);
+            if ((i_2 >= c4_stack_next) && ((i_2 < c4_stack_limit) && (!c4_saved_stack_bits[i_2]))) {
+                c4_saved_stack[i_2] = *p;
+                c4_saved_stack_bits[i_2] = true;
+            }
+        }
+        *p = v;
+        return;
+    }
+    c4_heap_store_ref(active_ctx, (uint32_t)(p - (oop *)(active_ctx + 16)), v);
 }
 
 /* Interpreter>>callPrimitive:base:argc: */
@@ -251,36 +636,63 @@ int32_t call_primitive(prim_fn fn, oop *b, int32_t n)
 /* Interpreter>>context:slot:put: */
 bool interpreter_context(oop c, int64_t k, oop v)
 {
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     frame *f;
     uint64_t c_2;
-    o = *(uint64_t *)(c + 16 + 0);
+    oop *p;
+    uint64_t i;
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     f = frames + (((int64_t)o) >> 1);
     c_2 = f->code;
     if (((c_2 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT)) || (k >= (int64_t)f->sp)) {
         materialize_all();
         return false;
     }
-    f->fp[k] = v;
+    p = f->fp + k;
+    if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+        i = (uint64_t)(p - cstack);
+        if ((i >= c4_stack_next) && ((i < c4_stack_limit) && (!c4_saved_stack_bits[i]))) {
+            c4_saved_stack[i] = *p;
+            c4_saved_stack_bits[i] = true;
+        }
+    }
+    *p = v;
     return true;
 }
 
 /* Interpreter>>contextField:of: */
 oop interpreter_context_field(int64_t i, oop c)
 {
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     frame *f;
     frame *f_2;
     uint64_t c_2;
     uint64_t c_3;
     oop m;
-    uint64_t o_2;
+    oop r_load_ref_2;
+    oop o_2;
     int64_t v;
     int32_t v_2;
     if (!is_married(c)) {
         return ((oop *)(c + 16))[i];
     }
-    o = *(uint64_t *)(c + 16 + 0);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     f = frames + (((int64_t)o) >> 1);
     if (i == CTX_SENDER) {
         if (f == frames) {
@@ -301,7 +713,14 @@ oop interpreter_context_field(int64_t i, oop c)
     }
     if (i == CTX_PC) {
         m = f->method;
-        o_2 = *(uint64_t *)(m + 16 + 24);
+        o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 3U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 24);
+exit_load_ref_2:;
+    r_load_ref_2; });
         v = f->ip - (uint8_t *)(o_2 + 16);
         return (uint64_t)((v << 1) | 1);
     }
@@ -312,10 +731,18 @@ oop interpreter_context_field(int64_t i, oop c)
 /* Interpreter>>contextSlot:of: */
 oop context_slot(int64_t k, oop c)
 {
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     frame *f;
     uint64_t c_2;
-    o = *(uint64_t *)(c + 16 + 0);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     f = frames + (((int64_t)o) >> 1);
     c_2 = f->code;
     if ((c_2 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT)) {
@@ -331,17 +758,39 @@ oop context_slot(int64_t k, oop c)
 /* Interpreter>>ctx:setStackp: */
 static void interpreter_ctx(oop ctx, int64_t n)
 {
-    ((oop *)(ctx + 16))[CTX_STACKP] = (uint64_t)((n << 1) | 1);
+    uint64_t v;
+    v = (uint64_t)((n << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 2U, v);
+    } else {
+        ((oop *)(ctx + 16))[CTX_STACKP] = v;
+    }
 }
 
 /* Interpreter>>ctxHome: */
 static oop ctx_home(oop a_context)
 {
     oop c;
-    uint64_t cl;
+    oop r_load_ref;
+    oop cl;
+    oop r_load_ref_2;
     c = a_context;
-    while ((cl = *(uint64_t *)(c + 16 + 32)) != nil_oop) {
-        c = *(uint64_t *)(cl + 16 + 0);
+    while ((cl = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 4U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 32);
+exit_load_ref:;
+    r_load_ref; })) != nil_oop) {
+        c = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(cl, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(cl + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; });
     }
     return c;
 }
@@ -349,8 +798,16 @@ static oop ctx_home(oop a_context)
 /* Interpreter>>ctxStackp: */
 int64_t ctx_stackp(oop ctx)
 {
-    uint64_t o;
-    o = *(uint64_t *)(ctx + 16 + 16);
+    oop r_load_ref;
+    oop o;
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(ctx, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(ctx + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     return ((int64_t)o) >> 1;
 }
 
@@ -394,17 +851,23 @@ void fatal_end(void)
 /* Interpreter>>fillCache:selector: */
 static cache_entry *fill_cache(oop a_class, oop a_selector)
 {
-    uint64_t m;
+    oop m;
     cache_entry *e;
     int64_t r_method_prim;
-    uint64_t p_2;
+    oop r_load_ref;
+    oop p_2;
     int64_t p;
     prim_fn pf;
-    uint64_t bc;
-    uint64_t na;
-    uint64_t nt;
-    uint64_t o;
-    uint64_t o_2;
+    oop r_load_ref_2;
+    oop bc;
+    oop r_load_ref_3;
+    oop na;
+    oop r_load_ref_4;
+    oop nt;
+    oop r_load_ref_5;
+    oop o;
+    oop r_load_ref_6;
+    oop o_2;
     uint8_t *b;
     int64_t n;
     bool ok;
@@ -413,32 +876,76 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     bool qc;
     uint64_t qv;
     size_t size;
-    uint64_t lits_oop;
+    oop r_load_ref_7;
+    oop lits_oop;
     int v;
     oop v_2;
     int i;
+    oop r_load_ref_8;
     int16_t v_3;
     m = lookup_method(a_class, a_selector);
     if (m == 0) {
         return (cache_entry *)NULL;
     }
-    e = cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095);
+    e = __builtin_expect(c4_enabled, 0) ? c4_entry + 0 : cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095);
     e->cls = a_class;
     e->sel = a_selector;
     e->method = m;
     p = ({
-    p_2 = *(uint64_t *)(m + 16 + 56);
+    p_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref = c4_load_ref(m, 7U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 56);
+exit_load_ref:;
+    r_load_ref; });
     r_method_prim = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK;
     pf = (p != 0) && ((p != PRIM_ENSURE_MARKER) && (p != PRIM_ONDO_MARKER)) ? primitive_table_lookup(p) : (prim_fn)NULL;
-    bc = *(uint64_t *)(m + 16 + 24);
-    na = *(uint64_t *)(m + 16 + 32);
-    nt = *(uint64_t *)(m + 16 + 40);
+    bc = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 3U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 24);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    na = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(m, 4U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(m + 16 + 32);
+exit_load_ref_3:;
+    r_load_ref_3; });
+    nt = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(m, 5U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_4:;
+    r_load_ref_4; });
     e->bcs = (uint8_t *)(bc + 16);
-    o = *(uint64_t *)(m + 16 + 16);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(m, 2U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_5:;
+    r_load_ref_5; });
     e->lits = (oop *)(o + 16);
     e->ntemps = (int32_t)(((int64_t)nt) >> 1);
-    o_2 = *(uint64_t *)(m + 16 + 48);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_6 = c4_load_ref(m, 6U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(m + 16 + 48);
+exit_load_ref_6:;
+    r_load_ref_6; });
     e->fsize = (int32_t)(((int64_t)o_2) >> 1);
     if (e->fsize < (((int64_t)na) >> 1) + e->ntemps) {
         e->fsize = (int32_t)((((int64_t)na) >> 1) + e->ntemps);
@@ -470,7 +977,14 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     if ((p == 0) && (((bc & 7) == 0) && ((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES))) {
         b = (uint8_t *)(bc + 16);
         size = byte_size(bc);
-        lits_oop = *(uint64_t *)(m + 16 + 16);
+        lits_oop = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_7 = c4_load_ref(m, 2U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_7:;
+    r_load_ref_7; });
         if ((size == 1) && (b[0] == 0x7A)) {
             qc = true;
         } else if ((size == 2) && ((b[1] == 0x79) && ((b[0] >= 0x71) && (b[0] <= 0x75)))) {
@@ -485,7 +999,14 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
             qc = true;
         } else if ((size == 2) && ((b[1] == 0x79) && ((b[0] >= 0x20) && ((b[0] <= 0x3F) && (((lits_oop & 7) == 0) && ((uint32_t)(b[0] - 0x20) < (uint32_t)*(uint64_t *)lits_oop)))))) {
             i = b[0] - 0x20;
-            qv = *(uint64_t *)(lits_oop + 16 + 8 * i);
+            qv = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_8 = c4_load_ref(lits_oop, (uint32_t)i);
+        goto exit_load_ref_8;
+    }
+    r_load_ref_8 = *(uint64_t *)(lits_oop + 16 + 8 * i);
+exit_load_ref_8:;
+    r_load_ref_8; });
             qc = qv != 0;
         } else if ((size == 4) && ((b[0] == 0x93) && (b[3] == 0x79))) {
             v_3 = (int16_t)(b[1] | (((uint64_t)b[2]) << 8));
@@ -544,27 +1065,67 @@ static int64_t frame_size(frame *f)
     bool blk;
     oop src;
     int i;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t fs;
-    uint64_t o_2;
-    uint64_t o_3;
-    uint64_t o_4;
-    uint64_t o_5;
+    oop r_load_ref_2;
+    oop o_2;
+    oop r_load_ref_3;
+    oop o_3;
+    oop r_load_ref_4;
+    oop o_4;
+    oop r_load_ref_5;
+    oop o_5;
     int64_t v;
     int64_t min;
     blk = f->closure != nil_oop;
     src = blk ? f->closure : f->method;
     i = blk ? BC_FRAMESIZE : CM_FRAMESIZE;
-    o = *(uint64_t *)(src + 16 + 8 * i);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(src, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(src + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
     fs = ((int64_t)o) >> 1;
     min = ({
     if (blk) {
-        o_2 = *(uint64_t *)(src + 16 + 16);
-        o_3 = *(uint64_t *)(src + 16 + 24);
+        o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(src, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(src + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
+        o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(src, 3U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(src + 16 + 24);
+exit_load_ref_3:;
+    r_load_ref_3; });
         v = (((int64_t)o_2) >> 1) + (((int64_t)o_3) >> 1);
     } else {
-        o_4 = *(uint64_t *)(src + 16 + 32);
-        o_5 = *(uint64_t *)(src + 16 + 40);
+        o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(src, 4U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(src + 16 + 32);
+exit_load_ref_4:;
+    r_load_ref_4; });
+        o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(src, 5U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(src + 16 + 40);
+exit_load_ref_5:;
+    r_load_ref_5; });
         v = (((int64_t)o_4) >> 1) + (((int64_t)o_5) >> 1);
     }
     v; });
@@ -579,8 +1140,10 @@ bool frames_valid(bool (*valid)(oop))
     int64_t hi;
     int32_t i;
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     oop o_3;
+    oop r_load_ref_2;
     int64_t n;
     frame *f;
     uint64_t c;
@@ -591,10 +1154,24 @@ bool frames_valid(bool (*valid)(oop))
         }
         if (((frames + i)->ctx != nil_oop) && ({
     o = (frames + i)->ctx;
-    o_2 = *(uint64_t *)(o + 16 + 0);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     ((o_2 & 1) != 0) && ({
     o_3 = (frames + i)->ctx;
-    *(uint64_t *)(o_3 + 16 + 0) != (uint64_t)((((int64_t)i) << 1) | 1); }); })) {
+    ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(o_3, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_3 + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; }) != (uint64_t)((((int64_t)i) << 1) | 1); }); })) {
             fprintf(stderr, "frame %lld: its Context is married to another frame\n", (long long)(int64_t)i);
             return false;
         }
@@ -718,12 +1295,14 @@ void interpret(void)
     uint64_t new_code;
     oop ss;
     int i;
+    oop r_load_ref;
     oop *s;
     oop m;
     oop o;
     oop o_2;
     oop o_3;
-    uint64_t o_4;
+    oop r_load_ref_2;
+    oop o_4;
     oop o_5;
     uint8_t r_next_bytecode;
     oop v;
@@ -759,51 +1338,67 @@ void interpret(void)
     oop v_16;
     uint8_t r_next_bytecode_17;
     oop o_6;
+    oop r_load_ref_3;
     oop v_17;
     uint8_t r_next_bytecode_18;
     oop o_7;
+    oop r_load_ref_4;
     oop v_18;
     uint8_t r_next_bytecode_19;
     oop o_8;
+    oop r_load_ref_5;
     oop v_19;
     uint8_t r_next_bytecode_20;
     oop o_9;
+    oop r_load_ref_6;
     oop v_20;
     uint8_t r_next_bytecode_21;
     oop o_10;
+    oop r_load_ref_7;
     oop v_21;
     uint8_t r_next_bytecode_22;
     oop o_11;
+    oop r_load_ref_8;
     oop v_22;
     uint8_t r_next_bytecode_23;
     oop o_12;
+    oop r_load_ref_9;
     oop v_23;
     uint8_t r_next_bytecode_24;
     oop o_13;
+    oop r_load_ref_10;
     oop v_24;
     uint8_t r_next_bytecode_25;
     oop o_14;
+    oop r_load_ref_11;
     oop v_25;
     uint8_t r_next_bytecode_26;
     oop o_15;
+    oop r_load_ref_12;
     oop v_26;
     uint8_t r_next_bytecode_27;
     oop o_16;
+    oop r_load_ref_13;
     oop v_27;
     uint8_t r_next_bytecode_28;
     oop o_17;
+    oop r_load_ref_14;
     oop v_28;
     uint8_t r_next_bytecode_29;
     oop o_18;
+    oop r_load_ref_15;
     oop v_29;
     uint8_t r_next_bytecode_30;
     oop o_19;
+    oop r_load_ref_16;
     oop v_30;
     uint8_t r_next_bytecode_31;
     oop o_20;
+    oop r_load_ref_17;
     oop v_31;
     uint8_t r_next_bytecode_32;
     oop o_21;
+    oop r_load_ref_18;
     oop v_32;
     uint8_t r_next_bytecode_33;
     oop v_33;
@@ -966,15 +1561,31 @@ void interpret(void)
     oop o_53;
     oop v_96;
     uint8_t r_next_bytecode_97;
-    uint8_t r_next_bytecode_98;
-    uint8_t r_next_bytecode_99;
-    uint8_t r_next_bytecode_100;
-    uint8_t r_next_bytecode_101;
-    uint8_t r_next_bytecode_102;
-    uint8_t r_next_bytecode_103;
-    uint8_t r_next_bytecode_104;
-    uint8_t r_next_bytecode_105;
+    oop *p;
     oop v_97;
+    uint8_t r_next_bytecode_98;
+    oop *p_2;
+    oop v_98;
+    uint8_t r_next_bytecode_99;
+    oop *p_3;
+    oop v_99;
+    uint8_t r_next_bytecode_100;
+    oop *p_4;
+    oop v_100;
+    uint8_t r_next_bytecode_101;
+    oop *p_5;
+    oop v_101;
+    uint8_t r_next_bytecode_102;
+    oop *p_6;
+    oop v_102;
+    uint8_t r_next_bytecode_103;
+    oop *p_7;
+    oop v_103;
+    uint8_t r_next_bytecode_104;
+    oop *p_8;
+    oop v_104;
+    uint8_t r_next_bytecode_105;
+    oop v_105;
     uint8_t r_next_bytecode_106;
     uint8_t r_next_bytecode_107;
     uint8_t r_next_bytecode_108;
@@ -985,84 +1596,103 @@ void interpret(void)
     oop o_55;
     int64_t r;
     uint8_t n;
+    oop *p_9;
+    uint64_t v_106;
     uint8_t r_next_bytecode_111;
+    uint64_t v_107;
     uint8_t r_next_bytecode_112;
     int64_t r_2;
     uint8_t n_2;
+    oop *p_10;
+    uint64_t v_108;
     uint8_t r_next_bytecode_113;
+    uint64_t v_109;
     uint8_t r_next_bytecode_114;
     bool c;
     uint8_t j;
-    uint8_t *p;
+    uint8_t *p_11;
     int16_t o_54;
     oop *s_2;
     oop m_2;
-    uint64_t o_56;
-    int64_t v_98;
-    int64_t v_99;
+    oop r_load_ref_19;
+    oop o_56;
+    int64_t v_110;
+    uint64_t v_111;
     oop *s_3;
     oop m_3;
     oop o_57;
     oop o_58;
     oop o_59;
-    uint64_t o_60;
+    oop r_load_ref_20;
+    oop o_60;
     oop o_61;
     oop *s_4;
     oop m_4;
-    uint64_t o_62;
-    int64_t v_100;
-    int64_t v_101;
+    oop r_load_ref_21;
+    oop o_62;
+    int64_t v_112;
+    uint64_t v_113;
     oop *s_5;
     oop m_5;
     oop o_63;
     oop o_64;
     oop o_65;
-    uint64_t o_66;
+    oop r_load_ref_22;
+    oop o_66;
     oop o_67;
     oop *s_6;
     oop m_6;
-    uint64_t o_68;
-    int64_t v_102;
-    int64_t v_103;
+    oop r_load_ref_23;
+    oop o_68;
+    int64_t v_114;
+    uint64_t v_115;
     oop *s_7;
     oop m_7;
     oop o_69;
     oop o_70;
     oop o_71;
-    uint64_t o_72;
+    oop r_load_ref_24;
+    oop o_72;
     oop o_73;
     uint8_t r_next_bytecode_115;
+    oop v_116;
     uint8_t r_next_bytecode_116;
     uint8_t r_next_bytecode_117;
     uint8_t r_next_bytecode_118;
     oop *s_8;
     oop m_8;
-    uint64_t o_74;
-    int64_t v_104;
-    int64_t v_105;
+    oop r_load_ref_25;
+    oop o_74;
+    int64_t v_117;
+    uint64_t v_118;
     oop *s_9;
     oop m_9;
     oop o_75;
     oop o_76;
     oop o_77;
-    uint64_t o_78;
+    oop r_load_ref_26;
+    oop o_78;
     oop o_79;
-    oop v_106;
+    oop v_119;
     uint8_t r_next_bytecode_119;
+    oop *p_12;
+    oop v_120;
     uint8_t r_next_bytecode_120;
     uint8_t r_next_bytecode_121;
     uint64_t c_2;
     oop *s_10;
     oop m_10;
-    uint64_t o_80;
-    int64_t v_107;
-    int64_t v_108;
+    oop r_load_ref_27;
+    oop o_80;
+    int64_t v_121;
+    uint64_t v_122;
     oop *s_11;
     oop m_11;
     oop o_81;
     oop o_82;
     oop o_83;
-    uint64_t o_84;
+    oop r_load_ref_28;
+    oop o_84;
     oop o_85;
     uint8_t r_next_bytecode_122;
     oop o_86;
@@ -1071,32 +1701,38 @@ void interpret(void)
     oop o_87;
     oop o_88;
     oop o_89;
-    uint64_t o_90;
+    oop r_load_ref_29;
+    oop o_90;
     oop o_91;
     oop *s_13;
     oop m_13;
     oop o_92;
     oop o_93;
     oop o_94;
-    uint64_t o_95;
+    oop r_load_ref_30;
+    oop o_95;
     oop o_96;
     oop *s_14;
     oop m_14;
-    uint64_t o_97;
-    int64_t v_109;
-    int64_t v_110;
+    oop r_load_ref_31;
+    oop o_97;
+    int64_t v_123;
+    uint64_t v_124;
     oop *s_15;
     oop m_15;
     oop o_98;
     oop o_99;
     oop o_100;
-    uint64_t o_101;
+    oop r_load_ref_32;
+    oop o_101;
     oop o_102;
     uint8_t r_next_bytecode_123;
-    oop v_111;
+    oop v_125;
     oop o_103;
+    oop r_load_ref_33;
     oop home;
-    uint64_t hk;
+    oop r_load_ref_34;
+    oop hk;
     int32_t h;
     oop o_104;
     oop marked;
@@ -1105,967 +1741,1180 @@ void interpret(void)
     int32_t j_2;
     oop m_17;
     int64_t r_method_prim;
-    uint64_t p_2;
+    oop r_load_ref_35;
+    oop p_13;
     int32_t m_16;
     oop *s_16;
     oop m_18;
     oop o_105;
     oop o_106;
     oop o_107;
-    uint64_t o_108;
+    oop r_load_ref_36;
+    oop o_108;
     oop o_109;
     oop *s_17;
     oop m_19;
-    uint64_t o_110;
-    int64_t v_112;
-    int64_t v_113;
+    oop r_load_ref_37;
+    oop o_110;
+    int64_t v_126;
+    uint64_t v_127;
     oop *s_18;
     oop m_20;
     oop o_111;
     oop o_112;
     oop o_113;
-    uint64_t o_114;
+    oop r_load_ref_38;
+    oop o_114;
     oop o_115;
     uint8_t r_next_bytecode_124;
     uint64_t c_4;
     oop *s_19;
     oop m_21;
-    uint64_t o_116;
-    int64_t v_114;
-    int64_t v_115;
+    oop r_load_ref_39;
+    oop o_116;
+    int64_t v_128;
+    uint64_t v_129;
     oop *s_20;
     oop m_22;
     oop o_117;
     oop o_118;
     oop o_119;
-    uint64_t o_120;
+    oop r_load_ref_40;
+    oop o_120;
     oop o_121;
     uint8_t r_next_bytecode_125;
-    uint64_t hs;
-    uint64_t o_122;
-    uint64_t o_123;
+    oop r_load_ref_41;
+    oop hs;
+    oop r_load_ref_42;
+    oop o_122;
+    oop r_load_ref_43;
+    oop o_123;
     oop mk;
     oop c_3;
-    uint64_t m_23;
+    oop r_load_ref_44;
+    oop m_23;
     int64_t r_method_prim_2;
-    uint64_t p_3;
+    oop r_load_ref_45;
+    oop p_14;
+    oop r_load_ref_46;
     int32_t top_2;
     int32_t r_unwind_frame_from_2;
     int32_t j_3;
     oop m_24;
     int64_t r_method_prim_3;
-    uint64_t p_4;
-    uint64_t next;
+    oop r_load_ref_47;
+    oop p_15;
+    oop r_load_ref_48;
+    oop next;
     oop *s_21;
     oop m_25;
     oop o_124;
     oop o_125;
     oop o_126;
-    uint64_t o_127;
+    oop r_load_ref_49;
+    oop o_127;
     oop o_128;
     oop *s_22;
     oop m_26;
-    uint64_t o_129;
-    int64_t v_116;
-    int64_t v_117;
+    oop r_load_ref_50;
+    oop o_129;
+    int64_t v_130;
+    uint64_t v_131;
     oop *s_23;
     oop m_27;
     oop o_130;
     oop o_131;
     oop o_132;
-    uint64_t o_133;
+    oop r_load_ref_51;
+    oop o_133;
     oop o_134;
     uint8_t r_next_bytecode_126;
-    oop v_118;
+    oop v_132;
     uint8_t r_next_bytecode_127;
     uint8_t i_2;
     oop *s_24;
     oop m_28;
-    uint64_t o_135;
-    int64_t v_120;
-    int64_t v_121;
-    oop v_119;
+    oop r_load_ref_52;
+    oop o_135;
+    int64_t v_134;
+    uint64_t v_135;
+    oop v_133;
     oop *s_25;
     oop m_29;
     oop o_136;
     oop o_137;
     oop o_138;
-    uint64_t o_139;
+    oop r_load_ref_53;
+    oop o_139;
     oop o_140;
     oop o_141;
+    oop r_load_ref_54;
     uint8_t r_next_bytecode_128;
     oop o_142;
-    oop v_122;
+    oop r_load_ref_55;
+    oop v_136;
     uint8_t r_next_bytecode_129;
-    oop v_123;
+    oop v_137;
     uint8_t r_next_bytecode_130;
     oop o_143;
-    oop v_124;
+    oop v_138;
     uint8_t r_next_bytecode_131;
+    oop *p_16;
+    oop v_139;
     uint8_t r_next_bytecode_132;
     uint8_t i_3;
     oop r_3;
-    oop v_125;
-    int v_126;
-    uint64_t v_127;
-    oop v_128;
+    oop v_140;
+    int v_141;
+    uint64_t v_142;
+    oop v_143;
     uint8_t r_next_bytecode_133;
     oop o_144;
-    oop v_129;
+    oop v_144;
     uint8_t r_next_bytecode_134;
+    oop *p_17;
+    oop v_145;
     uint8_t r_next_bytecode_135;
     oop *s_26;
     oop m_30;
     oop o_145;
     oop o_146;
     oop o_147;
-    uint64_t o_148;
+    oop r_load_ref_56;
+    oop o_148;
     oop o_149;
     oop o_150;
-    oop v_130;
+    oop v_146;
     uint8_t r_next_bytecode_136;
     uint8_t op;
     int32_t d;
     uint8_t i_4;
+    oop r_load_ref_57;
     oop cl;
-    uint64_t c_5;
-    uint64_t o_151;
-    uint64_t k;
-    oop v_131;
+    oop r_load_ref_58;
+    oop c_5;
+    oop r_load_ref_59;
+    oop o_151;
+    oop r_load_ref_60;
+    oop r_load_ref_61;
+    oop k;
+    oop v_147;
+    oop *p_18;
+    oop v_148;
+    uint64_t i_5;
     uint8_t r_next_bytecode_137;
-    int i_5;
-    uint64_t v_132;
     int i_6;
-    oop v_133;
+    oop r_load_ref_62;
+    oop v_149;
+    int i_7;
+    oop v_150;
     uint8_t r_next_bytecode_138;
+    oop r_load_ref_63;
     oop o_152;
-    uint64_t o_153;
+    oop r_load_ref_64;
+    oop o_153;
+    oop r_load_ref_65;
     uint8_t na;
     uint8_t nt;
     uint8_t fs;
     int64_t size;
-    oop *s_28;
+    oop *s_27;
     oop m_31;
-    uint64_t o_154;
-    int64_t v_134;
-    int64_t v_135;
+    oop r_load_ref_66;
+    oop o_154;
+    int64_t v_151;
+    uint64_t v_152;
     oop bc;
-    uint64_t o_155;
+    oop r_load_ref_67;
+    oop o_155;
     int64_t isize;
     uint64_t b;
-    oop *s_29;
+    oop *s_28;
     oop m_32;
     oop o_156;
     oop o_157;
     oop o_158;
-    uint64_t o_159;
+    oop r_load_ref_68;
+    oop o_159;
     oop o_160;
-    oop *s_27;
+    oop v_153;
+    oop r_load_ref_69;
     oop m_33;
-    uint64_t o_161;
-    int64_t v_136;
+    oop r_load_ref_70;
+    oop o_161;
+    int64_t v_154;
+    uint64_t v_155;
+    uint64_t v_156;
+    uint64_t v_157;
+    uint64_t v_158;
     uint8_t r_next_bytecode_139;
     int16_t o_162;
-    oop *s_30;
+    oop *s_29;
     oop m_34;
-    uint64_t o_163;
-    int64_t v_137;
-    int64_t v_138;
-    oop *s_31;
+    oop r_load_ref_71;
+    oop o_163;
+    int64_t v_159;
+    uint64_t v_160;
+    oop *s_30;
     oop m_35;
     oop o_164;
     oop o_165;
     oop o_166;
-    uint64_t o_167;
+    oop r_load_ref_72;
+    oop o_167;
     oop o_168;
-    oop *s_32;
+    oop *s_31;
     oop m_36;
-    uint64_t o_169;
-    int64_t v_139;
-    int64_t v_140;
-    oop *s_33;
+    oop r_load_ref_73;
+    oop o_169;
+    int64_t v_161;
+    uint64_t v_162;
+    oop *s_32;
     oop m_37;
     oop o_170;
     oop o_171;
     oop o_172;
-    uint64_t o_173;
+    oop r_load_ref_74;
+    oop o_173;
     oop o_174;
-    oop *s_34;
+    oop *s_33;
     oop m_38;
-    uint64_t o_175;
-    int64_t v_141;
-    int64_t v_142;
-    oop *s_35;
+    oop r_load_ref_75;
+    oop o_175;
+    int64_t v_163;
+    uint64_t v_164;
+    oop *s_34;
     oop m_39;
     oop o_176;
     oop o_177;
     oop o_178;
-    uint64_t o_179;
+    oop r_load_ref_76;
+    oop o_179;
     oop o_180;
     uint8_t r_next_bytecode_140;
-    oop v_143;
+    oop v_165;
     int16_t o_181;
-    oop *s_36;
+    oop *s_35;
     oop m_40;
-    uint64_t o_182;
-    int64_t v_144;
-    int64_t v_145;
-    oop *s_37;
+    oop r_load_ref_77;
+    oop o_182;
+    int64_t v_166;
+    uint64_t v_167;
+    oop *s_36;
     oop m_41;
     oop o_183;
     oop o_184;
     oop o_185;
-    uint64_t o_186;
+    oop r_load_ref_78;
+    oop o_186;
     oop o_187;
-    oop *s_38;
+    oop *s_37;
     oop m_42;
-    uint64_t o_188;
-    int64_t v_146;
-    int64_t v_147;
-    oop *s_39;
+    oop r_load_ref_79;
+    oop o_188;
+    int64_t v_168;
+    uint64_t v_169;
+    oop *s_38;
     oop m_43;
     oop o_189;
     oop o_190;
     oop o_191;
-    uint64_t o_192;
+    oop r_load_ref_80;
+    oop o_192;
     oop o_193;
-    oop *s_40;
+    oop *s_39;
     oop m_44;
-    uint64_t o_194;
-    int64_t v_148;
-    int64_t v_149;
-    oop *s_41;
+    oop r_load_ref_81;
+    oop o_194;
+    int64_t v_170;
+    uint64_t v_171;
+    oop *s_40;
     oop m_45;
     oop o_195;
     oop o_196;
     oop o_197;
-    uint64_t o_198;
+    oop r_load_ref_82;
+    oop o_198;
     oop o_199;
     uint8_t r_next_bytecode_141;
-    oop v_150;
+    oop v_172;
     int16_t o_200;
-    oop *s_42;
+    oop *s_41;
     oop m_46;
-    uint64_t o_201;
-    int64_t v_151;
-    int64_t v_152;
-    oop *s_43;
+    oop r_load_ref_83;
+    oop o_201;
+    int64_t v_173;
+    uint64_t v_174;
+    oop *s_42;
     oop m_47;
     oop o_202;
     oop o_203;
     oop o_204;
-    uint64_t o_205;
+    oop r_load_ref_84;
+    oop o_205;
     oop o_206;
-    oop *s_44;
+    oop *s_43;
     oop m_48;
-    uint64_t o_207;
-    int64_t v_153;
-    int64_t v_154;
-    oop *s_45;
+    oop r_load_ref_85;
+    oop o_207;
+    int64_t v_175;
+    uint64_t v_176;
+    oop *s_44;
     oop m_49;
     oop o_208;
     oop o_209;
     oop o_210;
-    uint64_t o_211;
+    oop r_load_ref_86;
+    oop o_211;
     oop o_212;
-    oop *s_46;
+    oop *s_45;
     oop m_50;
-    uint64_t o_213;
-    int64_t v_155;
-    int64_t v_156;
-    oop *s_47;
+    oop r_load_ref_87;
+    oop o_213;
+    int64_t v_177;
+    uint64_t v_178;
+    oop *s_46;
     oop m_51;
     oop o_214;
     oop o_215;
     oop o_216;
-    uint64_t o_217;
+    oop r_load_ref_88;
+    oop o_217;
     oop o_218;
     uint8_t r_next_bytecode_142;
-    int16_t v_158;
-    uint64_t v_157;
+    int16_t v_180;
+    uint64_t v_179;
     oop a_2;
     uint32_t nx_2;
     oop o_220;
     int64_t r_4;
     uint8_t n_3;
+    oop *p_19;
+    uint64_t v_181;
     uint8_t r_next_bytecode_143;
+    uint64_t v_182;
     uint8_t r_next_bytecode_144;
     int64_t r_5;
     uint8_t n_4;
+    oop *p_20;
+    uint64_t v_183;
     uint8_t r_next_bytecode_145;
+    uint64_t v_184;
     uint8_t r_next_bytecode_146;
     bool c_6;
     uint8_t j_4;
-    uint8_t *p_5;
+    uint8_t *p_21;
     int16_t o_219;
-    oop *s_48;
+    oop *s_47;
     oop m_52;
-    uint64_t o_221;
-    int64_t v_159;
-    int64_t v_160;
-    oop *s_49;
+    oop r_load_ref_89;
+    oop o_221;
+    int64_t v_185;
+    uint64_t v_186;
+    oop *s_48;
     oop m_53;
     oop o_222;
     oop o_223;
     oop o_224;
-    uint64_t o_225;
+    oop r_load_ref_90;
+    oop o_225;
     oop o_226;
-    oop *s_50;
+    oop *s_49;
     oop m_54;
-    uint64_t o_227;
-    int64_t v_161;
-    int64_t v_162;
-    oop *s_51;
+    oop r_load_ref_91;
+    oop o_227;
+    int64_t v_187;
+    uint64_t v_188;
+    oop *s_50;
     oop m_55;
     oop o_228;
     oop o_229;
     oop o_230;
-    uint64_t o_231;
+    oop r_load_ref_92;
+    oop o_231;
     oop o_232;
-    oop *s_52;
+    oop *s_51;
     oop m_56;
-    uint64_t o_233;
-    int64_t v_163;
-    int64_t v_164;
-    oop *s_53;
+    oop r_load_ref_93;
+    oop o_233;
+    int64_t v_189;
+    uint64_t v_190;
+    oop *s_52;
     oop m_57;
     oop o_234;
     oop o_235;
     oop o_236;
-    uint64_t o_237;
+    oop r_load_ref_94;
+    oop o_237;
     oop o_238;
     uint8_t r_next_bytecode_147;
+    oop v_191;
     uint8_t r_next_bytecode_148;
     uint8_t r_next_bytecode_149;
     uint8_t n_5;
-    oop *s_54;
+    oop *s_53;
     oop m_58;
-    uint64_t o_239;
-    int64_t v_165;
-    int64_t v_166;
+    oop r_load_ref_95;
+    oop o_239;
+    int64_t v_192;
+    uint64_t v_193;
     uint64_t a_3;
-    oop *s_55;
+    oop *s_54;
     oop m_59;
     oop o_240;
     oop o_241;
     oop o_242;
-    uint64_t o_243;
+    oop r_load_ref_96;
+    oop o_243;
     oop o_244;
     oop *src;
     uint8_t r_next_bytecode_150;
-    int8_t v_167;
+    oop *p_22;
+    oop v_194;
+    oop *p_23;
+    oop v_195;
+    oop *p_24;
+    oop v_196;
+    oop *p_25;
+    oop v_197;
+    oop *p_26;
+    oop v_198;
+    oop *p_27;
+    int8_t v_199;
+    uint64_t v_200;
     oop a_4;
     oop b_2;
     oop o_245;
     int64_t r_6;
     uint8_t n_6;
+    oop *p_28;
+    uint64_t v_201;
     uint8_t r_next_bytecode_151;
-    uint64_t v_168;
+    uint64_t v_202;
     uint8_t r_next_bytecode_152;
+    oop *p_29;
+    oop *p_30;
     oop a_5;
     oop b_3;
     oop o_246;
     int64_t r_7;
     uint8_t n_7;
+    oop *p_31;
+    uint64_t v_203;
     uint8_t r_next_bytecode_153;
-    uint64_t v_169;
+    uint64_t v_204;
     uint8_t r_next_bytecode_154;
+    oop *p_32;
+    oop *p_33;
     oop a_6;
     oop b_4;
     oop o_247;
     bool c_9;
     uint8_t j_5;
-    uint8_t *p_6;
+    uint8_t *p_34;
     int16_t o_248;
-    oop *s_56;
+    oop *s_55;
     oop m_60;
-    uint64_t o_249;
-    int64_t v_170;
-    int64_t v_171;
-    oop *s_57;
+    oop r_load_ref_97;
+    oop o_249;
+    int64_t v_205;
+    uint64_t v_206;
+    oop *s_56;
     oop m_61;
     oop o_250;
     oop o_251;
     oop o_252;
-    uint64_t o_253;
+    oop r_load_ref_98;
+    oop o_253;
     oop o_254;
-    oop *s_58;
+    oop *s_57;
     oop m_62;
-    uint64_t o_255;
-    int64_t v_172;
-    int64_t v_173;
-    oop *s_59;
+    oop r_load_ref_99;
+    oop o_255;
+    int64_t v_207;
+    uint64_t v_208;
+    oop *s_58;
     oop m_63;
     oop o_256;
     oop o_257;
     oop o_258;
-    uint64_t o_259;
+    oop r_load_ref_100;
+    oop o_259;
     oop o_260;
-    oop *s_60;
+    oop *s_59;
     oop m_64;
-    uint64_t o_261;
-    int64_t v_174;
-    int64_t v_175;
-    oop *s_61;
+    oop r_load_ref_101;
+    oop o_261;
+    int64_t v_209;
+    uint64_t v_210;
+    oop *s_60;
     oop m_65;
     oop o_262;
     oop o_263;
     oop o_264;
-    uint64_t o_265;
+    oop r_load_ref_102;
+    oop o_265;
     oop o_266;
     uint8_t r_next_bytecode_155;
-    oop v_176;
+    oop v_211;
     uint8_t r_next_bytecode_156;
+    oop *p_35;
+    oop *p_36;
     oop a_7;
     oop b_5;
     oop o_267;
     bool c_10;
     uint8_t j_6;
-    uint8_t *p_7;
+    uint8_t *p_37;
     int16_t o_268;
-    oop *s_62;
+    oop *s_61;
     oop m_66;
-    uint64_t o_269;
-    int64_t v_177;
-    int64_t v_178;
-    oop *s_63;
+    oop r_load_ref_103;
+    oop o_269;
+    int64_t v_212;
+    uint64_t v_213;
+    oop *s_62;
     oop m_67;
     oop o_270;
     oop o_271;
     oop o_272;
-    uint64_t o_273;
+    oop r_load_ref_104;
+    oop o_273;
     oop o_274;
-    oop *s_64;
+    oop *s_63;
     oop m_68;
-    uint64_t o_275;
-    int64_t v_179;
-    int64_t v_180;
-    oop *s_65;
+    oop r_load_ref_105;
+    oop o_275;
+    int64_t v_214;
+    uint64_t v_215;
+    oop *s_64;
     oop m_69;
     oop o_276;
     oop o_277;
     oop o_278;
-    uint64_t o_279;
+    oop r_load_ref_106;
+    oop o_279;
     oop o_280;
-    oop *s_66;
+    oop *s_65;
     oop m_70;
-    uint64_t o_281;
-    int64_t v_181;
-    int64_t v_182;
-    oop *s_67;
+    oop r_load_ref_107;
+    oop o_281;
+    int64_t v_216;
+    uint64_t v_217;
+    oop *s_66;
     oop m_71;
     oop o_282;
     oop o_283;
     oop o_284;
-    uint64_t o_285;
+    oop r_load_ref_108;
+    oop o_285;
     oop o_286;
     uint8_t r_next_bytecode_157;
-    oop v_183;
+    oop v_218;
     uint8_t r_next_bytecode_158;
+    oop *p_38;
+    oop *p_39;
     oop a_8;
     oop b_6;
     oop o_287;
     bool c_11;
     uint8_t j_7;
-    uint8_t *p_8;
+    uint8_t *p_40;
     int16_t o_288;
-    oop *s_68;
+    oop *s_67;
     oop m_72;
-    uint64_t o_289;
-    int64_t v_184;
-    int64_t v_185;
-    oop *s_69;
+    oop r_load_ref_109;
+    oop o_289;
+    int64_t v_219;
+    uint64_t v_220;
+    oop *s_68;
     oop m_73;
     oop o_290;
     oop o_291;
     oop o_292;
-    uint64_t o_293;
+    oop r_load_ref_110;
+    oop o_293;
     oop o_294;
-    oop *s_70;
+    oop *s_69;
     oop m_74;
-    uint64_t o_295;
-    int64_t v_186;
-    int64_t v_187;
-    oop *s_71;
+    oop r_load_ref_111;
+    oop o_295;
+    int64_t v_221;
+    uint64_t v_222;
+    oop *s_70;
     oop m_75;
     oop o_296;
     oop o_297;
     oop o_298;
-    uint64_t o_299;
+    oop r_load_ref_112;
+    oop o_299;
     oop o_300;
-    oop *s_72;
+    oop *s_71;
     oop m_76;
-    uint64_t o_301;
-    int64_t v_188;
-    int64_t v_189;
-    oop *s_73;
+    oop r_load_ref_113;
+    oop o_301;
+    int64_t v_223;
+    uint64_t v_224;
+    oop *s_72;
     oop m_77;
     oop o_302;
     oop o_303;
     oop o_304;
-    uint64_t o_305;
+    oop r_load_ref_114;
+    oop o_305;
     oop o_306;
     uint8_t r_next_bytecode_159;
-    oop v_190;
+    oop v_225;
     uint8_t r_next_bytecode_160;
+    oop *p_41;
+    oop *p_42;
     oop a_9;
     oop b_7;
     oop o_307;
     bool c_12;
     uint8_t j_8;
-    uint8_t *p_9;
+    uint8_t *p_43;
     int16_t o_308;
-    oop *s_74;
+    oop *s_73;
     oop m_78;
-    uint64_t o_309;
-    int64_t v_191;
-    int64_t v_192;
-    oop *s_75;
+    oop r_load_ref_115;
+    oop o_309;
+    int64_t v_226;
+    uint64_t v_227;
+    oop *s_74;
     oop m_79;
     oop o_310;
     oop o_311;
     oop o_312;
-    uint64_t o_313;
+    oop r_load_ref_116;
+    oop o_313;
     oop o_314;
-    oop *s_76;
+    oop *s_75;
     oop m_80;
-    uint64_t o_315;
-    int64_t v_193;
-    int64_t v_194;
-    oop *s_77;
+    oop r_load_ref_117;
+    oop o_315;
+    int64_t v_228;
+    uint64_t v_229;
+    oop *s_76;
     oop m_81;
     oop o_316;
     oop o_317;
     oop o_318;
-    uint64_t o_319;
+    oop r_load_ref_118;
+    oop o_319;
     oop o_320;
-    oop *s_78;
+    oop *s_77;
     oop m_82;
-    uint64_t o_321;
-    int64_t v_195;
-    int64_t v_196;
-    oop *s_79;
+    oop r_load_ref_119;
+    oop o_321;
+    int64_t v_230;
+    uint64_t v_231;
+    oop *s_78;
     oop m_83;
     oop o_322;
     oop o_323;
     oop o_324;
-    uint64_t o_325;
+    oop r_load_ref_120;
+    oop o_325;
     oop o_326;
     uint8_t r_next_bytecode_161;
-    oop v_197;
+    oop v_232;
     uint8_t r_next_bytecode_162;
+    oop *p_44;
+    oop *p_45;
     oop a_10;
     oop b_8;
     oop o_327;
     int64_t r_8;
     uint8_t n_8;
+    oop *p_46;
+    uint64_t v_233;
     uint8_t r_next_bytecode_163;
-    uint64_t v_198;
+    uint64_t v_234;
     uint8_t r_next_bytecode_164;
+    oop *p_47;
+    oop *p_48;
     oop a_11;
     oop b_9;
     oop o_328;
     int64_t r_9;
     uint8_t n_9;
+    oop *p_49;
+    uint64_t v_235;
     uint8_t r_next_bytecode_165;
-    uint64_t v_199;
+    uint64_t v_236;
     uint8_t r_next_bytecode_166;
+    oop *p_50;
+    oop *p_51;
     oop a_12;
     oop b_10;
     oop o_329;
     bool c_15;
     uint8_t j_9;
-    uint8_t *p_10;
+    uint8_t *p_52;
     int16_t o_330;
-    oop *s_80;
+    oop *s_79;
     oop m_84;
-    uint64_t o_331;
-    int64_t v_200;
-    int64_t v_201;
-    oop *s_81;
+    oop r_load_ref_121;
+    oop o_331;
+    int64_t v_237;
+    uint64_t v_238;
+    oop *s_80;
     oop m_85;
     oop o_332;
     oop o_333;
     oop o_334;
-    uint64_t o_335;
+    oop r_load_ref_122;
+    oop o_335;
     oop o_336;
-    oop *s_82;
+    oop *s_81;
     oop m_86;
-    uint64_t o_337;
-    int64_t v_202;
-    int64_t v_203;
-    oop *s_83;
+    oop r_load_ref_123;
+    oop o_337;
+    int64_t v_239;
+    uint64_t v_240;
+    oop *s_82;
     oop m_87;
     oop o_338;
     oop o_339;
     oop o_340;
-    uint64_t o_341;
+    oop r_load_ref_124;
+    oop o_341;
     oop o_342;
-    oop *s_84;
+    oop *s_83;
     oop m_88;
-    uint64_t o_343;
-    int64_t v_204;
-    int64_t v_205;
-    oop *s_85;
+    oop r_load_ref_125;
+    oop o_343;
+    int64_t v_241;
+    uint64_t v_242;
+    oop *s_84;
     oop m_89;
     oop o_344;
     oop o_345;
     oop o_346;
-    uint64_t o_347;
+    oop r_load_ref_126;
+    oop o_347;
     oop o_348;
     uint8_t r_next_bytecode_167;
-    oop v_206;
+    oop v_243;
     uint8_t r_next_bytecode_168;
+    oop *p_53;
+    oop *p_54;
     oop a_13;
     oop b_11;
     oop o_349;
     bool c_16;
     uint8_t j_10;
-    uint8_t *p_11;
+    uint8_t *p_55;
     int16_t o_350;
-    oop *s_86;
+    oop *s_85;
     oop m_90;
-    uint64_t o_351;
-    int64_t v_207;
-    int64_t v_208;
-    oop *s_87;
+    oop r_load_ref_127;
+    oop o_351;
+    int64_t v_244;
+    uint64_t v_245;
+    oop *s_86;
     oop m_91;
     oop o_352;
     oop o_353;
     oop o_354;
-    uint64_t o_355;
+    oop r_load_ref_128;
+    oop o_355;
     oop o_356;
-    oop *s_88;
+    oop *s_87;
     oop m_92;
-    uint64_t o_357;
-    int64_t v_209;
-    int64_t v_210;
-    oop *s_89;
+    oop r_load_ref_129;
+    oop o_357;
+    int64_t v_246;
+    uint64_t v_247;
+    oop *s_88;
     oop m_93;
     oop o_358;
     oop o_359;
     oop o_360;
-    uint64_t o_361;
+    oop r_load_ref_130;
+    oop o_361;
     oop o_362;
-    oop *s_90;
+    oop *s_89;
     oop m_94;
-    uint64_t o_363;
-    int64_t v_211;
-    int64_t v_212;
-    oop *s_91;
+    oop r_load_ref_131;
+    oop o_363;
+    int64_t v_248;
+    uint64_t v_249;
+    oop *s_90;
     oop m_95;
     oop o_364;
     oop o_365;
     oop o_366;
-    uint64_t o_367;
+    oop r_load_ref_132;
+    oop o_367;
     oop o_368;
     uint8_t r_next_bytecode_169;
-    oop v_213;
+    oop v_250;
     uint8_t r_next_bytecode_170;
+    oop *p_56;
+    oop *p_57;
     oop a_14;
     oop b_12;
     oop o_369;
     bool c_17;
     uint8_t j_11;
-    uint8_t *p_12;
+    uint8_t *p_58;
     int16_t o_370;
-    oop *s_92;
+    oop *s_91;
     oop m_96;
-    uint64_t o_371;
-    int64_t v_214;
-    int64_t v_215;
-    oop *s_93;
+    oop r_load_ref_133;
+    oop o_371;
+    int64_t v_251;
+    uint64_t v_252;
+    oop *s_92;
     oop m_97;
     oop o_372;
     oop o_373;
     oop o_374;
-    uint64_t o_375;
+    oop r_load_ref_134;
+    oop o_375;
     oop o_376;
-    oop *s_94;
+    oop *s_93;
     oop m_98;
-    uint64_t o_377;
-    int64_t v_216;
-    int64_t v_217;
-    oop *s_95;
+    oop r_load_ref_135;
+    oop o_377;
+    int64_t v_253;
+    uint64_t v_254;
+    oop *s_94;
     oop m_99;
     oop o_378;
     oop o_379;
     oop o_380;
-    uint64_t o_381;
+    oop r_load_ref_136;
+    oop o_381;
     oop o_382;
-    oop *s_96;
+    oop *s_95;
     oop m_100;
-    uint64_t o_383;
-    int64_t v_218;
-    int64_t v_219;
-    oop *s_97;
+    oop r_load_ref_137;
+    oop o_383;
+    int64_t v_255;
+    uint64_t v_256;
+    oop *s_96;
     oop m_101;
     oop o_384;
     oop o_385;
     oop o_386;
-    uint64_t o_387;
+    oop r_load_ref_138;
+    oop o_387;
     oop o_388;
     uint8_t r_next_bytecode_171;
-    oop v_220;
+    oop v_257;
     uint8_t r_next_bytecode_172;
+    oop *p_59;
+    oop *p_60;
     oop a_15;
     oop b_13;
     oop o_389;
     bool c_18;
     uint8_t j_12;
-    uint8_t *p_13;
+    uint8_t *p_61;
     int16_t o_390;
-    oop *s_98;
+    oop *s_97;
     oop m_102;
-    uint64_t o_391;
-    int64_t v_221;
-    int64_t v_222;
-    oop *s_99;
+    oop r_load_ref_139;
+    oop o_391;
+    int64_t v_258;
+    uint64_t v_259;
+    oop *s_98;
     oop m_103;
     oop o_392;
     oop o_393;
     oop o_394;
-    uint64_t o_395;
+    oop r_load_ref_140;
+    oop o_395;
     oop o_396;
-    oop *s_100;
+    oop *s_99;
     oop m_104;
-    uint64_t o_397;
-    int64_t v_223;
-    int64_t v_224;
-    oop *s_101;
+    oop r_load_ref_141;
+    oop o_397;
+    int64_t v_260;
+    uint64_t v_261;
+    oop *s_100;
     oop m_105;
     oop o_398;
     oop o_399;
     oop o_400;
-    uint64_t o_401;
+    oop r_load_ref_142;
+    oop o_401;
     oop o_402;
-    oop *s_102;
+    oop *s_101;
     oop m_106;
-    uint64_t o_403;
-    int64_t v_225;
-    int64_t v_226;
-    oop *s_103;
+    oop r_load_ref_143;
+    oop o_403;
+    int64_t v_262;
+    uint64_t v_263;
+    oop *s_102;
     oop m_107;
     oop o_404;
     oop o_405;
     oop o_406;
-    uint64_t o_407;
+    oop r_load_ref_144;
+    oop o_407;
     oop o_408;
     uint8_t r_next_bytecode_173;
-    oop v_227;
+    oop v_264;
     uint8_t r_next_bytecode_174;
+    oop *p_62;
+    oop *p_63;
     oop a_16;
-    int8_t v_228;
+    int8_t v_265;
     uint64_t b_14;
     oop o_409;
     int64_t r_10;
     uint8_t n_10;
+    oop *p_64;
+    uint64_t v_266;
     uint8_t r_next_bytecode_175;
-    uint64_t v_229;
+    uint64_t v_267;
     uint8_t r_next_bytecode_176;
+    oop *p_65;
+    oop *p_66;
     oop a_17;
-    int8_t v_230;
+    int8_t v_268;
     uint64_t b_15;
     oop o_410;
     int64_t r_11;
     uint8_t n_11;
+    oop *p_67;
+    uint64_t v_269;
     uint8_t r_next_bytecode_177;
-    uint64_t v_231;
+    uint64_t v_270;
     uint8_t r_next_bytecode_178;
+    oop *p_68;
+    oop *p_69;
     oop a_18;
-    int8_t v_232;
+    int8_t v_271;
     uint64_t b_16;
     oop o_411;
     bool c_21;
     uint8_t j_13;
-    uint8_t *p_14;
+    uint8_t *p_70;
     int16_t o_412;
-    oop *s_104;
+    oop *s_103;
     oop m_108;
-    uint64_t o_413;
-    int64_t v_233;
-    int64_t v_234;
-    oop *s_105;
+    oop r_load_ref_145;
+    oop o_413;
+    int64_t v_272;
+    uint64_t v_273;
+    oop *s_104;
     oop m_109;
     oop o_414;
     oop o_415;
     oop o_416;
-    uint64_t o_417;
+    oop r_load_ref_146;
+    oop o_417;
     oop o_418;
-    oop *s_106;
+    oop *s_105;
     oop m_110;
-    uint64_t o_419;
-    int64_t v_235;
-    int64_t v_236;
-    oop *s_107;
+    oop r_load_ref_147;
+    oop o_419;
+    int64_t v_274;
+    uint64_t v_275;
+    oop *s_106;
     oop m_111;
     oop o_420;
     oop o_421;
     oop o_422;
-    uint64_t o_423;
+    oop r_load_ref_148;
+    oop o_423;
     oop o_424;
-    oop *s_108;
+    oop *s_107;
     oop m_112;
-    uint64_t o_425;
-    int64_t v_237;
-    int64_t v_238;
-    oop *s_109;
+    oop r_load_ref_149;
+    oop o_425;
+    int64_t v_276;
+    uint64_t v_277;
+    oop *s_108;
     oop m_113;
     oop o_426;
     oop o_427;
     oop o_428;
-    uint64_t o_429;
+    oop r_load_ref_150;
+    oop o_429;
     oop o_430;
     uint8_t r_next_bytecode_179;
-    oop v_239;
+    oop v_278;
     uint8_t r_next_bytecode_180;
+    oop *p_71;
+    oop *p_72;
     oop a_19;
-    int8_t v_240;
+    int8_t v_279;
     uint64_t b_17;
     oop o_431;
     bool c_22;
     uint8_t j_14;
-    uint8_t *p_15;
+    uint8_t *p_73;
     int16_t o_432;
-    oop *s_110;
+    oop *s_109;
     oop m_114;
-    uint64_t o_433;
-    int64_t v_241;
-    int64_t v_242;
-    oop *s_111;
+    oop r_load_ref_151;
+    oop o_433;
+    int64_t v_280;
+    uint64_t v_281;
+    oop *s_110;
     oop m_115;
     oop o_434;
     oop o_435;
     oop o_436;
-    uint64_t o_437;
+    oop r_load_ref_152;
+    oop o_437;
     oop o_438;
-    oop *s_112;
+    oop *s_111;
     oop m_116;
-    uint64_t o_439;
-    int64_t v_243;
-    int64_t v_244;
-    oop *s_113;
+    oop r_load_ref_153;
+    oop o_439;
+    int64_t v_282;
+    uint64_t v_283;
+    oop *s_112;
     oop m_117;
     oop o_440;
     oop o_441;
     oop o_442;
-    uint64_t o_443;
+    oop r_load_ref_154;
+    oop o_443;
     oop o_444;
-    oop *s_114;
+    oop *s_113;
     oop m_118;
-    uint64_t o_445;
-    int64_t v_245;
-    int64_t v_246;
-    oop *s_115;
+    oop r_load_ref_155;
+    oop o_445;
+    int64_t v_284;
+    uint64_t v_285;
+    oop *s_114;
     oop m_119;
     oop o_446;
     oop o_447;
     oop o_448;
-    uint64_t o_449;
+    oop r_load_ref_156;
+    oop o_449;
     oop o_450;
     uint8_t r_next_bytecode_181;
-    oop v_247;
+    oop v_286;
     uint8_t r_next_bytecode_182;
+    oop *p_74;
+    oop *p_75;
     oop a_20;
-    int8_t v_248;
+    int8_t v_287;
     uint64_t b_18;
     oop o_451;
     bool c_23;
     uint8_t j_15;
-    uint8_t *p_16;
+    uint8_t *p_76;
     int16_t o_452;
-    oop *s_116;
+    oop *s_115;
     oop m_120;
-    uint64_t o_453;
-    int64_t v_249;
-    int64_t v_250;
-    oop *s_117;
+    oop r_load_ref_157;
+    oop o_453;
+    int64_t v_288;
+    uint64_t v_289;
+    oop *s_116;
     oop m_121;
     oop o_454;
     oop o_455;
     oop o_456;
-    uint64_t o_457;
+    oop r_load_ref_158;
+    oop o_457;
     oop o_458;
-    oop *s_118;
+    oop *s_117;
     oop m_122;
-    uint64_t o_459;
-    int64_t v_251;
-    int64_t v_252;
-    oop *s_119;
+    oop r_load_ref_159;
+    oop o_459;
+    int64_t v_290;
+    uint64_t v_291;
+    oop *s_118;
     oop m_123;
     oop o_460;
     oop o_461;
     oop o_462;
-    uint64_t o_463;
+    oop r_load_ref_160;
+    oop o_463;
     oop o_464;
-    oop *s_120;
+    oop *s_119;
     oop m_124;
-    uint64_t o_465;
-    int64_t v_253;
-    int64_t v_254;
-    oop *s_121;
+    oop r_load_ref_161;
+    oop o_465;
+    int64_t v_292;
+    uint64_t v_293;
+    oop *s_120;
     oop m_125;
     oop o_466;
     oop o_467;
     oop o_468;
-    uint64_t o_469;
+    oop r_load_ref_162;
+    oop o_469;
     oop o_470;
     uint8_t r_next_bytecode_183;
-    oop v_255;
+    oop v_294;
     uint8_t r_next_bytecode_184;
+    oop *p_77;
+    oop *p_78;
     oop a_21;
-    int8_t v_256;
+    int8_t v_295;
     uint64_t b_19;
     oop o_471;
     bool c_24;
     uint8_t j_16;
-    uint8_t *p_17;
+    uint8_t *p_79;
     int16_t o_472;
-    oop *s_122;
+    oop *s_121;
     oop m_126;
-    uint64_t o_473;
-    int64_t v_257;
-    int64_t v_258;
-    oop *s_123;
+    oop r_load_ref_163;
+    oop o_473;
+    int64_t v_296;
+    uint64_t v_297;
+    oop *s_122;
     oop m_127;
     oop o_474;
     oop o_475;
     oop o_476;
-    uint64_t o_477;
+    oop r_load_ref_164;
+    oop o_477;
     oop o_478;
-    oop *s_124;
+    oop *s_123;
     oop m_128;
-    uint64_t o_479;
-    int64_t v_259;
-    int64_t v_260;
-    oop *s_125;
+    oop r_load_ref_165;
+    oop o_479;
+    int64_t v_298;
+    uint64_t v_299;
+    oop *s_124;
     oop m_129;
     oop o_480;
     oop o_481;
     oop o_482;
-    uint64_t o_483;
+    oop r_load_ref_166;
+    oop o_483;
     oop o_484;
-    oop *s_126;
+    oop *s_125;
     oop m_130;
-    uint64_t o_485;
-    int64_t v_261;
-    int64_t v_262;
-    oop *s_127;
+    oop r_load_ref_167;
+    oop o_485;
+    int64_t v_300;
+    uint64_t v_301;
+    oop *s_126;
     oop m_131;
     oop o_486;
     oop o_487;
     oop o_488;
-    uint64_t o_489;
+    oop r_load_ref_168;
+    oop o_489;
     oop o_490;
     uint8_t r_next_bytecode_185;
-    oop v_263;
+    oop v_302;
     uint8_t r_next_bytecode_186;
+    oop *p_80;
+    oop *p_81;
     oop a_22;
     oop b_20;
     oop o_491;
     int64_t r_12;
-    uint64_t v_264;
+    uint64_t v_303;
     uint8_t nx_3;
+    oop *p_82;
     uint8_t r_next_bytecode_187;
     uint8_t r_next_bytecode_188;
     double r_num_val;
@@ -2080,6 +2929,7 @@ void interpret(void)
     uint32_t e;
     uint64_t f;
     uint8_t nx_4;
+    oop *p_83;
     uint8_t r_next_bytecode_189;
     uint8_t r_next_bytecode_190;
     int six;
@@ -2087,8 +2937,9 @@ void interpret(void)
     oop b_24;
     oop o_492;
     int64_t r_15;
-    uint64_t v_265;
+    uint64_t v_304;
     uint8_t nx_5;
+    oop *p_84;
     uint8_t r_next_bytecode_191;
     uint8_t r_next_bytecode_192;
     double r_num_val_3;
@@ -2103,6 +2954,7 @@ void interpret(void)
     uint32_t e_2;
     uint64_t f_2;
     uint8_t nx_6;
+    oop *p_85;
     uint8_t r_next_bytecode_193;
     uint8_t r_next_bytecode_194;
     bool r_compare_for;
@@ -2111,44 +2963,51 @@ void interpret(void)
     oop o_493;
     bool c_25;
     uint8_t nx_7;
-    uint8_t *p_18;
+    uint8_t *p_86;
     int16_t o_494;
-    oop *s_128;
+    oop *s_127;
     oop m_132;
-    uint64_t o_495;
-    int64_t v_266;
-    int64_t v_267;
-    oop *s_129;
+    oop r_load_ref_169;
+    oop o_495;
+    int64_t v_305;
+    uint64_t v_306;
+    oop *s_128;
     oop m_133;
     oop o_496;
     oop o_497;
     oop o_498;
-    uint64_t o_499;
+    oop r_load_ref_170;
+    oop o_499;
     oop o_500;
-    oop *s_130;
+    oop *s_129;
     oop m_134;
-    uint64_t o_501;
-    int64_t v_268;
-    int64_t v_269;
-    oop *s_131;
+    oop r_load_ref_171;
+    oop o_501;
+    int64_t v_307;
+    uint64_t v_308;
+    oop *s_130;
     oop m_135;
     oop o_502;
     oop o_503;
     oop o_504;
-    uint64_t o_505;
+    oop r_load_ref_172;
+    oop o_505;
     oop o_506;
-    oop *s_132;
+    oop *s_131;
     oop m_136;
-    uint64_t o_507;
-    int64_t v_270;
-    int64_t v_271;
-    oop *s_133;
+    oop r_load_ref_173;
+    oop o_507;
+    int64_t v_309;
+    uint64_t v_310;
+    oop *s_132;
     oop m_137;
     oop o_508;
     oop o_509;
     oop o_510;
-    uint64_t o_511;
+    oop r_load_ref_174;
+    oop o_511;
     oop o_512;
+    oop v_311;
     double r_num_val_5;
     oop r_18;
     oop b_29;
@@ -2158,44 +3017,51 @@ void interpret(void)
     oop b_30;
     double y;
     uint8_t nx_8;
-    uint8_t *p_19;
+    uint8_t *p_87;
     int16_t o_513;
-    oop *s_134;
+    oop *s_133;
     oop m_138;
-    uint64_t o_514;
-    int64_t v_272;
-    int64_t v_273;
-    oop *s_135;
+    oop r_load_ref_175;
+    oop o_514;
+    int64_t v_312;
+    uint64_t v_313;
+    oop *s_134;
     oop m_139;
     oop o_515;
     oop o_516;
     oop o_517;
-    uint64_t o_518;
+    oop r_load_ref_176;
+    oop o_518;
     oop o_519;
-    oop *s_136;
+    oop *s_135;
     oop m_140;
-    uint64_t o_520;
-    int64_t v_274;
-    int64_t v_275;
-    oop *s_137;
+    oop r_load_ref_177;
+    oop o_520;
+    int64_t v_314;
+    uint64_t v_315;
+    oop *s_136;
     oop m_141;
     oop o_521;
     oop o_522;
     oop o_523;
-    uint64_t o_524;
+    oop r_load_ref_178;
+    oop o_524;
     oop o_525;
-    oop *s_138;
+    oop *s_137;
     oop m_142;
-    uint64_t o_526;
-    int64_t v_276;
-    int64_t v_277;
-    oop *s_139;
+    oop r_load_ref_179;
+    oop o_526;
+    int64_t v_316;
+    uint64_t v_317;
+    oop *s_138;
     oop m_143;
     oop o_527;
     oop o_528;
     oop o_529;
-    uint64_t o_530;
+    oop r_load_ref_180;
+    oop o_530;
     oop o_531;
+    oop v_318;
     uint8_t r_next_bytecode_195;
     bool r_compare_for_2;
     oop a_25;
@@ -2203,44 +3069,51 @@ void interpret(void)
     oop o_532;
     bool c_26;
     uint8_t nx_9;
-    uint8_t *p_20;
+    uint8_t *p_88;
     int16_t o_533;
-    oop *s_140;
+    oop *s_139;
     oop m_144;
-    uint64_t o_534;
-    int64_t v_278;
-    int64_t v_279;
-    oop *s_141;
+    oop r_load_ref_181;
+    oop o_534;
+    int64_t v_319;
+    uint64_t v_320;
+    oop *s_140;
     oop m_145;
     oop o_535;
     oop o_536;
     oop o_537;
-    uint64_t o_538;
+    oop r_load_ref_182;
+    oop o_538;
     oop o_539;
-    oop *s_142;
+    oop *s_141;
     oop m_146;
-    uint64_t o_540;
-    int64_t v_280;
-    int64_t v_281;
-    oop *s_143;
+    oop r_load_ref_183;
+    oop o_540;
+    int64_t v_321;
+    uint64_t v_322;
+    oop *s_142;
     oop m_147;
     oop o_541;
     oop o_542;
     oop o_543;
-    uint64_t o_544;
+    oop r_load_ref_184;
+    oop o_544;
     oop o_545;
-    oop *s_144;
+    oop *s_143;
     oop m_148;
-    uint64_t o_546;
-    int64_t v_282;
-    int64_t v_283;
-    oop *s_145;
+    oop r_load_ref_185;
+    oop o_546;
+    int64_t v_323;
+    uint64_t v_324;
+    oop *s_144;
     oop m_149;
     oop o_547;
     oop o_548;
     oop o_549;
-    uint64_t o_550;
+    oop r_load_ref_186;
+    oop o_550;
     oop o_551;
+    oop v_325;
     double r_num_val_7;
     oop r_20;
     oop b_32;
@@ -2250,44 +3123,51 @@ void interpret(void)
     oop b_33;
     double y_2;
     uint8_t nx_10;
-    uint8_t *p_21;
+    uint8_t *p_89;
     int16_t o_552;
-    oop *s_146;
+    oop *s_145;
     oop m_150;
-    uint64_t o_553;
-    int64_t v_284;
-    int64_t v_285;
-    oop *s_147;
+    oop r_load_ref_187;
+    oop o_553;
+    int64_t v_326;
+    uint64_t v_327;
+    oop *s_146;
     oop m_151;
     oop o_554;
     oop o_555;
     oop o_556;
-    uint64_t o_557;
+    oop r_load_ref_188;
+    oop o_557;
     oop o_558;
-    oop *s_148;
+    oop *s_147;
     oop m_152;
-    uint64_t o_559;
-    int64_t v_286;
-    int64_t v_287;
-    oop *s_149;
+    oop r_load_ref_189;
+    oop o_559;
+    int64_t v_328;
+    uint64_t v_329;
+    oop *s_148;
     oop m_153;
     oop o_560;
     oop o_561;
     oop o_562;
-    uint64_t o_563;
+    oop r_load_ref_190;
+    oop o_563;
     oop o_564;
-    oop *s_150;
+    oop *s_149;
     oop m_154;
-    uint64_t o_565;
-    int64_t v_288;
-    int64_t v_289;
-    oop *s_151;
+    oop r_load_ref_191;
+    oop o_565;
+    int64_t v_330;
+    uint64_t v_331;
+    oop *s_150;
     oop m_155;
     oop o_566;
     oop o_567;
     oop o_568;
-    uint64_t o_569;
+    oop r_load_ref_192;
+    oop o_569;
     oop o_570;
+    oop v_332;
     uint8_t r_next_bytecode_196;
     bool r_compare_for_3;
     oop a_26;
@@ -2295,44 +3175,51 @@ void interpret(void)
     oop o_571;
     bool c_27;
     uint8_t nx_11;
-    uint8_t *p_22;
+    uint8_t *p_90;
     int16_t o_572;
-    oop *s_152;
+    oop *s_151;
     oop m_156;
-    uint64_t o_573;
-    int64_t v_290;
-    int64_t v_291;
-    oop *s_153;
+    oop r_load_ref_193;
+    oop o_573;
+    int64_t v_333;
+    uint64_t v_334;
+    oop *s_152;
     oop m_157;
     oop o_574;
     oop o_575;
     oop o_576;
-    uint64_t o_577;
+    oop r_load_ref_194;
+    oop o_577;
     oop o_578;
-    oop *s_154;
+    oop *s_153;
     oop m_158;
-    uint64_t o_579;
-    int64_t v_292;
-    int64_t v_293;
-    oop *s_155;
+    oop r_load_ref_195;
+    oop o_579;
+    int64_t v_335;
+    uint64_t v_336;
+    oop *s_154;
     oop m_159;
     oop o_580;
     oop o_581;
     oop o_582;
-    uint64_t o_583;
+    oop r_load_ref_196;
+    oop o_583;
     oop o_584;
-    oop *s_156;
+    oop *s_155;
     oop m_160;
-    uint64_t o_585;
-    int64_t v_294;
-    int64_t v_295;
-    oop *s_157;
+    oop r_load_ref_197;
+    oop o_585;
+    int64_t v_337;
+    uint64_t v_338;
+    oop *s_156;
     oop m_161;
     oop o_586;
     oop o_587;
     oop o_588;
-    uint64_t o_589;
+    oop r_load_ref_198;
+    oop o_589;
     oop o_590;
+    oop v_339;
     double r_num_val_9;
     oop r_22;
     oop b_35;
@@ -2342,44 +3229,51 @@ void interpret(void)
     oop b_36;
     double y_3;
     uint8_t nx_12;
-    uint8_t *p_23;
+    uint8_t *p_91;
     int16_t o_591;
-    oop *s_158;
+    oop *s_157;
     oop m_162;
-    uint64_t o_592;
-    int64_t v_296;
-    int64_t v_297;
-    oop *s_159;
+    oop r_load_ref_199;
+    oop o_592;
+    int64_t v_340;
+    uint64_t v_341;
+    oop *s_158;
     oop m_163;
     oop o_593;
     oop o_594;
     oop o_595;
-    uint64_t o_596;
+    oop r_load_ref_200;
+    oop o_596;
     oop o_597;
-    oop *s_160;
+    oop *s_159;
     oop m_164;
-    uint64_t o_598;
-    int64_t v_298;
-    int64_t v_299;
-    oop *s_161;
+    oop r_load_ref_201;
+    oop o_598;
+    int64_t v_342;
+    uint64_t v_343;
+    oop *s_160;
     oop m_165;
     oop o_599;
     oop o_600;
     oop o_601;
-    uint64_t o_602;
+    oop r_load_ref_202;
+    oop o_602;
     oop o_603;
-    oop *s_162;
+    oop *s_161;
     oop m_166;
-    uint64_t o_604;
-    int64_t v_300;
-    int64_t v_301;
-    oop *s_163;
+    oop r_load_ref_203;
+    oop o_604;
+    int64_t v_344;
+    uint64_t v_345;
+    oop *s_162;
     oop m_167;
     oop o_605;
     oop o_606;
     oop o_607;
-    uint64_t o_608;
+    oop r_load_ref_204;
+    oop o_608;
     oop o_609;
+    oop v_346;
     uint8_t r_next_bytecode_197;
     bool r_compare_for_4;
     oop a_27;
@@ -2387,44 +3281,51 @@ void interpret(void)
     oop o_610;
     bool c_28;
     uint8_t nx_13;
-    uint8_t *p_24;
+    uint8_t *p_92;
     int16_t o_611;
-    oop *s_164;
+    oop *s_163;
     oop m_168;
-    uint64_t o_612;
-    int64_t v_302;
-    int64_t v_303;
-    oop *s_165;
+    oop r_load_ref_205;
+    oop o_612;
+    int64_t v_347;
+    uint64_t v_348;
+    oop *s_164;
     oop m_169;
     oop o_613;
     oop o_614;
     oop o_615;
-    uint64_t o_616;
+    oop r_load_ref_206;
+    oop o_616;
     oop o_617;
-    oop *s_166;
+    oop *s_165;
     oop m_170;
-    uint64_t o_618;
-    int64_t v_304;
-    int64_t v_305;
-    oop *s_167;
+    oop r_load_ref_207;
+    oop o_618;
+    int64_t v_349;
+    uint64_t v_350;
+    oop *s_166;
     oop m_171;
     oop o_619;
     oop o_620;
     oop o_621;
-    uint64_t o_622;
+    oop r_load_ref_208;
+    oop o_622;
     oop o_623;
-    oop *s_168;
+    oop *s_167;
     oop m_172;
-    uint64_t o_624;
-    int64_t v_306;
-    int64_t v_307;
-    oop *s_169;
+    oop r_load_ref_209;
+    oop o_624;
+    int64_t v_351;
+    uint64_t v_352;
+    oop *s_168;
     oop m_173;
     oop o_625;
     oop o_626;
     oop o_627;
-    uint64_t o_628;
+    oop r_load_ref_210;
+    oop o_628;
     oop o_629;
+    oop v_353;
     double r_num_val_11;
     oop r_24;
     oop b_38;
@@ -2434,44 +3335,51 @@ void interpret(void)
     oop b_39;
     double y_4;
     uint8_t nx_14;
-    uint8_t *p_25;
+    uint8_t *p_93;
     int16_t o_630;
-    oop *s_170;
+    oop *s_169;
     oop m_174;
-    uint64_t o_631;
-    int64_t v_308;
-    int64_t v_309;
-    oop *s_171;
+    oop r_load_ref_211;
+    oop o_631;
+    int64_t v_354;
+    uint64_t v_355;
+    oop *s_170;
     oop m_175;
     oop o_632;
     oop o_633;
     oop o_634;
-    uint64_t o_635;
+    oop r_load_ref_212;
+    oop o_635;
     oop o_636;
-    oop *s_172;
+    oop *s_171;
     oop m_176;
-    uint64_t o_637;
-    int64_t v_310;
-    int64_t v_311;
-    oop *s_173;
+    oop r_load_ref_213;
+    oop o_637;
+    int64_t v_356;
+    uint64_t v_357;
+    oop *s_172;
     oop m_177;
     oop o_638;
     oop o_639;
     oop o_640;
-    uint64_t o_641;
+    oop r_load_ref_214;
+    oop o_641;
     oop o_642;
-    oop *s_174;
+    oop *s_173;
     oop m_178;
-    uint64_t o_643;
-    int64_t v_312;
-    int64_t v_313;
-    oop *s_175;
+    oop r_load_ref_215;
+    oop o_643;
+    int64_t v_358;
+    uint64_t v_359;
+    oop *s_174;
     oop m_179;
     oop o_644;
     oop o_645;
     oop o_646;
-    uint64_t o_647;
+    oop r_load_ref_216;
+    oop o_647;
     oop o_648;
+    oop v_360;
     uint8_t r_next_bytecode_198;
     bool r_compare_for_5;
     oop a_28;
@@ -2479,44 +3387,51 @@ void interpret(void)
     oop o_649;
     bool c_29;
     uint8_t nx_15;
-    uint8_t *p_26;
+    uint8_t *p_94;
     int16_t o_650;
-    oop *s_176;
+    oop *s_175;
     oop m_180;
-    uint64_t o_651;
-    int64_t v_314;
-    int64_t v_315;
-    oop *s_177;
+    oop r_load_ref_217;
+    oop o_651;
+    int64_t v_361;
+    uint64_t v_362;
+    oop *s_176;
     oop m_181;
     oop o_652;
     oop o_653;
     oop o_654;
-    uint64_t o_655;
+    oop r_load_ref_218;
+    oop o_655;
     oop o_656;
-    oop *s_178;
+    oop *s_177;
     oop m_182;
-    uint64_t o_657;
-    int64_t v_316;
-    int64_t v_317;
-    oop *s_179;
+    oop r_load_ref_219;
+    oop o_657;
+    int64_t v_363;
+    uint64_t v_364;
+    oop *s_178;
     oop m_183;
     oop o_658;
     oop o_659;
     oop o_660;
-    uint64_t o_661;
+    oop r_load_ref_220;
+    oop o_661;
     oop o_662;
-    oop *s_180;
+    oop *s_179;
     oop m_184;
-    uint64_t o_663;
-    int64_t v_318;
-    int64_t v_319;
-    oop *s_181;
+    oop r_load_ref_221;
+    oop o_663;
+    int64_t v_365;
+    uint64_t v_366;
+    oop *s_180;
     oop m_185;
     oop o_664;
     oop o_665;
     oop o_666;
-    uint64_t o_667;
+    oop r_load_ref_222;
+    oop o_667;
     oop o_668;
+    oop v_367;
     double r_num_val_13;
     oop r_26;
     oop b_41;
@@ -2526,44 +3441,51 @@ void interpret(void)
     oop b_42;
     double y_5;
     uint8_t nx_16;
-    uint8_t *p_27;
+    uint8_t *p_95;
     int16_t o_669;
-    oop *s_182;
+    oop *s_181;
     oop m_186;
-    uint64_t o_670;
-    int64_t v_320;
-    int64_t v_321;
-    oop *s_183;
+    oop r_load_ref_223;
+    oop o_670;
+    int64_t v_368;
+    uint64_t v_369;
+    oop *s_182;
     oop m_187;
     oop o_671;
     oop o_672;
     oop o_673;
-    uint64_t o_674;
+    oop r_load_ref_224;
+    oop o_674;
     oop o_675;
-    oop *s_184;
+    oop *s_183;
     oop m_188;
-    uint64_t o_676;
-    int64_t v_322;
-    int64_t v_323;
-    oop *s_185;
+    oop r_load_ref_225;
+    oop o_676;
+    int64_t v_370;
+    uint64_t v_371;
+    oop *s_184;
     oop m_189;
     oop o_677;
     oop o_678;
     oop o_679;
-    uint64_t o_680;
+    oop r_load_ref_226;
+    oop o_680;
     oop o_681;
-    oop *s_186;
+    oop *s_185;
     oop m_190;
-    uint64_t o_682;
-    int64_t v_324;
-    int64_t v_325;
-    oop *s_187;
+    oop r_load_ref_227;
+    oop o_682;
+    int64_t v_372;
+    uint64_t v_373;
+    oop *s_186;
     oop m_191;
     oop o_683;
     oop o_684;
     oop o_685;
-    uint64_t o_686;
+    oop r_load_ref_228;
+    oop o_686;
     oop o_687;
+    oop v_374;
     uint8_t r_next_bytecode_199;
     bool r_compare_for_6;
     oop a_29;
@@ -2571,44 +3493,51 @@ void interpret(void)
     oop o_688;
     bool c_30;
     uint8_t nx_17;
-    uint8_t *p_28;
+    uint8_t *p_96;
     int16_t o_689;
-    oop *s_188;
+    oop *s_187;
     oop m_192;
-    uint64_t o_690;
-    int64_t v_326;
-    int64_t v_327;
-    oop *s_189;
+    oop r_load_ref_229;
+    oop o_690;
+    int64_t v_375;
+    uint64_t v_376;
+    oop *s_188;
     oop m_193;
     oop o_691;
     oop o_692;
     oop o_693;
-    uint64_t o_694;
+    oop r_load_ref_230;
+    oop o_694;
     oop o_695;
-    oop *s_190;
+    oop *s_189;
     oop m_194;
-    uint64_t o_696;
-    int64_t v_328;
-    int64_t v_329;
-    oop *s_191;
+    oop r_load_ref_231;
+    oop o_696;
+    int64_t v_377;
+    uint64_t v_378;
+    oop *s_190;
     oop m_195;
     oop o_697;
     oop o_698;
     oop o_699;
-    uint64_t o_700;
+    oop r_load_ref_232;
+    oop o_700;
     oop o_701;
-    oop *s_192;
+    oop *s_191;
     oop m_196;
-    uint64_t o_702;
-    int64_t v_330;
-    int64_t v_331;
-    oop *s_193;
+    oop r_load_ref_233;
+    oop o_702;
+    int64_t v_379;
+    uint64_t v_380;
+    oop *s_192;
     oop m_197;
     oop o_703;
     oop o_704;
     oop o_705;
-    uint64_t o_706;
+    oop r_load_ref_234;
+    oop o_706;
     oop o_707;
+    oop v_381;
     double r_num_val_15;
     oop r_28;
     oop b_44;
@@ -2618,51 +3547,59 @@ void interpret(void)
     oop b_45;
     double y_6;
     uint8_t nx_18;
-    uint8_t *p_29;
+    uint8_t *p_97;
     int16_t o_708;
-    oop *s_194;
+    oop *s_193;
     oop m_198;
-    uint64_t o_709;
-    int64_t v_332;
-    int64_t v_333;
-    oop *s_195;
+    oop r_load_ref_235;
+    oop o_709;
+    int64_t v_382;
+    uint64_t v_383;
+    oop *s_194;
     oop m_199;
     oop o_710;
     oop o_711;
     oop o_712;
-    uint64_t o_713;
+    oop r_load_ref_236;
+    oop o_713;
     oop o_714;
-    oop *s_196;
+    oop *s_195;
     oop m_200;
-    uint64_t o_715;
-    int64_t v_334;
-    int64_t v_335;
-    oop *s_197;
+    oop r_load_ref_237;
+    oop o_715;
+    int64_t v_384;
+    uint64_t v_385;
+    oop *s_196;
     oop m_201;
     oop o_716;
     oop o_717;
     oop o_718;
-    uint64_t o_719;
+    oop r_load_ref_238;
+    oop o_719;
     oop o_720;
-    oop *s_198;
+    oop *s_197;
     oop m_202;
-    uint64_t o_721;
-    int64_t v_336;
-    int64_t v_337;
-    oop *s_199;
+    oop r_load_ref_239;
+    oop o_721;
+    int64_t v_386;
+    uint64_t v_387;
+    oop *s_198;
     oop m_203;
     oop o_722;
     oop o_723;
     oop o_724;
-    uint64_t o_725;
+    oop r_load_ref_240;
+    oop o_725;
     oop o_726;
+    oop v_388;
     uint8_t r_next_bytecode_200;
     oop a_30;
     oop b_46;
     oop o_727;
     int64_t r_30;
-    uint64_t v_338;
+    uint64_t v_389;
     uint8_t nx_19;
+    oop *p_98;
     uint8_t r_next_bytecode_201;
     uint8_t r_next_bytecode_202;
     double r_num_val_17;
@@ -2677,15 +3614,17 @@ void interpret(void)
     uint32_t e_3;
     uint64_t f_3;
     uint8_t nx_20;
+    oop *p_99;
     uint8_t r_next_bytecode_203;
     uint8_t r_next_bytecode_204;
     oop a_31;
     oop b_50;
     oop o_728;
-    int64_t v_339;
-    int64_t v_340;
-    uint64_t v_341;
+    int64_t v_390;
+    int64_t v_391;
+    uint64_t v_392;
     uint8_t nx_21;
+    oop *p_100;
     uint8_t r_next_bytecode_205;
     uint8_t r_next_bytecode_206;
     double r_num_val_19;
@@ -2701,6 +3640,7 @@ void interpret(void)
     uint32_t e_4;
     uint64_t f_4;
     uint8_t nx_22;
+    oop *p_101;
     uint8_t r_next_bytecode_207;
     uint8_t r_next_bytecode_208;
     oop a_32;
@@ -2710,28 +3650,32 @@ void interpret(void)
     int64_t b_55;
     int64_t r_floor_mod;
     int64_t r_35;
-    int64_t v_342;
-    uint64_t v_343;
+    int64_t v_393;
+    uint64_t v_394;
     uint8_t nx_23;
+    oop *p_102;
     uint8_t r_next_bytecode_209;
     uint8_t r_next_bytecode_210;
     oop a_34;
     oop b_56;
     oop o_730;
-    int64_t v_344;
-    int64_t s_200;
-    int64_t v_345;
-    int64_t v_346;
-    uint64_t v_347;
+    int64_t v_395;
+    int64_t s_199;
+    int64_t v_396;
+    int64_t v_397;
+    uint64_t v_398;
     uint8_t nx_24;
+    oop *p_103;
     uint8_t r_next_bytecode_211;
     uint8_t r_next_bytecode_212;
     uint8_t nx_25;
+    oop *p_104;
     uint8_t r_next_bytecode_213;
     uint8_t r_next_bytecode_214;
-    int64_t v_348;
-    uint64_t v_349;
+    int64_t v_399;
+    uint64_t v_400;
     uint8_t nx_26;
+    oop *p_105;
     uint8_t r_next_bytecode_215;
     uint8_t r_next_bytecode_216;
     oop a_35;
@@ -2741,50 +3685,56 @@ void interpret(void)
     int64_t b_58;
     int64_t r_floor_div;
     int64_t q;
-    int64_t v_350;
+    int64_t v_401;
     int64_t a_37;
     int64_t b_59;
     int64_t r_floor_div_2;
     int64_t q_2;
-    int64_t v_351;
-    uint64_t v_352;
+    int64_t v_402;
+    uint64_t v_403;
     uint8_t nx_27;
+    oop *p_106;
     uint8_t r_next_bytecode_217;
     uint8_t r_next_bytecode_218;
     oop a_38;
     oop b_60;
     oop o_732;
-    oop v_353;
+    oop v_404;
     uint8_t nx_28;
+    oop *p_107;
     uint8_t r_next_bytecode_219;
     uint8_t r_next_bytecode_220;
     oop a_39;
     oop b_61;
     oop o_733;
-    oop v_354;
+    oop v_405;
     uint8_t nx_29;
+    oop *p_108;
     uint8_t r_next_bytecode_221;
     uint8_t r_next_bytecode_222;
     oop a_40;
     oop b_62;
     uint64_t c_31;
     uint64_t k_20;
-    oop v_355;
+    oop v_406;
     uint8_t nx_30;
+    oop *p_109;
     uint8_t r_next_bytecode_223;
     uint8_t r_next_bytecode_224;
     uint8_t code_point;
-    uint64_t v_356;
+    uint64_t v_407;
     uint8_t nx_31;
+    oop *p_110;
     uint8_t r_next_bytecode_225;
     uint8_t r_next_bytecode_226;
-    uint8_t v_357;
-    uint64_t v_358;
+    uint8_t v_408;
+    uint64_t v_409;
     uint8_t nx_32;
+    oop *p_111;
     uint8_t r_next_bytecode_227;
     uint8_t r_next_bytecode_228;
     oop o_734;
-    oop v_359;
+    oop v_410;
     oop a_41;
     uint64_t c_32;
     uint64_t k_21;
@@ -2793,272 +3743,332 @@ void interpret(void)
     uint8_t r_next_bytecode_231;
     oop b_63;
     uint64_t c_33;
-    uint32_t v_360;
+    uint32_t v_411;
+    uint64_t v_412;
     uint8_t r_next_bytecode_232;
-    int64_t v_361;
+    int64_t v_413;
+    uint64_t v_414;
     uint8_t r_next_bytecode_233;
     bool c_34;
     uint8_t nx_33;
-    uint8_t *p_30;
+    uint8_t *p_112;
     int16_t o_735;
-    oop *s_201;
+    oop *s_200;
     oop m_204;
-    uint64_t o_736;
-    int64_t v_362;
-    int64_t v_363;
-    oop *s_202;
+    oop r_load_ref_241;
+    oop o_736;
+    int64_t v_415;
+    uint64_t v_416;
+    oop *s_201;
     oop m_205;
     oop o_737;
     oop o_738;
     oop o_739;
-    uint64_t o_740;
+    oop r_load_ref_242;
+    oop o_740;
     oop o_741;
-    oop *s_203;
+    oop *s_202;
     oop m_206;
-    uint64_t o_742;
-    int64_t v_364;
-    int64_t v_365;
-    oop *s_204;
+    oop r_load_ref_243;
+    oop o_742;
+    int64_t v_417;
+    uint64_t v_418;
+    oop *s_203;
     oop m_207;
     oop o_743;
     oop o_744;
     oop o_745;
-    uint64_t o_746;
+    oop r_load_ref_244;
+    oop o_746;
     oop o_747;
-    oop *s_205;
+    oop *s_204;
     oop m_208;
-    uint64_t o_748;
-    int64_t v_366;
-    int64_t v_367;
-    oop *s_206;
+    oop r_load_ref_245;
+    oop o_748;
+    int64_t v_419;
+    uint64_t v_420;
+    oop *s_205;
     oop m_209;
     oop o_749;
     oop o_750;
     oop o_751;
-    uint64_t o_752;
+    oop r_load_ref_246;
+    oop o_752;
     oop o_753;
     uint8_t r_next_bytecode_234;
+    oop v_421;
     uint8_t r_next_bytecode_235;
     bool c_35;
     uint8_t nx_34;
-    uint8_t *p_31;
+    uint8_t *p_113;
     int16_t o_754;
-    oop *s_207;
+    oop *s_206;
     oop m_210;
-    uint64_t o_755;
-    int64_t v_368;
-    int64_t v_369;
-    oop *s_208;
+    oop r_load_ref_247;
+    oop o_755;
+    int64_t v_422;
+    uint64_t v_423;
+    oop *s_207;
     oop m_211;
     oop o_756;
     oop o_757;
     oop o_758;
-    uint64_t o_759;
+    oop r_load_ref_248;
+    oop o_759;
     oop o_760;
-    oop *s_209;
+    oop *s_208;
     oop m_212;
-    uint64_t o_761;
-    int64_t v_370;
-    int64_t v_371;
-    oop *s_210;
+    oop r_load_ref_249;
+    oop o_761;
+    int64_t v_424;
+    uint64_t v_425;
+    oop *s_209;
     oop m_213;
     oop o_762;
     oop o_763;
     oop o_764;
-    uint64_t o_765;
+    oop r_load_ref_250;
+    oop o_765;
     oop o_766;
-    oop *s_211;
+    oop *s_210;
     oop m_214;
-    uint64_t o_767;
-    int64_t v_372;
-    int64_t v_373;
-    oop *s_212;
+    oop r_load_ref_251;
+    oop o_767;
+    int64_t v_426;
+    uint64_t v_427;
+    oop *s_211;
     oop m_215;
     oop o_768;
     oop o_769;
     oop o_770;
-    uint64_t o_771;
+    oop r_load_ref_252;
+    oop o_771;
     oop o_772;
     uint8_t r_next_bytecode_236;
+    oop v_428;
     uint8_t r_next_bytecode_237;
     oop bl;
-    oop *s_213;
+    oop r_load_ref_253;
+    oop *s_212;
     oop m_216;
-    uint64_t o_773;
-    int64_t v_374;
-    int64_t v_375;
+    oop r_load_ref_254;
+    oop o_773;
+    int64_t v_429;
+    uint64_t v_430;
     uint64_t c_36;
-    oop *s_214;
+    oop *s_213;
     oop m_217;
-    uint64_t o_774;
-    int64_t v_376;
-    int64_t v_377;
-    oop *s_215;
+    oop r_load_ref_255;
+    oop o_774;
+    int64_t v_431;
+    uint64_t v_432;
+    oop *s_214;
     oop m_218;
     oop o_775;
     oop o_776;
     oop o_777;
-    uint64_t o_778;
+    oop r_load_ref_256;
+    oop o_778;
     oop o_779;
     uint8_t r_next_bytecode_238;
-    oop *s_216;
+    oop *s_215;
     oop m_219;
-    uint64_t o_780;
-    int64_t v_378;
-    int64_t v_379;
-    oop *s_217;
+    oop r_load_ref_257;
+    oop o_780;
+    int64_t v_433;
+    uint64_t v_434;
+    oop *s_216;
     oop m_220;
     oop o_781;
     oop o_782;
     oop o_783;
-    uint64_t o_784;
+    oop r_load_ref_258;
+    oop o_784;
     oop o_785;
     uint8_t r_next_bytecode_239;
     oop bl_2;
-    oop *s_218;
+    oop r_load_ref_259;
+    oop *s_217;
     oop m_221;
-    uint64_t o_786;
-    int64_t v_380;
-    int64_t v_381;
+    oop r_load_ref_260;
+    oop o_786;
+    int64_t v_435;
+    uint64_t v_436;
     uint64_t c_37;
-    oop *s_219;
+    oop *s_218;
     oop m_222;
-    uint64_t o_787;
-    int64_t v_382;
-    int64_t v_383;
-    oop *s_220;
+    oop r_load_ref_261;
+    oop o_787;
+    int64_t v_437;
+    uint64_t v_438;
+    oop *s_219;
     oop m_223;
     oop o_788;
     oop o_789;
     oop o_790;
-    uint64_t o_791;
+    oop r_load_ref_262;
+    oop o_791;
     oop o_792;
     uint8_t r_next_bytecode_240;
-    oop *s_221;
+    oop *s_220;
     oop m_224;
-    uint64_t o_793;
-    int64_t v_384;
-    int64_t v_385;
-    oop *s_222;
+    oop r_load_ref_263;
+    oop o_793;
+    int64_t v_439;
+    uint64_t v_440;
+    oop *s_221;
     oop m_225;
     oop o_794;
     oop o_795;
     oop o_796;
-    uint64_t o_797;
+    oop r_load_ref_264;
+    oop o_797;
     oop o_798;
     uint8_t r_next_bytecode_241;
     oop bl_3;
-    oop *s_223;
+    oop r_load_ref_265;
+    oop *s_222;
     oop m_226;
-    uint64_t o_799;
-    int64_t v_386;
-    int64_t v_387;
+    oop r_load_ref_266;
+    oop o_799;
+    int64_t v_441;
+    uint64_t v_442;
     uint64_t c_38;
-    oop *s_224;
+    oop *s_223;
     oop m_227;
-    uint64_t o_800;
-    int64_t v_388;
-    int64_t v_389;
-    oop *s_225;
+    oop r_load_ref_267;
+    oop o_800;
+    int64_t v_443;
+    uint64_t v_444;
+    oop *s_224;
     oop m_228;
     oop o_801;
     oop o_802;
     oop o_803;
-    uint64_t o_804;
+    oop r_load_ref_268;
+    oop o_804;
     oop o_805;
     uint8_t r_next_bytecode_242;
-    oop *s_226;
+    oop *s_225;
     oop m_229;
-    uint64_t o_806;
-    int64_t v_390;
-    int64_t v_391;
-    oop *s_227;
+    oop r_load_ref_269;
+    oop o_806;
+    int64_t v_445;
+    uint64_t v_446;
+    oop *s_226;
     oop m_230;
     oop o_807;
     oop o_808;
     oop o_809;
-    uint64_t o_810;
+    oop r_load_ref_270;
+    oop o_810;
     oop o_811;
     uint8_t r_next_bytecode_243;
     oop b_64;
+    oop v_447;
     uint8_t r_next_bytecode_244;
     oop b_65;
+    oop v_448;
     uint8_t r_next_bytecode_245;
     oop r_36;
+    uint64_t v_449;
     uint8_t r_next_bytecode_246;
-    oop *s_228;
+    oop *s_227;
     oop m_231;
-    uint64_t o_812;
-    int64_t v_392;
-    int64_t v_393;
+    oop r_load_ref_271;
+    oop o_812;
+    int64_t v_450;
+    uint64_t v_451;
     int32_t a_42;
-    uint64_t o_813;
-    uint64_t o_814;
-    oop *s_229;
+    oop r_load_ref_272;
+    oop o_813;
+    oop r_load_ref_273;
+    oop o_814;
+    oop *s_228;
     oop m_232;
     oop o_815;
     oop o_816;
     oop o_817;
-    uint64_t o_818;
+    oop r_load_ref_274;
+    oop o_818;
     oop o_819;
     oop *src_2;
+    oop v_452;
+    uint64_t i_8;
     int32_t k_22;
-    oop *s_230;
+    oop *p_114;
+    oop v_453;
+    uint64_t i_9;
+    oop *s_229;
     oop m_233;
-    uint64_t o_820;
-    int64_t v_394;
-    int64_t v_395;
+    oop r_load_ref_275;
+    oop o_820;
+    int64_t v_454;
+    uint64_t v_455;
     oop home_2;
-    uint64_t o_821;
-    uint64_t hs_2;
-    uint64_t o_822;
+    oop r_load_ref_276;
+    oop o_821;
+    oop r_load_ref_277;
+    oop hs_2;
+    oop r_load_ref_278;
+    oop o_822;
     oop c_39;
     uint64_t marked_2;
-    uint64_t m_234;
+    oop r_load_ref_279;
+    oop m_234;
     int64_t r_method_prim_4;
-    uint64_t p_32;
-    uint64_t next_2;
-    oop *s_231;
+    oop r_load_ref_280;
+    oop p_115;
+    oop r_load_ref_281;
+    oop r_load_ref_282;
+    oop next_2;
+    oop *s_230;
     oop m_235;
     oop o_823;
     oop o_824;
     oop o_825;
-    uint64_t o_826;
+    oop r_load_ref_283;
+    oop o_826;
     oop o_827;
-    oop *s_232;
+    oop *s_231;
     oop m_236;
-    uint64_t o_828;
-    int64_t v_396;
-    int64_t v_397;
-    oop *s_233;
+    oop r_load_ref_284;
+    oop o_828;
+    int64_t v_456;
+    uint64_t v_457;
+    oop *s_232;
     oop m_237;
     oop o_829;
     oop o_830;
     oop o_831;
-    uint64_t o_832;
+    oop r_load_ref_285;
+    oop o_832;
     oop o_833;
     uint8_t r_next_bytecode_247;
-    oop *s_234;
+    oop *s_233;
     oop sender;
     oop o_834;
-    oop *s_235;
+    oop *s_234;
     oop m_238;
     oop o_835;
     oop o_836;
     oop o_837;
-    uint64_t o_838;
+    oop r_load_ref_286;
+    oop o_838;
     oop o_839;
-    oop *s_236;
+    oop *s_235;
     oop m_239;
-    uint64_t o_840;
-    int64_t v_398;
-    int64_t v_399;
-    oop *s_237;
+    oop r_load_ref_287;
+    oop o_840;
+    int64_t v_458;
+    uint64_t v_459;
+    oop *s_236;
     oop m_240;
     oop o_841;
     oop o_842;
     oop o_843;
-    uint64_t o_844;
+    oop r_load_ref_288;
+    oop o_844;
     oop o_845;
     uint8_t r_next_bytecode_248;
     cache_entry *e_5;
@@ -3066,178 +4076,220 @@ void interpret(void)
     oop r_37;
     oop r_38;
     uint64_t r_icache_index_of;
-    uint64_t s_238;
+    uint64_t s_237;
     cache_entry *e_7;
     cache_entry *g;
-    int32_t k_23;
-    oop *s_239;
+    uint64_t i_10;
+    uint64_t k_23;
+    int32_t k_24;
+    oop *p_116;
+    uint64_t v_460;
+    uint64_t i_11;
+    oop *s_238;
     oop m_241;
-    uint64_t o_846;
-    int64_t v_400;
-    int64_t v_401;
-    oop *s_240;
+    oop r_load_ref_289;
+    oop o_846;
+    int64_t v_461;
+    uint64_t v_462;
+    oop *s_239;
     oop m_242;
     oop o_847;
     oop o_848;
     oop o_849;
-    uint64_t o_850;
+    oop r_load_ref_290;
+    oop o_850;
     oop o_851;
     uint8_t r_next_bytecode_249;
-    oop *s_241;
+    oop *s_240;
     oop m_243;
-    uint64_t o_852;
-    int64_t v_402;
-    int64_t v_403;
-    oop *s_242;
+    oop r_load_ref_291;
+    oop o_852;
+    int64_t v_463;
+    uint64_t v_464;
+    oop *s_241;
     oop m_244;
     oop o_853;
     oop o_854;
     oop o_855;
-    uint64_t o_856;
+    oop r_load_ref_292;
+    oop o_856;
     oop o_857;
     uint8_t r_next_bytecode_250;
     oop rcv;
     oop mk_2;
     uint8_t r_next_bytecode_251;
     int64_t r_method_prim_5;
-    uint64_t p_33;
-    oop v_404;
-    oop *s_243;
+    oop r_load_ref_293;
+    oop p_117;
+    oop v_465;
+    oop *s_242;
     oop m_245;
-    uint64_t o_858;
-    int64_t v_405;
-    int64_t v_406;
-    oop *s_244;
+    oop r_load_ref_294;
+    oop o_858;
+    int64_t v_466;
+    uint64_t v_467;
+    oop *s_243;
     oop m_246;
     oop o_859;
     oop o_860;
     oop o_861;
-    uint64_t o_862;
+    oop r_load_ref_295;
+    oop o_862;
     oop o_863;
     uint8_t r_next_bytecode_252;
     oop r_39;
     uint32_t ns;
     bool ok;
-    int32_t k_24;
     int32_t k_25;
-    uint8_t i_7;
-    oop v_407;
-    oop *s_245;
+    int32_t k_26;
+    uint8_t i_12;
+    oop v_468;
+    oop *s_244;
     oop m_247;
-    uint64_t o_864;
-    int64_t v_408;
-    int64_t v_409;
-    oop *s_246;
+    oop r_load_ref_296;
+    oop o_864;
+    int64_t v_469;
+    uint64_t v_470;
+    oop *s_245;
     oop m_248;
     oop o_865;
     oop o_866;
     oop o_867;
-    uint64_t o_868;
+    oop r_load_ref_297;
+    oop o_868;
     oop o_869;
     uint8_t r_next_bytecode_253;
-    int8_t i_8;
-    oop *s_247;
+    int8_t i_13;
+    oop r_load_ref_298;
+    oop v_471;
+    oop *s_246;
     oop m_249;
-    uint64_t o_870;
-    int64_t v_410;
-    int64_t v_411;
-    oop *s_248;
+    oop r_load_ref_299;
+    oop o_870;
+    int64_t v_472;
+    uint64_t v_473;
+    oop *s_247;
     oop m_250;
     oop o_871;
     oop o_872;
     oop o_873;
-    uint64_t o_874;
+    oop r_load_ref_300;
+    oop o_874;
     oop o_875;
     uint8_t r_next_bytecode_254;
-    oop *s_249;
+    oop *s_248;
     oop m_251;
-    uint64_t o_876;
-    int64_t v_412;
-    int64_t v_413;
-    oop *s_250;
+    oop r_load_ref_301;
+    oop o_876;
+    int64_t v_474;
+    uint64_t v_475;
+    oop *s_249;
     oop m_252;
     oop o_877;
     oop o_878;
     oop o_879;
-    uint64_t o_880;
+    oop r_load_ref_302;
+    oop o_880;
     oop o_881;
     uint8_t r_next_bytecode_255;
-    oop *s_251;
+    oop *s_250;
     oop m_253;
     oop o_882;
     oop o_883;
     oop o_884;
-    uint64_t o_885;
+    oop r_load_ref_303;
+    oop o_885;
     oop o_886;
     uint64_t c_40;
-    oop *s_252;
+    oop *s_251;
     oop m_254;
-    uint64_t o_887;
-    int64_t v_414;
-    int64_t v_415;
-    oop *s_253;
+    oop r_load_ref_304;
+    oop o_887;
+    int64_t v_476;
+    uint64_t v_477;
+    oop *s_252;
     oop m_255;
     oop o_888;
     oop o_889;
     oop o_890;
-    uint64_t o_891;
+    oop r_load_ref_305;
+    oop o_891;
     oop o_892;
     uint8_t r_next_bytecode_256;
-    oop *s_254;
+    oop *s_253;
     oop m_256;
     oop o_893;
     oop o_894;
     oop o_895;
-    uint64_t o_896;
+    oop r_load_ref_306;
+    oop o_896;
     oop o_897;
-    oop *s_255;
+    oop *s_254;
     oop m_257;
     oop o_898;
     oop o_899;
     oop o_900;
-    uint64_t o_901;
+    oop r_load_ref_307;
+    oop o_901;
     oop o_902;
-    uint64_t o_903;
-    uint64_t o_904;
+    oop r_load_ref_308;
+    oop o_903;
+    oop r_load_ref_309;
+    oop o_904;
     int64_t r_method_prim_6;
-    uint64_t p_34;
+    oop r_load_ref_310;
+    oop p_118;
     oop dnu;
-    oop *s_256;
+    oop *s_255;
     oop m_258;
-    uint64_t o_905;
-    int64_t v_416;
-    int64_t v_417;
+    oop r_load_ref_311;
+    oop o_905;
+    int64_t v_478;
+    uint64_t v_479;
     oop msg;
-    oop *s_257;
+    oop r_load_ref_312;
+    oop *s_256;
     oop m_259;
-    uint64_t o_906;
-    int64_t v_418;
-    int64_t v_419;
+    oop r_load_ref_313;
+    oop o_906;
+    int64_t v_480;
+    uint64_t v_481;
     uint64_t args;
-    oop *s_258;
+    oop *s_257;
     oop m_260;
     oop o_907;
     oop o_908;
     oop o_909;
-    uint64_t o_910;
+    oop r_load_ref_314;
+    oop o_910;
     oop o_911;
     oop *src_3;
     oop mc;
-    uint64_t o_912;
+    oop r_load_ref_315;
+    oop o_912;
     int64_t isize_2;
-    oop *s_259;
+    oop *s_258;
     oop m_261;
     oop o_913;
     oop o_914;
     oop o_915;
-    uint64_t o_916;
+    oop r_load_ref_316;
+    oop o_916;
     oop o_917;
-    oop v_420;
-    oop v_421;
+    oop v_482;
+    oop v_483;
     oop o_918;
+    oop r_load_ref_317;
     ss = object_memory_special(SO_SPECIAL_SELECTORS);
     for (i = 0; i <= 31; i++) {
-        special_argc[i] = ((ss & 7) == 0) && ((uint32_t)i < (uint32_t)*(uint64_t *)ss) ? selector_argc(*(uint64_t *)(ss + 16 + 8 * i)) : 0;
+        special_argc[i] = ((ss & 7) == 0) && ((uint32_t)i < (uint32_t)*(uint64_t *)ss) ? selector_argc(({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(ss, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(ss + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; })) : 0;
     }
     cstack_used = 0;
     nframes = 0;
@@ -3255,539 +4307,1369 @@ void interpret(void)
         fprintf(stderr, "resuming a dead context");
         fatal_end();
     }
-    o_4 = *(uint64_t *)(m + 16 + 24);
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 3U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 24);
+exit_load_ref_2:;
+    r_load_ref_2; });
     o_5 = s[CTX_PC];
     ip = (uint8_t *)(o_4 + 16) + (((int64_t)o_5) >> 1);
     fr = (frame *)NULL;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode = *(ip - 1);
     r_next_bytecode; })];
 op_push_temp_00:;
     v = fp[0];
     sp = sp + 1;
-    *sp = v;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v);
+    } else {
+        *sp = v;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_2 = *(ip - 1);
     r_next_bytecode_2; })];
 op_push_temp_01:;
     v_2 = fp[1];
     sp = sp + 1;
-    *sp = v_2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_2);
+    } else {
+        *sp = v_2;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_3 = *(ip - 1);
     r_next_bytecode_3; })];
 op_push_temp_02:;
     v_3 = fp[2];
     sp = sp + 1;
-    *sp = v_3;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_3);
+    } else {
+        *sp = v_3;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_4 = *(ip - 1);
     r_next_bytecode_4; })];
 op_push_temp_03:;
     v_4 = fp[3];
     sp = sp + 1;
-    *sp = v_4;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_4);
+    } else {
+        *sp = v_4;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_5 = *(ip - 1);
     r_next_bytecode_5; })];
 op_push_temp_04:;
     v_5 = fp[4];
     sp = sp + 1;
-    *sp = v_5;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_5);
+    } else {
+        *sp = v_5;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_6 = *(ip - 1);
     r_next_bytecode_6; })];
 op_push_temp_05:;
     v_6 = fp[5];
     sp = sp + 1;
-    *sp = v_6;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_6);
+    } else {
+        *sp = v_6;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_7 = *(ip - 1);
     r_next_bytecode_7; })];
 op_push_temp_06:;
     v_7 = fp[6];
     sp = sp + 1;
-    *sp = v_7;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_7);
+    } else {
+        *sp = v_7;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_8 = *(ip - 1);
     r_next_bytecode_8; })];
 op_push_temp_07:;
     v_8 = fp[7];
     sp = sp + 1;
-    *sp = v_8;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_8);
+    } else {
+        *sp = v_8;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_9 = *(ip - 1);
     r_next_bytecode_9; })];
 op_push_temp_08:;
     v_9 = fp[8];
     sp = sp + 1;
-    *sp = v_9;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_9);
+    } else {
+        *sp = v_9;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_10 = *(ip - 1);
     r_next_bytecode_10; })];
 op_push_temp_09:;
     v_10 = fp[9];
     sp = sp + 1;
-    *sp = v_10;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_10);
+    } else {
+        *sp = v_10;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_11 = *(ip - 1);
     r_next_bytecode_11; })];
 op_push_temp_0a:;
     v_11 = fp[10];
     sp = sp + 1;
-    *sp = v_11;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_11);
+    } else {
+        *sp = v_11;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_12 = *(ip - 1);
     r_next_bytecode_12; })];
 op_push_temp_0b:;
     v_12 = fp[11];
     sp = sp + 1;
-    *sp = v_12;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_12);
+    } else {
+        *sp = v_12;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_13 = *(ip - 1);
     r_next_bytecode_13; })];
 op_push_temp_0c:;
     v_13 = fp[12];
     sp = sp + 1;
-    *sp = v_13;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_13);
+    } else {
+        *sp = v_13;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_14 = *(ip - 1);
     r_next_bytecode_14; })];
 op_push_temp_0d:;
     v_14 = fp[13];
     sp = sp + 1;
-    *sp = v_14;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_14);
+    } else {
+        *sp = v_14;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_15 = *(ip - 1);
     r_next_bytecode_15; })];
 op_push_temp_0e:;
     v_15 = fp[14];
     sp = sp + 1;
-    *sp = v_15;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_15);
+    } else {
+        *sp = v_15;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_16 = *(ip - 1);
     r_next_bytecode_16; })];
 op_push_temp_0f:;
     v_16 = fp[15];
     sp = sp + 1;
-    *sp = v_16;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_16);
+    } else {
+        *sp = v_16;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_17 = *(ip - 1);
     r_next_bytecode_17; })];
 op_push_inst_var_10:;
     o_6 = fp[-1];
-    v_17 = ((oop *)(o_6 + 16))[0];
+    v_17 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(o_6, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(o_6 + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
     sp = sp + 1;
-    *sp = v_17;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_17);
+    } else {
+        *sp = v_17;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_18 = *(ip - 1);
     r_next_bytecode_18; })];
 op_push_inst_var_11:;
     o_7 = fp[-1];
-    v_18 = ((oop *)(o_7 + 16))[1];
+    v_18 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(o_7, 1U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(o_7 + 16 + 8);
+exit_load_ref_4:;
+    r_load_ref_4; });
     sp = sp + 1;
-    *sp = v_18;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_18);
+    } else {
+        *sp = v_18;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_19 = *(ip - 1);
     r_next_bytecode_19; })];
 op_push_inst_var_12:;
     o_8 = fp[-1];
-    v_19 = ((oop *)(o_8 + 16))[2];
+    v_19 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(o_8, 2U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(o_8 + 16 + 16);
+exit_load_ref_5:;
+    r_load_ref_5; });
     sp = sp + 1;
-    *sp = v_19;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_19);
+    } else {
+        *sp = v_19;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_20 = *(ip - 1);
     r_next_bytecode_20; })];
 op_push_inst_var_13:;
     o_9 = fp[-1];
-    v_20 = ((oop *)(o_9 + 16))[3];
+    v_20 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(o_9, 3U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(o_9 + 16 + 24);
+exit_load_ref_6:;
+    r_load_ref_6; });
     sp = sp + 1;
-    *sp = v_20;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_20);
+    } else {
+        *sp = v_20;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_21 = *(ip - 1);
     r_next_bytecode_21; })];
 op_push_inst_var_14:;
     o_10 = fp[-1];
-    v_21 = ((oop *)(o_10 + 16))[4];
+    v_21 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_7 = c4_load_ref(o_10, 4U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(o_10 + 16 + 32);
+exit_load_ref_7:;
+    r_load_ref_7; });
     sp = sp + 1;
-    *sp = v_21;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_21);
+    } else {
+        *sp = v_21;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_22 = *(ip - 1);
     r_next_bytecode_22; })];
 op_push_inst_var_15:;
     o_11 = fp[-1];
-    v_22 = ((oop *)(o_11 + 16))[5];
+    v_22 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_8 = c4_load_ref(o_11, 5U);
+        goto exit_load_ref_8;
+    }
+    r_load_ref_8 = *(uint64_t *)(o_11 + 16 + 40);
+exit_load_ref_8:;
+    r_load_ref_8; });
     sp = sp + 1;
-    *sp = v_22;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_22);
+    } else {
+        *sp = v_22;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_23 = *(ip - 1);
     r_next_bytecode_23; })];
 op_push_inst_var_16:;
     o_12 = fp[-1];
-    v_23 = ((oop *)(o_12 + 16))[6];
+    v_23 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_9 = c4_load_ref(o_12, 6U);
+        goto exit_load_ref_9;
+    }
+    r_load_ref_9 = *(uint64_t *)(o_12 + 16 + 48);
+exit_load_ref_9:;
+    r_load_ref_9; });
     sp = sp + 1;
-    *sp = v_23;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_23);
+    } else {
+        *sp = v_23;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_24 = *(ip - 1);
     r_next_bytecode_24; })];
 op_push_inst_var_17:;
     o_13 = fp[-1];
-    v_24 = ((oop *)(o_13 + 16))[7];
+    v_24 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_10 = c4_load_ref(o_13, 7U);
+        goto exit_load_ref_10;
+    }
+    r_load_ref_10 = *(uint64_t *)(o_13 + 16 + 56);
+exit_load_ref_10:;
+    r_load_ref_10; });
     sp = sp + 1;
-    *sp = v_24;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_24);
+    } else {
+        *sp = v_24;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_25 = *(ip - 1);
     r_next_bytecode_25; })];
 op_push_inst_var_18:;
     o_14 = fp[-1];
-    v_25 = ((oop *)(o_14 + 16))[8];
+    v_25 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_11 = c4_load_ref(o_14, 8U);
+        goto exit_load_ref_11;
+    }
+    r_load_ref_11 = *(uint64_t *)(o_14 + 16 + 64);
+exit_load_ref_11:;
+    r_load_ref_11; });
     sp = sp + 1;
-    *sp = v_25;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_25);
+    } else {
+        *sp = v_25;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_26 = *(ip - 1);
     r_next_bytecode_26; })];
 op_push_inst_var_19:;
     o_15 = fp[-1];
-    v_26 = ((oop *)(o_15 + 16))[9];
+    v_26 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_12 = c4_load_ref(o_15, 9U);
+        goto exit_load_ref_12;
+    }
+    r_load_ref_12 = *(uint64_t *)(o_15 + 16 + 72);
+exit_load_ref_12:;
+    r_load_ref_12; });
     sp = sp + 1;
-    *sp = v_26;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_26);
+    } else {
+        *sp = v_26;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_27 = *(ip - 1);
     r_next_bytecode_27; })];
 op_push_inst_var_1a:;
     o_16 = fp[-1];
-    v_27 = ((oop *)(o_16 + 16))[10];
+    v_27 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_13 = c4_load_ref(o_16, 10U);
+        goto exit_load_ref_13;
+    }
+    r_load_ref_13 = *(uint64_t *)(o_16 + 16 + 80);
+exit_load_ref_13:;
+    r_load_ref_13; });
     sp = sp + 1;
-    *sp = v_27;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_27);
+    } else {
+        *sp = v_27;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_28 = *(ip - 1);
     r_next_bytecode_28; })];
 op_push_inst_var_1b:;
     o_17 = fp[-1];
-    v_28 = ((oop *)(o_17 + 16))[11];
+    v_28 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_14 = c4_load_ref(o_17, 11U);
+        goto exit_load_ref_14;
+    }
+    r_load_ref_14 = *(uint64_t *)(o_17 + 16 + 88);
+exit_load_ref_14:;
+    r_load_ref_14; });
     sp = sp + 1;
-    *sp = v_28;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_28);
+    } else {
+        *sp = v_28;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_29 = *(ip - 1);
     r_next_bytecode_29; })];
 op_push_inst_var_1c:;
     o_18 = fp[-1];
-    v_29 = ((oop *)(o_18 + 16))[12];
+    v_29 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_15 = c4_load_ref(o_18, 12U);
+        goto exit_load_ref_15;
+    }
+    r_load_ref_15 = *(uint64_t *)(o_18 + 16 + 96);
+exit_load_ref_15:;
+    r_load_ref_15; });
     sp = sp + 1;
-    *sp = v_29;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_29);
+    } else {
+        *sp = v_29;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_30 = *(ip - 1);
     r_next_bytecode_30; })];
 op_push_inst_var_1d:;
     o_19 = fp[-1];
-    v_30 = ((oop *)(o_19 + 16))[13];
+    v_30 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_16 = c4_load_ref(o_19, 13U);
+        goto exit_load_ref_16;
+    }
+    r_load_ref_16 = *(uint64_t *)(o_19 + 16 + 104);
+exit_load_ref_16:;
+    r_load_ref_16; });
     sp = sp + 1;
-    *sp = v_30;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_30);
+    } else {
+        *sp = v_30;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_31 = *(ip - 1);
     r_next_bytecode_31; })];
 op_push_inst_var_1e:;
     o_20 = fp[-1];
-    v_31 = ((oop *)(o_20 + 16))[14];
+    v_31 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_17 = c4_load_ref(o_20, 14U);
+        goto exit_load_ref_17;
+    }
+    r_load_ref_17 = *(uint64_t *)(o_20 + 16 + 112);
+exit_load_ref_17:;
+    r_load_ref_17; });
     sp = sp + 1;
-    *sp = v_31;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_31);
+    } else {
+        *sp = v_31;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_32 = *(ip - 1);
     r_next_bytecode_32; })];
 op_push_inst_var_1f:;
     o_21 = fp[-1];
-    v_32 = ((oop *)(o_21 + 16))[15];
+    v_32 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_18 = c4_load_ref(o_21, 15U);
+        goto exit_load_ref_18;
+    }
+    r_load_ref_18 = *(uint64_t *)(o_21 + 16 + 120);
+exit_load_ref_18:;
+    r_load_ref_18; });
     sp = sp + 1;
-    *sp = v_32;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_32);
+    } else {
+        *sp = v_32;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_33 = *(ip - 1);
     r_next_bytecode_33; })];
 op_push_literal_20:;
     v_33 = lits[0];
     sp = sp + 1;
-    *sp = v_33;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_33);
+    } else {
+        *sp = v_33;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_34 = *(ip - 1);
     r_next_bytecode_34; })];
 op_push_literal_21:;
     v_34 = lits[1];
     sp = sp + 1;
-    *sp = v_34;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_34);
+    } else {
+        *sp = v_34;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_35 = *(ip - 1);
     r_next_bytecode_35; })];
 op_push_literal_22:;
     v_35 = lits[2];
     sp = sp + 1;
-    *sp = v_35;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_35);
+    } else {
+        *sp = v_35;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_36 = *(ip - 1);
     r_next_bytecode_36; })];
 op_push_literal_23:;
     v_36 = lits[3];
     sp = sp + 1;
-    *sp = v_36;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_36);
+    } else {
+        *sp = v_36;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_37 = *(ip - 1);
     r_next_bytecode_37; })];
 op_push_literal_24:;
     v_37 = lits[4];
     sp = sp + 1;
-    *sp = v_37;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_37);
+    } else {
+        *sp = v_37;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_38 = *(ip - 1);
     r_next_bytecode_38; })];
 op_push_literal_25:;
     v_38 = lits[5];
     sp = sp + 1;
-    *sp = v_38;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_38);
+    } else {
+        *sp = v_38;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_39 = *(ip - 1);
     r_next_bytecode_39; })];
 op_push_literal_26:;
     v_39 = lits[6];
     sp = sp + 1;
-    *sp = v_39;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_39);
+    } else {
+        *sp = v_39;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_40 = *(ip - 1);
     r_next_bytecode_40; })];
 op_push_literal_27:;
     v_40 = lits[7];
     sp = sp + 1;
-    *sp = v_40;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_40);
+    } else {
+        *sp = v_40;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_41 = *(ip - 1);
     r_next_bytecode_41; })];
 op_push_literal_28:;
     v_41 = lits[8];
     sp = sp + 1;
-    *sp = v_41;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_41);
+    } else {
+        *sp = v_41;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_42 = *(ip - 1);
     r_next_bytecode_42; })];
 op_push_literal_29:;
     v_42 = lits[9];
     sp = sp + 1;
-    *sp = v_42;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_42);
+    } else {
+        *sp = v_42;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_43 = *(ip - 1);
     r_next_bytecode_43; })];
 op_push_literal_2a:;
     v_43 = lits[10];
     sp = sp + 1;
-    *sp = v_43;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_43);
+    } else {
+        *sp = v_43;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_44 = *(ip - 1);
     r_next_bytecode_44; })];
 op_push_literal_2b:;
     v_44 = lits[11];
     sp = sp + 1;
-    *sp = v_44;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_44);
+    } else {
+        *sp = v_44;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_45 = *(ip - 1);
     r_next_bytecode_45; })];
 op_push_literal_2c:;
     v_45 = lits[12];
     sp = sp + 1;
-    *sp = v_45;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_45);
+    } else {
+        *sp = v_45;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_46 = *(ip - 1);
     r_next_bytecode_46; })];
 op_push_literal_2d:;
     v_46 = lits[13];
     sp = sp + 1;
-    *sp = v_46;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_46);
+    } else {
+        *sp = v_46;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_47 = *(ip - 1);
     r_next_bytecode_47; })];
 op_push_literal_2e:;
     v_47 = lits[14];
     sp = sp + 1;
-    *sp = v_47;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_47);
+    } else {
+        *sp = v_47;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_48 = *(ip - 1);
     r_next_bytecode_48; })];
 op_push_literal_2f:;
     v_48 = lits[15];
     sp = sp + 1;
-    *sp = v_48;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_48);
+    } else {
+        *sp = v_48;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_49 = *(ip - 1);
     r_next_bytecode_49; })];
 op_push_literal_30:;
     v_49 = lits[16];
     sp = sp + 1;
-    *sp = v_49;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_49);
+    } else {
+        *sp = v_49;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_50 = *(ip - 1);
     r_next_bytecode_50; })];
 op_push_literal_31:;
     v_50 = lits[17];
     sp = sp + 1;
-    *sp = v_50;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_50);
+    } else {
+        *sp = v_50;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_51 = *(ip - 1);
     r_next_bytecode_51; })];
 op_push_literal_32:;
     v_51 = lits[18];
     sp = sp + 1;
-    *sp = v_51;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_51);
+    } else {
+        *sp = v_51;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_52 = *(ip - 1);
     r_next_bytecode_52; })];
 op_push_literal_33:;
     v_52 = lits[19];
     sp = sp + 1;
-    *sp = v_52;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_52);
+    } else {
+        *sp = v_52;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_53 = *(ip - 1);
     r_next_bytecode_53; })];
 op_push_literal_34:;
     v_53 = lits[20];
     sp = sp + 1;
-    *sp = v_53;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_53);
+    } else {
+        *sp = v_53;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_54 = *(ip - 1);
     r_next_bytecode_54; })];
 op_push_literal_35:;
     v_54 = lits[21];
     sp = sp + 1;
-    *sp = v_54;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_54);
+    } else {
+        *sp = v_54;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_55 = *(ip - 1);
     r_next_bytecode_55; })];
 op_push_literal_36:;
     v_55 = lits[22];
     sp = sp + 1;
-    *sp = v_55;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_55);
+    } else {
+        *sp = v_55;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_56 = *(ip - 1);
     r_next_bytecode_56; })];
 op_push_literal_37:;
     v_56 = lits[23];
     sp = sp + 1;
-    *sp = v_56;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_56);
+    } else {
+        *sp = v_56;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_57 = *(ip - 1);
     r_next_bytecode_57; })];
 op_push_literal_38:;
     v_57 = lits[24];
     sp = sp + 1;
-    *sp = v_57;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_57);
+    } else {
+        *sp = v_57;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_58 = *(ip - 1);
     r_next_bytecode_58; })];
 op_push_literal_39:;
     v_58 = lits[25];
     sp = sp + 1;
-    *sp = v_58;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_58);
+    } else {
+        *sp = v_58;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_59 = *(ip - 1);
     r_next_bytecode_59; })];
 op_push_literal_3a:;
     v_59 = lits[26];
     sp = sp + 1;
-    *sp = v_59;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_59);
+    } else {
+        *sp = v_59;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_60 = *(ip - 1);
     r_next_bytecode_60; })];
 op_push_literal_3b:;
     v_60 = lits[27];
     sp = sp + 1;
-    *sp = v_60;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_60);
+    } else {
+        *sp = v_60;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_61 = *(ip - 1);
     r_next_bytecode_61; })];
 op_push_literal_3c:;
     v_61 = lits[28];
     sp = sp + 1;
-    *sp = v_61;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_61);
+    } else {
+        *sp = v_61;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_62 = *(ip - 1);
     r_next_bytecode_62; })];
 op_push_literal_3d:;
     v_62 = lits[29];
     sp = sp + 1;
-    *sp = v_62;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_62);
+    } else {
+        *sp = v_62;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_63 = *(ip - 1);
     r_next_bytecode_63; })];
 op_push_literal_3e:;
     v_63 = lits[30];
     sp = sp + 1;
-    *sp = v_63;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_63);
+    } else {
+        *sp = v_63;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_64 = *(ip - 1);
     r_next_bytecode_64; })];
 op_push_literal_3f:;
     v_64 = lits[31];
     sp = sp + 1;
-    *sp = v_64;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_64);
+    } else {
+        *sp = v_64;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_65 = *(ip - 1);
     r_next_bytecode_65; })];
@@ -3795,8 +5677,19 @@ op_push_literal_variable_40:;
     o_22 = lits[0];
     v_65 = ((oop *)(o_22 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_65;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_65);
+    } else {
+        *sp = v_65;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_66 = *(ip - 1);
     r_next_bytecode_66; })];
@@ -3804,8 +5697,19 @@ op_push_literal_variable_41:;
     o_23 = lits[1];
     v_66 = ((oop *)(o_23 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_66;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_66);
+    } else {
+        *sp = v_66;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_67 = *(ip - 1);
     r_next_bytecode_67; })];
@@ -3813,8 +5717,19 @@ op_push_literal_variable_42:;
     o_24 = lits[2];
     v_67 = ((oop *)(o_24 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_67;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_67);
+    } else {
+        *sp = v_67;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_68 = *(ip - 1);
     r_next_bytecode_68; })];
@@ -3822,8 +5737,19 @@ op_push_literal_variable_43:;
     o_25 = lits[3];
     v_68 = ((oop *)(o_25 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_68;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_68);
+    } else {
+        *sp = v_68;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_69 = *(ip - 1);
     r_next_bytecode_69; })];
@@ -3831,8 +5757,19 @@ op_push_literal_variable_44:;
     o_26 = lits[4];
     v_69 = ((oop *)(o_26 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_69;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_69);
+    } else {
+        *sp = v_69;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_70 = *(ip - 1);
     r_next_bytecode_70; })];
@@ -3840,8 +5777,19 @@ op_push_literal_variable_45:;
     o_27 = lits[5];
     v_70 = ((oop *)(o_27 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_70;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_70);
+    } else {
+        *sp = v_70;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_71 = *(ip - 1);
     r_next_bytecode_71; })];
@@ -3849,8 +5797,19 @@ op_push_literal_variable_46:;
     o_28 = lits[6];
     v_71 = ((oop *)(o_28 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_71;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_71);
+    } else {
+        *sp = v_71;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_72 = *(ip - 1);
     r_next_bytecode_72; })];
@@ -3858,8 +5817,19 @@ op_push_literal_variable_47:;
     o_29 = lits[7];
     v_72 = ((oop *)(o_29 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_72;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_72);
+    } else {
+        *sp = v_72;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_73 = *(ip - 1);
     r_next_bytecode_73; })];
@@ -3867,8 +5837,19 @@ op_push_literal_variable_48:;
     o_30 = lits[8];
     v_73 = ((oop *)(o_30 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_73;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_73);
+    } else {
+        *sp = v_73;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_74 = *(ip - 1);
     r_next_bytecode_74; })];
@@ -3876,8 +5857,19 @@ op_push_literal_variable_49:;
     o_31 = lits[9];
     v_74 = ((oop *)(o_31 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_74;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_74);
+    } else {
+        *sp = v_74;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_75 = *(ip - 1);
     r_next_bytecode_75; })];
@@ -3885,8 +5877,19 @@ op_push_literal_variable_4a:;
     o_32 = lits[10];
     v_75 = ((oop *)(o_32 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_75;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_75);
+    } else {
+        *sp = v_75;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_76 = *(ip - 1);
     r_next_bytecode_76; })];
@@ -3894,8 +5897,19 @@ op_push_literal_variable_4b:;
     o_33 = lits[11];
     v_76 = ((oop *)(o_33 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_76;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_76);
+    } else {
+        *sp = v_76;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_77 = *(ip - 1);
     r_next_bytecode_77; })];
@@ -3903,8 +5917,19 @@ op_push_literal_variable_4c:;
     o_34 = lits[12];
     v_77 = ((oop *)(o_34 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_77;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_77);
+    } else {
+        *sp = v_77;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_78 = *(ip - 1);
     r_next_bytecode_78; })];
@@ -3912,8 +5937,19 @@ op_push_literal_variable_4d:;
     o_35 = lits[13];
     v_78 = ((oop *)(o_35 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_78;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_78);
+    } else {
+        *sp = v_78;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_79 = *(ip - 1);
     r_next_bytecode_79; })];
@@ -3921,8 +5957,19 @@ op_push_literal_variable_4e:;
     o_36 = lits[14];
     v_79 = ((oop *)(o_36 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_79;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_79);
+    } else {
+        *sp = v_79;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_80 = *(ip - 1);
     r_next_bytecode_80; })];
@@ -3930,8 +5977,19 @@ op_push_literal_variable_4f:;
     o_37 = lits[15];
     v_80 = ((oop *)(o_37 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_80;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_80);
+    } else {
+        *sp = v_80;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_81 = *(ip - 1);
     r_next_bytecode_81; })];
@@ -3939,8 +5997,19 @@ op_push_literal_variable_50:;
     o_38 = lits[16];
     v_81 = ((oop *)(o_38 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_81;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_81);
+    } else {
+        *sp = v_81;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_82 = *(ip - 1);
     r_next_bytecode_82; })];
@@ -3948,8 +6017,19 @@ op_push_literal_variable_51:;
     o_39 = lits[17];
     v_82 = ((oop *)(o_39 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_82;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_82);
+    } else {
+        *sp = v_82;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_83 = *(ip - 1);
     r_next_bytecode_83; })];
@@ -3957,8 +6037,19 @@ op_push_literal_variable_52:;
     o_40 = lits[18];
     v_83 = ((oop *)(o_40 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_83;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_83);
+    } else {
+        *sp = v_83;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_84 = *(ip - 1);
     r_next_bytecode_84; })];
@@ -3966,8 +6057,19 @@ op_push_literal_variable_53:;
     o_41 = lits[19];
     v_84 = ((oop *)(o_41 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_84;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_84);
+    } else {
+        *sp = v_84;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_85 = *(ip - 1);
     r_next_bytecode_85; })];
@@ -3975,8 +6077,19 @@ op_push_literal_variable_54:;
     o_42 = lits[20];
     v_85 = ((oop *)(o_42 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_85;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_85);
+    } else {
+        *sp = v_85;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_86 = *(ip - 1);
     r_next_bytecode_86; })];
@@ -3984,8 +6097,19 @@ op_push_literal_variable_55:;
     o_43 = lits[21];
     v_86 = ((oop *)(o_43 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_86;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_86);
+    } else {
+        *sp = v_86;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_87 = *(ip - 1);
     r_next_bytecode_87; })];
@@ -3993,8 +6117,19 @@ op_push_literal_variable_56:;
     o_44 = lits[22];
     v_87 = ((oop *)(o_44 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_87;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_87);
+    } else {
+        *sp = v_87;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_88 = *(ip - 1);
     r_next_bytecode_88; })];
@@ -4002,8 +6137,19 @@ op_push_literal_variable_57:;
     o_45 = lits[23];
     v_88 = ((oop *)(o_45 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_88;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_88);
+    } else {
+        *sp = v_88;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_89 = *(ip - 1);
     r_next_bytecode_89; })];
@@ -4011,8 +6157,19 @@ op_push_literal_variable_58:;
     o_46 = lits[24];
     v_89 = ((oop *)(o_46 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_89;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_89);
+    } else {
+        *sp = v_89;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_90 = *(ip - 1);
     r_next_bytecode_90; })];
@@ -4020,8 +6177,19 @@ op_push_literal_variable_59:;
     o_47 = lits[25];
     v_90 = ((oop *)(o_47 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_90;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_90);
+    } else {
+        *sp = v_90;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_91 = *(ip - 1);
     r_next_bytecode_91; })];
@@ -4029,8 +6197,19 @@ op_push_literal_variable_5a:;
     o_48 = lits[26];
     v_91 = ((oop *)(o_48 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_91;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_91);
+    } else {
+        *sp = v_91;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_92 = *(ip - 1);
     r_next_bytecode_92; })];
@@ -4038,8 +6217,19 @@ op_push_literal_variable_5b:;
     o_49 = lits[27];
     v_92 = ((oop *)(o_49 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_92;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_92);
+    } else {
+        *sp = v_92;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_93 = *(ip - 1);
     r_next_bytecode_93; })];
@@ -4047,8 +6237,19 @@ op_push_literal_variable_5c:;
     o_50 = lits[28];
     v_93 = ((oop *)(o_50 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_93;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_93);
+    } else {
+        *sp = v_93;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_94 = *(ip - 1);
     r_next_bytecode_94; })];
@@ -4056,8 +6257,19 @@ op_push_literal_variable_5d:;
     o_51 = lits[29];
     v_94 = ((oop *)(o_51 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_94;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_94);
+    } else {
+        *sp = v_94;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_95 = *(ip - 1);
     r_next_bytecode_95; })];
@@ -4065,8 +6277,19 @@ op_push_literal_variable_5e:;
     o_52 = lits[30];
     v_95 = ((oop *)(o_52 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_95;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_95);
+    } else {
+        *sp = v_95;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_96 = *(ip - 1);
     r_next_bytecode_96; })];
@@ -4074,100 +6297,270 @@ op_push_literal_variable_5f:;
     o_53 = lits[31];
     v_96 = ((oop *)(o_53 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_96;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_96);
+    } else {
+        *sp = v_96;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_97 = *(ip - 1);
     r_next_bytecode_97; })];
 op_pop_store_temp_60:;
-    fp[0] = *sp;
+    p = fp + 0;
+    v_97 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p, v_97);
+    } else {
+        *p = v_97;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_98 = *(ip - 1);
     r_next_bytecode_98; })];
 op_pop_store_temp_61:;
-    fp[1] = *sp;
+    p_2 = fp + 1;
+    v_98 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_2, v_98);
+    } else {
+        *p_2 = v_98;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_99 = *(ip - 1);
     r_next_bytecode_99; })];
 op_pop_store_temp_62:;
-    fp[2] = *sp;
+    p_3 = fp + 2;
+    v_99 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_3, v_99);
+    } else {
+        *p_3 = v_99;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_100 = *(ip - 1);
     r_next_bytecode_100; })];
 op_pop_store_temp_63:;
-    fp[3] = *sp;
+    p_4 = fp + 3;
+    v_100 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_4, v_100);
+    } else {
+        *p_4 = v_100;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_101 = *(ip - 1);
     r_next_bytecode_101; })];
 op_pop_store_temp_64:;
-    fp[4] = *sp;
+    p_5 = fp + 4;
+    v_101 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_5, v_101);
+    } else {
+        *p_5 = v_101;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_102 = *(ip - 1);
     r_next_bytecode_102; })];
 op_pop_store_temp_65:;
-    fp[5] = *sp;
+    p_6 = fp + 5;
+    v_102 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_6, v_102);
+    } else {
+        *p_6 = v_102;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_103 = *(ip - 1);
     r_next_bytecode_103; })];
 op_pop_store_temp_66:;
-    fp[6] = *sp;
+    p_7 = fp + 6;
+    v_103 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_7, v_103);
+    } else {
+        *p_7 = v_103;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_104 = *(ip - 1);
     r_next_bytecode_104; })];
 op_pop_store_temp_67:;
-    fp[7] = *sp;
+    p_8 = fp + 7;
+    v_104 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_8, v_104);
+    } else {
+        *p_8 = v_104;
+    }
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_105 = *(ip - 1);
     r_next_bytecode_105; })];
 op_push_self:;
-    v_97 = fp[-1];
+    v_105 = fp[-1];
     sp = sp + 1;
-    *sp = v_97;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_105);
+    } else {
+        *sp = v_105;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_106 = *(ip - 1);
     r_next_bytecode_106; })];
 op_push_true:;
     sp = sp + 1;
-    *sp = true_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, true_oop);
+    } else {
+        *sp = true_oop;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_107 = *(ip - 1);
     r_next_bytecode_107; })];
 op_push_false:;
     sp = sp + 1;
-    *sp = false_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, false_oop);
+    } else {
+        *sp = false_oop;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_108 = *(ip - 1);
     r_next_bytecode_108; })];
 op_push_nil:;
     sp = sp + 1;
-    *sp = nil_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, nil_oop);
+    } else {
+        *sp = nil_oop;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_109 = *(ip - 1);
     r_next_bytecode_109; })];
 op_push_zero:;
     sp = sp + 1;
-    *sp = 1ULL;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, 1ULL);
+    } else {
+        *sp = 1ULL;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_110 = *(ip - 1);
     r_next_bytecode_110; })];
@@ -4183,16 +6576,41 @@ op_push_one:;
                     ip = ip + 1;
                     n = *ip;
                     if ((n & 0xF8) == 0x60) {
-                        fp[n & 7] = (uint64_t)r;
+                        p_9 = fp + (n & 7);
+                        v_106 = (uint64_t)r;
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_stack_slot(p_9, v_106);
+                        } else {
+                            *p_9 = v_106;
+                        }
                         sp = sp - 1;
                         ip = ip + 1;
                         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_111 = *(ip - 1);
     r_next_bytecode_111; })];
                     }
-                    *sp = (uint64_t)r;
+                    v_107 = (uint64_t)r;
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(sp, v_107);
+                    } else {
+                        *sp = v_107;
+                    }
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_112 = *(ip - 1);
     r_next_bytecode_112; })];
@@ -4201,16 +6619,41 @@ op_push_one:;
                 ip = ip + 1;
                 n_2 = *ip;
                 if ((n_2 & 0xF8) == 0x60) {
-                    fp[n_2 & 7] = (uint64_t)r_2;
+                    p_10 = fp + (n_2 & 7);
+                    v_108 = (uint64_t)r_2;
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_10, v_108);
+                    } else {
+                        *p_10 = v_108;
+                    }
                     sp = sp - 1;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_113 = *(ip - 1);
     r_next_bytecode_113; })];
                 }
-                *sp = (uint64_t)r_2;
+                v_109 = (uint64_t)r_2;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_109);
+                } else {
+                    *sp = v_109;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_114 = *(ip - 1);
     r_next_bytecode_114; })];
@@ -4220,8 +6663,8 @@ op_push_one:;
             ip = ip + 1;
             j = *ip;
             if ((j == 0x92) || (j == 0x91)) {
-                p = ip + 1;
-                o_54 = *(int16_t *)(uint64_t)p;
+                p_11 = ip + 1;
+                o_54 = *(int16_t *)(uint64_t)p_11;
                 sp = sp - 1;
                 ip = ip + 3;
                 if (c == (j == 0x91)) {
@@ -4236,11 +6679,22 @@ op_push_one:;
                             } else {
                                 s_2 = (oop *)(active_ctx + 16);
                                 m_2 = s_2[CTX_METHOD];
-                                o_56 = *(uint64_t *)(m_2 + 16 + 24);
-                                v_98 = ip - (uint8_t *)(o_56 + 16);
-                                s_2[CTX_PC] = (uint64_t)((v_98 << 1) | 1);
-                                v_99 = sp - fp + 1;
-                                s_2[CTX_STACKP] = (uint64_t)((v_99 << 1) | 1);
+                                o_56 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_19 = c4_load_ref(m_2, 3U);
+        goto exit_load_ref_19;
+    }
+    r_load_ref_19 = *(uint64_t *)(m_2 + 16 + 24);
+exit_load_ref_19:;
+    r_load_ref_19; });
+                                v_110 = ip - (uint8_t *)(o_56 + 16);
+                                v_111 = (uint64_t)((v_110 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_111);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_111;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             interrupt_safepoint();
                             if (nframes != 0) {
@@ -4263,7 +6717,14 @@ op_push_one:;
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_60 = *(uint64_t *)(m_3 + 16 + 24);
+                                o_60 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_20 = c4_load_ref(m_3, 3U);
+        goto exit_load_ref_20;
+    }
+    r_load_ref_20 = *(uint64_t *)(m_3 + 16 + 24);
+exit_load_ref_20:;
+    r_load_ref_20; });
                                 o_61 = s_3[CTX_PC];
                                 ip = (uint8_t *)(o_60 + 16) + (((int64_t)o_61) >> 1);
                                 fr = (frame *)NULL;
@@ -4279,11 +6740,22 @@ op_push_one:;
                                 } else {
                                     s_4 = (oop *)(active_ctx + 16);
                                     m_4 = s_4[CTX_METHOD];
-                                    o_62 = *(uint64_t *)(m_4 + 16 + 24);
-                                    v_100 = ip - (uint8_t *)(o_62 + 16);
-                                    s_4[CTX_PC] = (uint64_t)((v_100 << 1) | 1);
-                                    v_101 = sp - fp + 1;
-                                    s_4[CTX_STACKP] = (uint64_t)((v_101 << 1) | 1);
+                                    o_62 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_21 = c4_load_ref(m_4, 3U);
+        goto exit_load_ref_21;
+    }
+    r_load_ref_21 = *(uint64_t *)(m_4 + 16 + 24);
+exit_load_ref_21:;
+    r_load_ref_21; });
+                                    v_112 = ip - (uint8_t *)(o_62 + 16);
+                                    v_113 = (uint64_t)((v_112 << 1) | 1);
+                                    if (__builtin_expect(c4_enabled, 0)) {
+                                        c4_heap_store_ref(active_ctx, 1U, v_113);
+                                    } else {
+                                        ((oop *)(active_ctx + 16))[CTX_PC] = v_113;
+                                    }
+                                    interpreter_ctx(active_ctx, sp - fp + 1);
                                 }
                                 jit_runtime_back_jump(fr);
                                 if (nframes != 0) {
@@ -4306,7 +6778,14 @@ op_push_one:;
                                         fprintf(stderr, "resuming a dead context");
                                         fatal_end();
                                     }
-                                    o_66 = *(uint64_t *)(m_5 + 16 + 24);
+                                    o_66 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_22 = c4_load_ref(m_5, 3U);
+        goto exit_load_ref_22;
+    }
+    r_load_ref_22 = *(uint64_t *)(m_5 + 16 + 24);
+exit_load_ref_22:;
+    r_load_ref_22; });
                                     o_67 = s_5[CTX_PC];
                                     ip = (uint8_t *)(o_66 + 16) + (((int64_t)o_67) >> 1);
                                     fr = (frame *)NULL;
@@ -4315,11 +6794,22 @@ op_push_one:;
                         } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
                             s_6 = (oop *)(active_ctx + 16);
                             m_6 = s_6[CTX_METHOD];
-                            o_68 = *(uint64_t *)(m_6 + 16 + 24);
-                            v_102 = ip - (uint8_t *)(o_68 + 16);
-                            s_6[CTX_PC] = (uint64_t)((v_102 << 1) | 1);
-                            v_103 = sp - fp + 1;
-                            s_6[CTX_STACKP] = (uint64_t)((v_103 << 1) | 1);
+                            o_68 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_23 = c4_load_ref(m_6, 3U);
+        goto exit_load_ref_23;
+    }
+    r_load_ref_23 = *(uint64_t *)(m_6 + 16 + 24);
+exit_load_ref_23:;
+    r_load_ref_23; });
+                            v_114 = ip - (uint8_t *)(o_68 + 16);
+                            v_115 = (uint64_t)((v_114 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_115);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_115;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                             resume_context(true);
                             if (nframes != 0) {
                                 fr = frames + (nframes - 1);
@@ -4341,7 +6831,14 @@ op_push_one:;
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_72 = *(uint64_t *)(m_7 + 16 + 24);
+                                o_72 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_24 = c4_load_ref(m_7, 3U);
+        goto exit_load_ref_24;
+    }
+    r_load_ref_24 = *(uint64_t *)(m_7 + 16 + 24);
+exit_load_ref_24:;
+    r_load_ref_24; });
                                 o_73 = s_7[CTX_PC];
                                 ip = (uint8_t *)(o_72 + 16) + (((int64_t)o_73) >> 1);
                                 fr = (frame *)NULL;
@@ -4350,28 +6847,69 @@ op_push_one:;
                     }
                 }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_115 = *(ip - 1);
     r_next_bytecode_115; })];
             }
-            *sp = c ? true_oop : false_oop;
+            v_116 = c ? true_oop : false_oop;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_116);
+            } else {
+                *sp = v_116;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_116 = *(ip - 1);
     r_next_bytecode_116; })];
         }
     }
     sp = sp + 1;
-    *sp = 3ULL;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, 3ULL);
+    } else {
+        *sp = 3ULL;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_117 = *(ip - 1);
     r_next_bytecode_117; })];
 op_push_this_context:;
     if (fr == NULL) {
         sp = sp + 1;
-        *sp = active_ctx;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, active_ctx);
+        } else {
+            *sp = active_ctx;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_118 = *(ip - 1);
     r_next_bytecode_118; })];
@@ -4384,11 +6922,22 @@ op_push_this_context:;
     } else {
         s_8 = (oop *)(active_ctx + 16);
         m_8 = s_8[CTX_METHOD];
-        o_74 = *(uint64_t *)(m_8 + 16 + 24);
-        v_104 = ip - (uint8_t *)(o_74 + 16);
-        s_8[CTX_PC] = (uint64_t)((v_104 << 1) | 1);
-        v_105 = sp - fp + 1;
-        s_8[CTX_STACKP] = (uint64_t)((v_105 << 1) | 1);
+        o_74 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_25 = c4_load_ref(m_8, 3U);
+        goto exit_load_ref_25;
+    }
+    r_load_ref_25 = *(uint64_t *)(m_8 + 16 + 24);
+exit_load_ref_25:;
+    r_load_ref_25; });
+        v_117 = ip - (uint8_t *)(o_74 + 16);
+        v_118 = (uint64_t)((v_117 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_118);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_118;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
     }
     marry(fr);
     if (nframes != 0) {
@@ -4411,28 +6960,66 @@ op_push_this_context:;
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_78 = *(uint64_t *)(m_9 + 16 + 24);
+        o_78 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_26 = c4_load_ref(m_9, 3U);
+        goto exit_load_ref_26;
+    }
+    r_load_ref_26 = *(uint64_t *)(m_9 + 16 + 24);
+exit_load_ref_26:;
+    r_load_ref_26; });
         o_79 = s_9[CTX_PC];
         ip = (uint8_t *)(o_78 + 16) + (((int64_t)o_79) >> 1);
         fr = (frame *)NULL;
     }
-    v_106 = fr->ctx;
+    v_119 = fr->ctx;
     sp = sp + 1;
-    *sp = v_106;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_119);
+    } else {
+        *sp = v_119;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_119 = *(ip - 1);
     r_next_bytecode_119; })];
 op_dup:;
-    sp[1] = *sp;
+    p_12 = sp + 1;
+    v_120 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_12, v_120);
+    } else {
+        *p_12 = v_120;
+    }
     sp = sp + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_120 = *(ip - 1);
     r_next_bytecode_120; })];
 op_pop:;
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_121 = *(ip - 1);
     r_next_bytecode_121; })];
@@ -4445,7 +7032,11 @@ op_return_top:;
                 interpreter_widow(fr);
             }
             sp = fr->fp - 1;
-            *sp = result;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, result);
+            } else {
+                *sp = result;
+            }
             fr = fr - 1;
             lits = fr->lits;
             fp = fr->fp;
@@ -4460,11 +7051,22 @@ op_return_top:;
                 } else {
                     s_10 = (oop *)(active_ctx + 16);
                     m_10 = s_10[CTX_METHOD];
-                    o_80 = *(uint64_t *)(m_10 + 16 + 24);
-                    v_107 = ip - (uint8_t *)(o_80 + 16);
-                    s_10[CTX_PC] = (uint64_t)((v_107 << 1) | 1);
-                    v_108 = sp - fp + 1;
-                    s_10[CTX_STACKP] = (uint64_t)((v_108 << 1) | 1);
+                    o_80 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_27 = c4_load_ref(m_10, 3U);
+        goto exit_load_ref_27;
+    }
+    r_load_ref_27 = *(uint64_t *)(m_10 + 16 + 24);
+exit_load_ref_27:;
+    r_load_ref_27; });
+                    v_121 = ip - (uint8_t *)(o_80 + 16);
+                    v_122 = (uint64_t)((v_121 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_122);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_122;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 jit_runtime_resume(fr);
                 if (nframes != 0) {
@@ -4487,13 +7089,27 @@ op_return_top:;
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_84 = *(uint64_t *)(m_11 + 16 + 24);
+                    o_84 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_28 = c4_load_ref(m_11, 3U);
+        goto exit_load_ref_28;
+    }
+    r_load_ref_28 = *(uint64_t *)(m_11 + 16 + 24);
+exit_load_ref_28:;
+    r_load_ref_28; });
                     o_85 = s_11[CTX_PC];
                     ip = (uint8_t *)(o_84 + 16) + (((int64_t)o_85) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_122 = *(ip - 1);
     r_next_bytecode_122; })];
@@ -4518,7 +7134,14 @@ op_return_top:;
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_90 = *(uint64_t *)(m_12 + 16 + 24);
+            o_90 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_29 = c4_load_ref(m_12, 3U);
+        goto exit_load_ref_29;
+    }
+    r_load_ref_29 = *(uint64_t *)(m_12 + 16 + 24);
+exit_load_ref_29:;
+    r_load_ref_29; });
             o_91 = s_12[CTX_PC];
             ip = (uint8_t *)(o_90 + 16) + (((int64_t)o_91) >> 1);
             fr = (frame *)NULL;
@@ -4531,9 +7154,13 @@ op_return_top:;
         }
         nframes = 0;
         cstack_used = 0;
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
         if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
             remember(active_ctx);
         }
+    exit_remember_if_old:;
         s_13 = (oop *)(active_ctx + 16);
         m_13 = s_13[CTX_METHOD];
         o_92 = ((oop *)(m_13 + 16))[CM_LITERALS];
@@ -4547,20 +7174,42 @@ op_return_top:;
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_95 = *(uint64_t *)(m_13 + 16 + 24);
+        o_95 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_30 = c4_load_ref(m_13, 3U);
+        goto exit_load_ref_30;
+    }
+    r_load_ref_30 = *(uint64_t *)(m_13 + 16 + 24);
+exit_load_ref_30:;
+    r_load_ref_30; });
         o_96 = s_13[CTX_PC];
         ip = (uint8_t *)(o_95 + 16) + (((int64_t)o_96) >> 1);
         fr = (frame *)NULL;
         sp = sp + 1;
-        *sp = result;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, result);
+        } else {
+            *sp = result;
+        }
         if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
             s_14 = (oop *)(active_ctx + 16);
             m_14 = s_14[CTX_METHOD];
-            o_97 = *(uint64_t *)(m_14 + 16 + 24);
-            v_109 = ip - (uint8_t *)(o_97 + 16);
-            s_14[CTX_PC] = (uint64_t)((v_109 << 1) | 1);
-            v_110 = sp - fp + 1;
-            s_14[CTX_STACKP] = (uint64_t)((v_110 << 1) | 1);
+            o_97 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_31 = c4_load_ref(m_14, 3U);
+        goto exit_load_ref_31;
+    }
+    r_load_ref_31 = *(uint64_t *)(m_14 + 16 + 24);
+exit_load_ref_31:;
+    r_load_ref_31; });
+            v_123 = ip - (uint8_t *)(o_97 + 16);
+            v_124 = (uint64_t)((v_123 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_124);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_124;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
             resume_context(false);
             if (nframes != 0) {
                 fr = frames + (nframes - 1);
@@ -4582,22 +7231,40 @@ op_return_top:;
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_101 = *(uint64_t *)(m_15 + 16 + 24);
+                o_101 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_32 = c4_load_ref(m_15, 3U);
+        goto exit_load_ref_32;
+    }
+    r_load_ref_32 = *(uint64_t *)(m_15 + 16 + 24);
+exit_load_ref_32:;
+    r_load_ref_32; });
                 o_102 = s_15[CTX_PC];
                 ip = (uint8_t *)(o_101 + 16) + (((int64_t)o_102) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_123 = *(ip - 1);
     r_next_bytecode_123; })];
     }
     goto context_return;
 op_return_self:;
-    v_111 = fp[-1];
+    v_125 = fp[-1];
     sp = sp + 1;
-    *sp = v_111;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_125);
+    } else {
+        *sp = v_125;
+    }
     goto op_return_top;
 op_non_local_return:;
     result = *sp;
@@ -4609,8 +7276,22 @@ op_non_local_return:;
     fr->sp = (int32_t)(sp - fp + 1);
     cstack_used = (uint64_t)(sp + 1 - cstack);
     o_103 = fr->closure;
-    home = ctx_home(*(uint64_t *)(o_103 + 16 + 0));
-    hk = *(uint64_t *)(home + 16 + 0);
+    home = ctx_home(({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_33 = c4_load_ref(o_103, 0U);
+        goto exit_load_ref_33;
+    }
+    r_load_ref_33 = *(uint64_t *)(o_103 + 16 + 0);
+exit_load_ref_33:;
+    r_load_ref_33; }));
+    hk = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_34 = c4_load_ref(home, 0U);
+        goto exit_load_ref_34;
+    }
+    r_load_ref_34 = *(uint64_t *)(home + 16 + 0);
+exit_load_ref_34:;
+    r_load_ref_34; });
     if ((hk & 1) != 0) {
         h = (int32_t)(((int64_t)hk) >> 1);
         if ((h == 0) && ({
@@ -4624,8 +7305,15 @@ op_non_local_return:;
     for (j_2 = top; j_2 >= h; j_2--) {
         m_17 = (frames + j_2)->method;
         if ((({
-    p_2 = *(uint64_t *)(m_17 + 16 + 56);
-    r_method_prim = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
+    p_13 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_35 = c4_load_ref(m_17, 7U);
+        goto exit_load_ref_35;
+    }
+    r_load_ref_35 = *(uint64_t *)(m_17 + 16 + 56);
+exit_load_ref_35:;
+    r_load_ref_35; });
+    r_method_prim = (p_13 & 1) != 0 ? ((int64_t)p_13) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER) {
             r_unwind_frame_from = j_2;
             goto exit_unwind_frame_from;
@@ -4642,9 +7330,13 @@ exit_unwind_frame_from:;
         if (h == 0) {
             nframes = 0;
             cstack_used = 0;
+            if (c4_enabled) {
+                goto exit_remember_if_old_2;
+            }
             if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
                 remember(active_ctx);
             }
+        exit_remember_if_old_2:;
             s_16 = (oop *)(active_ctx + 16);
             m_18 = s_16[CTX_METHOD];
             o_105 = ((oop *)(m_18 + 16))[CM_LITERALS];
@@ -4658,20 +7350,42 @@ exit_unwind_frame_from:;
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_108 = *(uint64_t *)(m_18 + 16 + 24);
+            o_108 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_36 = c4_load_ref(m_18, 3U);
+        goto exit_load_ref_36;
+    }
+    r_load_ref_36 = *(uint64_t *)(m_18 + 16 + 24);
+exit_load_ref_36:;
+    r_load_ref_36; });
             o_109 = s_16[CTX_PC];
             ip = (uint8_t *)(o_108 + 16) + (((int64_t)o_109) >> 1);
             fr = (frame *)NULL;
             sp = sp + 1;
-            *sp = result;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, result);
+            } else {
+                *sp = result;
+            }
             if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
                 s_17 = (oop *)(active_ctx + 16);
                 m_19 = s_17[CTX_METHOD];
-                o_110 = *(uint64_t *)(m_19 + 16 + 24);
-                v_112 = ip - (uint8_t *)(o_110 + 16);
-                s_17[CTX_PC] = (uint64_t)((v_112 << 1) | 1);
-                v_113 = sp - fp + 1;
-                s_17[CTX_STACKP] = (uint64_t)((v_113 << 1) | 1);
+                o_110 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_37 = c4_load_ref(m_19, 3U);
+        goto exit_load_ref_37;
+    }
+    r_load_ref_37 = *(uint64_t *)(m_19 + 16 + 24);
+exit_load_ref_37:;
+    r_load_ref_37; });
+                v_126 = ip - (uint8_t *)(o_110 + 16);
+                v_127 = (uint64_t)((v_126 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_127);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_127;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
                 resume_context(false);
                 if (nframes != 0) {
                     fr = frames + (nframes - 1);
@@ -4693,13 +7407,27 @@ exit_unwind_frame_from:;
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_114 = *(uint64_t *)(m_20 + 16 + 24);
+                    o_114 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_38 = c4_load_ref(m_20, 3U);
+        goto exit_load_ref_38;
+    }
+    r_load_ref_38 = *(uint64_t *)(m_20 + 16 + 24);
+exit_load_ref_38:;
+    r_load_ref_38; });
                     o_115 = s_18[CTX_PC];
                     ip = (uint8_t *)(o_114 + 16) + (((int64_t)o_115) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_124 = *(ip - 1);
     r_next_bytecode_124; })];
@@ -4707,7 +7435,11 @@ exit_unwind_frame_from:;
         nframes = h;
         fr = frames + h;
         sp = fr->fp - 1;
-        *sp = result;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, result);
+        } else {
+            *sp = result;
+        }
         fr = fr - 1;
         lits = fr->lits;
         fp = fr->fp;
@@ -4722,11 +7454,22 @@ exit_unwind_frame_from:;
             } else {
                 s_19 = (oop *)(active_ctx + 16);
                 m_21 = s_19[CTX_METHOD];
-                o_116 = *(uint64_t *)(m_21 + 16 + 24);
-                v_114 = ip - (uint8_t *)(o_116 + 16);
-                s_19[CTX_PC] = (uint64_t)((v_114 << 1) | 1);
-                v_115 = sp - fp + 1;
-                s_19[CTX_STACKP] = (uint64_t)((v_115 << 1) | 1);
+                o_116 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_39 = c4_load_ref(m_21, 3U);
+        goto exit_load_ref_39;
+    }
+    r_load_ref_39 = *(uint64_t *)(m_21 + 16 + 24);
+exit_load_ref_39:;
+    r_load_ref_39; });
+                v_128 = ip - (uint8_t *)(o_116 + 16);
+                v_129 = (uint64_t)((v_128 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_129);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_129;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             jit_runtime_resume(fr);
             if (nframes != 0) {
@@ -4749,21 +7492,56 @@ exit_unwind_frame_from:;
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_120 = *(uint64_t *)(m_22 + 16 + 24);
+                o_120 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_40 = c4_load_ref(m_22, 3U);
+        goto exit_load_ref_40;
+    }
+    r_load_ref_40 = *(uint64_t *)(m_22 + 16 + 24);
+exit_load_ref_40:;
+    r_load_ref_40; });
                 o_121 = s_20[CTX_PC];
                 ip = (uint8_t *)(o_120 + 16) + (((int64_t)o_121) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_125 = *(ip - 1);
     r_next_bytecode_125; })];
     }
-    hs = *(uint64_t *)(home + 16 + 0);
-    o_122 = *(uint64_t *)(home + 16 + 8);
+    hs = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_41 = c4_load_ref(home, 0U);
+        goto exit_load_ref_41;
+    }
+    r_load_ref_41 = *(uint64_t *)(home + 16 + 0);
+exit_load_ref_41:;
+    r_load_ref_41; });
+    o_122 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_42 = c4_load_ref(home, 1U);
+        goto exit_load_ref_42;
+    }
+    r_load_ref_42 = *(uint64_t *)(home + 16 + 8);
+exit_load_ref_42:;
+    r_load_ref_42; });
     if ((!((o_122 & 1) != 0)) || ((hs == nil_oop) || ({
-    o_123 = *(uint64_t *)(hs + 16 + 8);
+    o_123 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_43 = c4_load_ref(hs, 1U);
+        goto exit_load_ref_43;
+    }
+    r_load_ref_43 = *(uint64_t *)(hs + 16 + 8);
+exit_load_ref_43:;
+    r_load_ref_43; });
     !((o_123 & 1) != 0); }))) {
         marked = nil_oop;
         goto frame_non_local_return_through;
@@ -4776,25 +7554,53 @@ exit_unwind_frame_from:;
             goto frame_non_local_return_through;
         }
         if ((mk == nil_oop) && ({
-    m_23 = *(uint64_t *)(c_3 + 16 + 24);
+    m_23 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_44 = c4_load_ref(c_3, 3U);
+        goto exit_load_ref_44;
+    }
+    r_load_ref_44 = *(uint64_t *)(c_3 + 16 + 24);
+exit_load_ref_44:;
+    r_load_ref_44; });
     (({
-    p_3 = *(uint64_t *)(m_23 + 16 + 56);
-    r_method_prim_2 = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
+    p_14 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_45 = c4_load_ref(m_23, 7U);
+        goto exit_load_ref_45;
+    }
+    r_load_ref_45 = *(uint64_t *)(m_23 + 16 + 56);
+exit_load_ref_45:;
+    r_load_ref_45; });
+    r_method_prim_2 = (p_14 & 1) != 0 ? ((int64_t)p_14) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER; })) {
             mk = c_3;
         }
         if (!(c_3 != home)) {
             break;
         }
-        c_3 = *(uint64_t *)(c_3 + 16 + 0);
+        c_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_46 = c4_load_ref(c_3, 0U);
+        goto exit_load_ref_46;
+    }
+    r_load_ref_46 = *(uint64_t *)(c_3 + 16 + 0);
+exit_load_ref_46:;
+    r_load_ref_46; });
     }
     top_2 = nframes - 1;
     m_16 = ({
     for (j_3 = top_2; j_3 >= 0; j_3--) {
         m_24 = (frames + j_3)->method;
         if ((({
-    p_4 = *(uint64_t *)(m_24 + 16 + 56);
-    r_method_prim_3 = (p_4 & 1) != 0 ? ((int64_t)p_4) >> 1 : 0;
+    p_15 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_47 = c4_load_ref(m_24, 7U);
+        goto exit_load_ref_47;
+    }
+    r_load_ref_47 = *(uint64_t *)(m_24 + 16 + 56);
+exit_load_ref_47:;
+    r_load_ref_47; });
+    r_method_prim_3 = (p_15 & 1) != 0 ? ((int64_t)p_15) >> 1 : 0;
     r_method_prim_3; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER) {
             r_unwind_frame_from_2 = j_3;
             goto exit_unwind_frame_from_2;
@@ -4816,18 +7622,37 @@ exit_unwind_frame_from_2:;
     cstack_used = 0;
     c_3 = active_ctx;
     for (;;) {
-        next = *(uint64_t *)(c_3 + 16 + 0);
-        ((oop *)(c_3 + 16))[CTX_PC] = nil_oop;
-        ((oop *)(c_3 + 16))[CTX_SENDER] = nil_oop;
+        next = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_48 = c4_load_ref(c_3, 0U);
+        goto exit_load_ref_48;
+    }
+    r_load_ref_48 = *(uint64_t *)(c_3 + 16 + 0);
+exit_load_ref_48:;
+    r_load_ref_48; });
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(c_3, 1U, nil_oop);
+        } else {
+            ((oop *)(c_3 + 16))[CTX_PC] = nil_oop;
+        }
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(c_3, 0U, nil_oop);
+        } else {
+            ((oop *)(c_3 + 16))[CTX_SENDER] = nil_oop;
+        }
         if (!(c_3 != home)) {
             break;
         }
         c_3 = next;
     }
     active_ctx = hs;
-    if (((hs & 7) == 0) && ((!(hs - young_lo < young_hi - young_lo)) && (((*(uint64_t *)hs) & H_REMEMBERED) == 0))) {
+    if (c4_enabled) {
+        goto exit_remember_if_old_3;
+    }
+    if (((hs & 7) == 0) && ((!((uint64_t)(hs - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)hs) & H_REMEMBERED) == 0))) {
         remember(hs);
     }
+exit_remember_if_old_3:;
     s_21 = (oop *)(active_ctx + 16);
     m_25 = s_21[CTX_METHOD];
     o_124 = ((oop *)(m_25 + 16))[CM_LITERALS];
@@ -4841,20 +7666,42 @@ exit_unwind_frame_from_2:;
         fprintf(stderr, "resuming a dead context");
         fatal_end();
     }
-    o_127 = *(uint64_t *)(m_25 + 16 + 24);
+    o_127 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_49 = c4_load_ref(m_25, 3U);
+        goto exit_load_ref_49;
+    }
+    r_load_ref_49 = *(uint64_t *)(m_25 + 16 + 24);
+exit_load_ref_49:;
+    r_load_ref_49; });
     o_128 = s_21[CTX_PC];
     ip = (uint8_t *)(o_127 + 16) + (((int64_t)o_128) >> 1);
     fr = (frame *)NULL;
     sp = sp + 1;
-    *sp = result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, result);
+    } else {
+        *sp = result;
+    }
     if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
         s_22 = (oop *)(active_ctx + 16);
         m_26 = s_22[CTX_METHOD];
-        o_129 = *(uint64_t *)(m_26 + 16 + 24);
-        v_116 = ip - (uint8_t *)(o_129 + 16);
-        s_22[CTX_PC] = (uint64_t)((v_116 << 1) | 1);
-        v_117 = sp - fp + 1;
-        s_22[CTX_STACKP] = (uint64_t)((v_117 << 1) | 1);
+        o_129 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_50 = c4_load_ref(m_26, 3U);
+        goto exit_load_ref_50;
+    }
+    r_load_ref_50 = *(uint64_t *)(m_26 + 16 + 24);
+exit_load_ref_50:;
+    r_load_ref_50; });
+        v_130 = ip - (uint8_t *)(o_129 + 16);
+        v_131 = (uint64_t)((v_130 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_131);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_131;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
         resume_context(false);
         if (nframes != 0) {
             fr = frames + (nframes - 1);
@@ -4876,22 +7723,47 @@ exit_unwind_frame_from_2:;
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_133 = *(uint64_t *)(m_27 + 16 + 24);
+            o_133 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_51 = c4_load_ref(m_27, 3U);
+        goto exit_load_ref_51;
+    }
+    r_load_ref_51 = *(uint64_t *)(m_27 + 16 + 24);
+exit_load_ref_51:;
+    r_load_ref_51; });
             o_134 = s_23[CTX_PC];
             ip = (uint8_t *)(o_133 + 16) + (((int64_t)o_134) >> 1);
             fr = (frame *)NULL;
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_126 = *(ip - 1);
     r_next_bytecode_126; })];
 op_push_temp_x:;
-    v_118 = fp[*ip];
+    v_132 = fp[*ip];
     sp = sp + 1;
-    *sp = v_118;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_132);
+    } else {
+        *sp = v_132;
+    }
     ip = ip + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_127 = *(ip - 1);
     r_next_bytecode_127; })];
@@ -4907,13 +7779,24 @@ op_push_inst_var_x:;
         } else {
             s_24 = (oop *)(active_ctx + 16);
             m_28 = s_24[CTX_METHOD];
-            o_135 = *(uint64_t *)(m_28 + 16 + 24);
-            v_120 = ip - (uint8_t *)(o_135 + 16);
-            s_24[CTX_PC] = (uint64_t)((v_120 << 1) | 1);
-            v_121 = sp - fp + 1;
-            s_24[CTX_STACKP] = (uint64_t)((v_121 << 1) | 1);
+            o_135 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_52 = c4_load_ref(m_28, 3U);
+        goto exit_load_ref_52;
+    }
+    r_load_ref_52 = *(uint64_t *)(m_28 + 16 + 24);
+exit_load_ref_52:;
+    r_load_ref_52; });
+            v_134 = ip - (uint8_t *)(o_135 + 16);
+            v_135 = (uint64_t)((v_134 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_135);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_135;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
-        v_119 = interpreter_context_field(i_2, fp[-1]);
+        v_133 = interpreter_context_field(i_2, fp[-1]);
         if (nframes != 0) {
             fr = frames + (nframes - 1);
             lits = fr->lits;
@@ -4934,53 +7817,131 @@ op_push_inst_var_x:;
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_139 = *(uint64_t *)(m_29 + 16 + 24);
+            o_139 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_53 = c4_load_ref(m_29, 3U);
+        goto exit_load_ref_53;
+    }
+    r_load_ref_53 = *(uint64_t *)(m_29 + 16 + 24);
+exit_load_ref_53:;
+    r_load_ref_53; });
             o_140 = s_25[CTX_PC];
             ip = (uint8_t *)(o_139 + 16) + (((int64_t)o_140) >> 1);
             fr = (frame *)NULL;
         }
-        if (v_119 == 0) {
+        if (v_133 == 0) {
             o_141 = fp[-1];
-            v_119 = ((oop *)(o_141 + 16))[i_2];
+            v_133 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_54 = c4_load_ref(o_141, (uint32_t)i_2);
+        goto exit_load_ref_54;
+    }
+    r_load_ref_54 = *(uint64_t *)(o_141 + 16 + 8 * i_2);
+exit_load_ref_54:;
+    r_load_ref_54; });
         }
         sp = sp + 1;
-        *sp = v_119;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_133);
+        } else {
+            *sp = v_133;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_128 = *(ip - 1);
     r_next_bytecode_128; })];
     }
     o_142 = fp[-1];
-    v_122 = ((oop *)(o_142 + 16))[i_2];
+    v_136 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_55 = c4_load_ref(o_142, (uint32_t)i_2);
+        goto exit_load_ref_55;
+    }
+    r_load_ref_55 = *(uint64_t *)(o_142 + 16 + 8 * i_2);
+exit_load_ref_55:;
+    r_load_ref_55; });
     sp = sp + 1;
-    *sp = v_122;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_136);
+    } else {
+        *sp = v_136;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_129 = *(ip - 1);
     r_next_bytecode_129; })];
 op_push_literal_x:;
-    v_123 = lits[*ip];
+    v_137 = lits[*ip];
     sp = sp + 1;
-    *sp = v_123;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_137);
+    } else {
+        *sp = v_137;
+    }
     ip = ip + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_130 = *(ip - 1);
     r_next_bytecode_130; })];
 op_push_literal_variable_x:;
     o_143 = lits[*ip];
-    v_124 = ((oop *)(o_143 + 16))[ASSOC_VALUE];
+    v_138 = ((oop *)(o_143 + 16))[ASSOC_VALUE];
     sp = sp + 1;
-    *sp = v_124;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_138);
+    } else {
+        *sp = v_138;
+    }
     ip = ip + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_131 = *(ip - 1);
     r_next_bytecode_131; })];
 op_store_temp_x:;
-    fp[*ip] = *sp;
+    p_16 = fp + *ip;
+    v_139 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_16, v_139);
+    } else {
+        *p_16 = v_139;
+    }
     ip = ip + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_132 = *(ip - 1);
     r_next_bytecode_132; })];
@@ -4989,44 +7950,102 @@ op_store_inst_var_x:;
     ip = ip + 1;
     r_3 = fp[-1];
     if (((*(uint64_t *)r_3) & H_IMMUTABLE) != 0) {
-        v_125 = *sp;
-        *sp = r_3;
+        v_140 = *sp;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, r_3);
+        } else {
+            *sp = r_3;
+        }
         sp = sp + 1;
-        *sp = v_125;
-        v_126 = i_3 + 1;
-        v_127 = (uint64_t)((((int64_t)v_126) << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_140);
+        } else {
+            *sp = v_140;
+        }
+        v_141 = i_3 + 1;
+        v_142 = (uint64_t)((((int64_t)v_141) << 1) | 1);
         sp = sp + 1;
-        *sp = v_127;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_142);
+        } else {
+            *sp = v_142;
+        }
         sel = object_memory_special(SO_SEL_ATTEMPTTOASSIGN);
         argc = 2;
         goto do_send;
     }
-    v_128 = *sp;
-    *(uint64_t *)(r_3 + 16 + 8 * i_3) = v_128;
-    if (((v_128 & 7) == 0) && (((uint64_t)(v_128 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r_3) & H_REMEMBERED) == 0)))) {
+    v_143 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (((i_3 == CM_LITERALS) || ((i_3 == CM_BYTECODES) || (i_3 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r_3, (uint32_t)i_3, v_143)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        if ((i_3 == CTX_STACKP) && (*(uint64_t *)(r_3 + 8) == cls_context)) {
+            c4_store_context_stackp(r_3, v_143);
+        } else {
+            c4_heap_store_ref(r_3, (uint32_t)i_3, v_143);
+        }
+        goto exit_store_ref;
+    }
+    *(uint64_t *)(r_3 + 16 + 8 * i_3) = v_143;
+    if (((v_143 & 7) == 0) && (((uint64_t)(v_143 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r_3) & H_REMEMBERED) == 0)))) {
         remember(r_3);
     }
+exit_store_ref:;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_133 = *(ip - 1);
     r_next_bytecode_133; })];
 op_store_literal_variable_x:;
     o_144 = lits[*ip];
-    v_129 = *sp;
-    *(uint64_t *)(o_144 + 16 + 8) = v_129;
-    if (((v_129 & 7) == 0) && (((uint64_t)(v_129 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_144 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_144) & H_REMEMBERED) == 0)))) {
+    v_144 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o_144, 1U, v_144);
+        goto exit_store_ref_2;
+    }
+    *(uint64_t *)(o_144 + 16 + 8) = v_144;
+    if (((v_144 & 7) == 0) && (((uint64_t)(v_144 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_144 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_144) & H_REMEMBERED) == 0)))) {
         remember(o_144);
     }
+exit_store_ref_2:;
     ip = ip + 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_134 = *(ip - 1);
     r_next_bytecode_134; })];
 op_pop_store_temp_x:;
-    fp[*ip] = *sp;
+    p_17 = fp + *ip;
+    v_145 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_17, v_145);
+    } else {
+        *p_17 = v_145;
+    }
     ip = ip + 1;
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_135 = *(ip - 1);
     r_next_bytecode_135; })];
@@ -5051,7 +8070,14 @@ op_store_context_inst_var_x:;
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_148 = *(uint64_t *)(m_30 + 16 + 24);
+            o_148 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_56 = c4_load_ref(m_30, 3U);
+        goto exit_load_ref_56;
+    }
+    r_load_ref_56 = *(uint64_t *)(m_30 + 16 + 24);
+exit_load_ref_56:;
+    r_load_ref_56; });
             o_149 = s_26[CTX_PC];
             ip = (uint8_t *)(o_148 + 16) + (((int64_t)o_149) >> 1);
             fr = (frame *)NULL;
@@ -5060,14 +8086,26 @@ op_store_context_inst_var_x:;
     goto op_store_inst_var_x;
 op_pop_store_literal_variable_x:;
     o_150 = lits[*ip];
-    v_130 = *sp;
-    *(uint64_t *)(o_150 + 16 + 8) = v_130;
-    if (((v_130 & 7) == 0) && (((uint64_t)(v_130 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_150 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_150) & H_REMEMBERED) == 0)))) {
+    v_146 = *sp;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o_150, 1U, v_146);
+        goto exit_store_ref_3;
+    }
+    *(uint64_t *)(o_150 + 16 + 8) = v_146;
+    if (((v_146 & 7) == 0) && (((uint64_t)(v_146 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_150 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_150) & H_REMEMBERED) == 0)))) {
         remember(o_150);
     }
+exit_store_ref_3:;
     ip = ip + 1;
     sp = sp - 1;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_136 = *(ip - 1);
     r_next_bytecode_136; })];
@@ -5076,50 +8114,137 @@ op_outer_temp:;
     d = (int32_t)ip[0];
     i_4 = ip[1];
     ip = ip + 2;
-    cl = fr != NULL ? fr->closure : *(uint64_t *)(active_ctx + 16 + 32);
-    c_5 = *(uint64_t *)(cl + 16 + 0);
+    cl = fr != NULL ? fr->closure : ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_57 = c4_load_ref(active_ctx, 4U);
+        goto exit_load_ref_57;
+    }
+    r_load_ref_57 = *(uint64_t *)(active_ctx + 16 + 32);
+exit_load_ref_57:;
+    r_load_ref_57; });
+    c_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_58 = c4_load_ref(cl, 0U);
+        goto exit_load_ref_58;
+    }
+    r_load_ref_58 = *(uint64_t *)(cl + 16 + 0);
+exit_load_ref_58:;
+    r_load_ref_58; });
     for (;;) {
         d = d - 1;
         if (!(d > 0)) {
             break;
         }
-        o_151 = *(uint64_t *)(c_5 + 16 + 32);
-        c_5 = *(uint64_t *)(o_151 + 16 + 0);
+        o_151 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_59 = c4_load_ref(c_5, 4U);
+        goto exit_load_ref_59;
     }
-    k = *(uint64_t *)(c_5 + 16 + 0);
+    r_load_ref_59 = *(uint64_t *)(c_5 + 16 + 32);
+exit_load_ref_59:;
+    r_load_ref_59; });
+        c_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_60 = c4_load_ref(o_151, 0U);
+        goto exit_load_ref_60;
+    }
+    r_load_ref_60 = *(uint64_t *)(o_151 + 16 + 0);
+exit_load_ref_60:;
+    r_load_ref_60; });
+    }
+    k = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_61 = c4_load_ref(c_5, 0U);
+        goto exit_load_ref_61;
+    }
+    r_load_ref_61 = *(uint64_t *)(c_5 + 16 + 0);
+exit_load_ref_61:;
+    r_load_ref_61; });
     if ((k & 1) != 0) {
         if (op == 0x8A) {
-            v_131 = (frames + (((int64_t)k) >> 1))->fp[i_4];
+            v_147 = (frames + (((int64_t)k) >> 1))->fp[i_4];
             sp = sp + 1;
-            *sp = v_131;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_147);
+            } else {
+                *sp = v_147;
+            }
         } else {
-            (frames + (((int64_t)k) >> 1))->fp[i_4] = *sp;
+            p_18 = (frames + (((int64_t)k) >> 1))->fp + i_4;
+            v_148 = *sp;
+            if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+                i_5 = (uint64_t)(p_18 - cstack);
+                if ((i_5 >= c4_stack_next) && ((i_5 < c4_stack_limit) && (!c4_saved_stack_bits[i_5]))) {
+                    c4_saved_stack[i_5] = *p_18;
+                    c4_saved_stack_bits[i_5] = true;
+                }
+            }
+            *p_18 = v_148;
             if (op == 0x8C) {
                 sp = sp - 1;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_137 = *(ip - 1);
     r_next_bytecode_137; })];
     }
     if (op == 0x8A) {
-        i_5 = CTX_FIXED + i_4;
-        v_132 = *(uint64_t *)(c_5 + 16 + 8 * i_5);
-        sp = sp + 1;
-        *sp = v_132;
-    } else {
         i_6 = CTX_FIXED + i_4;
-        v_133 = *sp;
-        *(uint64_t *)(c_5 + 16 + 8 * i_6) = v_133;
-        if (((v_133 & 7) == 0) && (((uint64_t)(v_133 - young_lo) < young_hi - young_lo) && ((!(c_5 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)c_5) & H_REMEMBERED) == 0)))) {
+        v_149 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_6 >= CTX_FIXED)) {
+        r_load_ref_62 = c4_load_ref(c_5, (uint32_t)i_6);
+        goto exit_load_ref_62;
+    }
+    r_load_ref_62 = *(uint64_t *)(c_5 + 16 + 8 * i_6);
+exit_load_ref_62:;
+    r_load_ref_62; });
+        sp = sp + 1;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_149);
+        } else {
+            *sp = v_149;
+        }
+    } else {
+        i_7 = CTX_FIXED + i_4;
+        v_150 = *sp;
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((i_7 == CM_LITERALS) || ((i_7 == CM_BYTECODES) || (i_7 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(c_5, (uint32_t)i_7, v_150)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((i_7 == CTX_STACKP) && (*(uint64_t *)(c_5 + 8) == cls_context)) {
+                c4_store_context_stackp(c_5, v_150);
+            } else {
+                c4_heap_store_ref(c_5, (uint32_t)i_7, v_150);
+            }
+            goto exit_store_ref_4;
+        }
+        *(uint64_t *)(c_5 + 16 + 8 * i_7) = v_150;
+        if (((v_150 & 7) == 0) && (((uint64_t)(v_150 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(c_5 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)c_5) & H_REMEMBERED) == 0)))) {
             remember(c_5);
         }
+    exit_store_ref_4:;
         if (op == 0x8C) {
             sp = sp - 1;
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_138 = *(ip - 1);
     r_next_bytecode_138; })];
@@ -5132,9 +8257,30 @@ op_super_send:;
     sel = lits[ip[0]];
     argc = ip[1];
     ip = ip + 2;
-    o_152 = fr != NULL ? fr->method : *(uint64_t *)(active_ctx + 16 + 24);
-    o_153 = *(uint64_t *)(o_152 + 16 + 8);
-    cls = *(uint64_t *)(o_153 + 16 + 0);
+    o_152 = fr != NULL ? fr->method : ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_63 = c4_load_ref(active_ctx, 3U);
+        goto exit_load_ref_63;
+    }
+    r_load_ref_63 = *(uint64_t *)(active_ctx + 16 + 24);
+exit_load_ref_63:;
+    r_load_ref_63; });
+    o_153 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_64 = c4_load_ref(o_152, 1U);
+        goto exit_load_ref_64;
+    }
+    r_load_ref_64 = *(uint64_t *)(o_152 + 16 + 8);
+exit_load_ref_64:;
+    r_load_ref_64; });
+    cls = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_65 = c4_load_ref(o_153, 0U);
+        goto exit_load_ref_65;
+    }
+    r_load_ref_65 = *(uint64_t *)(o_153 + 16 + 0);
+exit_load_ref_65:;
+    r_load_ref_65; });
     goto do_site_lookup;
 op_closure:;
     na = ip[0];
@@ -5148,19 +8294,37 @@ op_closure:;
         fr->sp = (int32_t)(sp - fp + 1);
         cstack_used = (uint64_t)(sp + 1 - cstack);
     } else {
-        s_28 = (oop *)(active_ctx + 16);
-        m_31 = s_28[CTX_METHOD];
-        o_154 = *(uint64_t *)(m_31 + 16 + 24);
-        v_134 = ip - (uint8_t *)(o_154 + 16);
-        s_28[CTX_PC] = (uint64_t)((v_134 << 1) | 1);
-        v_135 = sp - fp + 1;
-        s_28[CTX_STACKP] = (uint64_t)((v_135 << 1) | 1);
+        s_27 = (oop *)(active_ctx + 16);
+        m_31 = s_27[CTX_METHOD];
+        o_154 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_66 = c4_load_ref(m_31, 3U);
+        goto exit_load_ref_66;
+    }
+    r_load_ref_66 = *(uint64_t *)(m_31 + 16 + 24);
+exit_load_ref_66:;
+    r_load_ref_66; });
+        v_151 = ip - (uint8_t *)(o_154 + 16);
+        v_152 = (uint64_t)((v_151 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_152);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_152;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
     }
     if (fr != NULL) {
         marry(fr);
     }
     bc = cls_block;
-    o_155 = *(uint64_t *)(bc + 16 + 16);
+    o_155 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_67 = c4_load_ref(bc, 2U);
+        goto exit_load_ref_67;
+    }
+    r_load_ref_67 = *(uint64_t *)(bc + 16 + 16);
+exit_load_ref_67:;
+    r_load_ref_67; });
     isize = (((int64_t)o_155) >> 1) & CLS_INSTSIZE_MASK;
     b = alloc_obj(bc, F_FIXED, (uint32_t)(isize < 5 ? 5 : isize));
     if (nframes != 0) {
@@ -5170,40 +8334,100 @@ op_closure:;
         sp = fp + fr->sp - 1;
         ip = fr->ip;
     } else {
-        s_29 = (oop *)(active_ctx + 16);
-        m_32 = s_29[CTX_METHOD];
+        s_28 = (oop *)(active_ctx + 16);
+        m_32 = s_28[CTX_METHOD];
         o_156 = ((oop *)(m_32 + 16))[CM_LITERALS];
         lits = (oop *)(o_156 + 16);
-        fp = s_29 + CTX_FIXED;
-        o_157 = s_29[CTX_STACKP];
+        fp = s_28 + CTX_FIXED;
+        o_157 = s_28[CTX_STACKP];
         sp = fp + (((int64_t)o_157) >> 1) - 1;
-        o_158 = s_29[CTX_PC];
+        o_158 = s_28[CTX_PC];
         if (!((o_158 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_159 = *(uint64_t *)(m_32 + 16 + 24);
-        o_160 = s_29[CTX_PC];
+        o_159 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_68 = c4_load_ref(m_32, 3U);
+        goto exit_load_ref_68;
+    }
+    r_load_ref_68 = *(uint64_t *)(m_32 + 16 + 24);
+exit_load_ref_68:;
+    r_load_ref_68; });
+        o_160 = s_28[CTX_PC];
         ip = (uint8_t *)(o_159 + 16) + (((int64_t)o_160) >> 1);
         fr = (frame *)NULL;
     }
-    s_27 = (oop *)(b + 16);
-    s_27[BC_OUTER] = fr != NULL ? fr->ctx : active_ctx;
-    m_33 = fr != NULL ? fr->method : *(uint64_t *)(active_ctx + 16 + 24);
-    o_161 = *(uint64_t *)(m_33 + 16 + 24);
-    v_136 = ip - (uint8_t *)(o_161 + 16);
-    s_27[BC_STARTPC] = (uint64_t)((v_136 << 1) | 1);
-    s_27[BC_NUMARGS] = (uint64_t)((((int64_t)na) << 1) | 1);
-    s_27[BC_NUMTEMPS] = (uint64_t)((((int64_t)nt) << 1) | 1);
-    s_27[BC_FRAMESIZE] = (uint64_t)((((int64_t)fs) << 1) | 1);
+    v_153 = fr != NULL ? fr->ctx : active_ctx;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(b, 0U, v_153);
+    } else {
+        ((oop *)(b + 16))[BC_OUTER] = v_153;
+    }
+    m_33 = fr != NULL ? fr->method : ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_69 = c4_load_ref(active_ctx, 3U);
+        goto exit_load_ref_69;
+    }
+    r_load_ref_69 = *(uint64_t *)(active_ctx + 16 + 24);
+exit_load_ref_69:;
+    r_load_ref_69; });
+    o_161 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_70 = c4_load_ref(m_33, 3U);
+        goto exit_load_ref_70;
+    }
+    r_load_ref_70 = *(uint64_t *)(m_33 + 16 + 24);
+exit_load_ref_70:;
+    r_load_ref_70; });
+    v_154 = ip - (uint8_t *)(o_161 + 16);
+    v_155 = (uint64_t)((v_154 << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(b, 1U, v_155);
+    } else {
+        ((oop *)(b + 16))[BC_STARTPC] = v_155;
+    }
+    v_156 = (uint64_t)((((int64_t)na) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(b, 2U, v_156);
+    } else {
+        ((oop *)(b + 16))[BC_NUMARGS] = v_156;
+    }
+    v_157 = (uint64_t)((((int64_t)nt) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(b, 3U, v_157);
+    } else {
+        ((oop *)(b + 16))[BC_NUMTEMPS] = v_157;
+    }
+    v_158 = (uint64_t)((((int64_t)fs) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(b, 4U, v_158);
+    } else {
+        ((oop *)(b + 16))[BC_FRAMESIZE] = v_158;
+    }
+    if (c4_enabled) {
+        goto exit_remember_if_old_4;
+    }
     if (((b & 7) == 0) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)b) & H_REMEMBERED) == 0))) {
         remember(b);
     }
+exit_remember_if_old_4:;
     sp = sp + 1;
-    *sp = b;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, b);
+    } else {
+        *sp = b;
+    }
     ip = ip + size;
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_139 = *(ip - 1);
     r_next_bytecode_139; })];
@@ -5218,13 +8442,24 @@ op_jump:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_30 = (oop *)(active_ctx + 16);
-                m_34 = s_30[CTX_METHOD];
-                o_163 = *(uint64_t *)(m_34 + 16 + 24);
-                v_137 = ip - (uint8_t *)(o_163 + 16);
-                s_30[CTX_PC] = (uint64_t)((v_137 << 1) | 1);
-                v_138 = sp - fp + 1;
-                s_30[CTX_STACKP] = (uint64_t)((v_138 << 1) | 1);
+                s_29 = (oop *)(active_ctx + 16);
+                m_34 = s_29[CTX_METHOD];
+                o_163 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_71 = c4_load_ref(m_34, 3U);
+        goto exit_load_ref_71;
+    }
+    r_load_ref_71 = *(uint64_t *)(m_34 + 16 + 24);
+exit_load_ref_71:;
+    r_load_ref_71; });
+                v_159 = ip - (uint8_t *)(o_163 + 16);
+                v_160 = (uint64_t)((v_159 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_160);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_160;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             interrupt_safepoint();
             if (nframes != 0) {
@@ -5234,21 +8469,28 @@ op_jump:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_31 = (oop *)(active_ctx + 16);
-                m_35 = s_31[CTX_METHOD];
+                s_30 = (oop *)(active_ctx + 16);
+                m_35 = s_30[CTX_METHOD];
                 o_164 = ((oop *)(m_35 + 16))[CM_LITERALS];
                 lits = (oop *)(o_164 + 16);
-                fp = s_31 + CTX_FIXED;
-                o_165 = s_31[CTX_STACKP];
+                fp = s_30 + CTX_FIXED;
+                o_165 = s_30[CTX_STACKP];
                 sp = fp + (((int64_t)o_165) >> 1) - 1;
-                o_166 = s_31[CTX_PC];
+                o_166 = s_30[CTX_PC];
                 if (!((o_166 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_167 = *(uint64_t *)(m_35 + 16 + 24);
-                o_168 = s_31[CTX_PC];
+                o_167 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_72 = c4_load_ref(m_35, 3U);
+        goto exit_load_ref_72;
+    }
+    r_load_ref_72 = *(uint64_t *)(m_35 + 16 + 24);
+exit_load_ref_72:;
+    r_load_ref_72; });
+                o_168 = s_30[CTX_PC];
                 ip = (uint8_t *)(o_167 + 16) + (((int64_t)o_168) >> 1);
                 fr = (frame *)NULL;
             }
@@ -5261,13 +8503,24 @@ op_jump:;
                     fr->sp = (int32_t)(sp - fp + 1);
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
-                    s_32 = (oop *)(active_ctx + 16);
-                    m_36 = s_32[CTX_METHOD];
-                    o_169 = *(uint64_t *)(m_36 + 16 + 24);
-                    v_139 = ip - (uint8_t *)(o_169 + 16);
-                    s_32[CTX_PC] = (uint64_t)((v_139 << 1) | 1);
-                    v_140 = sp - fp + 1;
-                    s_32[CTX_STACKP] = (uint64_t)((v_140 << 1) | 1);
+                    s_31 = (oop *)(active_ctx + 16);
+                    m_36 = s_31[CTX_METHOD];
+                    o_169 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_73 = c4_load_ref(m_36, 3U);
+        goto exit_load_ref_73;
+    }
+    r_load_ref_73 = *(uint64_t *)(m_36 + 16 + 24);
+exit_load_ref_73:;
+    r_load_ref_73; });
+                    v_161 = ip - (uint8_t *)(o_169 + 16);
+                    v_162 = (uint64_t)((v_161 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_162);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_162;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 jit_runtime_back_jump(fr);
                 if (nframes != 0) {
@@ -5277,33 +8530,51 @@ op_jump:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_33 = (oop *)(active_ctx + 16);
-                    m_37 = s_33[CTX_METHOD];
+                    s_32 = (oop *)(active_ctx + 16);
+                    m_37 = s_32[CTX_METHOD];
                     o_170 = ((oop *)(m_37 + 16))[CM_LITERALS];
                     lits = (oop *)(o_170 + 16);
-                    fp = s_33 + CTX_FIXED;
-                    o_171 = s_33[CTX_STACKP];
+                    fp = s_32 + CTX_FIXED;
+                    o_171 = s_32[CTX_STACKP];
                     sp = fp + (((int64_t)o_171) >> 1) - 1;
-                    o_172 = s_33[CTX_PC];
+                    o_172 = s_32[CTX_PC];
                     if (!((o_172 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_173 = *(uint64_t *)(m_37 + 16 + 24);
-                    o_174 = s_33[CTX_PC];
+                    o_173 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_74 = c4_load_ref(m_37, 3U);
+        goto exit_load_ref_74;
+    }
+    r_load_ref_74 = *(uint64_t *)(m_37 + 16 + 24);
+exit_load_ref_74:;
+    r_load_ref_74; });
+                    o_174 = s_32[CTX_PC];
                     ip = (uint8_t *)(o_173 + 16) + (((int64_t)o_174) >> 1);
                     fr = (frame *)NULL;
                 }
             }
         } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-            s_34 = (oop *)(active_ctx + 16);
-            m_38 = s_34[CTX_METHOD];
-            o_175 = *(uint64_t *)(m_38 + 16 + 24);
-            v_141 = ip - (uint8_t *)(o_175 + 16);
-            s_34[CTX_PC] = (uint64_t)((v_141 << 1) | 1);
-            v_142 = sp - fp + 1;
-            s_34[CTX_STACKP] = (uint64_t)((v_142 << 1) | 1);
+            s_33 = (oop *)(active_ctx + 16);
+            m_38 = s_33[CTX_METHOD];
+            o_175 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_75 = c4_load_ref(m_38, 3U);
+        goto exit_load_ref_75;
+    }
+    r_load_ref_75 = *(uint64_t *)(m_38 + 16 + 24);
+exit_load_ref_75:;
+    r_load_ref_75; });
+            v_163 = ip - (uint8_t *)(o_175 + 16);
+            v_164 = (uint64_t)((v_163 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_164);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_164;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
             resume_context(true);
             if (nframes != 0) {
                 fr = frames + (nframes - 1);
@@ -5312,36 +8583,50 @@ op_jump:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_35 = (oop *)(active_ctx + 16);
-                m_39 = s_35[CTX_METHOD];
+                s_34 = (oop *)(active_ctx + 16);
+                m_39 = s_34[CTX_METHOD];
                 o_176 = ((oop *)(m_39 + 16))[CM_LITERALS];
                 lits = (oop *)(o_176 + 16);
-                fp = s_35 + CTX_FIXED;
-                o_177 = s_35[CTX_STACKP];
+                fp = s_34 + CTX_FIXED;
+                o_177 = s_34[CTX_STACKP];
                 sp = fp + (((int64_t)o_177) >> 1) - 1;
-                o_178 = s_35[CTX_PC];
+                o_178 = s_34[CTX_PC];
                 if (!((o_178 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_179 = *(uint64_t *)(m_39 + 16 + 24);
-                o_180 = s_35[CTX_PC];
+                o_179 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_76 = c4_load_ref(m_39, 3U);
+        goto exit_load_ref_76;
+    }
+    r_load_ref_76 = *(uint64_t *)(m_39 + 16 + 24);
+exit_load_ref_76:;
+    r_load_ref_76; });
+                o_180 = s_34[CTX_PC];
                 ip = (uint8_t *)(o_179 + 16) + (((int64_t)o_180) >> 1);
                 fr = (frame *)NULL;
             }
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_140 = *(ip - 1);
     r_next_bytecode_140; })];
 op_conditional_jump_91:;
-    v_143 = *sp;
+    v_165 = *sp;
     sp = sp - 1;
     o_181 = *(int16_t *)(uint64_t)ip;
     ip = ip + 2;
-    if (v_143 == true_oop) {
+    if (v_165 == true_oop) {
         ip = ip + o_181;
         if (o_181 < 0) {
             if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
@@ -5351,13 +8636,24 @@ op_conditional_jump_91:;
                     fr->sp = (int32_t)(sp - fp + 1);
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
-                    s_36 = (oop *)(active_ctx + 16);
-                    m_40 = s_36[CTX_METHOD];
-                    o_182 = *(uint64_t *)(m_40 + 16 + 24);
-                    v_144 = ip - (uint8_t *)(o_182 + 16);
-                    s_36[CTX_PC] = (uint64_t)((v_144 << 1) | 1);
-                    v_145 = sp - fp + 1;
-                    s_36[CTX_STACKP] = (uint64_t)((v_145 << 1) | 1);
+                    s_35 = (oop *)(active_ctx + 16);
+                    m_40 = s_35[CTX_METHOD];
+                    o_182 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_77 = c4_load_ref(m_40, 3U);
+        goto exit_load_ref_77;
+    }
+    r_load_ref_77 = *(uint64_t *)(m_40 + 16 + 24);
+exit_load_ref_77:;
+    r_load_ref_77; });
+                    v_166 = ip - (uint8_t *)(o_182 + 16);
+                    v_167 = (uint64_t)((v_166 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_167);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_167;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 interrupt_safepoint();
                 if (nframes != 0) {
@@ -5367,21 +8663,28 @@ op_conditional_jump_91:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_37 = (oop *)(active_ctx + 16);
-                    m_41 = s_37[CTX_METHOD];
+                    s_36 = (oop *)(active_ctx + 16);
+                    m_41 = s_36[CTX_METHOD];
                     o_183 = ((oop *)(m_41 + 16))[CM_LITERALS];
                     lits = (oop *)(o_183 + 16);
-                    fp = s_37 + CTX_FIXED;
-                    o_184 = s_37[CTX_STACKP];
+                    fp = s_36 + CTX_FIXED;
+                    o_184 = s_36[CTX_STACKP];
                     sp = fp + (((int64_t)o_184) >> 1) - 1;
-                    o_185 = s_37[CTX_PC];
+                    o_185 = s_36[CTX_PC];
                     if (!((o_185 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_186 = *(uint64_t *)(m_41 + 16 + 24);
-                    o_187 = s_37[CTX_PC];
+                    o_186 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_78 = c4_load_ref(m_41, 3U);
+        goto exit_load_ref_78;
+    }
+    r_load_ref_78 = *(uint64_t *)(m_41 + 16 + 24);
+exit_load_ref_78:;
+    r_load_ref_78; });
+                    o_187 = s_36[CTX_PC];
                     ip = (uint8_t *)(o_186 + 16) + (((int64_t)o_187) >> 1);
                     fr = (frame *)NULL;
                 }
@@ -5394,13 +8697,24 @@ op_conditional_jump_91:;
                         fr->sp = (int32_t)(sp - fp + 1);
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
-                        s_38 = (oop *)(active_ctx + 16);
-                        m_42 = s_38[CTX_METHOD];
-                        o_188 = *(uint64_t *)(m_42 + 16 + 24);
-                        v_146 = ip - (uint8_t *)(o_188 + 16);
-                        s_38[CTX_PC] = (uint64_t)((v_146 << 1) | 1);
-                        v_147 = sp - fp + 1;
-                        s_38[CTX_STACKP] = (uint64_t)((v_147 << 1) | 1);
+                        s_37 = (oop *)(active_ctx + 16);
+                        m_42 = s_37[CTX_METHOD];
+                        o_188 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_79 = c4_load_ref(m_42, 3U);
+        goto exit_load_ref_79;
+    }
+    r_load_ref_79 = *(uint64_t *)(m_42 + 16 + 24);
+exit_load_ref_79:;
+    r_load_ref_79; });
+                        v_168 = ip - (uint8_t *)(o_188 + 16);
+                        v_169 = (uint64_t)((v_168 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_169);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_169;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                     }
                     jit_runtime_back_jump(fr);
                     if (nframes != 0) {
@@ -5410,33 +8724,51 @@ op_conditional_jump_91:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_39 = (oop *)(active_ctx + 16);
-                        m_43 = s_39[CTX_METHOD];
+                        s_38 = (oop *)(active_ctx + 16);
+                        m_43 = s_38[CTX_METHOD];
                         o_189 = ((oop *)(m_43 + 16))[CM_LITERALS];
                         lits = (oop *)(o_189 + 16);
-                        fp = s_39 + CTX_FIXED;
-                        o_190 = s_39[CTX_STACKP];
+                        fp = s_38 + CTX_FIXED;
+                        o_190 = s_38[CTX_STACKP];
                         sp = fp + (((int64_t)o_190) >> 1) - 1;
-                        o_191 = s_39[CTX_PC];
+                        o_191 = s_38[CTX_PC];
                         if (!((o_191 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_192 = *(uint64_t *)(m_43 + 16 + 24);
-                        o_193 = s_39[CTX_PC];
+                        o_192 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_80 = c4_load_ref(m_43, 3U);
+        goto exit_load_ref_80;
+    }
+    r_load_ref_80 = *(uint64_t *)(m_43 + 16 + 24);
+exit_load_ref_80:;
+    r_load_ref_80; });
+                        o_193 = s_38[CTX_PC];
                         ip = (uint8_t *)(o_192 + 16) + (((int64_t)o_193) >> 1);
                         fr = (frame *)NULL;
                     }
                 }
             } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                s_40 = (oop *)(active_ctx + 16);
-                m_44 = s_40[CTX_METHOD];
-                o_194 = *(uint64_t *)(m_44 + 16 + 24);
-                v_148 = ip - (uint8_t *)(o_194 + 16);
-                s_40[CTX_PC] = (uint64_t)((v_148 << 1) | 1);
-                v_149 = sp - fp + 1;
-                s_40[CTX_STACKP] = (uint64_t)((v_149 << 1) | 1);
+                s_39 = (oop *)(active_ctx + 16);
+                m_44 = s_39[CTX_METHOD];
+                o_194 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_81 = c4_load_ref(m_44, 3U);
+        goto exit_load_ref_81;
+    }
+    r_load_ref_81 = *(uint64_t *)(m_44 + 16 + 24);
+exit_load_ref_81:;
+    r_load_ref_81; });
+                v_170 = ip - (uint8_t *)(o_194 + 16);
+                v_171 = (uint64_t)((v_170 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_171);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_171;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
                 resume_context(true);
                 if (nframes != 0) {
                     fr = frames + (nframes - 1);
@@ -5445,44 +8777,62 @@ op_conditional_jump_91:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_41 = (oop *)(active_ctx + 16);
-                    m_45 = s_41[CTX_METHOD];
+                    s_40 = (oop *)(active_ctx + 16);
+                    m_45 = s_40[CTX_METHOD];
                     o_195 = ((oop *)(m_45 + 16))[CM_LITERALS];
                     lits = (oop *)(o_195 + 16);
-                    fp = s_41 + CTX_FIXED;
-                    o_196 = s_41[CTX_STACKP];
+                    fp = s_40 + CTX_FIXED;
+                    o_196 = s_40[CTX_STACKP];
                     sp = fp + (((int64_t)o_196) >> 1) - 1;
-                    o_197 = s_41[CTX_PC];
+                    o_197 = s_40[CTX_PC];
                     if (!((o_197 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_198 = *(uint64_t *)(m_45 + 16 + 24);
-                    o_199 = s_41[CTX_PC];
+                    o_198 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_82 = c4_load_ref(m_45, 3U);
+        goto exit_load_ref_82;
+    }
+    r_load_ref_82 = *(uint64_t *)(m_45 + 16 + 24);
+exit_load_ref_82:;
+    r_load_ref_82; });
+                    o_199 = s_40[CTX_PC];
                     ip = (uint8_t *)(o_198 + 16) + (((int64_t)o_199) >> 1);
                     fr = (frame *)NULL;
                 }
             }
         }
-    } else if (v_143 != false_oop) {
+    } else if (v_165 != false_oop) {
         ip = ip - 3;
         sp = sp + 1;
-        *sp = v_143;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_165);
+        } else {
+            *sp = v_165;
+        }
         sel = object_memory_special(SO_SEL_MUSTBEBOOLEAN);
         argc = 0;
         goto do_send;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_141 = *(ip - 1);
     r_next_bytecode_141; })];
 op_conditional_jump_92:;
-    v_150 = *sp;
+    v_172 = *sp;
     sp = sp - 1;
     o_200 = *(int16_t *)(uint64_t)ip;
     ip = ip + 2;
-    if (v_150 == false_oop) {
+    if (v_172 == false_oop) {
         ip = ip + o_200;
         if (o_200 < 0) {
             if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
@@ -5492,13 +8842,24 @@ op_conditional_jump_92:;
                     fr->sp = (int32_t)(sp - fp + 1);
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
-                    s_42 = (oop *)(active_ctx + 16);
-                    m_46 = s_42[CTX_METHOD];
-                    o_201 = *(uint64_t *)(m_46 + 16 + 24);
-                    v_151 = ip - (uint8_t *)(o_201 + 16);
-                    s_42[CTX_PC] = (uint64_t)((v_151 << 1) | 1);
-                    v_152 = sp - fp + 1;
-                    s_42[CTX_STACKP] = (uint64_t)((v_152 << 1) | 1);
+                    s_41 = (oop *)(active_ctx + 16);
+                    m_46 = s_41[CTX_METHOD];
+                    o_201 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_83 = c4_load_ref(m_46, 3U);
+        goto exit_load_ref_83;
+    }
+    r_load_ref_83 = *(uint64_t *)(m_46 + 16 + 24);
+exit_load_ref_83:;
+    r_load_ref_83; });
+                    v_173 = ip - (uint8_t *)(o_201 + 16);
+                    v_174 = (uint64_t)((v_173 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_174);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_174;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 interrupt_safepoint();
                 if (nframes != 0) {
@@ -5508,21 +8869,28 @@ op_conditional_jump_92:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_43 = (oop *)(active_ctx + 16);
-                    m_47 = s_43[CTX_METHOD];
+                    s_42 = (oop *)(active_ctx + 16);
+                    m_47 = s_42[CTX_METHOD];
                     o_202 = ((oop *)(m_47 + 16))[CM_LITERALS];
                     lits = (oop *)(o_202 + 16);
-                    fp = s_43 + CTX_FIXED;
-                    o_203 = s_43[CTX_STACKP];
+                    fp = s_42 + CTX_FIXED;
+                    o_203 = s_42[CTX_STACKP];
                     sp = fp + (((int64_t)o_203) >> 1) - 1;
-                    o_204 = s_43[CTX_PC];
+                    o_204 = s_42[CTX_PC];
                     if (!((o_204 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_205 = *(uint64_t *)(m_47 + 16 + 24);
-                    o_206 = s_43[CTX_PC];
+                    o_205 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_84 = c4_load_ref(m_47, 3U);
+        goto exit_load_ref_84;
+    }
+    r_load_ref_84 = *(uint64_t *)(m_47 + 16 + 24);
+exit_load_ref_84:;
+    r_load_ref_84; });
+                    o_206 = s_42[CTX_PC];
                     ip = (uint8_t *)(o_205 + 16) + (((int64_t)o_206) >> 1);
                     fr = (frame *)NULL;
                 }
@@ -5535,13 +8903,24 @@ op_conditional_jump_92:;
                         fr->sp = (int32_t)(sp - fp + 1);
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
-                        s_44 = (oop *)(active_ctx + 16);
-                        m_48 = s_44[CTX_METHOD];
-                        o_207 = *(uint64_t *)(m_48 + 16 + 24);
-                        v_153 = ip - (uint8_t *)(o_207 + 16);
-                        s_44[CTX_PC] = (uint64_t)((v_153 << 1) | 1);
-                        v_154 = sp - fp + 1;
-                        s_44[CTX_STACKP] = (uint64_t)((v_154 << 1) | 1);
+                        s_43 = (oop *)(active_ctx + 16);
+                        m_48 = s_43[CTX_METHOD];
+                        o_207 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_85 = c4_load_ref(m_48, 3U);
+        goto exit_load_ref_85;
+    }
+    r_load_ref_85 = *(uint64_t *)(m_48 + 16 + 24);
+exit_load_ref_85:;
+    r_load_ref_85; });
+                        v_175 = ip - (uint8_t *)(o_207 + 16);
+                        v_176 = (uint64_t)((v_175 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_176);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_176;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                     }
                     jit_runtime_back_jump(fr);
                     if (nframes != 0) {
@@ -5551,33 +8930,51 @@ op_conditional_jump_92:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_45 = (oop *)(active_ctx + 16);
-                        m_49 = s_45[CTX_METHOD];
+                        s_44 = (oop *)(active_ctx + 16);
+                        m_49 = s_44[CTX_METHOD];
                         o_208 = ((oop *)(m_49 + 16))[CM_LITERALS];
                         lits = (oop *)(o_208 + 16);
-                        fp = s_45 + CTX_FIXED;
-                        o_209 = s_45[CTX_STACKP];
+                        fp = s_44 + CTX_FIXED;
+                        o_209 = s_44[CTX_STACKP];
                         sp = fp + (((int64_t)o_209) >> 1) - 1;
-                        o_210 = s_45[CTX_PC];
+                        o_210 = s_44[CTX_PC];
                         if (!((o_210 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_211 = *(uint64_t *)(m_49 + 16 + 24);
-                        o_212 = s_45[CTX_PC];
+                        o_211 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_86 = c4_load_ref(m_49, 3U);
+        goto exit_load_ref_86;
+    }
+    r_load_ref_86 = *(uint64_t *)(m_49 + 16 + 24);
+exit_load_ref_86:;
+    r_load_ref_86; });
+                        o_212 = s_44[CTX_PC];
                         ip = (uint8_t *)(o_211 + 16) + (((int64_t)o_212) >> 1);
                         fr = (frame *)NULL;
                     }
                 }
             } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                s_46 = (oop *)(active_ctx + 16);
-                m_50 = s_46[CTX_METHOD];
-                o_213 = *(uint64_t *)(m_50 + 16 + 24);
-                v_155 = ip - (uint8_t *)(o_213 + 16);
-                s_46[CTX_PC] = (uint64_t)((v_155 << 1) | 1);
-                v_156 = sp - fp + 1;
-                s_46[CTX_STACKP] = (uint64_t)((v_156 << 1) | 1);
+                s_45 = (oop *)(active_ctx + 16);
+                m_50 = s_45[CTX_METHOD];
+                o_213 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_87 = c4_load_ref(m_50, 3U);
+        goto exit_load_ref_87;
+    }
+    r_load_ref_87 = *(uint64_t *)(m_50 + 16 + 24);
+exit_load_ref_87:;
+    r_load_ref_87; });
+                v_177 = ip - (uint8_t *)(o_213 + 16);
+                v_178 = (uint64_t)((v_177 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_178);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_178;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
                 resume_context(true);
                 if (nframes != 0) {
                     fr = frames + (nframes - 1);
@@ -5586,92 +8983,160 @@ op_conditional_jump_92:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_47 = (oop *)(active_ctx + 16);
-                    m_51 = s_47[CTX_METHOD];
+                    s_46 = (oop *)(active_ctx + 16);
+                    m_51 = s_46[CTX_METHOD];
                     o_214 = ((oop *)(m_51 + 16))[CM_LITERALS];
                     lits = (oop *)(o_214 + 16);
-                    fp = s_47 + CTX_FIXED;
-                    o_215 = s_47[CTX_STACKP];
+                    fp = s_46 + CTX_FIXED;
+                    o_215 = s_46[CTX_STACKP];
                     sp = fp + (((int64_t)o_215) >> 1) - 1;
-                    o_216 = s_47[CTX_PC];
+                    o_216 = s_46[CTX_PC];
                     if (!((o_216 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_217 = *(uint64_t *)(m_51 + 16 + 24);
-                    o_218 = s_47[CTX_PC];
+                    o_217 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_88 = c4_load_ref(m_51, 3U);
+        goto exit_load_ref_88;
+    }
+    r_load_ref_88 = *(uint64_t *)(m_51 + 16 + 24);
+exit_load_ref_88:;
+    r_load_ref_88; });
+                    o_218 = s_46[CTX_PC];
                     ip = (uint8_t *)(o_217 + 16) + (((int64_t)o_218) >> 1);
                     fr = (frame *)NULL;
                 }
             }
         }
-    } else if (v_150 != true_oop) {
+    } else if (v_172 != true_oop) {
         ip = ip - 3;
         sp = sp + 1;
-        *sp = v_150;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_172);
+        } else {
+            *sp = v_172;
+        }
         sel = object_memory_special(SO_SEL_MUSTBEBOOLEAN);
         argc = 0;
         goto do_send;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_142 = *(ip - 1);
     r_next_bytecode_142; })];
 op_push_integer:;
-    v_158 = *(int16_t *)(uint64_t)ip;
-    v_157 = (uint64_t)((((int64_t)v_158) << 1) | 1);
+    v_180 = *(int16_t *)(uint64_t)ip;
+    v_179 = (uint64_t)((((int64_t)v_180) << 1) | 1);
     ip = ip + 2;
     a_2 = *sp;
     nx_2 = (uint32_t)(*ip - 0xA0);
     if ((nx_2 < 6) && ({
-    o_220 = a_2 & v_157;
+    o_220 = a_2 & v_179;
     (o_220 & 1) != 0; })) {
         if (nx_2 < 2) {
             if (nx_2 == 0) {
-                if (!__builtin_add_overflow((int64_t)a_2, (int64_t)v_157 - 1, &r_4)) {
+                if (!__builtin_add_overflow((int64_t)a_2, (int64_t)v_179 - 1, &r_4)) {
                     ip = ip + 1;
                     n_3 = *ip;
                     if ((n_3 & 0xF8) == 0x60) {
-                        fp[n_3 & 7] = (uint64_t)r_4;
+                        p_19 = fp + (n_3 & 7);
+                        v_181 = (uint64_t)r_4;
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_stack_slot(p_19, v_181);
+                        } else {
+                            *p_19 = v_181;
+                        }
                         sp = sp - 1;
                         ip = ip + 1;
                         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_143 = *(ip - 1);
     r_next_bytecode_143; })];
                     }
-                    *sp = (uint64_t)r_4;
+                    v_182 = (uint64_t)r_4;
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(sp, v_182);
+                    } else {
+                        *sp = v_182;
+                    }
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_144 = *(ip - 1);
     r_next_bytecode_144; })];
                 }
-            } else if (!__builtin_sub_overflow((int64_t)a_2, (int64_t)v_157 - 1, &r_5)) {
+            } else if (!__builtin_sub_overflow((int64_t)a_2, (int64_t)v_179 - 1, &r_5)) {
                 ip = ip + 1;
                 n_4 = *ip;
                 if ((n_4 & 0xF8) == 0x60) {
-                    fp[n_4 & 7] = (uint64_t)r_5;
+                    p_20 = fp + (n_4 & 7);
+                    v_183 = (uint64_t)r_5;
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_20, v_183);
+                    } else {
+                        *p_20 = v_183;
+                    }
                     sp = sp - 1;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_145 = *(ip - 1);
     r_next_bytecode_145; })];
                 }
-                *sp = (uint64_t)r_5;
+                v_184 = (uint64_t)r_5;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_184);
+                } else {
+                    *sp = v_184;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_146 = *(ip - 1);
     r_next_bytecode_146; })];
             }
         } else {
-            c_6 = nx_2 == 2 ? (int64_t)a_2 < (int64_t)v_157 : nx_2 == 3 ? (int64_t)a_2 > (int64_t)v_157 : nx_2 == 4 ? (int64_t)a_2 <= (int64_t)v_157 : (int64_t)a_2 >= (int64_t)v_157;
+            c_6 = nx_2 == 2 ? (int64_t)a_2 < (int64_t)v_179 : nx_2 == 3 ? (int64_t)a_2 > (int64_t)v_179 : nx_2 == 4 ? (int64_t)a_2 <= (int64_t)v_179 : (int64_t)a_2 >= (int64_t)v_179;
             ip = ip + 1;
             j_4 = *ip;
             if ((j_4 == 0x92) || (j_4 == 0x91)) {
-                p_5 = ip + 1;
-                o_219 = *(int16_t *)(uint64_t)p_5;
+                p_21 = ip + 1;
+                o_219 = *(int16_t *)(uint64_t)p_21;
                 sp = sp - 1;
                 ip = ip + 3;
                 if (c_6 == (j_4 == 0x91)) {
@@ -5684,13 +9149,24 @@ op_push_integer:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_48 = (oop *)(active_ctx + 16);
-                                m_52 = s_48[CTX_METHOD];
-                                o_221 = *(uint64_t *)(m_52 + 16 + 24);
-                                v_159 = ip - (uint8_t *)(o_221 + 16);
-                                s_48[CTX_PC] = (uint64_t)((v_159 << 1) | 1);
-                                v_160 = sp - fp + 1;
-                                s_48[CTX_STACKP] = (uint64_t)((v_160 << 1) | 1);
+                                s_47 = (oop *)(active_ctx + 16);
+                                m_52 = s_47[CTX_METHOD];
+                                o_221 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_89 = c4_load_ref(m_52, 3U);
+        goto exit_load_ref_89;
+    }
+    r_load_ref_89 = *(uint64_t *)(m_52 + 16 + 24);
+exit_load_ref_89:;
+    r_load_ref_89; });
+                                v_185 = ip - (uint8_t *)(o_221 + 16);
+                                v_186 = (uint64_t)((v_185 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_186);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_186;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             interrupt_safepoint();
                             if (nframes != 0) {
@@ -5700,21 +9176,28 @@ op_push_integer:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_49 = (oop *)(active_ctx + 16);
-                                m_53 = s_49[CTX_METHOD];
+                                s_48 = (oop *)(active_ctx + 16);
+                                m_53 = s_48[CTX_METHOD];
                                 o_222 = ((oop *)(m_53 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_222 + 16);
-                                fp = s_49 + CTX_FIXED;
-                                o_223 = s_49[CTX_STACKP];
+                                fp = s_48 + CTX_FIXED;
+                                o_223 = s_48[CTX_STACKP];
                                 sp = fp + (((int64_t)o_223) >> 1) - 1;
-                                o_224 = s_49[CTX_PC];
+                                o_224 = s_48[CTX_PC];
                                 if (!((o_224 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_225 = *(uint64_t *)(m_53 + 16 + 24);
-                                o_226 = s_49[CTX_PC];
+                                o_225 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_90 = c4_load_ref(m_53, 3U);
+        goto exit_load_ref_90;
+    }
+    r_load_ref_90 = *(uint64_t *)(m_53 + 16 + 24);
+exit_load_ref_90:;
+    r_load_ref_90; });
+                                o_226 = s_48[CTX_PC];
                                 ip = (uint8_t *)(o_225 + 16) + (((int64_t)o_226) >> 1);
                                 fr = (frame *)NULL;
                             }
@@ -5727,13 +9210,24 @@ op_push_integer:;
                                     fr->sp = (int32_t)(sp - fp + 1);
                                     cstack_used = (uint64_t)(sp + 1 - cstack);
                                 } else {
-                                    s_50 = (oop *)(active_ctx + 16);
-                                    m_54 = s_50[CTX_METHOD];
-                                    o_227 = *(uint64_t *)(m_54 + 16 + 24);
-                                    v_161 = ip - (uint8_t *)(o_227 + 16);
-                                    s_50[CTX_PC] = (uint64_t)((v_161 << 1) | 1);
-                                    v_162 = sp - fp + 1;
-                                    s_50[CTX_STACKP] = (uint64_t)((v_162 << 1) | 1);
+                                    s_49 = (oop *)(active_ctx + 16);
+                                    m_54 = s_49[CTX_METHOD];
+                                    o_227 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_91 = c4_load_ref(m_54, 3U);
+        goto exit_load_ref_91;
+    }
+    r_load_ref_91 = *(uint64_t *)(m_54 + 16 + 24);
+exit_load_ref_91:;
+    r_load_ref_91; });
+                                    v_187 = ip - (uint8_t *)(o_227 + 16);
+                                    v_188 = (uint64_t)((v_187 << 1) | 1);
+                                    if (__builtin_expect(c4_enabled, 0)) {
+                                        c4_heap_store_ref(active_ctx, 1U, v_188);
+                                    } else {
+                                        ((oop *)(active_ctx + 16))[CTX_PC] = v_188;
+                                    }
+                                    interpreter_ctx(active_ctx, sp - fp + 1);
                                 }
                                 jit_runtime_back_jump(fr);
                                 if (nframes != 0) {
@@ -5743,33 +9237,51 @@ op_push_integer:;
                                     sp = fp + fr->sp - 1;
                                     ip = fr->ip;
                                 } else {
-                                    s_51 = (oop *)(active_ctx + 16);
-                                    m_55 = s_51[CTX_METHOD];
+                                    s_50 = (oop *)(active_ctx + 16);
+                                    m_55 = s_50[CTX_METHOD];
                                     o_228 = ((oop *)(m_55 + 16))[CM_LITERALS];
                                     lits = (oop *)(o_228 + 16);
-                                    fp = s_51 + CTX_FIXED;
-                                    o_229 = s_51[CTX_STACKP];
+                                    fp = s_50 + CTX_FIXED;
+                                    o_229 = s_50[CTX_STACKP];
                                     sp = fp + (((int64_t)o_229) >> 1) - 1;
-                                    o_230 = s_51[CTX_PC];
+                                    o_230 = s_50[CTX_PC];
                                     if (!((o_230 & 1) != 0)) {
                                         fatal_begin();
                                         fprintf(stderr, "resuming a dead context");
                                         fatal_end();
                                     }
-                                    o_231 = *(uint64_t *)(m_55 + 16 + 24);
-                                    o_232 = s_51[CTX_PC];
+                                    o_231 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_92 = c4_load_ref(m_55, 3U);
+        goto exit_load_ref_92;
+    }
+    r_load_ref_92 = *(uint64_t *)(m_55 + 16 + 24);
+exit_load_ref_92:;
+    r_load_ref_92; });
+                                    o_232 = s_50[CTX_PC];
                                     ip = (uint8_t *)(o_231 + 16) + (((int64_t)o_232) >> 1);
                                     fr = (frame *)NULL;
                                 }
                             }
                         } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                            s_52 = (oop *)(active_ctx + 16);
-                            m_56 = s_52[CTX_METHOD];
-                            o_233 = *(uint64_t *)(m_56 + 16 + 24);
-                            v_163 = ip - (uint8_t *)(o_233 + 16);
-                            s_52[CTX_PC] = (uint64_t)((v_163 << 1) | 1);
-                            v_164 = sp - fp + 1;
-                            s_52[CTX_STACKP] = (uint64_t)((v_164 << 1) | 1);
+                            s_51 = (oop *)(active_ctx + 16);
+                            m_56 = s_51[CTX_METHOD];
+                            o_233 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_93 = c4_load_ref(m_56, 3U);
+        goto exit_load_ref_93;
+    }
+    r_load_ref_93 = *(uint64_t *)(m_56 + 16 + 24);
+exit_load_ref_93:;
+    r_load_ref_93; });
+                            v_189 = ip - (uint8_t *)(o_233 + 16);
+                            v_190 = (uint64_t)((v_189 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_190);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_190;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                             resume_context(true);
                             if (nframes != 0) {
                                 fr = frames + (nframes - 1);
@@ -5778,21 +9290,28 @@ op_push_integer:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_53 = (oop *)(active_ctx + 16);
-                                m_57 = s_53[CTX_METHOD];
+                                s_52 = (oop *)(active_ctx + 16);
+                                m_57 = s_52[CTX_METHOD];
                                 o_234 = ((oop *)(m_57 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_234 + 16);
-                                fp = s_53 + CTX_FIXED;
-                                o_235 = s_53[CTX_STACKP];
+                                fp = s_52 + CTX_FIXED;
+                                o_235 = s_52[CTX_STACKP];
                                 sp = fp + (((int64_t)o_235) >> 1) - 1;
-                                o_236 = s_53[CTX_PC];
+                                o_236 = s_52[CTX_PC];
                                 if (!((o_236 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_237 = *(uint64_t *)(m_57 + 16 + 24);
-                                o_238 = s_53[CTX_PC];
+                                o_237 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_94 = c4_load_ref(m_57, 3U);
+        goto exit_load_ref_94;
+    }
+    r_load_ref_94 = *(uint64_t *)(m_57 + 16 + 24);
+exit_load_ref_94:;
+    r_load_ref_94; });
+                                o_238 = s_52[CTX_PC];
                                 ip = (uint8_t *)(o_237 + 16) + (((int64_t)o_238) >> 1);
                                 fr = (frame *)NULL;
                             }
@@ -5800,20 +9319,50 @@ op_push_integer:;
                     }
                 }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_147 = *(ip - 1);
     r_next_bytecode_147; })];
             }
-            *sp = c_6 ? true_oop : false_oop;
+            v_191 = c_6 ? true_oop : false_oop;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_191);
+            } else {
+                *sp = v_191;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_148 = *(ip - 1);
     r_next_bytecode_148; })];
         }
     }
     sp = sp + 1;
-    *sp = v_157;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_179);
+    } else {
+        *sp = v_179;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_149 = *(ip - 1);
     r_next_bytecode_149; })];
@@ -5826,13 +9375,24 @@ op_make_array:;
         fr->sp = (int32_t)(sp - fp + 1);
         cstack_used = (uint64_t)(sp + 1 - cstack);
     } else {
-        s_54 = (oop *)(active_ctx + 16);
-        m_58 = s_54[CTX_METHOD];
-        o_239 = *(uint64_t *)(m_58 + 16 + 24);
-        v_165 = ip - (uint8_t *)(o_239 + 16);
-        s_54[CTX_PC] = (uint64_t)((v_165 << 1) | 1);
-        v_166 = sp - fp + 1;
-        s_54[CTX_STACKP] = (uint64_t)((v_166 << 1) | 1);
+        s_53 = (oop *)(active_ctx + 16);
+        m_58 = s_53[CTX_METHOD];
+        o_239 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_95 = c4_load_ref(m_58, 3U);
+        goto exit_load_ref_95;
+    }
+    r_load_ref_95 = *(uint64_t *)(m_58 + 16 + 24);
+exit_load_ref_95:;
+    r_load_ref_95; });
+        v_192 = ip - (uint8_t *)(o_239 + 16);
+        v_193 = (uint64_t)((v_192 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_193);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_193;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
     }
     a_3 = alloc_obj(cls_array, F_VAR, n_5);
     if (nframes != 0) {
@@ -5842,21 +9402,28 @@ op_make_array:;
         sp = fp + fr->sp - 1;
         ip = fr->ip;
     } else {
-        s_55 = (oop *)(active_ctx + 16);
-        m_59 = s_55[CTX_METHOD];
+        s_54 = (oop *)(active_ctx + 16);
+        m_59 = s_54[CTX_METHOD];
         o_240 = ((oop *)(m_59 + 16))[CM_LITERALS];
         lits = (oop *)(o_240 + 16);
-        fp = s_55 + CTX_FIXED;
-        o_241 = s_55[CTX_STACKP];
+        fp = s_54 + CTX_FIXED;
+        o_241 = s_54[CTX_STACKP];
         sp = fp + (((int64_t)o_241) >> 1) - 1;
-        o_242 = s_55[CTX_PC];
+        o_242 = s_54[CTX_PC];
         if (!((o_242 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_243 = *(uint64_t *)(m_59 + 16 + 24);
-        o_244 = s_55[CTX_PC];
+        o_243 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_96 = c4_load_ref(m_59, 3U);
+        goto exit_load_ref_96;
+    }
+    r_load_ref_96 = *(uint64_t *)(m_59 + 16 + 24);
+exit_load_ref_96:;
+    r_load_ref_96; });
+        o_244 = s_54[CTX_PC];
         ip = (uint8_t *)(o_243 + 16) + (((int64_t)o_244) >> 1);
         fr = (frame *)NULL;
     }
@@ -5868,27 +9435,74 @@ op_make_array:;
         object_memory_copy_refs_at_from_buffer_count(a_3, 0, src, (uint64_t)n_5);
     }
     sp = sp + 1;
-    *sp = a_3;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, a_3);
+    } else {
+        *sp = a_3;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_150 = *(ip - 1);
     r_next_bytecode_150; })];
 op_push_temp_temp_send:;
-    sp[1] = fp[ip[0]];
-    sp[2] = fp[ip[1]];
+    p_22 = sp + 1;
+    v_194 = fp[ip[0]];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_22, v_194);
+    } else {
+        *p_22 = v_194;
+    }
+    p_23 = sp + 2;
+    v_195 = fp[ip[1]];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_23, v_195);
+    } else {
+        *p_23 = v_195;
+    }
     sp = sp + 2;
     ip = ip + 3;
     goto *ops[ip[-1]];
 op_push_temp_literal_send:;
-    sp[1] = fp[ip[0]];
-    sp[2] = lits[ip[1]];
+    p_24 = sp + 1;
+    v_196 = fp[ip[0]];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_24, v_196);
+    } else {
+        *p_24 = v_196;
+    }
+    p_25 = sp + 2;
+    v_197 = lits[ip[1]];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_25, v_197);
+    } else {
+        *p_25 = v_197;
+    }
     sp = sp + 2;
     ip = ip + 3;
     goto *ops[ip[-1]];
 op_push_temp_integer_send:;
-    sp[1] = fp[ip[0]];
-    v_167 = (int8_t)ip[1];
-    sp[2] = (uint64_t)((((int64_t)v_167) << 1) | 1);
+    p_26 = sp + 1;
+    v_198 = fp[ip[0]];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_26, v_198);
+    } else {
+        *p_26 = v_198;
+    }
+    p_27 = sp + 2;
+    v_199 = (int8_t)ip[1];
+    v_200 = (uint64_t)((((int64_t)v_199) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_27, v_200);
+    } else {
+        *p_27 = v_200;
+    }
     sp = sp + 2;
     ip = ip + 3;
     goto *ops[ip[-1]];
@@ -5900,25 +9514,59 @@ op_fused_arithmetic_9a:;
         if (!__builtin_add_overflow((int64_t)a_4, (int64_t)b_2 - 1, &r_6)) {
             n_6 = ip[2];
             if ((n_6 & 0xF8) == 0x60) {
-                fp[n_6 & 7] = (uint64_t)r_6;
+                p_28 = fp + (n_6 & 7);
+                v_201 = (uint64_t)r_6;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_28, v_201);
+                } else {
+                    *p_28 = v_201;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_151 = *(ip - 1);
     r_next_bytecode_151; })];
             }
-            v_168 = (uint64_t)r_6;
+            v_202 = (uint64_t)r_6;
             sp = sp + 1;
-            *sp = v_168;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_202);
+            } else {
+                *sp = v_202;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_152 = *(ip - 1);
     r_next_bytecode_152; })];
         }
     }
-    sp[1] = a_4;
-    sp[2] = b_2;
+    p_29 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_29, a_4);
+    } else {
+        *p_29 = a_4;
+    }
+    p_30 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_30, b_2);
+    } else {
+        *p_30 = b_2;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_add;
@@ -5931,25 +9579,59 @@ op_fused_arithmetic_9b:;
         if (!__builtin_sub_overflow((int64_t)a_5, (int64_t)b_3 - 1, &r_7)) {
             n_7 = ip[2];
             if ((n_7 & 0xF8) == 0x60) {
-                fp[n_7 & 7] = (uint64_t)r_7;
+                p_31 = fp + (n_7 & 7);
+                v_203 = (uint64_t)r_7;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_31, v_203);
+                } else {
+                    *p_31 = v_203;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_153 = *(ip - 1);
     r_next_bytecode_153; })];
             }
-            v_169 = (uint64_t)r_7;
+            v_204 = (uint64_t)r_7;
             sp = sp + 1;
-            *sp = v_169;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_204);
+            } else {
+                *sp = v_204;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_154 = *(ip - 1);
     r_next_bytecode_154; })];
         }
     }
-    sp[1] = a_5;
-    sp[2] = b_3;
+    p_32 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_32, a_5);
+    } else {
+        *p_32 = a_5;
+    }
+    p_33 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_33, b_3);
+    } else {
+        *p_33 = b_3;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_subtract;
@@ -5962,8 +9644,8 @@ op_fused_arithmetic_9c:;
         c_9 = (int64_t)a_6 < (int64_t)b_4;
         j_5 = ip[2];
         if ((j_5 == 0x92) || (j_5 == 0x91)) {
-            p_6 = ip + 3;
-            o_248 = *(int16_t *)(uint64_t)p_6;
+            p_34 = ip + 3;
+            o_248 = *(int16_t *)(uint64_t)p_34;
             ip = ip + 5;
             if (c_9 == (j_5 == 0x91)) {
                 ip = ip + o_248;
@@ -5975,13 +9657,24 @@ op_fused_arithmetic_9c:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_56 = (oop *)(active_ctx + 16);
-                            m_60 = s_56[CTX_METHOD];
-                            o_249 = *(uint64_t *)(m_60 + 16 + 24);
-                            v_170 = ip - (uint8_t *)(o_249 + 16);
-                            s_56[CTX_PC] = (uint64_t)((v_170 << 1) | 1);
-                            v_171 = sp - fp + 1;
-                            s_56[CTX_STACKP] = (uint64_t)((v_171 << 1) | 1);
+                            s_55 = (oop *)(active_ctx + 16);
+                            m_60 = s_55[CTX_METHOD];
+                            o_249 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_97 = c4_load_ref(m_60, 3U);
+        goto exit_load_ref_97;
+    }
+    r_load_ref_97 = *(uint64_t *)(m_60 + 16 + 24);
+exit_load_ref_97:;
+    r_load_ref_97; });
+                            v_205 = ip - (uint8_t *)(o_249 + 16);
+                            v_206 = (uint64_t)((v_205 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_206);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_206;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -5991,21 +9684,28 @@ op_fused_arithmetic_9c:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_57 = (oop *)(active_ctx + 16);
-                            m_61 = s_57[CTX_METHOD];
+                            s_56 = (oop *)(active_ctx + 16);
+                            m_61 = s_56[CTX_METHOD];
                             o_250 = ((oop *)(m_61 + 16))[CM_LITERALS];
                             lits = (oop *)(o_250 + 16);
-                            fp = s_57 + CTX_FIXED;
-                            o_251 = s_57[CTX_STACKP];
+                            fp = s_56 + CTX_FIXED;
+                            o_251 = s_56[CTX_STACKP];
                             sp = fp + (((int64_t)o_251) >> 1) - 1;
-                            o_252 = s_57[CTX_PC];
+                            o_252 = s_56[CTX_PC];
                             if (!((o_252 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_253 = *(uint64_t *)(m_61 + 16 + 24);
-                            o_254 = s_57[CTX_PC];
+                            o_253 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_98 = c4_load_ref(m_61, 3U);
+        goto exit_load_ref_98;
+    }
+    r_load_ref_98 = *(uint64_t *)(m_61 + 16 + 24);
+exit_load_ref_98:;
+    r_load_ref_98; });
+                            o_254 = s_56[CTX_PC];
                             ip = (uint8_t *)(o_253 + 16) + (((int64_t)o_254) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6018,13 +9718,24 @@ op_fused_arithmetic_9c:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_58 = (oop *)(active_ctx + 16);
-                                m_62 = s_58[CTX_METHOD];
-                                o_255 = *(uint64_t *)(m_62 + 16 + 24);
-                                v_172 = ip - (uint8_t *)(o_255 + 16);
-                                s_58[CTX_PC] = (uint64_t)((v_172 << 1) | 1);
-                                v_173 = sp - fp + 1;
-                                s_58[CTX_STACKP] = (uint64_t)((v_173 << 1) | 1);
+                                s_57 = (oop *)(active_ctx + 16);
+                                m_62 = s_57[CTX_METHOD];
+                                o_255 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_99 = c4_load_ref(m_62, 3U);
+        goto exit_load_ref_99;
+    }
+    r_load_ref_99 = *(uint64_t *)(m_62 + 16 + 24);
+exit_load_ref_99:;
+    r_load_ref_99; });
+                                v_207 = ip - (uint8_t *)(o_255 + 16);
+                                v_208 = (uint64_t)((v_207 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_208);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_208;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6034,33 +9745,51 @@ op_fused_arithmetic_9c:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_59 = (oop *)(active_ctx + 16);
-                                m_63 = s_59[CTX_METHOD];
+                                s_58 = (oop *)(active_ctx + 16);
+                                m_63 = s_58[CTX_METHOD];
                                 o_256 = ((oop *)(m_63 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_256 + 16);
-                                fp = s_59 + CTX_FIXED;
-                                o_257 = s_59[CTX_STACKP];
+                                fp = s_58 + CTX_FIXED;
+                                o_257 = s_58[CTX_STACKP];
                                 sp = fp + (((int64_t)o_257) >> 1) - 1;
-                                o_258 = s_59[CTX_PC];
+                                o_258 = s_58[CTX_PC];
                                 if (!((o_258 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_259 = *(uint64_t *)(m_63 + 16 + 24);
-                                o_260 = s_59[CTX_PC];
+                                o_259 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_100 = c4_load_ref(m_63, 3U);
+        goto exit_load_ref_100;
+    }
+    r_load_ref_100 = *(uint64_t *)(m_63 + 16 + 24);
+exit_load_ref_100:;
+    r_load_ref_100; });
+                                o_260 = s_58[CTX_PC];
                                 ip = (uint8_t *)(o_259 + 16) + (((int64_t)o_260) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_60 = (oop *)(active_ctx + 16);
-                        m_64 = s_60[CTX_METHOD];
-                        o_261 = *(uint64_t *)(m_64 + 16 + 24);
-                        v_174 = ip - (uint8_t *)(o_261 + 16);
-                        s_60[CTX_PC] = (uint64_t)((v_174 << 1) | 1);
-                        v_175 = sp - fp + 1;
-                        s_60[CTX_STACKP] = (uint64_t)((v_175 << 1) | 1);
+                        s_59 = (oop *)(active_ctx + 16);
+                        m_64 = s_59[CTX_METHOD];
+                        o_261 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_101 = c4_load_ref(m_64, 3U);
+        goto exit_load_ref_101;
+    }
+    r_load_ref_101 = *(uint64_t *)(m_64 + 16 + 24);
+exit_load_ref_101:;
+    r_load_ref_101; });
+                        v_209 = ip - (uint8_t *)(o_261 + 16);
+                        v_210 = (uint64_t)((v_209 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_210);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_210;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6069,21 +9798,28 @@ op_fused_arithmetic_9c:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_61 = (oop *)(active_ctx + 16);
-                            m_65 = s_61[CTX_METHOD];
+                            s_60 = (oop *)(active_ctx + 16);
+                            m_65 = s_60[CTX_METHOD];
                             o_262 = ((oop *)(m_65 + 16))[CM_LITERALS];
                             lits = (oop *)(o_262 + 16);
-                            fp = s_61 + CTX_FIXED;
-                            o_263 = s_61[CTX_STACKP];
+                            fp = s_60 + CTX_FIXED;
+                            o_263 = s_60[CTX_STACKP];
                             sp = fp + (((int64_t)o_263) >> 1) - 1;
-                            o_264 = s_61[CTX_PC];
+                            o_264 = s_60[CTX_PC];
                             if (!((o_264 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_265 = *(uint64_t *)(m_65 + 16 + 24);
-                            o_266 = s_61[CTX_PC];
+                            o_265 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_102 = c4_load_ref(m_65, 3U);
+        goto exit_load_ref_102;
+    }
+    r_load_ref_102 = *(uint64_t *)(m_65 + 16 + 24);
+exit_load_ref_102:;
+    r_load_ref_102; });
+                            o_266 = s_60[CTX_PC];
                             ip = (uint8_t *)(o_265 + 16) + (((int64_t)o_266) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6091,21 +9827,49 @@ op_fused_arithmetic_9c:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_155 = *(ip - 1);
     r_next_bytecode_155; })];
         }
-        v_176 = c_9 ? true_oop : false_oop;
+        v_211 = c_9 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_176;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_211);
+        } else {
+            *sp = v_211;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_156 = *(ip - 1);
     r_next_bytecode_156; })];
     }
-    sp[1] = a_6;
-    sp[2] = b_4;
+    p_35 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_35, a_6);
+    } else {
+        *p_35 = a_6;
+    }
+    p_36 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_36, b_4);
+    } else {
+        *p_36 = b_4;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_than;
@@ -6118,8 +9882,8 @@ op_fused_arithmetic_9d:;
         c_10 = (int64_t)a_7 > (int64_t)b_5;
         j_6 = ip[2];
         if ((j_6 == 0x92) || (j_6 == 0x91)) {
-            p_7 = ip + 3;
-            o_268 = *(int16_t *)(uint64_t)p_7;
+            p_37 = ip + 3;
+            o_268 = *(int16_t *)(uint64_t)p_37;
             ip = ip + 5;
             if (c_10 == (j_6 == 0x91)) {
                 ip = ip + o_268;
@@ -6131,13 +9895,24 @@ op_fused_arithmetic_9d:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_62 = (oop *)(active_ctx + 16);
-                            m_66 = s_62[CTX_METHOD];
-                            o_269 = *(uint64_t *)(m_66 + 16 + 24);
-                            v_177 = ip - (uint8_t *)(o_269 + 16);
-                            s_62[CTX_PC] = (uint64_t)((v_177 << 1) | 1);
-                            v_178 = sp - fp + 1;
-                            s_62[CTX_STACKP] = (uint64_t)((v_178 << 1) | 1);
+                            s_61 = (oop *)(active_ctx + 16);
+                            m_66 = s_61[CTX_METHOD];
+                            o_269 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_103 = c4_load_ref(m_66, 3U);
+        goto exit_load_ref_103;
+    }
+    r_load_ref_103 = *(uint64_t *)(m_66 + 16 + 24);
+exit_load_ref_103:;
+    r_load_ref_103; });
+                            v_212 = ip - (uint8_t *)(o_269 + 16);
+                            v_213 = (uint64_t)((v_212 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_213);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_213;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6147,21 +9922,28 @@ op_fused_arithmetic_9d:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_63 = (oop *)(active_ctx + 16);
-                            m_67 = s_63[CTX_METHOD];
+                            s_62 = (oop *)(active_ctx + 16);
+                            m_67 = s_62[CTX_METHOD];
                             o_270 = ((oop *)(m_67 + 16))[CM_LITERALS];
                             lits = (oop *)(o_270 + 16);
-                            fp = s_63 + CTX_FIXED;
-                            o_271 = s_63[CTX_STACKP];
+                            fp = s_62 + CTX_FIXED;
+                            o_271 = s_62[CTX_STACKP];
                             sp = fp + (((int64_t)o_271) >> 1) - 1;
-                            o_272 = s_63[CTX_PC];
+                            o_272 = s_62[CTX_PC];
                             if (!((o_272 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_273 = *(uint64_t *)(m_67 + 16 + 24);
-                            o_274 = s_63[CTX_PC];
+                            o_273 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_104 = c4_load_ref(m_67, 3U);
+        goto exit_load_ref_104;
+    }
+    r_load_ref_104 = *(uint64_t *)(m_67 + 16 + 24);
+exit_load_ref_104:;
+    r_load_ref_104; });
+                            o_274 = s_62[CTX_PC];
                             ip = (uint8_t *)(o_273 + 16) + (((int64_t)o_274) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6174,13 +9956,24 @@ op_fused_arithmetic_9d:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_64 = (oop *)(active_ctx + 16);
-                                m_68 = s_64[CTX_METHOD];
-                                o_275 = *(uint64_t *)(m_68 + 16 + 24);
-                                v_179 = ip - (uint8_t *)(o_275 + 16);
-                                s_64[CTX_PC] = (uint64_t)((v_179 << 1) | 1);
-                                v_180 = sp - fp + 1;
-                                s_64[CTX_STACKP] = (uint64_t)((v_180 << 1) | 1);
+                                s_63 = (oop *)(active_ctx + 16);
+                                m_68 = s_63[CTX_METHOD];
+                                o_275 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_105 = c4_load_ref(m_68, 3U);
+        goto exit_load_ref_105;
+    }
+    r_load_ref_105 = *(uint64_t *)(m_68 + 16 + 24);
+exit_load_ref_105:;
+    r_load_ref_105; });
+                                v_214 = ip - (uint8_t *)(o_275 + 16);
+                                v_215 = (uint64_t)((v_214 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_215);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_215;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6190,33 +9983,51 @@ op_fused_arithmetic_9d:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_65 = (oop *)(active_ctx + 16);
-                                m_69 = s_65[CTX_METHOD];
+                                s_64 = (oop *)(active_ctx + 16);
+                                m_69 = s_64[CTX_METHOD];
                                 o_276 = ((oop *)(m_69 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_276 + 16);
-                                fp = s_65 + CTX_FIXED;
-                                o_277 = s_65[CTX_STACKP];
+                                fp = s_64 + CTX_FIXED;
+                                o_277 = s_64[CTX_STACKP];
                                 sp = fp + (((int64_t)o_277) >> 1) - 1;
-                                o_278 = s_65[CTX_PC];
+                                o_278 = s_64[CTX_PC];
                                 if (!((o_278 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_279 = *(uint64_t *)(m_69 + 16 + 24);
-                                o_280 = s_65[CTX_PC];
+                                o_279 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_106 = c4_load_ref(m_69, 3U);
+        goto exit_load_ref_106;
+    }
+    r_load_ref_106 = *(uint64_t *)(m_69 + 16 + 24);
+exit_load_ref_106:;
+    r_load_ref_106; });
+                                o_280 = s_64[CTX_PC];
                                 ip = (uint8_t *)(o_279 + 16) + (((int64_t)o_280) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_66 = (oop *)(active_ctx + 16);
-                        m_70 = s_66[CTX_METHOD];
-                        o_281 = *(uint64_t *)(m_70 + 16 + 24);
-                        v_181 = ip - (uint8_t *)(o_281 + 16);
-                        s_66[CTX_PC] = (uint64_t)((v_181 << 1) | 1);
-                        v_182 = sp - fp + 1;
-                        s_66[CTX_STACKP] = (uint64_t)((v_182 << 1) | 1);
+                        s_65 = (oop *)(active_ctx + 16);
+                        m_70 = s_65[CTX_METHOD];
+                        o_281 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_107 = c4_load_ref(m_70, 3U);
+        goto exit_load_ref_107;
+    }
+    r_load_ref_107 = *(uint64_t *)(m_70 + 16 + 24);
+exit_load_ref_107:;
+    r_load_ref_107; });
+                        v_216 = ip - (uint8_t *)(o_281 + 16);
+                        v_217 = (uint64_t)((v_216 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_217);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_217;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6225,21 +10036,28 @@ op_fused_arithmetic_9d:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_67 = (oop *)(active_ctx + 16);
-                            m_71 = s_67[CTX_METHOD];
+                            s_66 = (oop *)(active_ctx + 16);
+                            m_71 = s_66[CTX_METHOD];
                             o_282 = ((oop *)(m_71 + 16))[CM_LITERALS];
                             lits = (oop *)(o_282 + 16);
-                            fp = s_67 + CTX_FIXED;
-                            o_283 = s_67[CTX_STACKP];
+                            fp = s_66 + CTX_FIXED;
+                            o_283 = s_66[CTX_STACKP];
                             sp = fp + (((int64_t)o_283) >> 1) - 1;
-                            o_284 = s_67[CTX_PC];
+                            o_284 = s_66[CTX_PC];
                             if (!((o_284 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_285 = *(uint64_t *)(m_71 + 16 + 24);
-                            o_286 = s_67[CTX_PC];
+                            o_285 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_108 = c4_load_ref(m_71, 3U);
+        goto exit_load_ref_108;
+    }
+    r_load_ref_108 = *(uint64_t *)(m_71 + 16 + 24);
+exit_load_ref_108:;
+    r_load_ref_108; });
+                            o_286 = s_66[CTX_PC];
                             ip = (uint8_t *)(o_285 + 16) + (((int64_t)o_286) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6247,21 +10065,49 @@ op_fused_arithmetic_9d:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_157 = *(ip - 1);
     r_next_bytecode_157; })];
         }
-        v_183 = c_10 ? true_oop : false_oop;
+        v_218 = c_10 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_183;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_218);
+        } else {
+            *sp = v_218;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_158 = *(ip - 1);
     r_next_bytecode_158; })];
     }
-    sp[1] = a_7;
-    sp[2] = b_5;
+    p_38 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_38, a_7);
+    } else {
+        *p_38 = a_7;
+    }
+    p_39 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_39, b_5);
+    } else {
+        *p_39 = b_5;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_than;
@@ -6274,8 +10120,8 @@ op_fused_arithmetic_9e:;
         c_11 = (int64_t)a_8 <= (int64_t)b_6;
         j_7 = ip[2];
         if ((j_7 == 0x92) || (j_7 == 0x91)) {
-            p_8 = ip + 3;
-            o_288 = *(int16_t *)(uint64_t)p_8;
+            p_40 = ip + 3;
+            o_288 = *(int16_t *)(uint64_t)p_40;
             ip = ip + 5;
             if (c_11 == (j_7 == 0x91)) {
                 ip = ip + o_288;
@@ -6287,13 +10133,24 @@ op_fused_arithmetic_9e:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_68 = (oop *)(active_ctx + 16);
-                            m_72 = s_68[CTX_METHOD];
-                            o_289 = *(uint64_t *)(m_72 + 16 + 24);
-                            v_184 = ip - (uint8_t *)(o_289 + 16);
-                            s_68[CTX_PC] = (uint64_t)((v_184 << 1) | 1);
-                            v_185 = sp - fp + 1;
-                            s_68[CTX_STACKP] = (uint64_t)((v_185 << 1) | 1);
+                            s_67 = (oop *)(active_ctx + 16);
+                            m_72 = s_67[CTX_METHOD];
+                            o_289 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_109 = c4_load_ref(m_72, 3U);
+        goto exit_load_ref_109;
+    }
+    r_load_ref_109 = *(uint64_t *)(m_72 + 16 + 24);
+exit_load_ref_109:;
+    r_load_ref_109; });
+                            v_219 = ip - (uint8_t *)(o_289 + 16);
+                            v_220 = (uint64_t)((v_219 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_220);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_220;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6303,21 +10160,28 @@ op_fused_arithmetic_9e:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_69 = (oop *)(active_ctx + 16);
-                            m_73 = s_69[CTX_METHOD];
+                            s_68 = (oop *)(active_ctx + 16);
+                            m_73 = s_68[CTX_METHOD];
                             o_290 = ((oop *)(m_73 + 16))[CM_LITERALS];
                             lits = (oop *)(o_290 + 16);
-                            fp = s_69 + CTX_FIXED;
-                            o_291 = s_69[CTX_STACKP];
+                            fp = s_68 + CTX_FIXED;
+                            o_291 = s_68[CTX_STACKP];
                             sp = fp + (((int64_t)o_291) >> 1) - 1;
-                            o_292 = s_69[CTX_PC];
+                            o_292 = s_68[CTX_PC];
                             if (!((o_292 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_293 = *(uint64_t *)(m_73 + 16 + 24);
-                            o_294 = s_69[CTX_PC];
+                            o_293 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_110 = c4_load_ref(m_73, 3U);
+        goto exit_load_ref_110;
+    }
+    r_load_ref_110 = *(uint64_t *)(m_73 + 16 + 24);
+exit_load_ref_110:;
+    r_load_ref_110; });
+                            o_294 = s_68[CTX_PC];
                             ip = (uint8_t *)(o_293 + 16) + (((int64_t)o_294) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6330,13 +10194,24 @@ op_fused_arithmetic_9e:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_70 = (oop *)(active_ctx + 16);
-                                m_74 = s_70[CTX_METHOD];
-                                o_295 = *(uint64_t *)(m_74 + 16 + 24);
-                                v_186 = ip - (uint8_t *)(o_295 + 16);
-                                s_70[CTX_PC] = (uint64_t)((v_186 << 1) | 1);
-                                v_187 = sp - fp + 1;
-                                s_70[CTX_STACKP] = (uint64_t)((v_187 << 1) | 1);
+                                s_69 = (oop *)(active_ctx + 16);
+                                m_74 = s_69[CTX_METHOD];
+                                o_295 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_111 = c4_load_ref(m_74, 3U);
+        goto exit_load_ref_111;
+    }
+    r_load_ref_111 = *(uint64_t *)(m_74 + 16 + 24);
+exit_load_ref_111:;
+    r_load_ref_111; });
+                                v_221 = ip - (uint8_t *)(o_295 + 16);
+                                v_222 = (uint64_t)((v_221 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_222);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_222;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6346,33 +10221,51 @@ op_fused_arithmetic_9e:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_71 = (oop *)(active_ctx + 16);
-                                m_75 = s_71[CTX_METHOD];
+                                s_70 = (oop *)(active_ctx + 16);
+                                m_75 = s_70[CTX_METHOD];
                                 o_296 = ((oop *)(m_75 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_296 + 16);
-                                fp = s_71 + CTX_FIXED;
-                                o_297 = s_71[CTX_STACKP];
+                                fp = s_70 + CTX_FIXED;
+                                o_297 = s_70[CTX_STACKP];
                                 sp = fp + (((int64_t)o_297) >> 1) - 1;
-                                o_298 = s_71[CTX_PC];
+                                o_298 = s_70[CTX_PC];
                                 if (!((o_298 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_299 = *(uint64_t *)(m_75 + 16 + 24);
-                                o_300 = s_71[CTX_PC];
+                                o_299 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_112 = c4_load_ref(m_75, 3U);
+        goto exit_load_ref_112;
+    }
+    r_load_ref_112 = *(uint64_t *)(m_75 + 16 + 24);
+exit_load_ref_112:;
+    r_load_ref_112; });
+                                o_300 = s_70[CTX_PC];
                                 ip = (uint8_t *)(o_299 + 16) + (((int64_t)o_300) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_72 = (oop *)(active_ctx + 16);
-                        m_76 = s_72[CTX_METHOD];
-                        o_301 = *(uint64_t *)(m_76 + 16 + 24);
-                        v_188 = ip - (uint8_t *)(o_301 + 16);
-                        s_72[CTX_PC] = (uint64_t)((v_188 << 1) | 1);
-                        v_189 = sp - fp + 1;
-                        s_72[CTX_STACKP] = (uint64_t)((v_189 << 1) | 1);
+                        s_71 = (oop *)(active_ctx + 16);
+                        m_76 = s_71[CTX_METHOD];
+                        o_301 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_113 = c4_load_ref(m_76, 3U);
+        goto exit_load_ref_113;
+    }
+    r_load_ref_113 = *(uint64_t *)(m_76 + 16 + 24);
+exit_load_ref_113:;
+    r_load_ref_113; });
+                        v_223 = ip - (uint8_t *)(o_301 + 16);
+                        v_224 = (uint64_t)((v_223 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_224);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_224;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6381,21 +10274,28 @@ op_fused_arithmetic_9e:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_73 = (oop *)(active_ctx + 16);
-                            m_77 = s_73[CTX_METHOD];
+                            s_72 = (oop *)(active_ctx + 16);
+                            m_77 = s_72[CTX_METHOD];
                             o_302 = ((oop *)(m_77 + 16))[CM_LITERALS];
                             lits = (oop *)(o_302 + 16);
-                            fp = s_73 + CTX_FIXED;
-                            o_303 = s_73[CTX_STACKP];
+                            fp = s_72 + CTX_FIXED;
+                            o_303 = s_72[CTX_STACKP];
                             sp = fp + (((int64_t)o_303) >> 1) - 1;
-                            o_304 = s_73[CTX_PC];
+                            o_304 = s_72[CTX_PC];
                             if (!((o_304 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_305 = *(uint64_t *)(m_77 + 16 + 24);
-                            o_306 = s_73[CTX_PC];
+                            o_305 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_114 = c4_load_ref(m_77, 3U);
+        goto exit_load_ref_114;
+    }
+    r_load_ref_114 = *(uint64_t *)(m_77 + 16 + 24);
+exit_load_ref_114:;
+    r_load_ref_114; });
+                            o_306 = s_72[CTX_PC];
                             ip = (uint8_t *)(o_305 + 16) + (((int64_t)o_306) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6403,21 +10303,49 @@ op_fused_arithmetic_9e:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_159 = *(ip - 1);
     r_next_bytecode_159; })];
         }
-        v_190 = c_11 ? true_oop : false_oop;
+        v_225 = c_11 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_190;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_225);
+        } else {
+            *sp = v_225;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_160 = *(ip - 1);
     r_next_bytecode_160; })];
     }
-    sp[1] = a_8;
-    sp[2] = b_6;
+    p_41 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_41, a_8);
+    } else {
+        *p_41 = a_8;
+    }
+    p_42 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_42, b_6);
+    } else {
+        *p_42 = b_6;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_or_equal;
@@ -6430,8 +10358,8 @@ op_fused_arithmetic_9f:;
         c_12 = (int64_t)a_9 >= (int64_t)b_7;
         j_8 = ip[2];
         if ((j_8 == 0x92) || (j_8 == 0x91)) {
-            p_9 = ip + 3;
-            o_308 = *(int16_t *)(uint64_t)p_9;
+            p_43 = ip + 3;
+            o_308 = *(int16_t *)(uint64_t)p_43;
             ip = ip + 5;
             if (c_12 == (j_8 == 0x91)) {
                 ip = ip + o_308;
@@ -6443,13 +10371,24 @@ op_fused_arithmetic_9f:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_74 = (oop *)(active_ctx + 16);
-                            m_78 = s_74[CTX_METHOD];
-                            o_309 = *(uint64_t *)(m_78 + 16 + 24);
-                            v_191 = ip - (uint8_t *)(o_309 + 16);
-                            s_74[CTX_PC] = (uint64_t)((v_191 << 1) | 1);
-                            v_192 = sp - fp + 1;
-                            s_74[CTX_STACKP] = (uint64_t)((v_192 << 1) | 1);
+                            s_73 = (oop *)(active_ctx + 16);
+                            m_78 = s_73[CTX_METHOD];
+                            o_309 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_115 = c4_load_ref(m_78, 3U);
+        goto exit_load_ref_115;
+    }
+    r_load_ref_115 = *(uint64_t *)(m_78 + 16 + 24);
+exit_load_ref_115:;
+    r_load_ref_115; });
+                            v_226 = ip - (uint8_t *)(o_309 + 16);
+                            v_227 = (uint64_t)((v_226 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_227);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_227;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6459,21 +10398,28 @@ op_fused_arithmetic_9f:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_75 = (oop *)(active_ctx + 16);
-                            m_79 = s_75[CTX_METHOD];
+                            s_74 = (oop *)(active_ctx + 16);
+                            m_79 = s_74[CTX_METHOD];
                             o_310 = ((oop *)(m_79 + 16))[CM_LITERALS];
                             lits = (oop *)(o_310 + 16);
-                            fp = s_75 + CTX_FIXED;
-                            o_311 = s_75[CTX_STACKP];
+                            fp = s_74 + CTX_FIXED;
+                            o_311 = s_74[CTX_STACKP];
                             sp = fp + (((int64_t)o_311) >> 1) - 1;
-                            o_312 = s_75[CTX_PC];
+                            o_312 = s_74[CTX_PC];
                             if (!((o_312 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_313 = *(uint64_t *)(m_79 + 16 + 24);
-                            o_314 = s_75[CTX_PC];
+                            o_313 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_116 = c4_load_ref(m_79, 3U);
+        goto exit_load_ref_116;
+    }
+    r_load_ref_116 = *(uint64_t *)(m_79 + 16 + 24);
+exit_load_ref_116:;
+    r_load_ref_116; });
+                            o_314 = s_74[CTX_PC];
                             ip = (uint8_t *)(o_313 + 16) + (((int64_t)o_314) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6486,13 +10432,24 @@ op_fused_arithmetic_9f:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_76 = (oop *)(active_ctx + 16);
-                                m_80 = s_76[CTX_METHOD];
-                                o_315 = *(uint64_t *)(m_80 + 16 + 24);
-                                v_193 = ip - (uint8_t *)(o_315 + 16);
-                                s_76[CTX_PC] = (uint64_t)((v_193 << 1) | 1);
-                                v_194 = sp - fp + 1;
-                                s_76[CTX_STACKP] = (uint64_t)((v_194 << 1) | 1);
+                                s_75 = (oop *)(active_ctx + 16);
+                                m_80 = s_75[CTX_METHOD];
+                                o_315 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_117 = c4_load_ref(m_80, 3U);
+        goto exit_load_ref_117;
+    }
+    r_load_ref_117 = *(uint64_t *)(m_80 + 16 + 24);
+exit_load_ref_117:;
+    r_load_ref_117; });
+                                v_228 = ip - (uint8_t *)(o_315 + 16);
+                                v_229 = (uint64_t)((v_228 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_229);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_229;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6502,33 +10459,51 @@ op_fused_arithmetic_9f:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_77 = (oop *)(active_ctx + 16);
-                                m_81 = s_77[CTX_METHOD];
+                                s_76 = (oop *)(active_ctx + 16);
+                                m_81 = s_76[CTX_METHOD];
                                 o_316 = ((oop *)(m_81 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_316 + 16);
-                                fp = s_77 + CTX_FIXED;
-                                o_317 = s_77[CTX_STACKP];
+                                fp = s_76 + CTX_FIXED;
+                                o_317 = s_76[CTX_STACKP];
                                 sp = fp + (((int64_t)o_317) >> 1) - 1;
-                                o_318 = s_77[CTX_PC];
+                                o_318 = s_76[CTX_PC];
                                 if (!((o_318 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_319 = *(uint64_t *)(m_81 + 16 + 24);
-                                o_320 = s_77[CTX_PC];
+                                o_319 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_118 = c4_load_ref(m_81, 3U);
+        goto exit_load_ref_118;
+    }
+    r_load_ref_118 = *(uint64_t *)(m_81 + 16 + 24);
+exit_load_ref_118:;
+    r_load_ref_118; });
+                                o_320 = s_76[CTX_PC];
                                 ip = (uint8_t *)(o_319 + 16) + (((int64_t)o_320) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_78 = (oop *)(active_ctx + 16);
-                        m_82 = s_78[CTX_METHOD];
-                        o_321 = *(uint64_t *)(m_82 + 16 + 24);
-                        v_195 = ip - (uint8_t *)(o_321 + 16);
-                        s_78[CTX_PC] = (uint64_t)((v_195 << 1) | 1);
-                        v_196 = sp - fp + 1;
-                        s_78[CTX_STACKP] = (uint64_t)((v_196 << 1) | 1);
+                        s_77 = (oop *)(active_ctx + 16);
+                        m_82 = s_77[CTX_METHOD];
+                        o_321 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_119 = c4_load_ref(m_82, 3U);
+        goto exit_load_ref_119;
+    }
+    r_load_ref_119 = *(uint64_t *)(m_82 + 16 + 24);
+exit_load_ref_119:;
+    r_load_ref_119; });
+                        v_230 = ip - (uint8_t *)(o_321 + 16);
+                        v_231 = (uint64_t)((v_230 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_231);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_231;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6537,21 +10512,28 @@ op_fused_arithmetic_9f:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_79 = (oop *)(active_ctx + 16);
-                            m_83 = s_79[CTX_METHOD];
+                            s_78 = (oop *)(active_ctx + 16);
+                            m_83 = s_78[CTX_METHOD];
                             o_322 = ((oop *)(m_83 + 16))[CM_LITERALS];
                             lits = (oop *)(o_322 + 16);
-                            fp = s_79 + CTX_FIXED;
-                            o_323 = s_79[CTX_STACKP];
+                            fp = s_78 + CTX_FIXED;
+                            o_323 = s_78[CTX_STACKP];
                             sp = fp + (((int64_t)o_323) >> 1) - 1;
-                            o_324 = s_79[CTX_PC];
+                            o_324 = s_78[CTX_PC];
                             if (!((o_324 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_325 = *(uint64_t *)(m_83 + 16 + 24);
-                            o_326 = s_79[CTX_PC];
+                            o_325 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_120 = c4_load_ref(m_83, 3U);
+        goto exit_load_ref_120;
+    }
+    r_load_ref_120 = *(uint64_t *)(m_83 + 16 + 24);
+exit_load_ref_120:;
+    r_load_ref_120; });
+                            o_326 = s_78[CTX_PC];
                             ip = (uint8_t *)(o_325 + 16) + (((int64_t)o_326) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6559,21 +10541,49 @@ op_fused_arithmetic_9f:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_161 = *(ip - 1);
     r_next_bytecode_161; })];
         }
-        v_197 = c_12 ? true_oop : false_oop;
+        v_232 = c_12 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_197;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_232);
+        } else {
+            *sp = v_232;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_162 = *(ip - 1);
     r_next_bytecode_162; })];
     }
-    sp[1] = a_9;
-    sp[2] = b_7;
+    p_44 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_44, a_9);
+    } else {
+        *p_44 = a_9;
+    }
+    p_45 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_45, b_7);
+    } else {
+        *p_45 = b_7;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_or_equal;
@@ -6585,25 +10595,59 @@ op_fused_arithmetic_f0:;
         if (!__builtin_add_overflow((int64_t)a_10, (int64_t)b_8 - 1, &r_8)) {
             n_8 = ip[2];
             if ((n_8 & 0xF8) == 0x60) {
-                fp[n_8 & 7] = (uint64_t)r_8;
+                p_46 = fp + (n_8 & 7);
+                v_233 = (uint64_t)r_8;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_46, v_233);
+                } else {
+                    *p_46 = v_233;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_163 = *(ip - 1);
     r_next_bytecode_163; })];
             }
-            v_198 = (uint64_t)r_8;
+            v_234 = (uint64_t)r_8;
             sp = sp + 1;
-            *sp = v_198;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_234);
+            } else {
+                *sp = v_234;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_164 = *(ip - 1);
     r_next_bytecode_164; })];
         }
     }
-    sp[1] = a_10;
-    sp[2] = b_8;
+    p_47 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_47, a_10);
+    } else {
+        *p_47 = a_10;
+    }
+    p_48 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_48, b_8);
+    } else {
+        *p_48 = b_8;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_add;
@@ -6616,25 +10660,59 @@ op_fused_arithmetic_f1:;
         if (!__builtin_sub_overflow((int64_t)a_11, (int64_t)b_9 - 1, &r_9)) {
             n_9 = ip[2];
             if ((n_9 & 0xF8) == 0x60) {
-                fp[n_9 & 7] = (uint64_t)r_9;
+                p_49 = fp + (n_9 & 7);
+                v_235 = (uint64_t)r_9;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_49, v_235);
+                } else {
+                    *p_49 = v_235;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_165 = *(ip - 1);
     r_next_bytecode_165; })];
             }
-            v_199 = (uint64_t)r_9;
+            v_236 = (uint64_t)r_9;
             sp = sp + 1;
-            *sp = v_199;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_236);
+            } else {
+                *sp = v_236;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_166 = *(ip - 1);
     r_next_bytecode_166; })];
         }
     }
-    sp[1] = a_11;
-    sp[2] = b_9;
+    p_50 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_50, a_11);
+    } else {
+        *p_50 = a_11;
+    }
+    p_51 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_51, b_9);
+    } else {
+        *p_51 = b_9;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_subtract;
@@ -6647,8 +10725,8 @@ op_fused_arithmetic_f2:;
         c_15 = (int64_t)a_12 < (int64_t)b_10;
         j_9 = ip[2];
         if ((j_9 == 0x92) || (j_9 == 0x91)) {
-            p_10 = ip + 3;
-            o_330 = *(int16_t *)(uint64_t)p_10;
+            p_52 = ip + 3;
+            o_330 = *(int16_t *)(uint64_t)p_52;
             ip = ip + 5;
             if (c_15 == (j_9 == 0x91)) {
                 ip = ip + o_330;
@@ -6660,13 +10738,24 @@ op_fused_arithmetic_f2:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_80 = (oop *)(active_ctx + 16);
-                            m_84 = s_80[CTX_METHOD];
-                            o_331 = *(uint64_t *)(m_84 + 16 + 24);
-                            v_200 = ip - (uint8_t *)(o_331 + 16);
-                            s_80[CTX_PC] = (uint64_t)((v_200 << 1) | 1);
-                            v_201 = sp - fp + 1;
-                            s_80[CTX_STACKP] = (uint64_t)((v_201 << 1) | 1);
+                            s_79 = (oop *)(active_ctx + 16);
+                            m_84 = s_79[CTX_METHOD];
+                            o_331 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_121 = c4_load_ref(m_84, 3U);
+        goto exit_load_ref_121;
+    }
+    r_load_ref_121 = *(uint64_t *)(m_84 + 16 + 24);
+exit_load_ref_121:;
+    r_load_ref_121; });
+                            v_237 = ip - (uint8_t *)(o_331 + 16);
+                            v_238 = (uint64_t)((v_237 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_238);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_238;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6676,21 +10765,28 @@ op_fused_arithmetic_f2:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_81 = (oop *)(active_ctx + 16);
-                            m_85 = s_81[CTX_METHOD];
+                            s_80 = (oop *)(active_ctx + 16);
+                            m_85 = s_80[CTX_METHOD];
                             o_332 = ((oop *)(m_85 + 16))[CM_LITERALS];
                             lits = (oop *)(o_332 + 16);
-                            fp = s_81 + CTX_FIXED;
-                            o_333 = s_81[CTX_STACKP];
+                            fp = s_80 + CTX_FIXED;
+                            o_333 = s_80[CTX_STACKP];
                             sp = fp + (((int64_t)o_333) >> 1) - 1;
-                            o_334 = s_81[CTX_PC];
+                            o_334 = s_80[CTX_PC];
                             if (!((o_334 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_335 = *(uint64_t *)(m_85 + 16 + 24);
-                            o_336 = s_81[CTX_PC];
+                            o_335 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_122 = c4_load_ref(m_85, 3U);
+        goto exit_load_ref_122;
+    }
+    r_load_ref_122 = *(uint64_t *)(m_85 + 16 + 24);
+exit_load_ref_122:;
+    r_load_ref_122; });
+                            o_336 = s_80[CTX_PC];
                             ip = (uint8_t *)(o_335 + 16) + (((int64_t)o_336) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6703,13 +10799,24 @@ op_fused_arithmetic_f2:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_82 = (oop *)(active_ctx + 16);
-                                m_86 = s_82[CTX_METHOD];
-                                o_337 = *(uint64_t *)(m_86 + 16 + 24);
-                                v_202 = ip - (uint8_t *)(o_337 + 16);
-                                s_82[CTX_PC] = (uint64_t)((v_202 << 1) | 1);
-                                v_203 = sp - fp + 1;
-                                s_82[CTX_STACKP] = (uint64_t)((v_203 << 1) | 1);
+                                s_81 = (oop *)(active_ctx + 16);
+                                m_86 = s_81[CTX_METHOD];
+                                o_337 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_123 = c4_load_ref(m_86, 3U);
+        goto exit_load_ref_123;
+    }
+    r_load_ref_123 = *(uint64_t *)(m_86 + 16 + 24);
+exit_load_ref_123:;
+    r_load_ref_123; });
+                                v_239 = ip - (uint8_t *)(o_337 + 16);
+                                v_240 = (uint64_t)((v_239 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_240);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_240;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6719,33 +10826,51 @@ op_fused_arithmetic_f2:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_83 = (oop *)(active_ctx + 16);
-                                m_87 = s_83[CTX_METHOD];
+                                s_82 = (oop *)(active_ctx + 16);
+                                m_87 = s_82[CTX_METHOD];
                                 o_338 = ((oop *)(m_87 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_338 + 16);
-                                fp = s_83 + CTX_FIXED;
-                                o_339 = s_83[CTX_STACKP];
+                                fp = s_82 + CTX_FIXED;
+                                o_339 = s_82[CTX_STACKP];
                                 sp = fp + (((int64_t)o_339) >> 1) - 1;
-                                o_340 = s_83[CTX_PC];
+                                o_340 = s_82[CTX_PC];
                                 if (!((o_340 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_341 = *(uint64_t *)(m_87 + 16 + 24);
-                                o_342 = s_83[CTX_PC];
+                                o_341 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_124 = c4_load_ref(m_87, 3U);
+        goto exit_load_ref_124;
+    }
+    r_load_ref_124 = *(uint64_t *)(m_87 + 16 + 24);
+exit_load_ref_124:;
+    r_load_ref_124; });
+                                o_342 = s_82[CTX_PC];
                                 ip = (uint8_t *)(o_341 + 16) + (((int64_t)o_342) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_84 = (oop *)(active_ctx + 16);
-                        m_88 = s_84[CTX_METHOD];
-                        o_343 = *(uint64_t *)(m_88 + 16 + 24);
-                        v_204 = ip - (uint8_t *)(o_343 + 16);
-                        s_84[CTX_PC] = (uint64_t)((v_204 << 1) | 1);
-                        v_205 = sp - fp + 1;
-                        s_84[CTX_STACKP] = (uint64_t)((v_205 << 1) | 1);
+                        s_83 = (oop *)(active_ctx + 16);
+                        m_88 = s_83[CTX_METHOD];
+                        o_343 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_125 = c4_load_ref(m_88, 3U);
+        goto exit_load_ref_125;
+    }
+    r_load_ref_125 = *(uint64_t *)(m_88 + 16 + 24);
+exit_load_ref_125:;
+    r_load_ref_125; });
+                        v_241 = ip - (uint8_t *)(o_343 + 16);
+                        v_242 = (uint64_t)((v_241 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_242);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_242;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6754,21 +10879,28 @@ op_fused_arithmetic_f2:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_85 = (oop *)(active_ctx + 16);
-                            m_89 = s_85[CTX_METHOD];
+                            s_84 = (oop *)(active_ctx + 16);
+                            m_89 = s_84[CTX_METHOD];
                             o_344 = ((oop *)(m_89 + 16))[CM_LITERALS];
                             lits = (oop *)(o_344 + 16);
-                            fp = s_85 + CTX_FIXED;
-                            o_345 = s_85[CTX_STACKP];
+                            fp = s_84 + CTX_FIXED;
+                            o_345 = s_84[CTX_STACKP];
                             sp = fp + (((int64_t)o_345) >> 1) - 1;
-                            o_346 = s_85[CTX_PC];
+                            o_346 = s_84[CTX_PC];
                             if (!((o_346 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_347 = *(uint64_t *)(m_89 + 16 + 24);
-                            o_348 = s_85[CTX_PC];
+                            o_347 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_126 = c4_load_ref(m_89, 3U);
+        goto exit_load_ref_126;
+    }
+    r_load_ref_126 = *(uint64_t *)(m_89 + 16 + 24);
+exit_load_ref_126:;
+    r_load_ref_126; });
+                            o_348 = s_84[CTX_PC];
                             ip = (uint8_t *)(o_347 + 16) + (((int64_t)o_348) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6776,21 +10908,49 @@ op_fused_arithmetic_f2:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_167 = *(ip - 1);
     r_next_bytecode_167; })];
         }
-        v_206 = c_15 ? true_oop : false_oop;
+        v_243 = c_15 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_206;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_243);
+        } else {
+            *sp = v_243;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_168 = *(ip - 1);
     r_next_bytecode_168; })];
     }
-    sp[1] = a_12;
-    sp[2] = b_10;
+    p_53 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_53, a_12);
+    } else {
+        *p_53 = a_12;
+    }
+    p_54 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_54, b_10);
+    } else {
+        *p_54 = b_10;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_than;
@@ -6803,8 +10963,8 @@ op_fused_arithmetic_f3:;
         c_16 = (int64_t)a_13 > (int64_t)b_11;
         j_10 = ip[2];
         if ((j_10 == 0x92) || (j_10 == 0x91)) {
-            p_11 = ip + 3;
-            o_350 = *(int16_t *)(uint64_t)p_11;
+            p_55 = ip + 3;
+            o_350 = *(int16_t *)(uint64_t)p_55;
             ip = ip + 5;
             if (c_16 == (j_10 == 0x91)) {
                 ip = ip + o_350;
@@ -6816,13 +10976,24 @@ op_fused_arithmetic_f3:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_86 = (oop *)(active_ctx + 16);
-                            m_90 = s_86[CTX_METHOD];
-                            o_351 = *(uint64_t *)(m_90 + 16 + 24);
-                            v_207 = ip - (uint8_t *)(o_351 + 16);
-                            s_86[CTX_PC] = (uint64_t)((v_207 << 1) | 1);
-                            v_208 = sp - fp + 1;
-                            s_86[CTX_STACKP] = (uint64_t)((v_208 << 1) | 1);
+                            s_85 = (oop *)(active_ctx + 16);
+                            m_90 = s_85[CTX_METHOD];
+                            o_351 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_127 = c4_load_ref(m_90, 3U);
+        goto exit_load_ref_127;
+    }
+    r_load_ref_127 = *(uint64_t *)(m_90 + 16 + 24);
+exit_load_ref_127:;
+    r_load_ref_127; });
+                            v_244 = ip - (uint8_t *)(o_351 + 16);
+                            v_245 = (uint64_t)((v_244 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_245);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_245;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6832,21 +11003,28 @@ op_fused_arithmetic_f3:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_87 = (oop *)(active_ctx + 16);
-                            m_91 = s_87[CTX_METHOD];
+                            s_86 = (oop *)(active_ctx + 16);
+                            m_91 = s_86[CTX_METHOD];
                             o_352 = ((oop *)(m_91 + 16))[CM_LITERALS];
                             lits = (oop *)(o_352 + 16);
-                            fp = s_87 + CTX_FIXED;
-                            o_353 = s_87[CTX_STACKP];
+                            fp = s_86 + CTX_FIXED;
+                            o_353 = s_86[CTX_STACKP];
                             sp = fp + (((int64_t)o_353) >> 1) - 1;
-                            o_354 = s_87[CTX_PC];
+                            o_354 = s_86[CTX_PC];
                             if (!((o_354 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_355 = *(uint64_t *)(m_91 + 16 + 24);
-                            o_356 = s_87[CTX_PC];
+                            o_355 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_128 = c4_load_ref(m_91, 3U);
+        goto exit_load_ref_128;
+    }
+    r_load_ref_128 = *(uint64_t *)(m_91 + 16 + 24);
+exit_load_ref_128:;
+    r_load_ref_128; });
+                            o_356 = s_86[CTX_PC];
                             ip = (uint8_t *)(o_355 + 16) + (((int64_t)o_356) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6859,13 +11037,24 @@ op_fused_arithmetic_f3:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_88 = (oop *)(active_ctx + 16);
-                                m_92 = s_88[CTX_METHOD];
-                                o_357 = *(uint64_t *)(m_92 + 16 + 24);
-                                v_209 = ip - (uint8_t *)(o_357 + 16);
-                                s_88[CTX_PC] = (uint64_t)((v_209 << 1) | 1);
-                                v_210 = sp - fp + 1;
-                                s_88[CTX_STACKP] = (uint64_t)((v_210 << 1) | 1);
+                                s_87 = (oop *)(active_ctx + 16);
+                                m_92 = s_87[CTX_METHOD];
+                                o_357 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_129 = c4_load_ref(m_92, 3U);
+        goto exit_load_ref_129;
+    }
+    r_load_ref_129 = *(uint64_t *)(m_92 + 16 + 24);
+exit_load_ref_129:;
+    r_load_ref_129; });
+                                v_246 = ip - (uint8_t *)(o_357 + 16);
+                                v_247 = (uint64_t)((v_246 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_247);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_247;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -6875,33 +11064,51 @@ op_fused_arithmetic_f3:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_89 = (oop *)(active_ctx + 16);
-                                m_93 = s_89[CTX_METHOD];
+                                s_88 = (oop *)(active_ctx + 16);
+                                m_93 = s_88[CTX_METHOD];
                                 o_358 = ((oop *)(m_93 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_358 + 16);
-                                fp = s_89 + CTX_FIXED;
-                                o_359 = s_89[CTX_STACKP];
+                                fp = s_88 + CTX_FIXED;
+                                o_359 = s_88[CTX_STACKP];
                                 sp = fp + (((int64_t)o_359) >> 1) - 1;
-                                o_360 = s_89[CTX_PC];
+                                o_360 = s_88[CTX_PC];
                                 if (!((o_360 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_361 = *(uint64_t *)(m_93 + 16 + 24);
-                                o_362 = s_89[CTX_PC];
+                                o_361 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_130 = c4_load_ref(m_93, 3U);
+        goto exit_load_ref_130;
+    }
+    r_load_ref_130 = *(uint64_t *)(m_93 + 16 + 24);
+exit_load_ref_130:;
+    r_load_ref_130; });
+                                o_362 = s_88[CTX_PC];
                                 ip = (uint8_t *)(o_361 + 16) + (((int64_t)o_362) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_90 = (oop *)(active_ctx + 16);
-                        m_94 = s_90[CTX_METHOD];
-                        o_363 = *(uint64_t *)(m_94 + 16 + 24);
-                        v_211 = ip - (uint8_t *)(o_363 + 16);
-                        s_90[CTX_PC] = (uint64_t)((v_211 << 1) | 1);
-                        v_212 = sp - fp + 1;
-                        s_90[CTX_STACKP] = (uint64_t)((v_212 << 1) | 1);
+                        s_89 = (oop *)(active_ctx + 16);
+                        m_94 = s_89[CTX_METHOD];
+                        o_363 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_131 = c4_load_ref(m_94, 3U);
+        goto exit_load_ref_131;
+    }
+    r_load_ref_131 = *(uint64_t *)(m_94 + 16 + 24);
+exit_load_ref_131:;
+    r_load_ref_131; });
+                        v_248 = ip - (uint8_t *)(o_363 + 16);
+                        v_249 = (uint64_t)((v_248 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_249);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_249;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -6910,21 +11117,28 @@ op_fused_arithmetic_f3:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_91 = (oop *)(active_ctx + 16);
-                            m_95 = s_91[CTX_METHOD];
+                            s_90 = (oop *)(active_ctx + 16);
+                            m_95 = s_90[CTX_METHOD];
                             o_364 = ((oop *)(m_95 + 16))[CM_LITERALS];
                             lits = (oop *)(o_364 + 16);
-                            fp = s_91 + CTX_FIXED;
-                            o_365 = s_91[CTX_STACKP];
+                            fp = s_90 + CTX_FIXED;
+                            o_365 = s_90[CTX_STACKP];
                             sp = fp + (((int64_t)o_365) >> 1) - 1;
-                            o_366 = s_91[CTX_PC];
+                            o_366 = s_90[CTX_PC];
                             if (!((o_366 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_367 = *(uint64_t *)(m_95 + 16 + 24);
-                            o_368 = s_91[CTX_PC];
+                            o_367 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_132 = c4_load_ref(m_95, 3U);
+        goto exit_load_ref_132;
+    }
+    r_load_ref_132 = *(uint64_t *)(m_95 + 16 + 24);
+exit_load_ref_132:;
+    r_load_ref_132; });
+                            o_368 = s_90[CTX_PC];
                             ip = (uint8_t *)(o_367 + 16) + (((int64_t)o_368) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -6932,21 +11146,49 @@ op_fused_arithmetic_f3:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_169 = *(ip - 1);
     r_next_bytecode_169; })];
         }
-        v_213 = c_16 ? true_oop : false_oop;
+        v_250 = c_16 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_213;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_250);
+        } else {
+            *sp = v_250;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_170 = *(ip - 1);
     r_next_bytecode_170; })];
     }
-    sp[1] = a_13;
-    sp[2] = b_11;
+    p_56 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_56, a_13);
+    } else {
+        *p_56 = a_13;
+    }
+    p_57 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_57, b_11);
+    } else {
+        *p_57 = b_11;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_than;
@@ -6959,8 +11201,8 @@ op_fused_arithmetic_f4:;
         c_17 = (int64_t)a_14 <= (int64_t)b_12;
         j_11 = ip[2];
         if ((j_11 == 0x92) || (j_11 == 0x91)) {
-            p_12 = ip + 3;
-            o_370 = *(int16_t *)(uint64_t)p_12;
+            p_58 = ip + 3;
+            o_370 = *(int16_t *)(uint64_t)p_58;
             ip = ip + 5;
             if (c_17 == (j_11 == 0x91)) {
                 ip = ip + o_370;
@@ -6972,13 +11214,24 @@ op_fused_arithmetic_f4:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_92 = (oop *)(active_ctx + 16);
-                            m_96 = s_92[CTX_METHOD];
-                            o_371 = *(uint64_t *)(m_96 + 16 + 24);
-                            v_214 = ip - (uint8_t *)(o_371 + 16);
-                            s_92[CTX_PC] = (uint64_t)((v_214 << 1) | 1);
-                            v_215 = sp - fp + 1;
-                            s_92[CTX_STACKP] = (uint64_t)((v_215 << 1) | 1);
+                            s_91 = (oop *)(active_ctx + 16);
+                            m_96 = s_91[CTX_METHOD];
+                            o_371 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_133 = c4_load_ref(m_96, 3U);
+        goto exit_load_ref_133;
+    }
+    r_load_ref_133 = *(uint64_t *)(m_96 + 16 + 24);
+exit_load_ref_133:;
+    r_load_ref_133; });
+                            v_251 = ip - (uint8_t *)(o_371 + 16);
+                            v_252 = (uint64_t)((v_251 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_252);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_252;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -6988,21 +11241,28 @@ op_fused_arithmetic_f4:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_93 = (oop *)(active_ctx + 16);
-                            m_97 = s_93[CTX_METHOD];
+                            s_92 = (oop *)(active_ctx + 16);
+                            m_97 = s_92[CTX_METHOD];
                             o_372 = ((oop *)(m_97 + 16))[CM_LITERALS];
                             lits = (oop *)(o_372 + 16);
-                            fp = s_93 + CTX_FIXED;
-                            o_373 = s_93[CTX_STACKP];
+                            fp = s_92 + CTX_FIXED;
+                            o_373 = s_92[CTX_STACKP];
                             sp = fp + (((int64_t)o_373) >> 1) - 1;
-                            o_374 = s_93[CTX_PC];
+                            o_374 = s_92[CTX_PC];
                             if (!((o_374 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_375 = *(uint64_t *)(m_97 + 16 + 24);
-                            o_376 = s_93[CTX_PC];
+                            o_375 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_134 = c4_load_ref(m_97, 3U);
+        goto exit_load_ref_134;
+    }
+    r_load_ref_134 = *(uint64_t *)(m_97 + 16 + 24);
+exit_load_ref_134:;
+    r_load_ref_134; });
+                            o_376 = s_92[CTX_PC];
                             ip = (uint8_t *)(o_375 + 16) + (((int64_t)o_376) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7015,13 +11275,24 @@ op_fused_arithmetic_f4:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_94 = (oop *)(active_ctx + 16);
-                                m_98 = s_94[CTX_METHOD];
-                                o_377 = *(uint64_t *)(m_98 + 16 + 24);
-                                v_216 = ip - (uint8_t *)(o_377 + 16);
-                                s_94[CTX_PC] = (uint64_t)((v_216 << 1) | 1);
-                                v_217 = sp - fp + 1;
-                                s_94[CTX_STACKP] = (uint64_t)((v_217 << 1) | 1);
+                                s_93 = (oop *)(active_ctx + 16);
+                                m_98 = s_93[CTX_METHOD];
+                                o_377 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_135 = c4_load_ref(m_98, 3U);
+        goto exit_load_ref_135;
+    }
+    r_load_ref_135 = *(uint64_t *)(m_98 + 16 + 24);
+exit_load_ref_135:;
+    r_load_ref_135; });
+                                v_253 = ip - (uint8_t *)(o_377 + 16);
+                                v_254 = (uint64_t)((v_253 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_254);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_254;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7031,33 +11302,51 @@ op_fused_arithmetic_f4:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_95 = (oop *)(active_ctx + 16);
-                                m_99 = s_95[CTX_METHOD];
+                                s_94 = (oop *)(active_ctx + 16);
+                                m_99 = s_94[CTX_METHOD];
                                 o_378 = ((oop *)(m_99 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_378 + 16);
-                                fp = s_95 + CTX_FIXED;
-                                o_379 = s_95[CTX_STACKP];
+                                fp = s_94 + CTX_FIXED;
+                                o_379 = s_94[CTX_STACKP];
                                 sp = fp + (((int64_t)o_379) >> 1) - 1;
-                                o_380 = s_95[CTX_PC];
+                                o_380 = s_94[CTX_PC];
                                 if (!((o_380 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_381 = *(uint64_t *)(m_99 + 16 + 24);
-                                o_382 = s_95[CTX_PC];
+                                o_381 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_136 = c4_load_ref(m_99, 3U);
+        goto exit_load_ref_136;
+    }
+    r_load_ref_136 = *(uint64_t *)(m_99 + 16 + 24);
+exit_load_ref_136:;
+    r_load_ref_136; });
+                                o_382 = s_94[CTX_PC];
                                 ip = (uint8_t *)(o_381 + 16) + (((int64_t)o_382) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_96 = (oop *)(active_ctx + 16);
-                        m_100 = s_96[CTX_METHOD];
-                        o_383 = *(uint64_t *)(m_100 + 16 + 24);
-                        v_218 = ip - (uint8_t *)(o_383 + 16);
-                        s_96[CTX_PC] = (uint64_t)((v_218 << 1) | 1);
-                        v_219 = sp - fp + 1;
-                        s_96[CTX_STACKP] = (uint64_t)((v_219 << 1) | 1);
+                        s_95 = (oop *)(active_ctx + 16);
+                        m_100 = s_95[CTX_METHOD];
+                        o_383 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_137 = c4_load_ref(m_100, 3U);
+        goto exit_load_ref_137;
+    }
+    r_load_ref_137 = *(uint64_t *)(m_100 + 16 + 24);
+exit_load_ref_137:;
+    r_load_ref_137; });
+                        v_255 = ip - (uint8_t *)(o_383 + 16);
+                        v_256 = (uint64_t)((v_255 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_256);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_256;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7066,21 +11355,28 @@ op_fused_arithmetic_f4:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_97 = (oop *)(active_ctx + 16);
-                            m_101 = s_97[CTX_METHOD];
+                            s_96 = (oop *)(active_ctx + 16);
+                            m_101 = s_96[CTX_METHOD];
                             o_384 = ((oop *)(m_101 + 16))[CM_LITERALS];
                             lits = (oop *)(o_384 + 16);
-                            fp = s_97 + CTX_FIXED;
-                            o_385 = s_97[CTX_STACKP];
+                            fp = s_96 + CTX_FIXED;
+                            o_385 = s_96[CTX_STACKP];
                             sp = fp + (((int64_t)o_385) >> 1) - 1;
-                            o_386 = s_97[CTX_PC];
+                            o_386 = s_96[CTX_PC];
                             if (!((o_386 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_387 = *(uint64_t *)(m_101 + 16 + 24);
-                            o_388 = s_97[CTX_PC];
+                            o_387 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_138 = c4_load_ref(m_101, 3U);
+        goto exit_load_ref_138;
+    }
+    r_load_ref_138 = *(uint64_t *)(m_101 + 16 + 24);
+exit_load_ref_138:;
+    r_load_ref_138; });
+                            o_388 = s_96[CTX_PC];
                             ip = (uint8_t *)(o_387 + 16) + (((int64_t)o_388) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7088,21 +11384,49 @@ op_fused_arithmetic_f4:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_171 = *(ip - 1);
     r_next_bytecode_171; })];
         }
-        v_220 = c_17 ? true_oop : false_oop;
+        v_257 = c_17 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_220;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_257);
+        } else {
+            *sp = v_257;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_172 = *(ip - 1);
     r_next_bytecode_172; })];
     }
-    sp[1] = a_14;
-    sp[2] = b_12;
+    p_59 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_59, a_14);
+    } else {
+        *p_59 = a_14;
+    }
+    p_60 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_60, b_12);
+    } else {
+        *p_60 = b_12;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_or_equal;
@@ -7115,8 +11439,8 @@ op_fused_arithmetic_f5:;
         c_18 = (int64_t)a_15 >= (int64_t)b_13;
         j_12 = ip[2];
         if ((j_12 == 0x92) || (j_12 == 0x91)) {
-            p_13 = ip + 3;
-            o_390 = *(int16_t *)(uint64_t)p_13;
+            p_61 = ip + 3;
+            o_390 = *(int16_t *)(uint64_t)p_61;
             ip = ip + 5;
             if (c_18 == (j_12 == 0x91)) {
                 ip = ip + o_390;
@@ -7128,13 +11452,24 @@ op_fused_arithmetic_f5:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_98 = (oop *)(active_ctx + 16);
-                            m_102 = s_98[CTX_METHOD];
-                            o_391 = *(uint64_t *)(m_102 + 16 + 24);
-                            v_221 = ip - (uint8_t *)(o_391 + 16);
-                            s_98[CTX_PC] = (uint64_t)((v_221 << 1) | 1);
-                            v_222 = sp - fp + 1;
-                            s_98[CTX_STACKP] = (uint64_t)((v_222 << 1) | 1);
+                            s_97 = (oop *)(active_ctx + 16);
+                            m_102 = s_97[CTX_METHOD];
+                            o_391 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_139 = c4_load_ref(m_102, 3U);
+        goto exit_load_ref_139;
+    }
+    r_load_ref_139 = *(uint64_t *)(m_102 + 16 + 24);
+exit_load_ref_139:;
+    r_load_ref_139; });
+                            v_258 = ip - (uint8_t *)(o_391 + 16);
+                            v_259 = (uint64_t)((v_258 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_259);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_259;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -7144,21 +11479,28 @@ op_fused_arithmetic_f5:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_99 = (oop *)(active_ctx + 16);
-                            m_103 = s_99[CTX_METHOD];
+                            s_98 = (oop *)(active_ctx + 16);
+                            m_103 = s_98[CTX_METHOD];
                             o_392 = ((oop *)(m_103 + 16))[CM_LITERALS];
                             lits = (oop *)(o_392 + 16);
-                            fp = s_99 + CTX_FIXED;
-                            o_393 = s_99[CTX_STACKP];
+                            fp = s_98 + CTX_FIXED;
+                            o_393 = s_98[CTX_STACKP];
                             sp = fp + (((int64_t)o_393) >> 1) - 1;
-                            o_394 = s_99[CTX_PC];
+                            o_394 = s_98[CTX_PC];
                             if (!((o_394 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_395 = *(uint64_t *)(m_103 + 16 + 24);
-                            o_396 = s_99[CTX_PC];
+                            o_395 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_140 = c4_load_ref(m_103, 3U);
+        goto exit_load_ref_140;
+    }
+    r_load_ref_140 = *(uint64_t *)(m_103 + 16 + 24);
+exit_load_ref_140:;
+    r_load_ref_140; });
+                            o_396 = s_98[CTX_PC];
                             ip = (uint8_t *)(o_395 + 16) + (((int64_t)o_396) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7171,13 +11513,24 @@ op_fused_arithmetic_f5:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_100 = (oop *)(active_ctx + 16);
-                                m_104 = s_100[CTX_METHOD];
-                                o_397 = *(uint64_t *)(m_104 + 16 + 24);
-                                v_223 = ip - (uint8_t *)(o_397 + 16);
-                                s_100[CTX_PC] = (uint64_t)((v_223 << 1) | 1);
-                                v_224 = sp - fp + 1;
-                                s_100[CTX_STACKP] = (uint64_t)((v_224 << 1) | 1);
+                                s_99 = (oop *)(active_ctx + 16);
+                                m_104 = s_99[CTX_METHOD];
+                                o_397 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_141 = c4_load_ref(m_104, 3U);
+        goto exit_load_ref_141;
+    }
+    r_load_ref_141 = *(uint64_t *)(m_104 + 16 + 24);
+exit_load_ref_141:;
+    r_load_ref_141; });
+                                v_260 = ip - (uint8_t *)(o_397 + 16);
+                                v_261 = (uint64_t)((v_260 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_261);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_261;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7187,33 +11540,51 @@ op_fused_arithmetic_f5:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_101 = (oop *)(active_ctx + 16);
-                                m_105 = s_101[CTX_METHOD];
+                                s_100 = (oop *)(active_ctx + 16);
+                                m_105 = s_100[CTX_METHOD];
                                 o_398 = ((oop *)(m_105 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_398 + 16);
-                                fp = s_101 + CTX_FIXED;
-                                o_399 = s_101[CTX_STACKP];
+                                fp = s_100 + CTX_FIXED;
+                                o_399 = s_100[CTX_STACKP];
                                 sp = fp + (((int64_t)o_399) >> 1) - 1;
-                                o_400 = s_101[CTX_PC];
+                                o_400 = s_100[CTX_PC];
                                 if (!((o_400 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_401 = *(uint64_t *)(m_105 + 16 + 24);
-                                o_402 = s_101[CTX_PC];
+                                o_401 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_142 = c4_load_ref(m_105, 3U);
+        goto exit_load_ref_142;
+    }
+    r_load_ref_142 = *(uint64_t *)(m_105 + 16 + 24);
+exit_load_ref_142:;
+    r_load_ref_142; });
+                                o_402 = s_100[CTX_PC];
                                 ip = (uint8_t *)(o_401 + 16) + (((int64_t)o_402) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_102 = (oop *)(active_ctx + 16);
-                        m_106 = s_102[CTX_METHOD];
-                        o_403 = *(uint64_t *)(m_106 + 16 + 24);
-                        v_225 = ip - (uint8_t *)(o_403 + 16);
-                        s_102[CTX_PC] = (uint64_t)((v_225 << 1) | 1);
-                        v_226 = sp - fp + 1;
-                        s_102[CTX_STACKP] = (uint64_t)((v_226 << 1) | 1);
+                        s_101 = (oop *)(active_ctx + 16);
+                        m_106 = s_101[CTX_METHOD];
+                        o_403 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_143 = c4_load_ref(m_106, 3U);
+        goto exit_load_ref_143;
+    }
+    r_load_ref_143 = *(uint64_t *)(m_106 + 16 + 24);
+exit_load_ref_143:;
+    r_load_ref_143; });
+                        v_262 = ip - (uint8_t *)(o_403 + 16);
+                        v_263 = (uint64_t)((v_262 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_263);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_263;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7222,21 +11593,28 @@ op_fused_arithmetic_f5:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_103 = (oop *)(active_ctx + 16);
-                            m_107 = s_103[CTX_METHOD];
+                            s_102 = (oop *)(active_ctx + 16);
+                            m_107 = s_102[CTX_METHOD];
                             o_404 = ((oop *)(m_107 + 16))[CM_LITERALS];
                             lits = (oop *)(o_404 + 16);
-                            fp = s_103 + CTX_FIXED;
-                            o_405 = s_103[CTX_STACKP];
+                            fp = s_102 + CTX_FIXED;
+                            o_405 = s_102[CTX_STACKP];
                             sp = fp + (((int64_t)o_405) >> 1) - 1;
-                            o_406 = s_103[CTX_PC];
+                            o_406 = s_102[CTX_PC];
                             if (!((o_406 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_407 = *(uint64_t *)(m_107 + 16 + 24);
-                            o_408 = s_103[CTX_PC];
+                            o_407 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_144 = c4_load_ref(m_107, 3U);
+        goto exit_load_ref_144;
+    }
+    r_load_ref_144 = *(uint64_t *)(m_107 + 16 + 24);
+exit_load_ref_144:;
+    r_load_ref_144; });
+                            o_408 = s_102[CTX_PC];
                             ip = (uint8_t *)(o_407 + 16) + (((int64_t)o_408) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7244,53 +11622,115 @@ op_fused_arithmetic_f5:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_173 = *(ip - 1);
     r_next_bytecode_173; })];
         }
-        v_227 = c_18 ? true_oop : false_oop;
+        v_264 = c_18 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_227;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_264);
+        } else {
+            *sp = v_264;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_174 = *(ip - 1);
     r_next_bytecode_174; })];
     }
-    sp[1] = a_15;
-    sp[2] = b_13;
+    p_62 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_62, a_15);
+    } else {
+        *p_62 = a_15;
+    }
+    p_63 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_63, b_13);
+    } else {
+        *p_63 = b_13;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_or_equal;
 op_fused_arithmetic_f6:;
     a_16 = fp[ip[0]];
     b_14 = ({
-    v_228 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_228) << 1) | 1); });
+    v_265 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_265) << 1) | 1); });
     o_409 = a_16 & b_14;
     if ((o_409 & 1) != 0) {
         if (!__builtin_add_overflow((int64_t)a_16, (int64_t)b_14 - 1, &r_10)) {
             n_10 = ip[2];
             if ((n_10 & 0xF8) == 0x60) {
-                fp[n_10 & 7] = (uint64_t)r_10;
+                p_64 = fp + (n_10 & 7);
+                v_266 = (uint64_t)r_10;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_64, v_266);
+                } else {
+                    *p_64 = v_266;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_175 = *(ip - 1);
     r_next_bytecode_175; })];
             }
-            v_229 = (uint64_t)r_10;
+            v_267 = (uint64_t)r_10;
             sp = sp + 1;
-            *sp = v_229;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_267);
+            } else {
+                *sp = v_267;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_176 = *(ip - 1);
     r_next_bytecode_176; })];
         }
     }
-    sp[1] = a_16;
-    sp[2] = b_14;
+    p_65 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_65, a_16);
+    } else {
+        *p_65 = a_16;
+    }
+    p_66 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_66, b_14);
+    } else {
+        *p_66 = b_14;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_add;
@@ -7298,32 +11738,66 @@ op_fused_arithmetic_f6:;
 op_fused_arithmetic_f7:;
     a_17 = fp[ip[0]];
     b_15 = ({
-    v_230 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_230) << 1) | 1); });
+    v_268 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_268) << 1) | 1); });
     o_410 = a_17 & b_15;
     if ((o_410 & 1) != 0) {
         if (!__builtin_sub_overflow((int64_t)a_17, (int64_t)b_15 - 1, &r_11)) {
             n_11 = ip[2];
             if ((n_11 & 0xF8) == 0x60) {
-                fp[n_11 & 7] = (uint64_t)r_11;
+                p_67 = fp + (n_11 & 7);
+                v_269 = (uint64_t)r_11;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_67, v_269);
+                } else {
+                    *p_67 = v_269;
+                }
                 ip = ip + 3;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_177 = *(ip - 1);
     r_next_bytecode_177; })];
             }
-            v_231 = (uint64_t)r_11;
+            v_270 = (uint64_t)r_11;
             sp = sp + 1;
-            *sp = v_231;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_270);
+            } else {
+                *sp = v_270;
+            }
             ip = ip + 2;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_178 = *(ip - 1);
     r_next_bytecode_178; })];
         }
     }
-    sp[1] = a_17;
-    sp[2] = b_15;
+    p_68 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_68, a_17);
+    } else {
+        *p_68 = a_17;
+    }
+    p_69 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_69, b_15);
+    } else {
+        *p_69 = b_15;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_subtract;
@@ -7331,15 +11805,15 @@ op_fused_arithmetic_f7:;
 op_fused_arithmetic_f8:;
     a_18 = fp[ip[0]];
     b_16 = ({
-    v_232 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_232) << 1) | 1); });
+    v_271 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_271) << 1) | 1); });
     o_411 = a_18 & b_16;
     if ((o_411 & 1) != 0) {
         c_21 = (int64_t)a_18 < (int64_t)b_16;
         j_13 = ip[2];
         if ((j_13 == 0x92) || (j_13 == 0x91)) {
-            p_14 = ip + 3;
-            o_412 = *(int16_t *)(uint64_t)p_14;
+            p_70 = ip + 3;
+            o_412 = *(int16_t *)(uint64_t)p_70;
             ip = ip + 5;
             if (c_21 == (j_13 == 0x91)) {
                 ip = ip + o_412;
@@ -7351,13 +11825,24 @@ op_fused_arithmetic_f8:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_104 = (oop *)(active_ctx + 16);
-                            m_108 = s_104[CTX_METHOD];
-                            o_413 = *(uint64_t *)(m_108 + 16 + 24);
-                            v_233 = ip - (uint8_t *)(o_413 + 16);
-                            s_104[CTX_PC] = (uint64_t)((v_233 << 1) | 1);
-                            v_234 = sp - fp + 1;
-                            s_104[CTX_STACKP] = (uint64_t)((v_234 << 1) | 1);
+                            s_103 = (oop *)(active_ctx + 16);
+                            m_108 = s_103[CTX_METHOD];
+                            o_413 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_145 = c4_load_ref(m_108, 3U);
+        goto exit_load_ref_145;
+    }
+    r_load_ref_145 = *(uint64_t *)(m_108 + 16 + 24);
+exit_load_ref_145:;
+    r_load_ref_145; });
+                            v_272 = ip - (uint8_t *)(o_413 + 16);
+                            v_273 = (uint64_t)((v_272 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_273);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_273;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -7367,21 +11852,28 @@ op_fused_arithmetic_f8:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_105 = (oop *)(active_ctx + 16);
-                            m_109 = s_105[CTX_METHOD];
+                            s_104 = (oop *)(active_ctx + 16);
+                            m_109 = s_104[CTX_METHOD];
                             o_414 = ((oop *)(m_109 + 16))[CM_LITERALS];
                             lits = (oop *)(o_414 + 16);
-                            fp = s_105 + CTX_FIXED;
-                            o_415 = s_105[CTX_STACKP];
+                            fp = s_104 + CTX_FIXED;
+                            o_415 = s_104[CTX_STACKP];
                             sp = fp + (((int64_t)o_415) >> 1) - 1;
-                            o_416 = s_105[CTX_PC];
+                            o_416 = s_104[CTX_PC];
                             if (!((o_416 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_417 = *(uint64_t *)(m_109 + 16 + 24);
-                            o_418 = s_105[CTX_PC];
+                            o_417 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_146 = c4_load_ref(m_109, 3U);
+        goto exit_load_ref_146;
+    }
+    r_load_ref_146 = *(uint64_t *)(m_109 + 16 + 24);
+exit_load_ref_146:;
+    r_load_ref_146; });
+                            o_418 = s_104[CTX_PC];
                             ip = (uint8_t *)(o_417 + 16) + (((int64_t)o_418) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7394,13 +11886,24 @@ op_fused_arithmetic_f8:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_106 = (oop *)(active_ctx + 16);
-                                m_110 = s_106[CTX_METHOD];
-                                o_419 = *(uint64_t *)(m_110 + 16 + 24);
-                                v_235 = ip - (uint8_t *)(o_419 + 16);
-                                s_106[CTX_PC] = (uint64_t)((v_235 << 1) | 1);
-                                v_236 = sp - fp + 1;
-                                s_106[CTX_STACKP] = (uint64_t)((v_236 << 1) | 1);
+                                s_105 = (oop *)(active_ctx + 16);
+                                m_110 = s_105[CTX_METHOD];
+                                o_419 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_147 = c4_load_ref(m_110, 3U);
+        goto exit_load_ref_147;
+    }
+    r_load_ref_147 = *(uint64_t *)(m_110 + 16 + 24);
+exit_load_ref_147:;
+    r_load_ref_147; });
+                                v_274 = ip - (uint8_t *)(o_419 + 16);
+                                v_275 = (uint64_t)((v_274 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_275);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_275;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7410,33 +11913,51 @@ op_fused_arithmetic_f8:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_107 = (oop *)(active_ctx + 16);
-                                m_111 = s_107[CTX_METHOD];
+                                s_106 = (oop *)(active_ctx + 16);
+                                m_111 = s_106[CTX_METHOD];
                                 o_420 = ((oop *)(m_111 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_420 + 16);
-                                fp = s_107 + CTX_FIXED;
-                                o_421 = s_107[CTX_STACKP];
+                                fp = s_106 + CTX_FIXED;
+                                o_421 = s_106[CTX_STACKP];
                                 sp = fp + (((int64_t)o_421) >> 1) - 1;
-                                o_422 = s_107[CTX_PC];
+                                o_422 = s_106[CTX_PC];
                                 if (!((o_422 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_423 = *(uint64_t *)(m_111 + 16 + 24);
-                                o_424 = s_107[CTX_PC];
+                                o_423 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_148 = c4_load_ref(m_111, 3U);
+        goto exit_load_ref_148;
+    }
+    r_load_ref_148 = *(uint64_t *)(m_111 + 16 + 24);
+exit_load_ref_148:;
+    r_load_ref_148; });
+                                o_424 = s_106[CTX_PC];
                                 ip = (uint8_t *)(o_423 + 16) + (((int64_t)o_424) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_108 = (oop *)(active_ctx + 16);
-                        m_112 = s_108[CTX_METHOD];
-                        o_425 = *(uint64_t *)(m_112 + 16 + 24);
-                        v_237 = ip - (uint8_t *)(o_425 + 16);
-                        s_108[CTX_PC] = (uint64_t)((v_237 << 1) | 1);
-                        v_238 = sp - fp + 1;
-                        s_108[CTX_STACKP] = (uint64_t)((v_238 << 1) | 1);
+                        s_107 = (oop *)(active_ctx + 16);
+                        m_112 = s_107[CTX_METHOD];
+                        o_425 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_149 = c4_load_ref(m_112, 3U);
+        goto exit_load_ref_149;
+    }
+    r_load_ref_149 = *(uint64_t *)(m_112 + 16 + 24);
+exit_load_ref_149:;
+    r_load_ref_149; });
+                        v_276 = ip - (uint8_t *)(o_425 + 16);
+                        v_277 = (uint64_t)((v_276 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_277);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_277;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7445,21 +11966,28 @@ op_fused_arithmetic_f8:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_109 = (oop *)(active_ctx + 16);
-                            m_113 = s_109[CTX_METHOD];
+                            s_108 = (oop *)(active_ctx + 16);
+                            m_113 = s_108[CTX_METHOD];
                             o_426 = ((oop *)(m_113 + 16))[CM_LITERALS];
                             lits = (oop *)(o_426 + 16);
-                            fp = s_109 + CTX_FIXED;
-                            o_427 = s_109[CTX_STACKP];
+                            fp = s_108 + CTX_FIXED;
+                            o_427 = s_108[CTX_STACKP];
                             sp = fp + (((int64_t)o_427) >> 1) - 1;
-                            o_428 = s_109[CTX_PC];
+                            o_428 = s_108[CTX_PC];
                             if (!((o_428 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_429 = *(uint64_t *)(m_113 + 16 + 24);
-                            o_430 = s_109[CTX_PC];
+                            o_429 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_150 = c4_load_ref(m_113, 3U);
+        goto exit_load_ref_150;
+    }
+    r_load_ref_150 = *(uint64_t *)(m_113 + 16 + 24);
+exit_load_ref_150:;
+    r_load_ref_150; });
+                            o_430 = s_108[CTX_PC];
                             ip = (uint8_t *)(o_429 + 16) + (((int64_t)o_430) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7467,21 +11995,49 @@ op_fused_arithmetic_f8:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_179 = *(ip - 1);
     r_next_bytecode_179; })];
         }
-        v_239 = c_21 ? true_oop : false_oop;
+        v_278 = c_21 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_239;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_278);
+        } else {
+            *sp = v_278;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_180 = *(ip - 1);
     r_next_bytecode_180; })];
     }
-    sp[1] = a_18;
-    sp[2] = b_16;
+    p_71 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_71, a_18);
+    } else {
+        *p_71 = a_18;
+    }
+    p_72 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_72, b_16);
+    } else {
+        *p_72 = b_16;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_than;
@@ -7489,15 +12045,15 @@ op_fused_arithmetic_f8:;
 op_fused_arithmetic_f9:;
     a_19 = fp[ip[0]];
     b_17 = ({
-    v_240 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_240) << 1) | 1); });
+    v_279 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_279) << 1) | 1); });
     o_431 = a_19 & b_17;
     if ((o_431 & 1) != 0) {
         c_22 = (int64_t)a_19 > (int64_t)b_17;
         j_14 = ip[2];
         if ((j_14 == 0x92) || (j_14 == 0x91)) {
-            p_15 = ip + 3;
-            o_432 = *(int16_t *)(uint64_t)p_15;
+            p_73 = ip + 3;
+            o_432 = *(int16_t *)(uint64_t)p_73;
             ip = ip + 5;
             if (c_22 == (j_14 == 0x91)) {
                 ip = ip + o_432;
@@ -7509,13 +12065,24 @@ op_fused_arithmetic_f9:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_110 = (oop *)(active_ctx + 16);
-                            m_114 = s_110[CTX_METHOD];
-                            o_433 = *(uint64_t *)(m_114 + 16 + 24);
-                            v_241 = ip - (uint8_t *)(o_433 + 16);
-                            s_110[CTX_PC] = (uint64_t)((v_241 << 1) | 1);
-                            v_242 = sp - fp + 1;
-                            s_110[CTX_STACKP] = (uint64_t)((v_242 << 1) | 1);
+                            s_109 = (oop *)(active_ctx + 16);
+                            m_114 = s_109[CTX_METHOD];
+                            o_433 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_151 = c4_load_ref(m_114, 3U);
+        goto exit_load_ref_151;
+    }
+    r_load_ref_151 = *(uint64_t *)(m_114 + 16 + 24);
+exit_load_ref_151:;
+    r_load_ref_151; });
+                            v_280 = ip - (uint8_t *)(o_433 + 16);
+                            v_281 = (uint64_t)((v_280 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_281);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_281;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -7525,21 +12092,28 @@ op_fused_arithmetic_f9:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_111 = (oop *)(active_ctx + 16);
-                            m_115 = s_111[CTX_METHOD];
+                            s_110 = (oop *)(active_ctx + 16);
+                            m_115 = s_110[CTX_METHOD];
                             o_434 = ((oop *)(m_115 + 16))[CM_LITERALS];
                             lits = (oop *)(o_434 + 16);
-                            fp = s_111 + CTX_FIXED;
-                            o_435 = s_111[CTX_STACKP];
+                            fp = s_110 + CTX_FIXED;
+                            o_435 = s_110[CTX_STACKP];
                             sp = fp + (((int64_t)o_435) >> 1) - 1;
-                            o_436 = s_111[CTX_PC];
+                            o_436 = s_110[CTX_PC];
                             if (!((o_436 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_437 = *(uint64_t *)(m_115 + 16 + 24);
-                            o_438 = s_111[CTX_PC];
+                            o_437 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_152 = c4_load_ref(m_115, 3U);
+        goto exit_load_ref_152;
+    }
+    r_load_ref_152 = *(uint64_t *)(m_115 + 16 + 24);
+exit_load_ref_152:;
+    r_load_ref_152; });
+                            o_438 = s_110[CTX_PC];
                             ip = (uint8_t *)(o_437 + 16) + (((int64_t)o_438) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7552,13 +12126,24 @@ op_fused_arithmetic_f9:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_112 = (oop *)(active_ctx + 16);
-                                m_116 = s_112[CTX_METHOD];
-                                o_439 = *(uint64_t *)(m_116 + 16 + 24);
-                                v_243 = ip - (uint8_t *)(o_439 + 16);
-                                s_112[CTX_PC] = (uint64_t)((v_243 << 1) | 1);
-                                v_244 = sp - fp + 1;
-                                s_112[CTX_STACKP] = (uint64_t)((v_244 << 1) | 1);
+                                s_111 = (oop *)(active_ctx + 16);
+                                m_116 = s_111[CTX_METHOD];
+                                o_439 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_153 = c4_load_ref(m_116, 3U);
+        goto exit_load_ref_153;
+    }
+    r_load_ref_153 = *(uint64_t *)(m_116 + 16 + 24);
+exit_load_ref_153:;
+    r_load_ref_153; });
+                                v_282 = ip - (uint8_t *)(o_439 + 16);
+                                v_283 = (uint64_t)((v_282 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_283);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_283;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7568,33 +12153,51 @@ op_fused_arithmetic_f9:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_113 = (oop *)(active_ctx + 16);
-                                m_117 = s_113[CTX_METHOD];
+                                s_112 = (oop *)(active_ctx + 16);
+                                m_117 = s_112[CTX_METHOD];
                                 o_440 = ((oop *)(m_117 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_440 + 16);
-                                fp = s_113 + CTX_FIXED;
-                                o_441 = s_113[CTX_STACKP];
+                                fp = s_112 + CTX_FIXED;
+                                o_441 = s_112[CTX_STACKP];
                                 sp = fp + (((int64_t)o_441) >> 1) - 1;
-                                o_442 = s_113[CTX_PC];
+                                o_442 = s_112[CTX_PC];
                                 if (!((o_442 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_443 = *(uint64_t *)(m_117 + 16 + 24);
-                                o_444 = s_113[CTX_PC];
+                                o_443 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_154 = c4_load_ref(m_117, 3U);
+        goto exit_load_ref_154;
+    }
+    r_load_ref_154 = *(uint64_t *)(m_117 + 16 + 24);
+exit_load_ref_154:;
+    r_load_ref_154; });
+                                o_444 = s_112[CTX_PC];
                                 ip = (uint8_t *)(o_443 + 16) + (((int64_t)o_444) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_114 = (oop *)(active_ctx + 16);
-                        m_118 = s_114[CTX_METHOD];
-                        o_445 = *(uint64_t *)(m_118 + 16 + 24);
-                        v_245 = ip - (uint8_t *)(o_445 + 16);
-                        s_114[CTX_PC] = (uint64_t)((v_245 << 1) | 1);
-                        v_246 = sp - fp + 1;
-                        s_114[CTX_STACKP] = (uint64_t)((v_246 << 1) | 1);
+                        s_113 = (oop *)(active_ctx + 16);
+                        m_118 = s_113[CTX_METHOD];
+                        o_445 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_155 = c4_load_ref(m_118, 3U);
+        goto exit_load_ref_155;
+    }
+    r_load_ref_155 = *(uint64_t *)(m_118 + 16 + 24);
+exit_load_ref_155:;
+    r_load_ref_155; });
+                        v_284 = ip - (uint8_t *)(o_445 + 16);
+                        v_285 = (uint64_t)((v_284 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_285);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_285;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7603,21 +12206,28 @@ op_fused_arithmetic_f9:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_115 = (oop *)(active_ctx + 16);
-                            m_119 = s_115[CTX_METHOD];
+                            s_114 = (oop *)(active_ctx + 16);
+                            m_119 = s_114[CTX_METHOD];
                             o_446 = ((oop *)(m_119 + 16))[CM_LITERALS];
                             lits = (oop *)(o_446 + 16);
-                            fp = s_115 + CTX_FIXED;
-                            o_447 = s_115[CTX_STACKP];
+                            fp = s_114 + CTX_FIXED;
+                            o_447 = s_114[CTX_STACKP];
                             sp = fp + (((int64_t)o_447) >> 1) - 1;
-                            o_448 = s_115[CTX_PC];
+                            o_448 = s_114[CTX_PC];
                             if (!((o_448 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_449 = *(uint64_t *)(m_119 + 16 + 24);
-                            o_450 = s_115[CTX_PC];
+                            o_449 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_156 = c4_load_ref(m_119, 3U);
+        goto exit_load_ref_156;
+    }
+    r_load_ref_156 = *(uint64_t *)(m_119 + 16 + 24);
+exit_load_ref_156:;
+    r_load_ref_156; });
+                            o_450 = s_114[CTX_PC];
                             ip = (uint8_t *)(o_449 + 16) + (((int64_t)o_450) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7625,21 +12235,49 @@ op_fused_arithmetic_f9:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_181 = *(ip - 1);
     r_next_bytecode_181; })];
         }
-        v_247 = c_22 ? true_oop : false_oop;
+        v_286 = c_22 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_247;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_286);
+        } else {
+            *sp = v_286;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_182 = *(ip - 1);
     r_next_bytecode_182; })];
     }
-    sp[1] = a_19;
-    sp[2] = b_17;
+    p_74 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_74, a_19);
+    } else {
+        *p_74 = a_19;
+    }
+    p_75 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_75, b_17);
+    } else {
+        *p_75 = b_17;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_than;
@@ -7647,15 +12285,15 @@ op_fused_arithmetic_f9:;
 op_fused_arithmetic_fa:;
     a_20 = fp[ip[0]];
     b_18 = ({
-    v_248 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_248) << 1) | 1); });
+    v_287 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_287) << 1) | 1); });
     o_451 = a_20 & b_18;
     if ((o_451 & 1) != 0) {
         c_23 = (int64_t)a_20 <= (int64_t)b_18;
         j_15 = ip[2];
         if ((j_15 == 0x92) || (j_15 == 0x91)) {
-            p_16 = ip + 3;
-            o_452 = *(int16_t *)(uint64_t)p_16;
+            p_76 = ip + 3;
+            o_452 = *(int16_t *)(uint64_t)p_76;
             ip = ip + 5;
             if (c_23 == (j_15 == 0x91)) {
                 ip = ip + o_452;
@@ -7667,13 +12305,24 @@ op_fused_arithmetic_fa:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_116 = (oop *)(active_ctx + 16);
-                            m_120 = s_116[CTX_METHOD];
-                            o_453 = *(uint64_t *)(m_120 + 16 + 24);
-                            v_249 = ip - (uint8_t *)(o_453 + 16);
-                            s_116[CTX_PC] = (uint64_t)((v_249 << 1) | 1);
-                            v_250 = sp - fp + 1;
-                            s_116[CTX_STACKP] = (uint64_t)((v_250 << 1) | 1);
+                            s_115 = (oop *)(active_ctx + 16);
+                            m_120 = s_115[CTX_METHOD];
+                            o_453 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_157 = c4_load_ref(m_120, 3U);
+        goto exit_load_ref_157;
+    }
+    r_load_ref_157 = *(uint64_t *)(m_120 + 16 + 24);
+exit_load_ref_157:;
+    r_load_ref_157; });
+                            v_288 = ip - (uint8_t *)(o_453 + 16);
+                            v_289 = (uint64_t)((v_288 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_289);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_289;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -7683,21 +12332,28 @@ op_fused_arithmetic_fa:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_117 = (oop *)(active_ctx + 16);
-                            m_121 = s_117[CTX_METHOD];
+                            s_116 = (oop *)(active_ctx + 16);
+                            m_121 = s_116[CTX_METHOD];
                             o_454 = ((oop *)(m_121 + 16))[CM_LITERALS];
                             lits = (oop *)(o_454 + 16);
-                            fp = s_117 + CTX_FIXED;
-                            o_455 = s_117[CTX_STACKP];
+                            fp = s_116 + CTX_FIXED;
+                            o_455 = s_116[CTX_STACKP];
                             sp = fp + (((int64_t)o_455) >> 1) - 1;
-                            o_456 = s_117[CTX_PC];
+                            o_456 = s_116[CTX_PC];
                             if (!((o_456 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_457 = *(uint64_t *)(m_121 + 16 + 24);
-                            o_458 = s_117[CTX_PC];
+                            o_457 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_158 = c4_load_ref(m_121, 3U);
+        goto exit_load_ref_158;
+    }
+    r_load_ref_158 = *(uint64_t *)(m_121 + 16 + 24);
+exit_load_ref_158:;
+    r_load_ref_158; });
+                            o_458 = s_116[CTX_PC];
                             ip = (uint8_t *)(o_457 + 16) + (((int64_t)o_458) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7710,13 +12366,24 @@ op_fused_arithmetic_fa:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_118 = (oop *)(active_ctx + 16);
-                                m_122 = s_118[CTX_METHOD];
-                                o_459 = *(uint64_t *)(m_122 + 16 + 24);
-                                v_251 = ip - (uint8_t *)(o_459 + 16);
-                                s_118[CTX_PC] = (uint64_t)((v_251 << 1) | 1);
-                                v_252 = sp - fp + 1;
-                                s_118[CTX_STACKP] = (uint64_t)((v_252 << 1) | 1);
+                                s_117 = (oop *)(active_ctx + 16);
+                                m_122 = s_117[CTX_METHOD];
+                                o_459 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_159 = c4_load_ref(m_122, 3U);
+        goto exit_load_ref_159;
+    }
+    r_load_ref_159 = *(uint64_t *)(m_122 + 16 + 24);
+exit_load_ref_159:;
+    r_load_ref_159; });
+                                v_290 = ip - (uint8_t *)(o_459 + 16);
+                                v_291 = (uint64_t)((v_290 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_291);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_291;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7726,33 +12393,51 @@ op_fused_arithmetic_fa:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_119 = (oop *)(active_ctx + 16);
-                                m_123 = s_119[CTX_METHOD];
+                                s_118 = (oop *)(active_ctx + 16);
+                                m_123 = s_118[CTX_METHOD];
                                 o_460 = ((oop *)(m_123 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_460 + 16);
-                                fp = s_119 + CTX_FIXED;
-                                o_461 = s_119[CTX_STACKP];
+                                fp = s_118 + CTX_FIXED;
+                                o_461 = s_118[CTX_STACKP];
                                 sp = fp + (((int64_t)o_461) >> 1) - 1;
-                                o_462 = s_119[CTX_PC];
+                                o_462 = s_118[CTX_PC];
                                 if (!((o_462 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_463 = *(uint64_t *)(m_123 + 16 + 24);
-                                o_464 = s_119[CTX_PC];
+                                o_463 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_160 = c4_load_ref(m_123, 3U);
+        goto exit_load_ref_160;
+    }
+    r_load_ref_160 = *(uint64_t *)(m_123 + 16 + 24);
+exit_load_ref_160:;
+    r_load_ref_160; });
+                                o_464 = s_118[CTX_PC];
                                 ip = (uint8_t *)(o_463 + 16) + (((int64_t)o_464) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_120 = (oop *)(active_ctx + 16);
-                        m_124 = s_120[CTX_METHOD];
-                        o_465 = *(uint64_t *)(m_124 + 16 + 24);
-                        v_253 = ip - (uint8_t *)(o_465 + 16);
-                        s_120[CTX_PC] = (uint64_t)((v_253 << 1) | 1);
-                        v_254 = sp - fp + 1;
-                        s_120[CTX_STACKP] = (uint64_t)((v_254 << 1) | 1);
+                        s_119 = (oop *)(active_ctx + 16);
+                        m_124 = s_119[CTX_METHOD];
+                        o_465 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_161 = c4_load_ref(m_124, 3U);
+        goto exit_load_ref_161;
+    }
+    r_load_ref_161 = *(uint64_t *)(m_124 + 16 + 24);
+exit_load_ref_161:;
+    r_load_ref_161; });
+                        v_292 = ip - (uint8_t *)(o_465 + 16);
+                        v_293 = (uint64_t)((v_292 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_293);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_293;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7761,21 +12446,28 @@ op_fused_arithmetic_fa:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_121 = (oop *)(active_ctx + 16);
-                            m_125 = s_121[CTX_METHOD];
+                            s_120 = (oop *)(active_ctx + 16);
+                            m_125 = s_120[CTX_METHOD];
                             o_466 = ((oop *)(m_125 + 16))[CM_LITERALS];
                             lits = (oop *)(o_466 + 16);
-                            fp = s_121 + CTX_FIXED;
-                            o_467 = s_121[CTX_STACKP];
+                            fp = s_120 + CTX_FIXED;
+                            o_467 = s_120[CTX_STACKP];
                             sp = fp + (((int64_t)o_467) >> 1) - 1;
-                            o_468 = s_121[CTX_PC];
+                            o_468 = s_120[CTX_PC];
                             if (!((o_468 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_469 = *(uint64_t *)(m_125 + 16 + 24);
-                            o_470 = s_121[CTX_PC];
+                            o_469 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_162 = c4_load_ref(m_125, 3U);
+        goto exit_load_ref_162;
+    }
+    r_load_ref_162 = *(uint64_t *)(m_125 + 16 + 24);
+exit_load_ref_162:;
+    r_load_ref_162; });
+                            o_470 = s_120[CTX_PC];
                             ip = (uint8_t *)(o_469 + 16) + (((int64_t)o_470) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7783,21 +12475,49 @@ op_fused_arithmetic_fa:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_183 = *(ip - 1);
     r_next_bytecode_183; })];
         }
-        v_255 = c_23 ? true_oop : false_oop;
+        v_294 = c_23 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_255;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_294);
+        } else {
+            *sp = v_294;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_184 = *(ip - 1);
     r_next_bytecode_184; })];
     }
-    sp[1] = a_20;
-    sp[2] = b_18;
+    p_77 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_77, a_20);
+    } else {
+        *p_77 = a_20;
+    }
+    p_78 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_78, b_18);
+    } else {
+        *p_78 = b_18;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_less_or_equal;
@@ -7805,15 +12525,15 @@ op_fused_arithmetic_fa:;
 op_fused_arithmetic_fb:;
     a_21 = fp[ip[0]];
     b_19 = ({
-    v_256 = (int8_t)ip[1];
-    (uint64_t)((((int64_t)v_256) << 1) | 1); });
+    v_295 = (int8_t)ip[1];
+    (uint64_t)((((int64_t)v_295) << 1) | 1); });
     o_471 = a_21 & b_19;
     if ((o_471 & 1) != 0) {
         c_24 = (int64_t)a_21 >= (int64_t)b_19;
         j_16 = ip[2];
         if ((j_16 == 0x92) || (j_16 == 0x91)) {
-            p_17 = ip + 3;
-            o_472 = *(int16_t *)(uint64_t)p_17;
+            p_79 = ip + 3;
+            o_472 = *(int16_t *)(uint64_t)p_79;
             ip = ip + 5;
             if (c_24 == (j_16 == 0x91)) {
                 ip = ip + o_472;
@@ -7825,13 +12545,24 @@ op_fused_arithmetic_fb:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_122 = (oop *)(active_ctx + 16);
-                            m_126 = s_122[CTX_METHOD];
-                            o_473 = *(uint64_t *)(m_126 + 16 + 24);
-                            v_257 = ip - (uint8_t *)(o_473 + 16);
-                            s_122[CTX_PC] = (uint64_t)((v_257 << 1) | 1);
-                            v_258 = sp - fp + 1;
-                            s_122[CTX_STACKP] = (uint64_t)((v_258 << 1) | 1);
+                            s_121 = (oop *)(active_ctx + 16);
+                            m_126 = s_121[CTX_METHOD];
+                            o_473 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_163 = c4_load_ref(m_126, 3U);
+        goto exit_load_ref_163;
+    }
+    r_load_ref_163 = *(uint64_t *)(m_126 + 16 + 24);
+exit_load_ref_163:;
+    r_load_ref_163; });
+                            v_296 = ip - (uint8_t *)(o_473 + 16);
+                            v_297 = (uint64_t)((v_296 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_297);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_297;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -7841,21 +12572,28 @@ op_fused_arithmetic_fb:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_123 = (oop *)(active_ctx + 16);
-                            m_127 = s_123[CTX_METHOD];
+                            s_122 = (oop *)(active_ctx + 16);
+                            m_127 = s_122[CTX_METHOD];
                             o_474 = ((oop *)(m_127 + 16))[CM_LITERALS];
                             lits = (oop *)(o_474 + 16);
-                            fp = s_123 + CTX_FIXED;
-                            o_475 = s_123[CTX_STACKP];
+                            fp = s_122 + CTX_FIXED;
+                            o_475 = s_122[CTX_STACKP];
                             sp = fp + (((int64_t)o_475) >> 1) - 1;
-                            o_476 = s_123[CTX_PC];
+                            o_476 = s_122[CTX_PC];
                             if (!((o_476 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_477 = *(uint64_t *)(m_127 + 16 + 24);
-                            o_478 = s_123[CTX_PC];
+                            o_477 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_164 = c4_load_ref(m_127, 3U);
+        goto exit_load_ref_164;
+    }
+    r_load_ref_164 = *(uint64_t *)(m_127 + 16 + 24);
+exit_load_ref_164:;
+    r_load_ref_164; });
+                            o_478 = s_122[CTX_PC];
                             ip = (uint8_t *)(o_477 + 16) + (((int64_t)o_478) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7868,13 +12606,24 @@ op_fused_arithmetic_fb:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_124 = (oop *)(active_ctx + 16);
-                                m_128 = s_124[CTX_METHOD];
-                                o_479 = *(uint64_t *)(m_128 + 16 + 24);
-                                v_259 = ip - (uint8_t *)(o_479 + 16);
-                                s_124[CTX_PC] = (uint64_t)((v_259 << 1) | 1);
-                                v_260 = sp - fp + 1;
-                                s_124[CTX_STACKP] = (uint64_t)((v_260 << 1) | 1);
+                                s_123 = (oop *)(active_ctx + 16);
+                                m_128 = s_123[CTX_METHOD];
+                                o_479 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_165 = c4_load_ref(m_128, 3U);
+        goto exit_load_ref_165;
+    }
+    r_load_ref_165 = *(uint64_t *)(m_128 + 16 + 24);
+exit_load_ref_165:;
+    r_load_ref_165; });
+                                v_298 = ip - (uint8_t *)(o_479 + 16);
+                                v_299 = (uint64_t)((v_298 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_299);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_299;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -7884,33 +12633,51 @@ op_fused_arithmetic_fb:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_125 = (oop *)(active_ctx + 16);
-                                m_129 = s_125[CTX_METHOD];
+                                s_124 = (oop *)(active_ctx + 16);
+                                m_129 = s_124[CTX_METHOD];
                                 o_480 = ((oop *)(m_129 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_480 + 16);
-                                fp = s_125 + CTX_FIXED;
-                                o_481 = s_125[CTX_STACKP];
+                                fp = s_124 + CTX_FIXED;
+                                o_481 = s_124[CTX_STACKP];
                                 sp = fp + (((int64_t)o_481) >> 1) - 1;
-                                o_482 = s_125[CTX_PC];
+                                o_482 = s_124[CTX_PC];
                                 if (!((o_482 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_483 = *(uint64_t *)(m_129 + 16 + 24);
-                                o_484 = s_125[CTX_PC];
+                                o_483 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_166 = c4_load_ref(m_129, 3U);
+        goto exit_load_ref_166;
+    }
+    r_load_ref_166 = *(uint64_t *)(m_129 + 16 + 24);
+exit_load_ref_166:;
+    r_load_ref_166; });
+                                o_484 = s_124[CTX_PC];
                                 ip = (uint8_t *)(o_483 + 16) + (((int64_t)o_484) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_126 = (oop *)(active_ctx + 16);
-                        m_130 = s_126[CTX_METHOD];
-                        o_485 = *(uint64_t *)(m_130 + 16 + 24);
-                        v_261 = ip - (uint8_t *)(o_485 + 16);
-                        s_126[CTX_PC] = (uint64_t)((v_261 << 1) | 1);
-                        v_262 = sp - fp + 1;
-                        s_126[CTX_STACKP] = (uint64_t)((v_262 << 1) | 1);
+                        s_125 = (oop *)(active_ctx + 16);
+                        m_130 = s_125[CTX_METHOD];
+                        o_485 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_167 = c4_load_ref(m_130, 3U);
+        goto exit_load_ref_167;
+    }
+    r_load_ref_167 = *(uint64_t *)(m_130 + 16 + 24);
+exit_load_ref_167:;
+    r_load_ref_167; });
+                        v_300 = ip - (uint8_t *)(o_485 + 16);
+                        v_301 = (uint64_t)((v_300 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_301);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_301;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -7919,21 +12686,28 @@ op_fused_arithmetic_fb:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_127 = (oop *)(active_ctx + 16);
-                            m_131 = s_127[CTX_METHOD];
+                            s_126 = (oop *)(active_ctx + 16);
+                            m_131 = s_126[CTX_METHOD];
                             o_486 = ((oop *)(m_131 + 16))[CM_LITERALS];
                             lits = (oop *)(o_486 + 16);
-                            fp = s_127 + CTX_FIXED;
-                            o_487 = s_127[CTX_STACKP];
+                            fp = s_126 + CTX_FIXED;
+                            o_487 = s_126[CTX_STACKP];
                             sp = fp + (((int64_t)o_487) >> 1) - 1;
-                            o_488 = s_127[CTX_PC];
+                            o_488 = s_126[CTX_PC];
                             if (!((o_488 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_489 = *(uint64_t *)(m_131 + 16 + 24);
-                            o_490 = s_127[CTX_PC];
+                            o_489 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_168 = c4_load_ref(m_131, 3U);
+        goto exit_load_ref_168;
+    }
+    r_load_ref_168 = *(uint64_t *)(m_131 + 16 + 24);
+exit_load_ref_168:;
+    r_load_ref_168; });
+                            o_490 = s_126[CTX_PC];
                             ip = (uint8_t *)(o_489 + 16) + (((int64_t)o_490) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -7941,21 +12715,49 @@ op_fused_arithmetic_fb:;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_185 = *(ip - 1);
     r_next_bytecode_185; })];
         }
-        v_263 = c_24 ? true_oop : false_oop;
+        v_302 = c_24 ? true_oop : false_oop;
         sp = sp + 1;
-        *sp = v_263;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_302);
+        } else {
+            *sp = v_302;
+        }
         ip = ip + 2;
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_186 = *(ip - 1);
     r_next_bytecode_186; })];
     }
-    sp[1] = a_21;
-    sp[2] = b_19;
+    p_80 = sp + 1;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_80, a_21);
+    } else {
+        *p_80 = a_21;
+    }
+    p_81 = sp + 2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(p_81, b_19);
+    } else {
+        *p_81 = b_19;
+    }
     sp = sp + 2;
     ip = ip + 2;
     goto op_greater_or_equal;
@@ -7965,20 +12767,43 @@ op_add:;
     o_491 = a_22 & b_20;
     if ((o_491 & 1) != 0) {
         if (!__builtin_add_overflow((int64_t)a_22, (int64_t)b_20 - 1, &r_12)) {
-            v_264 = (uint64_t)r_12;
+            v_303 = (uint64_t)r_12;
             nx_3 = *ip;
             if ((nx_3 & 0xF8) == 0x60) {
-                fp[nx_3 & 7] = v_264;
+                p_82 = fp + (nx_3 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_82, v_303);
+                } else {
+                    *p_82 = v_303;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_187 = *(ip - 1);
     r_next_bytecode_187; })];
             }
             sp = sp - 1;
-            *sp = v_264;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_303);
+            } else {
+                *sp = v_303;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_188 = *(ip - 1);
     r_next_bytecode_188; })];
@@ -8029,17 +12854,40 @@ exit_float_imm:;
         if (f != 0) {
             nx_4 = *ip;
             if ((nx_4 & 0xF8) == 0x60) {
-                fp[nx_4 & 7] = f;
+                p_83 = fp + (nx_4 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_83, f);
+                } else {
+                    *p_83 = f;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_189 = *(ip - 1);
     r_next_bytecode_189; })];
             }
             sp = sp - 1;
-            *sp = f;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, f);
+            } else {
+                *sp = f;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_190 = *(ip - 1);
     r_next_bytecode_190; })];
@@ -8056,20 +12904,43 @@ op_subtract:;
     o_492 = a_23 & b_24;
     if ((o_492 & 1) != 0) {
         if (!__builtin_sub_overflow((int64_t)a_23, (int64_t)b_24 - 1, &r_15)) {
-            v_265 = (uint64_t)r_15;
+            v_304 = (uint64_t)r_15;
             nx_5 = *ip;
             if ((nx_5 & 0xF8) == 0x60) {
-                fp[nx_5 & 7] = v_265;
+                p_84 = fp + (nx_5 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_84, v_304);
+                } else {
+                    *p_84 = v_304;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_191 = *(ip - 1);
     r_next_bytecode_191; })];
             }
             sp = sp - 1;
-            *sp = v_265;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_304);
+            } else {
+                *sp = v_304;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_192 = *(ip - 1);
     r_next_bytecode_192; })];
@@ -8120,17 +12991,40 @@ exit_float_imm_2:;
         if (f_2 != 0) {
             nx_6 = *ip;
             if ((nx_6 & 0xF8) == 0x60) {
-                fp[nx_6 & 7] = f_2;
+                p_85 = fp + (nx_6 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_85, f_2);
+                } else {
+                    *p_85 = f_2;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_193 = *(ip - 1);
     r_next_bytecode_193; })];
             }
             sp = sp - 1;
-            *sp = f_2;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, f_2);
+            } else {
+                *sp = f_2;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_194 = *(ip - 1);
     r_next_bytecode_194; })];
@@ -8147,8 +13041,8 @@ op_less_than:;
         c_25 = (int64_t)a_24 < (int64_t)b_28;
         nx_7 = *ip;
         if ((nx_7 == 0x92) || (nx_7 == 0x91)) {
-            p_18 = ip + 1;
-            o_494 = *(int16_t *)(uint64_t)p_18;
+            p_86 = ip + 1;
+            o_494 = *(int16_t *)(uint64_t)p_86;
             sp = sp - 2;
             ip = ip + 3;
             if (c_25 == (nx_7 == 0x91)) {
@@ -8161,13 +13055,24 @@ op_less_than:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_128 = (oop *)(active_ctx + 16);
-                            m_132 = s_128[CTX_METHOD];
-                            o_495 = *(uint64_t *)(m_132 + 16 + 24);
-                            v_266 = ip - (uint8_t *)(o_495 + 16);
-                            s_128[CTX_PC] = (uint64_t)((v_266 << 1) | 1);
-                            v_267 = sp - fp + 1;
-                            s_128[CTX_STACKP] = (uint64_t)((v_267 << 1) | 1);
+                            s_127 = (oop *)(active_ctx + 16);
+                            m_132 = s_127[CTX_METHOD];
+                            o_495 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_169 = c4_load_ref(m_132, 3U);
+        goto exit_load_ref_169;
+    }
+    r_load_ref_169 = *(uint64_t *)(m_132 + 16 + 24);
+exit_load_ref_169:;
+    r_load_ref_169; });
+                            v_305 = ip - (uint8_t *)(o_495 + 16);
+                            v_306 = (uint64_t)((v_305 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_306);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_306;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8177,21 +13082,28 @@ op_less_than:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_129 = (oop *)(active_ctx + 16);
-                            m_133 = s_129[CTX_METHOD];
+                            s_128 = (oop *)(active_ctx + 16);
+                            m_133 = s_128[CTX_METHOD];
                             o_496 = ((oop *)(m_133 + 16))[CM_LITERALS];
                             lits = (oop *)(o_496 + 16);
-                            fp = s_129 + CTX_FIXED;
-                            o_497 = s_129[CTX_STACKP];
+                            fp = s_128 + CTX_FIXED;
+                            o_497 = s_128[CTX_STACKP];
                             sp = fp + (((int64_t)o_497) >> 1) - 1;
-                            o_498 = s_129[CTX_PC];
+                            o_498 = s_128[CTX_PC];
                             if (!((o_498 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_499 = *(uint64_t *)(m_133 + 16 + 24);
-                            o_500 = s_129[CTX_PC];
+                            o_499 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_170 = c4_load_ref(m_133, 3U);
+        goto exit_load_ref_170;
+    }
+    r_load_ref_170 = *(uint64_t *)(m_133 + 16 + 24);
+exit_load_ref_170:;
+    r_load_ref_170; });
+                            o_500 = s_128[CTX_PC];
                             ip = (uint8_t *)(o_499 + 16) + (((int64_t)o_500) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8204,13 +13116,24 @@ op_less_than:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_130 = (oop *)(active_ctx + 16);
-                                m_134 = s_130[CTX_METHOD];
-                                o_501 = *(uint64_t *)(m_134 + 16 + 24);
-                                v_268 = ip - (uint8_t *)(o_501 + 16);
-                                s_130[CTX_PC] = (uint64_t)((v_268 << 1) | 1);
-                                v_269 = sp - fp + 1;
-                                s_130[CTX_STACKP] = (uint64_t)((v_269 << 1) | 1);
+                                s_129 = (oop *)(active_ctx + 16);
+                                m_134 = s_129[CTX_METHOD];
+                                o_501 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_171 = c4_load_ref(m_134, 3U);
+        goto exit_load_ref_171;
+    }
+    r_load_ref_171 = *(uint64_t *)(m_134 + 16 + 24);
+exit_load_ref_171:;
+    r_load_ref_171; });
+                                v_307 = ip - (uint8_t *)(o_501 + 16);
+                                v_308 = (uint64_t)((v_307 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_308);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_308;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -8220,33 +13143,51 @@ op_less_than:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_131 = (oop *)(active_ctx + 16);
-                                m_135 = s_131[CTX_METHOD];
+                                s_130 = (oop *)(active_ctx + 16);
+                                m_135 = s_130[CTX_METHOD];
                                 o_502 = ((oop *)(m_135 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_502 + 16);
-                                fp = s_131 + CTX_FIXED;
-                                o_503 = s_131[CTX_STACKP];
+                                fp = s_130 + CTX_FIXED;
+                                o_503 = s_130[CTX_STACKP];
                                 sp = fp + (((int64_t)o_503) >> 1) - 1;
-                                o_504 = s_131[CTX_PC];
+                                o_504 = s_130[CTX_PC];
                                 if (!((o_504 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_505 = *(uint64_t *)(m_135 + 16 + 24);
-                                o_506 = s_131[CTX_PC];
+                                o_505 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_172 = c4_load_ref(m_135, 3U);
+        goto exit_load_ref_172;
+    }
+    r_load_ref_172 = *(uint64_t *)(m_135 + 16 + 24);
+exit_load_ref_172:;
+    r_load_ref_172; });
+                                o_506 = s_130[CTX_PC];
                                 ip = (uint8_t *)(o_505 + 16) + (((int64_t)o_506) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_132 = (oop *)(active_ctx + 16);
-                        m_136 = s_132[CTX_METHOD];
-                        o_507 = *(uint64_t *)(m_136 + 16 + 24);
-                        v_270 = ip - (uint8_t *)(o_507 + 16);
-                        s_132[CTX_PC] = (uint64_t)((v_270 << 1) | 1);
-                        v_271 = sp - fp + 1;
-                        s_132[CTX_STACKP] = (uint64_t)((v_271 << 1) | 1);
+                        s_131 = (oop *)(active_ctx + 16);
+                        m_136 = s_131[CTX_METHOD];
+                        o_507 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_173 = c4_load_ref(m_136, 3U);
+        goto exit_load_ref_173;
+    }
+    r_load_ref_173 = *(uint64_t *)(m_136 + 16 + 24);
+exit_load_ref_173:;
+    r_load_ref_173; });
+                        v_309 = ip - (uint8_t *)(o_507 + 16);
+                        v_310 = (uint64_t)((v_309 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_310);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_310;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -8255,21 +13196,28 @@ op_less_than:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_133 = (oop *)(active_ctx + 16);
-                            m_137 = s_133[CTX_METHOD];
+                            s_132 = (oop *)(active_ctx + 16);
+                            m_137 = s_132[CTX_METHOD];
                             o_508 = ((oop *)(m_137 + 16))[CM_LITERALS];
                             lits = (oop *)(o_508 + 16);
-                            fp = s_133 + CTX_FIXED;
-                            o_509 = s_133[CTX_STACKP];
+                            fp = s_132 + CTX_FIXED;
+                            o_509 = s_132[CTX_STACKP];
                             sp = fp + (((int64_t)o_509) >> 1) - 1;
-                            o_510 = s_133[CTX_PC];
+                            o_510 = s_132[CTX_PC];
                             if (!((o_510 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_511 = *(uint64_t *)(m_137 + 16 + 24);
-                            o_512 = s_133[CTX_PC];
+                            o_511 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_174 = c4_load_ref(m_137, 3U);
+        goto exit_load_ref_174;
+    }
+    r_load_ref_174 = *(uint64_t *)(m_137 + 16 + 24);
+exit_load_ref_174:;
+    r_load_ref_174; });
+                            o_512 = s_132[CTX_PC];
                             ip = (uint8_t *)(o_511 + 16) + (((int64_t)o_512) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8279,7 +13227,12 @@ op_less_than:;
             goto exit_bool_result;
         }
         sp = sp - 1;
-        *sp = c_25 ? true_oop : false_oop;
+        v_311 = c_25 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_311);
+        } else {
+            *sp = v_311;
+        }
     exit_bool_result:;
         r_compare_for = true;
         goto exit_compare_for;
@@ -8316,8 +13269,8 @@ exit_num_val_6:;
         c_25 = x < y;
         nx_8 = *ip;
         if ((nx_8 == 0x92) || (nx_8 == 0x91)) {
-            p_19 = ip + 1;
-            o_513 = *(int16_t *)(uint64_t)p_19;
+            p_87 = ip + 1;
+            o_513 = *(int16_t *)(uint64_t)p_87;
             sp = sp - 2;
             ip = ip + 3;
             if (c_25 == (nx_8 == 0x91)) {
@@ -8330,13 +13283,24 @@ exit_num_val_6:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_134 = (oop *)(active_ctx + 16);
-                            m_138 = s_134[CTX_METHOD];
-                            o_514 = *(uint64_t *)(m_138 + 16 + 24);
-                            v_272 = ip - (uint8_t *)(o_514 + 16);
-                            s_134[CTX_PC] = (uint64_t)((v_272 << 1) | 1);
-                            v_273 = sp - fp + 1;
-                            s_134[CTX_STACKP] = (uint64_t)((v_273 << 1) | 1);
+                            s_133 = (oop *)(active_ctx + 16);
+                            m_138 = s_133[CTX_METHOD];
+                            o_514 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_175 = c4_load_ref(m_138, 3U);
+        goto exit_load_ref_175;
+    }
+    r_load_ref_175 = *(uint64_t *)(m_138 + 16 + 24);
+exit_load_ref_175:;
+    r_load_ref_175; });
+                            v_312 = ip - (uint8_t *)(o_514 + 16);
+                            v_313 = (uint64_t)((v_312 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_313);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_313;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8346,21 +13310,28 @@ exit_num_val_6:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_135 = (oop *)(active_ctx + 16);
-                            m_139 = s_135[CTX_METHOD];
+                            s_134 = (oop *)(active_ctx + 16);
+                            m_139 = s_134[CTX_METHOD];
                             o_515 = ((oop *)(m_139 + 16))[CM_LITERALS];
                             lits = (oop *)(o_515 + 16);
-                            fp = s_135 + CTX_FIXED;
-                            o_516 = s_135[CTX_STACKP];
+                            fp = s_134 + CTX_FIXED;
+                            o_516 = s_134[CTX_STACKP];
                             sp = fp + (((int64_t)o_516) >> 1) - 1;
-                            o_517 = s_135[CTX_PC];
+                            o_517 = s_134[CTX_PC];
                             if (!((o_517 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_518 = *(uint64_t *)(m_139 + 16 + 24);
-                            o_519 = s_135[CTX_PC];
+                            o_518 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_176 = c4_load_ref(m_139, 3U);
+        goto exit_load_ref_176;
+    }
+    r_load_ref_176 = *(uint64_t *)(m_139 + 16 + 24);
+exit_load_ref_176:;
+    r_load_ref_176; });
+                            o_519 = s_134[CTX_PC];
                             ip = (uint8_t *)(o_518 + 16) + (((int64_t)o_519) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8373,13 +13344,24 @@ exit_num_val_6:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_136 = (oop *)(active_ctx + 16);
-                                m_140 = s_136[CTX_METHOD];
-                                o_520 = *(uint64_t *)(m_140 + 16 + 24);
-                                v_274 = ip - (uint8_t *)(o_520 + 16);
-                                s_136[CTX_PC] = (uint64_t)((v_274 << 1) | 1);
-                                v_275 = sp - fp + 1;
-                                s_136[CTX_STACKP] = (uint64_t)((v_275 << 1) | 1);
+                                s_135 = (oop *)(active_ctx + 16);
+                                m_140 = s_135[CTX_METHOD];
+                                o_520 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_177 = c4_load_ref(m_140, 3U);
+        goto exit_load_ref_177;
+    }
+    r_load_ref_177 = *(uint64_t *)(m_140 + 16 + 24);
+exit_load_ref_177:;
+    r_load_ref_177; });
+                                v_314 = ip - (uint8_t *)(o_520 + 16);
+                                v_315 = (uint64_t)((v_314 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_315);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_315;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -8389,33 +13371,51 @@ exit_num_val_6:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_137 = (oop *)(active_ctx + 16);
-                                m_141 = s_137[CTX_METHOD];
+                                s_136 = (oop *)(active_ctx + 16);
+                                m_141 = s_136[CTX_METHOD];
                                 o_521 = ((oop *)(m_141 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_521 + 16);
-                                fp = s_137 + CTX_FIXED;
-                                o_522 = s_137[CTX_STACKP];
+                                fp = s_136 + CTX_FIXED;
+                                o_522 = s_136[CTX_STACKP];
                                 sp = fp + (((int64_t)o_522) >> 1) - 1;
-                                o_523 = s_137[CTX_PC];
+                                o_523 = s_136[CTX_PC];
                                 if (!((o_523 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_524 = *(uint64_t *)(m_141 + 16 + 24);
-                                o_525 = s_137[CTX_PC];
+                                o_524 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_178 = c4_load_ref(m_141, 3U);
+        goto exit_load_ref_178;
+    }
+    r_load_ref_178 = *(uint64_t *)(m_141 + 16 + 24);
+exit_load_ref_178:;
+    r_load_ref_178; });
+                                o_525 = s_136[CTX_PC];
                                 ip = (uint8_t *)(o_524 + 16) + (((int64_t)o_525) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_138 = (oop *)(active_ctx + 16);
-                        m_142 = s_138[CTX_METHOD];
-                        o_526 = *(uint64_t *)(m_142 + 16 + 24);
-                        v_276 = ip - (uint8_t *)(o_526 + 16);
-                        s_138[CTX_PC] = (uint64_t)((v_276 << 1) | 1);
-                        v_277 = sp - fp + 1;
-                        s_138[CTX_STACKP] = (uint64_t)((v_277 << 1) | 1);
+                        s_137 = (oop *)(active_ctx + 16);
+                        m_142 = s_137[CTX_METHOD];
+                        o_526 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_179 = c4_load_ref(m_142, 3U);
+        goto exit_load_ref_179;
+    }
+    r_load_ref_179 = *(uint64_t *)(m_142 + 16 + 24);
+exit_load_ref_179:;
+    r_load_ref_179; });
+                        v_316 = ip - (uint8_t *)(o_526 + 16);
+                        v_317 = (uint64_t)((v_316 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_317);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_317;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -8424,21 +13424,28 @@ exit_num_val_6:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_139 = (oop *)(active_ctx + 16);
-                            m_143 = s_139[CTX_METHOD];
+                            s_138 = (oop *)(active_ctx + 16);
+                            m_143 = s_138[CTX_METHOD];
                             o_527 = ((oop *)(m_143 + 16))[CM_LITERALS];
                             lits = (oop *)(o_527 + 16);
-                            fp = s_139 + CTX_FIXED;
-                            o_528 = s_139[CTX_STACKP];
+                            fp = s_138 + CTX_FIXED;
+                            o_528 = s_138[CTX_STACKP];
                             sp = fp + (((int64_t)o_528) >> 1) - 1;
-                            o_529 = s_139[CTX_PC];
+                            o_529 = s_138[CTX_PC];
                             if (!((o_529 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_530 = *(uint64_t *)(m_143 + 16 + 24);
-                            o_531 = s_139[CTX_PC];
+                            o_530 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_180 = c4_load_ref(m_143, 3U);
+        goto exit_load_ref_180;
+    }
+    r_load_ref_180 = *(uint64_t *)(m_143 + 16 + 24);
+exit_load_ref_180:;
+    r_load_ref_180; });
+                            o_531 = s_138[CTX_PC];
                             ip = (uint8_t *)(o_530 + 16) + (((int64_t)o_531) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8448,7 +13455,12 @@ exit_num_val_6:;
             goto exit_bool_result_2;
         }
         sp = sp - 1;
-        *sp = c_25 ? true_oop : false_oop;
+        v_318 = c_25 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_318);
+        } else {
+            *sp = v_318;
+        }
     exit_bool_result_2:;
         r_compare_for = true;
         goto exit_compare_for;
@@ -8460,6 +13472,13 @@ exit_compare_for:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_195 = *(ip - 1);
     r_next_bytecode_195; })];
@@ -8472,8 +13491,8 @@ op_greater_than:;
         c_26 = (int64_t)a_25 > (int64_t)b_31;
         nx_9 = *ip;
         if ((nx_9 == 0x92) || (nx_9 == 0x91)) {
-            p_20 = ip + 1;
-            o_533 = *(int16_t *)(uint64_t)p_20;
+            p_88 = ip + 1;
+            o_533 = *(int16_t *)(uint64_t)p_88;
             sp = sp - 2;
             ip = ip + 3;
             if (c_26 == (nx_9 == 0x91)) {
@@ -8486,13 +13505,24 @@ op_greater_than:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_140 = (oop *)(active_ctx + 16);
-                            m_144 = s_140[CTX_METHOD];
-                            o_534 = *(uint64_t *)(m_144 + 16 + 24);
-                            v_278 = ip - (uint8_t *)(o_534 + 16);
-                            s_140[CTX_PC] = (uint64_t)((v_278 << 1) | 1);
-                            v_279 = sp - fp + 1;
-                            s_140[CTX_STACKP] = (uint64_t)((v_279 << 1) | 1);
+                            s_139 = (oop *)(active_ctx + 16);
+                            m_144 = s_139[CTX_METHOD];
+                            o_534 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_181 = c4_load_ref(m_144, 3U);
+        goto exit_load_ref_181;
+    }
+    r_load_ref_181 = *(uint64_t *)(m_144 + 16 + 24);
+exit_load_ref_181:;
+    r_load_ref_181; });
+                            v_319 = ip - (uint8_t *)(o_534 + 16);
+                            v_320 = (uint64_t)((v_319 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_320);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_320;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8502,21 +13532,28 @@ op_greater_than:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_141 = (oop *)(active_ctx + 16);
-                            m_145 = s_141[CTX_METHOD];
+                            s_140 = (oop *)(active_ctx + 16);
+                            m_145 = s_140[CTX_METHOD];
                             o_535 = ((oop *)(m_145 + 16))[CM_LITERALS];
                             lits = (oop *)(o_535 + 16);
-                            fp = s_141 + CTX_FIXED;
-                            o_536 = s_141[CTX_STACKP];
+                            fp = s_140 + CTX_FIXED;
+                            o_536 = s_140[CTX_STACKP];
                             sp = fp + (((int64_t)o_536) >> 1) - 1;
-                            o_537 = s_141[CTX_PC];
+                            o_537 = s_140[CTX_PC];
                             if (!((o_537 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_538 = *(uint64_t *)(m_145 + 16 + 24);
-                            o_539 = s_141[CTX_PC];
+                            o_538 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_182 = c4_load_ref(m_145, 3U);
+        goto exit_load_ref_182;
+    }
+    r_load_ref_182 = *(uint64_t *)(m_145 + 16 + 24);
+exit_load_ref_182:;
+    r_load_ref_182; });
+                            o_539 = s_140[CTX_PC];
                             ip = (uint8_t *)(o_538 + 16) + (((int64_t)o_539) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8529,13 +13566,24 @@ op_greater_than:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_142 = (oop *)(active_ctx + 16);
-                                m_146 = s_142[CTX_METHOD];
-                                o_540 = *(uint64_t *)(m_146 + 16 + 24);
-                                v_280 = ip - (uint8_t *)(o_540 + 16);
-                                s_142[CTX_PC] = (uint64_t)((v_280 << 1) | 1);
-                                v_281 = sp - fp + 1;
-                                s_142[CTX_STACKP] = (uint64_t)((v_281 << 1) | 1);
+                                s_141 = (oop *)(active_ctx + 16);
+                                m_146 = s_141[CTX_METHOD];
+                                o_540 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_183 = c4_load_ref(m_146, 3U);
+        goto exit_load_ref_183;
+    }
+    r_load_ref_183 = *(uint64_t *)(m_146 + 16 + 24);
+exit_load_ref_183:;
+    r_load_ref_183; });
+                                v_321 = ip - (uint8_t *)(o_540 + 16);
+                                v_322 = (uint64_t)((v_321 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_322);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_322;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -8545,33 +13593,51 @@ op_greater_than:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_143 = (oop *)(active_ctx + 16);
-                                m_147 = s_143[CTX_METHOD];
+                                s_142 = (oop *)(active_ctx + 16);
+                                m_147 = s_142[CTX_METHOD];
                                 o_541 = ((oop *)(m_147 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_541 + 16);
-                                fp = s_143 + CTX_FIXED;
-                                o_542 = s_143[CTX_STACKP];
+                                fp = s_142 + CTX_FIXED;
+                                o_542 = s_142[CTX_STACKP];
                                 sp = fp + (((int64_t)o_542) >> 1) - 1;
-                                o_543 = s_143[CTX_PC];
+                                o_543 = s_142[CTX_PC];
                                 if (!((o_543 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_544 = *(uint64_t *)(m_147 + 16 + 24);
-                                o_545 = s_143[CTX_PC];
+                                o_544 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_184 = c4_load_ref(m_147, 3U);
+        goto exit_load_ref_184;
+    }
+    r_load_ref_184 = *(uint64_t *)(m_147 + 16 + 24);
+exit_load_ref_184:;
+    r_load_ref_184; });
+                                o_545 = s_142[CTX_PC];
                                 ip = (uint8_t *)(o_544 + 16) + (((int64_t)o_545) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_144 = (oop *)(active_ctx + 16);
-                        m_148 = s_144[CTX_METHOD];
-                        o_546 = *(uint64_t *)(m_148 + 16 + 24);
-                        v_282 = ip - (uint8_t *)(o_546 + 16);
-                        s_144[CTX_PC] = (uint64_t)((v_282 << 1) | 1);
-                        v_283 = sp - fp + 1;
-                        s_144[CTX_STACKP] = (uint64_t)((v_283 << 1) | 1);
+                        s_143 = (oop *)(active_ctx + 16);
+                        m_148 = s_143[CTX_METHOD];
+                        o_546 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_185 = c4_load_ref(m_148, 3U);
+        goto exit_load_ref_185;
+    }
+    r_load_ref_185 = *(uint64_t *)(m_148 + 16 + 24);
+exit_load_ref_185:;
+    r_load_ref_185; });
+                        v_323 = ip - (uint8_t *)(o_546 + 16);
+                        v_324 = (uint64_t)((v_323 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_324);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_324;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -8580,21 +13646,28 @@ op_greater_than:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_145 = (oop *)(active_ctx + 16);
-                            m_149 = s_145[CTX_METHOD];
+                            s_144 = (oop *)(active_ctx + 16);
+                            m_149 = s_144[CTX_METHOD];
                             o_547 = ((oop *)(m_149 + 16))[CM_LITERALS];
                             lits = (oop *)(o_547 + 16);
-                            fp = s_145 + CTX_FIXED;
-                            o_548 = s_145[CTX_STACKP];
+                            fp = s_144 + CTX_FIXED;
+                            o_548 = s_144[CTX_STACKP];
                             sp = fp + (((int64_t)o_548) >> 1) - 1;
-                            o_549 = s_145[CTX_PC];
+                            o_549 = s_144[CTX_PC];
                             if (!((o_549 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_550 = *(uint64_t *)(m_149 + 16 + 24);
-                            o_551 = s_145[CTX_PC];
+                            o_550 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_186 = c4_load_ref(m_149, 3U);
+        goto exit_load_ref_186;
+    }
+    r_load_ref_186 = *(uint64_t *)(m_149 + 16 + 24);
+exit_load_ref_186:;
+    r_load_ref_186; });
+                            o_551 = s_144[CTX_PC];
                             ip = (uint8_t *)(o_550 + 16) + (((int64_t)o_551) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8604,7 +13677,12 @@ op_greater_than:;
             goto exit_bool_result_3;
         }
         sp = sp - 1;
-        *sp = c_26 ? true_oop : false_oop;
+        v_325 = c_26 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_325);
+        } else {
+            *sp = v_325;
+        }
     exit_bool_result_3:;
         r_compare_for_2 = true;
         goto exit_compare_for_2;
@@ -8641,8 +13719,8 @@ exit_num_val_8:;
         c_26 = x_2 > y_2;
         nx_10 = *ip;
         if ((nx_10 == 0x92) || (nx_10 == 0x91)) {
-            p_21 = ip + 1;
-            o_552 = *(int16_t *)(uint64_t)p_21;
+            p_89 = ip + 1;
+            o_552 = *(int16_t *)(uint64_t)p_89;
             sp = sp - 2;
             ip = ip + 3;
             if (c_26 == (nx_10 == 0x91)) {
@@ -8655,13 +13733,24 @@ exit_num_val_8:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_146 = (oop *)(active_ctx + 16);
-                            m_150 = s_146[CTX_METHOD];
-                            o_553 = *(uint64_t *)(m_150 + 16 + 24);
-                            v_284 = ip - (uint8_t *)(o_553 + 16);
-                            s_146[CTX_PC] = (uint64_t)((v_284 << 1) | 1);
-                            v_285 = sp - fp + 1;
-                            s_146[CTX_STACKP] = (uint64_t)((v_285 << 1) | 1);
+                            s_145 = (oop *)(active_ctx + 16);
+                            m_150 = s_145[CTX_METHOD];
+                            o_553 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_187 = c4_load_ref(m_150, 3U);
+        goto exit_load_ref_187;
+    }
+    r_load_ref_187 = *(uint64_t *)(m_150 + 16 + 24);
+exit_load_ref_187:;
+    r_load_ref_187; });
+                            v_326 = ip - (uint8_t *)(o_553 + 16);
+                            v_327 = (uint64_t)((v_326 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_327);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_327;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8671,21 +13760,28 @@ exit_num_val_8:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_147 = (oop *)(active_ctx + 16);
-                            m_151 = s_147[CTX_METHOD];
+                            s_146 = (oop *)(active_ctx + 16);
+                            m_151 = s_146[CTX_METHOD];
                             o_554 = ((oop *)(m_151 + 16))[CM_LITERALS];
                             lits = (oop *)(o_554 + 16);
-                            fp = s_147 + CTX_FIXED;
-                            o_555 = s_147[CTX_STACKP];
+                            fp = s_146 + CTX_FIXED;
+                            o_555 = s_146[CTX_STACKP];
                             sp = fp + (((int64_t)o_555) >> 1) - 1;
-                            o_556 = s_147[CTX_PC];
+                            o_556 = s_146[CTX_PC];
                             if (!((o_556 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_557 = *(uint64_t *)(m_151 + 16 + 24);
-                            o_558 = s_147[CTX_PC];
+                            o_557 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_188 = c4_load_ref(m_151, 3U);
+        goto exit_load_ref_188;
+    }
+    r_load_ref_188 = *(uint64_t *)(m_151 + 16 + 24);
+exit_load_ref_188:;
+    r_load_ref_188; });
+                            o_558 = s_146[CTX_PC];
                             ip = (uint8_t *)(o_557 + 16) + (((int64_t)o_558) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8698,13 +13794,24 @@ exit_num_val_8:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_148 = (oop *)(active_ctx + 16);
-                                m_152 = s_148[CTX_METHOD];
-                                o_559 = *(uint64_t *)(m_152 + 16 + 24);
-                                v_286 = ip - (uint8_t *)(o_559 + 16);
-                                s_148[CTX_PC] = (uint64_t)((v_286 << 1) | 1);
-                                v_287 = sp - fp + 1;
-                                s_148[CTX_STACKP] = (uint64_t)((v_287 << 1) | 1);
+                                s_147 = (oop *)(active_ctx + 16);
+                                m_152 = s_147[CTX_METHOD];
+                                o_559 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_189 = c4_load_ref(m_152, 3U);
+        goto exit_load_ref_189;
+    }
+    r_load_ref_189 = *(uint64_t *)(m_152 + 16 + 24);
+exit_load_ref_189:;
+    r_load_ref_189; });
+                                v_328 = ip - (uint8_t *)(o_559 + 16);
+                                v_329 = (uint64_t)((v_328 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_329);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_329;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -8714,33 +13821,51 @@ exit_num_val_8:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_149 = (oop *)(active_ctx + 16);
-                                m_153 = s_149[CTX_METHOD];
+                                s_148 = (oop *)(active_ctx + 16);
+                                m_153 = s_148[CTX_METHOD];
                                 o_560 = ((oop *)(m_153 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_560 + 16);
-                                fp = s_149 + CTX_FIXED;
-                                o_561 = s_149[CTX_STACKP];
+                                fp = s_148 + CTX_FIXED;
+                                o_561 = s_148[CTX_STACKP];
                                 sp = fp + (((int64_t)o_561) >> 1) - 1;
-                                o_562 = s_149[CTX_PC];
+                                o_562 = s_148[CTX_PC];
                                 if (!((o_562 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_563 = *(uint64_t *)(m_153 + 16 + 24);
-                                o_564 = s_149[CTX_PC];
+                                o_563 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_190 = c4_load_ref(m_153, 3U);
+        goto exit_load_ref_190;
+    }
+    r_load_ref_190 = *(uint64_t *)(m_153 + 16 + 24);
+exit_load_ref_190:;
+    r_load_ref_190; });
+                                o_564 = s_148[CTX_PC];
                                 ip = (uint8_t *)(o_563 + 16) + (((int64_t)o_564) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_150 = (oop *)(active_ctx + 16);
-                        m_154 = s_150[CTX_METHOD];
-                        o_565 = *(uint64_t *)(m_154 + 16 + 24);
-                        v_288 = ip - (uint8_t *)(o_565 + 16);
-                        s_150[CTX_PC] = (uint64_t)((v_288 << 1) | 1);
-                        v_289 = sp - fp + 1;
-                        s_150[CTX_STACKP] = (uint64_t)((v_289 << 1) | 1);
+                        s_149 = (oop *)(active_ctx + 16);
+                        m_154 = s_149[CTX_METHOD];
+                        o_565 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_191 = c4_load_ref(m_154, 3U);
+        goto exit_load_ref_191;
+    }
+    r_load_ref_191 = *(uint64_t *)(m_154 + 16 + 24);
+exit_load_ref_191:;
+    r_load_ref_191; });
+                        v_330 = ip - (uint8_t *)(o_565 + 16);
+                        v_331 = (uint64_t)((v_330 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_331);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_331;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -8749,21 +13874,28 @@ exit_num_val_8:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_151 = (oop *)(active_ctx + 16);
-                            m_155 = s_151[CTX_METHOD];
+                            s_150 = (oop *)(active_ctx + 16);
+                            m_155 = s_150[CTX_METHOD];
                             o_566 = ((oop *)(m_155 + 16))[CM_LITERALS];
                             lits = (oop *)(o_566 + 16);
-                            fp = s_151 + CTX_FIXED;
-                            o_567 = s_151[CTX_STACKP];
+                            fp = s_150 + CTX_FIXED;
+                            o_567 = s_150[CTX_STACKP];
                             sp = fp + (((int64_t)o_567) >> 1) - 1;
-                            o_568 = s_151[CTX_PC];
+                            o_568 = s_150[CTX_PC];
                             if (!((o_568 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_569 = *(uint64_t *)(m_155 + 16 + 24);
-                            o_570 = s_151[CTX_PC];
+                            o_569 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_192 = c4_load_ref(m_155, 3U);
+        goto exit_load_ref_192;
+    }
+    r_load_ref_192 = *(uint64_t *)(m_155 + 16 + 24);
+exit_load_ref_192:;
+    r_load_ref_192; });
+                            o_570 = s_150[CTX_PC];
                             ip = (uint8_t *)(o_569 + 16) + (((int64_t)o_570) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8773,7 +13905,12 @@ exit_num_val_8:;
             goto exit_bool_result_4;
         }
         sp = sp - 1;
-        *sp = c_26 ? true_oop : false_oop;
+        v_332 = c_26 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_332);
+        } else {
+            *sp = v_332;
+        }
     exit_bool_result_4:;
         r_compare_for_2 = true;
         goto exit_compare_for_2;
@@ -8785,6 +13922,13 @@ exit_compare_for_2:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_196 = *(ip - 1);
     r_next_bytecode_196; })];
@@ -8797,8 +13941,8 @@ op_less_or_equal:;
         c_27 = (int64_t)a_26 <= (int64_t)b_34;
         nx_11 = *ip;
         if ((nx_11 == 0x92) || (nx_11 == 0x91)) {
-            p_22 = ip + 1;
-            o_572 = *(int16_t *)(uint64_t)p_22;
+            p_90 = ip + 1;
+            o_572 = *(int16_t *)(uint64_t)p_90;
             sp = sp - 2;
             ip = ip + 3;
             if (c_27 == (nx_11 == 0x91)) {
@@ -8811,13 +13955,24 @@ op_less_or_equal:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_152 = (oop *)(active_ctx + 16);
-                            m_156 = s_152[CTX_METHOD];
-                            o_573 = *(uint64_t *)(m_156 + 16 + 24);
-                            v_290 = ip - (uint8_t *)(o_573 + 16);
-                            s_152[CTX_PC] = (uint64_t)((v_290 << 1) | 1);
-                            v_291 = sp - fp + 1;
-                            s_152[CTX_STACKP] = (uint64_t)((v_291 << 1) | 1);
+                            s_151 = (oop *)(active_ctx + 16);
+                            m_156 = s_151[CTX_METHOD];
+                            o_573 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_193 = c4_load_ref(m_156, 3U);
+        goto exit_load_ref_193;
+    }
+    r_load_ref_193 = *(uint64_t *)(m_156 + 16 + 24);
+exit_load_ref_193:;
+    r_load_ref_193; });
+                            v_333 = ip - (uint8_t *)(o_573 + 16);
+                            v_334 = (uint64_t)((v_333 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_334);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_334;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8827,21 +13982,28 @@ op_less_or_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_153 = (oop *)(active_ctx + 16);
-                            m_157 = s_153[CTX_METHOD];
+                            s_152 = (oop *)(active_ctx + 16);
+                            m_157 = s_152[CTX_METHOD];
                             o_574 = ((oop *)(m_157 + 16))[CM_LITERALS];
                             lits = (oop *)(o_574 + 16);
-                            fp = s_153 + CTX_FIXED;
-                            o_575 = s_153[CTX_STACKP];
+                            fp = s_152 + CTX_FIXED;
+                            o_575 = s_152[CTX_STACKP];
                             sp = fp + (((int64_t)o_575) >> 1) - 1;
-                            o_576 = s_153[CTX_PC];
+                            o_576 = s_152[CTX_PC];
                             if (!((o_576 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_577 = *(uint64_t *)(m_157 + 16 + 24);
-                            o_578 = s_153[CTX_PC];
+                            o_577 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_194 = c4_load_ref(m_157, 3U);
+        goto exit_load_ref_194;
+    }
+    r_load_ref_194 = *(uint64_t *)(m_157 + 16 + 24);
+exit_load_ref_194:;
+    r_load_ref_194; });
+                            o_578 = s_152[CTX_PC];
                             ip = (uint8_t *)(o_577 + 16) + (((int64_t)o_578) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8854,13 +14016,24 @@ op_less_or_equal:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_154 = (oop *)(active_ctx + 16);
-                                m_158 = s_154[CTX_METHOD];
-                                o_579 = *(uint64_t *)(m_158 + 16 + 24);
-                                v_292 = ip - (uint8_t *)(o_579 + 16);
-                                s_154[CTX_PC] = (uint64_t)((v_292 << 1) | 1);
-                                v_293 = sp - fp + 1;
-                                s_154[CTX_STACKP] = (uint64_t)((v_293 << 1) | 1);
+                                s_153 = (oop *)(active_ctx + 16);
+                                m_158 = s_153[CTX_METHOD];
+                                o_579 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_195 = c4_load_ref(m_158, 3U);
+        goto exit_load_ref_195;
+    }
+    r_load_ref_195 = *(uint64_t *)(m_158 + 16 + 24);
+exit_load_ref_195:;
+    r_load_ref_195; });
+                                v_335 = ip - (uint8_t *)(o_579 + 16);
+                                v_336 = (uint64_t)((v_335 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_336);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_336;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -8870,33 +14043,51 @@ op_less_or_equal:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_155 = (oop *)(active_ctx + 16);
-                                m_159 = s_155[CTX_METHOD];
+                                s_154 = (oop *)(active_ctx + 16);
+                                m_159 = s_154[CTX_METHOD];
                                 o_580 = ((oop *)(m_159 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_580 + 16);
-                                fp = s_155 + CTX_FIXED;
-                                o_581 = s_155[CTX_STACKP];
+                                fp = s_154 + CTX_FIXED;
+                                o_581 = s_154[CTX_STACKP];
                                 sp = fp + (((int64_t)o_581) >> 1) - 1;
-                                o_582 = s_155[CTX_PC];
+                                o_582 = s_154[CTX_PC];
                                 if (!((o_582 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_583 = *(uint64_t *)(m_159 + 16 + 24);
-                                o_584 = s_155[CTX_PC];
+                                o_583 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_196 = c4_load_ref(m_159, 3U);
+        goto exit_load_ref_196;
+    }
+    r_load_ref_196 = *(uint64_t *)(m_159 + 16 + 24);
+exit_load_ref_196:;
+    r_load_ref_196; });
+                                o_584 = s_154[CTX_PC];
                                 ip = (uint8_t *)(o_583 + 16) + (((int64_t)o_584) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_156 = (oop *)(active_ctx + 16);
-                        m_160 = s_156[CTX_METHOD];
-                        o_585 = *(uint64_t *)(m_160 + 16 + 24);
-                        v_294 = ip - (uint8_t *)(o_585 + 16);
-                        s_156[CTX_PC] = (uint64_t)((v_294 << 1) | 1);
-                        v_295 = sp - fp + 1;
-                        s_156[CTX_STACKP] = (uint64_t)((v_295 << 1) | 1);
+                        s_155 = (oop *)(active_ctx + 16);
+                        m_160 = s_155[CTX_METHOD];
+                        o_585 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_197 = c4_load_ref(m_160, 3U);
+        goto exit_load_ref_197;
+    }
+    r_load_ref_197 = *(uint64_t *)(m_160 + 16 + 24);
+exit_load_ref_197:;
+    r_load_ref_197; });
+                        v_337 = ip - (uint8_t *)(o_585 + 16);
+                        v_338 = (uint64_t)((v_337 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_338);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_338;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -8905,21 +14096,28 @@ op_less_or_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_157 = (oop *)(active_ctx + 16);
-                            m_161 = s_157[CTX_METHOD];
+                            s_156 = (oop *)(active_ctx + 16);
+                            m_161 = s_156[CTX_METHOD];
                             o_586 = ((oop *)(m_161 + 16))[CM_LITERALS];
                             lits = (oop *)(o_586 + 16);
-                            fp = s_157 + CTX_FIXED;
-                            o_587 = s_157[CTX_STACKP];
+                            fp = s_156 + CTX_FIXED;
+                            o_587 = s_156[CTX_STACKP];
                             sp = fp + (((int64_t)o_587) >> 1) - 1;
-                            o_588 = s_157[CTX_PC];
+                            o_588 = s_156[CTX_PC];
                             if (!((o_588 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_589 = *(uint64_t *)(m_161 + 16 + 24);
-                            o_590 = s_157[CTX_PC];
+                            o_589 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_198 = c4_load_ref(m_161, 3U);
+        goto exit_load_ref_198;
+    }
+    r_load_ref_198 = *(uint64_t *)(m_161 + 16 + 24);
+exit_load_ref_198:;
+    r_load_ref_198; });
+                            o_590 = s_156[CTX_PC];
                             ip = (uint8_t *)(o_589 + 16) + (((int64_t)o_590) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -8929,7 +14127,12 @@ op_less_or_equal:;
             goto exit_bool_result_5;
         }
         sp = sp - 1;
-        *sp = c_27 ? true_oop : false_oop;
+        v_339 = c_27 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_339);
+        } else {
+            *sp = v_339;
+        }
     exit_bool_result_5:;
         r_compare_for_3 = true;
         goto exit_compare_for_3;
@@ -8966,8 +14169,8 @@ exit_num_val_10:;
         c_27 = x_3 <= y_3;
         nx_12 = *ip;
         if ((nx_12 == 0x92) || (nx_12 == 0x91)) {
-            p_23 = ip + 1;
-            o_591 = *(int16_t *)(uint64_t)p_23;
+            p_91 = ip + 1;
+            o_591 = *(int16_t *)(uint64_t)p_91;
             sp = sp - 2;
             ip = ip + 3;
             if (c_27 == (nx_12 == 0x91)) {
@@ -8980,13 +14183,24 @@ exit_num_val_10:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_158 = (oop *)(active_ctx + 16);
-                            m_162 = s_158[CTX_METHOD];
-                            o_592 = *(uint64_t *)(m_162 + 16 + 24);
-                            v_296 = ip - (uint8_t *)(o_592 + 16);
-                            s_158[CTX_PC] = (uint64_t)((v_296 << 1) | 1);
-                            v_297 = sp - fp + 1;
-                            s_158[CTX_STACKP] = (uint64_t)((v_297 << 1) | 1);
+                            s_157 = (oop *)(active_ctx + 16);
+                            m_162 = s_157[CTX_METHOD];
+                            o_592 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_199 = c4_load_ref(m_162, 3U);
+        goto exit_load_ref_199;
+    }
+    r_load_ref_199 = *(uint64_t *)(m_162 + 16 + 24);
+exit_load_ref_199:;
+    r_load_ref_199; });
+                            v_340 = ip - (uint8_t *)(o_592 + 16);
+                            v_341 = (uint64_t)((v_340 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_341);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_341;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -8996,21 +14210,28 @@ exit_num_val_10:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_159 = (oop *)(active_ctx + 16);
-                            m_163 = s_159[CTX_METHOD];
+                            s_158 = (oop *)(active_ctx + 16);
+                            m_163 = s_158[CTX_METHOD];
                             o_593 = ((oop *)(m_163 + 16))[CM_LITERALS];
                             lits = (oop *)(o_593 + 16);
-                            fp = s_159 + CTX_FIXED;
-                            o_594 = s_159[CTX_STACKP];
+                            fp = s_158 + CTX_FIXED;
+                            o_594 = s_158[CTX_STACKP];
                             sp = fp + (((int64_t)o_594) >> 1) - 1;
-                            o_595 = s_159[CTX_PC];
+                            o_595 = s_158[CTX_PC];
                             if (!((o_595 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_596 = *(uint64_t *)(m_163 + 16 + 24);
-                            o_597 = s_159[CTX_PC];
+                            o_596 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_200 = c4_load_ref(m_163, 3U);
+        goto exit_load_ref_200;
+    }
+    r_load_ref_200 = *(uint64_t *)(m_163 + 16 + 24);
+exit_load_ref_200:;
+    r_load_ref_200; });
+                            o_597 = s_158[CTX_PC];
                             ip = (uint8_t *)(o_596 + 16) + (((int64_t)o_597) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9023,13 +14244,24 @@ exit_num_val_10:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_160 = (oop *)(active_ctx + 16);
-                                m_164 = s_160[CTX_METHOD];
-                                o_598 = *(uint64_t *)(m_164 + 16 + 24);
-                                v_298 = ip - (uint8_t *)(o_598 + 16);
-                                s_160[CTX_PC] = (uint64_t)((v_298 << 1) | 1);
-                                v_299 = sp - fp + 1;
-                                s_160[CTX_STACKP] = (uint64_t)((v_299 << 1) | 1);
+                                s_159 = (oop *)(active_ctx + 16);
+                                m_164 = s_159[CTX_METHOD];
+                                o_598 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_201 = c4_load_ref(m_164, 3U);
+        goto exit_load_ref_201;
+    }
+    r_load_ref_201 = *(uint64_t *)(m_164 + 16 + 24);
+exit_load_ref_201:;
+    r_load_ref_201; });
+                                v_342 = ip - (uint8_t *)(o_598 + 16);
+                                v_343 = (uint64_t)((v_342 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_343);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_343;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9039,33 +14271,51 @@ exit_num_val_10:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_161 = (oop *)(active_ctx + 16);
-                                m_165 = s_161[CTX_METHOD];
+                                s_160 = (oop *)(active_ctx + 16);
+                                m_165 = s_160[CTX_METHOD];
                                 o_599 = ((oop *)(m_165 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_599 + 16);
-                                fp = s_161 + CTX_FIXED;
-                                o_600 = s_161[CTX_STACKP];
+                                fp = s_160 + CTX_FIXED;
+                                o_600 = s_160[CTX_STACKP];
                                 sp = fp + (((int64_t)o_600) >> 1) - 1;
-                                o_601 = s_161[CTX_PC];
+                                o_601 = s_160[CTX_PC];
                                 if (!((o_601 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_602 = *(uint64_t *)(m_165 + 16 + 24);
-                                o_603 = s_161[CTX_PC];
+                                o_602 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_202 = c4_load_ref(m_165, 3U);
+        goto exit_load_ref_202;
+    }
+    r_load_ref_202 = *(uint64_t *)(m_165 + 16 + 24);
+exit_load_ref_202:;
+    r_load_ref_202; });
+                                o_603 = s_160[CTX_PC];
                                 ip = (uint8_t *)(o_602 + 16) + (((int64_t)o_603) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_162 = (oop *)(active_ctx + 16);
-                        m_166 = s_162[CTX_METHOD];
-                        o_604 = *(uint64_t *)(m_166 + 16 + 24);
-                        v_300 = ip - (uint8_t *)(o_604 + 16);
-                        s_162[CTX_PC] = (uint64_t)((v_300 << 1) | 1);
-                        v_301 = sp - fp + 1;
-                        s_162[CTX_STACKP] = (uint64_t)((v_301 << 1) | 1);
+                        s_161 = (oop *)(active_ctx + 16);
+                        m_166 = s_161[CTX_METHOD];
+                        o_604 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_203 = c4_load_ref(m_166, 3U);
+        goto exit_load_ref_203;
+    }
+    r_load_ref_203 = *(uint64_t *)(m_166 + 16 + 24);
+exit_load_ref_203:;
+    r_load_ref_203; });
+                        v_344 = ip - (uint8_t *)(o_604 + 16);
+                        v_345 = (uint64_t)((v_344 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_345);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_345;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9074,21 +14324,28 @@ exit_num_val_10:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_163 = (oop *)(active_ctx + 16);
-                            m_167 = s_163[CTX_METHOD];
+                            s_162 = (oop *)(active_ctx + 16);
+                            m_167 = s_162[CTX_METHOD];
                             o_605 = ((oop *)(m_167 + 16))[CM_LITERALS];
                             lits = (oop *)(o_605 + 16);
-                            fp = s_163 + CTX_FIXED;
-                            o_606 = s_163[CTX_STACKP];
+                            fp = s_162 + CTX_FIXED;
+                            o_606 = s_162[CTX_STACKP];
                             sp = fp + (((int64_t)o_606) >> 1) - 1;
-                            o_607 = s_163[CTX_PC];
+                            o_607 = s_162[CTX_PC];
                             if (!((o_607 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_608 = *(uint64_t *)(m_167 + 16 + 24);
-                            o_609 = s_163[CTX_PC];
+                            o_608 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_204 = c4_load_ref(m_167, 3U);
+        goto exit_load_ref_204;
+    }
+    r_load_ref_204 = *(uint64_t *)(m_167 + 16 + 24);
+exit_load_ref_204:;
+    r_load_ref_204; });
+                            o_609 = s_162[CTX_PC];
                             ip = (uint8_t *)(o_608 + 16) + (((int64_t)o_609) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9098,7 +14355,12 @@ exit_num_val_10:;
             goto exit_bool_result_6;
         }
         sp = sp - 1;
-        *sp = c_27 ? true_oop : false_oop;
+        v_346 = c_27 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_346);
+        } else {
+            *sp = v_346;
+        }
     exit_bool_result_6:;
         r_compare_for_3 = true;
         goto exit_compare_for_3;
@@ -9110,6 +14372,13 @@ exit_compare_for_3:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_197 = *(ip - 1);
     r_next_bytecode_197; })];
@@ -9122,8 +14391,8 @@ op_greater_or_equal:;
         c_28 = (int64_t)a_27 >= (int64_t)b_37;
         nx_13 = *ip;
         if ((nx_13 == 0x92) || (nx_13 == 0x91)) {
-            p_24 = ip + 1;
-            o_611 = *(int16_t *)(uint64_t)p_24;
+            p_92 = ip + 1;
+            o_611 = *(int16_t *)(uint64_t)p_92;
             sp = sp - 2;
             ip = ip + 3;
             if (c_28 == (nx_13 == 0x91)) {
@@ -9136,13 +14405,24 @@ op_greater_or_equal:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_164 = (oop *)(active_ctx + 16);
-                            m_168 = s_164[CTX_METHOD];
-                            o_612 = *(uint64_t *)(m_168 + 16 + 24);
-                            v_302 = ip - (uint8_t *)(o_612 + 16);
-                            s_164[CTX_PC] = (uint64_t)((v_302 << 1) | 1);
-                            v_303 = sp - fp + 1;
-                            s_164[CTX_STACKP] = (uint64_t)((v_303 << 1) | 1);
+                            s_163 = (oop *)(active_ctx + 16);
+                            m_168 = s_163[CTX_METHOD];
+                            o_612 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_205 = c4_load_ref(m_168, 3U);
+        goto exit_load_ref_205;
+    }
+    r_load_ref_205 = *(uint64_t *)(m_168 + 16 + 24);
+exit_load_ref_205:;
+    r_load_ref_205; });
+                            v_347 = ip - (uint8_t *)(o_612 + 16);
+                            v_348 = (uint64_t)((v_347 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_348);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_348;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9152,21 +14432,28 @@ op_greater_or_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_165 = (oop *)(active_ctx + 16);
-                            m_169 = s_165[CTX_METHOD];
+                            s_164 = (oop *)(active_ctx + 16);
+                            m_169 = s_164[CTX_METHOD];
                             o_613 = ((oop *)(m_169 + 16))[CM_LITERALS];
                             lits = (oop *)(o_613 + 16);
-                            fp = s_165 + CTX_FIXED;
-                            o_614 = s_165[CTX_STACKP];
+                            fp = s_164 + CTX_FIXED;
+                            o_614 = s_164[CTX_STACKP];
                             sp = fp + (((int64_t)o_614) >> 1) - 1;
-                            o_615 = s_165[CTX_PC];
+                            o_615 = s_164[CTX_PC];
                             if (!((o_615 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_616 = *(uint64_t *)(m_169 + 16 + 24);
-                            o_617 = s_165[CTX_PC];
+                            o_616 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_206 = c4_load_ref(m_169, 3U);
+        goto exit_load_ref_206;
+    }
+    r_load_ref_206 = *(uint64_t *)(m_169 + 16 + 24);
+exit_load_ref_206:;
+    r_load_ref_206; });
+                            o_617 = s_164[CTX_PC];
                             ip = (uint8_t *)(o_616 + 16) + (((int64_t)o_617) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9179,13 +14466,24 @@ op_greater_or_equal:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_166 = (oop *)(active_ctx + 16);
-                                m_170 = s_166[CTX_METHOD];
-                                o_618 = *(uint64_t *)(m_170 + 16 + 24);
-                                v_304 = ip - (uint8_t *)(o_618 + 16);
-                                s_166[CTX_PC] = (uint64_t)((v_304 << 1) | 1);
-                                v_305 = sp - fp + 1;
-                                s_166[CTX_STACKP] = (uint64_t)((v_305 << 1) | 1);
+                                s_165 = (oop *)(active_ctx + 16);
+                                m_170 = s_165[CTX_METHOD];
+                                o_618 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_207 = c4_load_ref(m_170, 3U);
+        goto exit_load_ref_207;
+    }
+    r_load_ref_207 = *(uint64_t *)(m_170 + 16 + 24);
+exit_load_ref_207:;
+    r_load_ref_207; });
+                                v_349 = ip - (uint8_t *)(o_618 + 16);
+                                v_350 = (uint64_t)((v_349 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_350);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_350;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9195,33 +14493,51 @@ op_greater_or_equal:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_167 = (oop *)(active_ctx + 16);
-                                m_171 = s_167[CTX_METHOD];
+                                s_166 = (oop *)(active_ctx + 16);
+                                m_171 = s_166[CTX_METHOD];
                                 o_619 = ((oop *)(m_171 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_619 + 16);
-                                fp = s_167 + CTX_FIXED;
-                                o_620 = s_167[CTX_STACKP];
+                                fp = s_166 + CTX_FIXED;
+                                o_620 = s_166[CTX_STACKP];
                                 sp = fp + (((int64_t)o_620) >> 1) - 1;
-                                o_621 = s_167[CTX_PC];
+                                o_621 = s_166[CTX_PC];
                                 if (!((o_621 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_622 = *(uint64_t *)(m_171 + 16 + 24);
-                                o_623 = s_167[CTX_PC];
+                                o_622 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_208 = c4_load_ref(m_171, 3U);
+        goto exit_load_ref_208;
+    }
+    r_load_ref_208 = *(uint64_t *)(m_171 + 16 + 24);
+exit_load_ref_208:;
+    r_load_ref_208; });
+                                o_623 = s_166[CTX_PC];
                                 ip = (uint8_t *)(o_622 + 16) + (((int64_t)o_623) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_168 = (oop *)(active_ctx + 16);
-                        m_172 = s_168[CTX_METHOD];
-                        o_624 = *(uint64_t *)(m_172 + 16 + 24);
-                        v_306 = ip - (uint8_t *)(o_624 + 16);
-                        s_168[CTX_PC] = (uint64_t)((v_306 << 1) | 1);
-                        v_307 = sp - fp + 1;
-                        s_168[CTX_STACKP] = (uint64_t)((v_307 << 1) | 1);
+                        s_167 = (oop *)(active_ctx + 16);
+                        m_172 = s_167[CTX_METHOD];
+                        o_624 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_209 = c4_load_ref(m_172, 3U);
+        goto exit_load_ref_209;
+    }
+    r_load_ref_209 = *(uint64_t *)(m_172 + 16 + 24);
+exit_load_ref_209:;
+    r_load_ref_209; });
+                        v_351 = ip - (uint8_t *)(o_624 + 16);
+                        v_352 = (uint64_t)((v_351 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_352);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_352;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9230,21 +14546,28 @@ op_greater_or_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_169 = (oop *)(active_ctx + 16);
-                            m_173 = s_169[CTX_METHOD];
+                            s_168 = (oop *)(active_ctx + 16);
+                            m_173 = s_168[CTX_METHOD];
                             o_625 = ((oop *)(m_173 + 16))[CM_LITERALS];
                             lits = (oop *)(o_625 + 16);
-                            fp = s_169 + CTX_FIXED;
-                            o_626 = s_169[CTX_STACKP];
+                            fp = s_168 + CTX_FIXED;
+                            o_626 = s_168[CTX_STACKP];
                             sp = fp + (((int64_t)o_626) >> 1) - 1;
-                            o_627 = s_169[CTX_PC];
+                            o_627 = s_168[CTX_PC];
                             if (!((o_627 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_628 = *(uint64_t *)(m_173 + 16 + 24);
-                            o_629 = s_169[CTX_PC];
+                            o_628 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_210 = c4_load_ref(m_173, 3U);
+        goto exit_load_ref_210;
+    }
+    r_load_ref_210 = *(uint64_t *)(m_173 + 16 + 24);
+exit_load_ref_210:;
+    r_load_ref_210; });
+                            o_629 = s_168[CTX_PC];
                             ip = (uint8_t *)(o_628 + 16) + (((int64_t)o_629) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9254,7 +14577,12 @@ op_greater_or_equal:;
             goto exit_bool_result_7;
         }
         sp = sp - 1;
-        *sp = c_28 ? true_oop : false_oop;
+        v_353 = c_28 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_353);
+        } else {
+            *sp = v_353;
+        }
     exit_bool_result_7:;
         r_compare_for_4 = true;
         goto exit_compare_for_4;
@@ -9291,8 +14619,8 @@ exit_num_val_12:;
         c_28 = x_4 >= y_4;
         nx_14 = *ip;
         if ((nx_14 == 0x92) || (nx_14 == 0x91)) {
-            p_25 = ip + 1;
-            o_630 = *(int16_t *)(uint64_t)p_25;
+            p_93 = ip + 1;
+            o_630 = *(int16_t *)(uint64_t)p_93;
             sp = sp - 2;
             ip = ip + 3;
             if (c_28 == (nx_14 == 0x91)) {
@@ -9305,13 +14633,24 @@ exit_num_val_12:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_170 = (oop *)(active_ctx + 16);
-                            m_174 = s_170[CTX_METHOD];
-                            o_631 = *(uint64_t *)(m_174 + 16 + 24);
-                            v_308 = ip - (uint8_t *)(o_631 + 16);
-                            s_170[CTX_PC] = (uint64_t)((v_308 << 1) | 1);
-                            v_309 = sp - fp + 1;
-                            s_170[CTX_STACKP] = (uint64_t)((v_309 << 1) | 1);
+                            s_169 = (oop *)(active_ctx + 16);
+                            m_174 = s_169[CTX_METHOD];
+                            o_631 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_211 = c4_load_ref(m_174, 3U);
+        goto exit_load_ref_211;
+    }
+    r_load_ref_211 = *(uint64_t *)(m_174 + 16 + 24);
+exit_load_ref_211:;
+    r_load_ref_211; });
+                            v_354 = ip - (uint8_t *)(o_631 + 16);
+                            v_355 = (uint64_t)((v_354 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_355);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_355;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9321,21 +14660,28 @@ exit_num_val_12:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_171 = (oop *)(active_ctx + 16);
-                            m_175 = s_171[CTX_METHOD];
+                            s_170 = (oop *)(active_ctx + 16);
+                            m_175 = s_170[CTX_METHOD];
                             o_632 = ((oop *)(m_175 + 16))[CM_LITERALS];
                             lits = (oop *)(o_632 + 16);
-                            fp = s_171 + CTX_FIXED;
-                            o_633 = s_171[CTX_STACKP];
+                            fp = s_170 + CTX_FIXED;
+                            o_633 = s_170[CTX_STACKP];
                             sp = fp + (((int64_t)o_633) >> 1) - 1;
-                            o_634 = s_171[CTX_PC];
+                            o_634 = s_170[CTX_PC];
                             if (!((o_634 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_635 = *(uint64_t *)(m_175 + 16 + 24);
-                            o_636 = s_171[CTX_PC];
+                            o_635 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_212 = c4_load_ref(m_175, 3U);
+        goto exit_load_ref_212;
+    }
+    r_load_ref_212 = *(uint64_t *)(m_175 + 16 + 24);
+exit_load_ref_212:;
+    r_load_ref_212; });
+                            o_636 = s_170[CTX_PC];
                             ip = (uint8_t *)(o_635 + 16) + (((int64_t)o_636) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9348,13 +14694,24 @@ exit_num_val_12:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_172 = (oop *)(active_ctx + 16);
-                                m_176 = s_172[CTX_METHOD];
-                                o_637 = *(uint64_t *)(m_176 + 16 + 24);
-                                v_310 = ip - (uint8_t *)(o_637 + 16);
-                                s_172[CTX_PC] = (uint64_t)((v_310 << 1) | 1);
-                                v_311 = sp - fp + 1;
-                                s_172[CTX_STACKP] = (uint64_t)((v_311 << 1) | 1);
+                                s_171 = (oop *)(active_ctx + 16);
+                                m_176 = s_171[CTX_METHOD];
+                                o_637 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_213 = c4_load_ref(m_176, 3U);
+        goto exit_load_ref_213;
+    }
+    r_load_ref_213 = *(uint64_t *)(m_176 + 16 + 24);
+exit_load_ref_213:;
+    r_load_ref_213; });
+                                v_356 = ip - (uint8_t *)(o_637 + 16);
+                                v_357 = (uint64_t)((v_356 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_357);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_357;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9364,33 +14721,51 @@ exit_num_val_12:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_173 = (oop *)(active_ctx + 16);
-                                m_177 = s_173[CTX_METHOD];
+                                s_172 = (oop *)(active_ctx + 16);
+                                m_177 = s_172[CTX_METHOD];
                                 o_638 = ((oop *)(m_177 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_638 + 16);
-                                fp = s_173 + CTX_FIXED;
-                                o_639 = s_173[CTX_STACKP];
+                                fp = s_172 + CTX_FIXED;
+                                o_639 = s_172[CTX_STACKP];
                                 sp = fp + (((int64_t)o_639) >> 1) - 1;
-                                o_640 = s_173[CTX_PC];
+                                o_640 = s_172[CTX_PC];
                                 if (!((o_640 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_641 = *(uint64_t *)(m_177 + 16 + 24);
-                                o_642 = s_173[CTX_PC];
+                                o_641 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_214 = c4_load_ref(m_177, 3U);
+        goto exit_load_ref_214;
+    }
+    r_load_ref_214 = *(uint64_t *)(m_177 + 16 + 24);
+exit_load_ref_214:;
+    r_load_ref_214; });
+                                o_642 = s_172[CTX_PC];
                                 ip = (uint8_t *)(o_641 + 16) + (((int64_t)o_642) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_174 = (oop *)(active_ctx + 16);
-                        m_178 = s_174[CTX_METHOD];
-                        o_643 = *(uint64_t *)(m_178 + 16 + 24);
-                        v_312 = ip - (uint8_t *)(o_643 + 16);
-                        s_174[CTX_PC] = (uint64_t)((v_312 << 1) | 1);
-                        v_313 = sp - fp + 1;
-                        s_174[CTX_STACKP] = (uint64_t)((v_313 << 1) | 1);
+                        s_173 = (oop *)(active_ctx + 16);
+                        m_178 = s_173[CTX_METHOD];
+                        o_643 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_215 = c4_load_ref(m_178, 3U);
+        goto exit_load_ref_215;
+    }
+    r_load_ref_215 = *(uint64_t *)(m_178 + 16 + 24);
+exit_load_ref_215:;
+    r_load_ref_215; });
+                        v_358 = ip - (uint8_t *)(o_643 + 16);
+                        v_359 = (uint64_t)((v_358 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_359);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_359;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9399,21 +14774,28 @@ exit_num_val_12:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_175 = (oop *)(active_ctx + 16);
-                            m_179 = s_175[CTX_METHOD];
+                            s_174 = (oop *)(active_ctx + 16);
+                            m_179 = s_174[CTX_METHOD];
                             o_644 = ((oop *)(m_179 + 16))[CM_LITERALS];
                             lits = (oop *)(o_644 + 16);
-                            fp = s_175 + CTX_FIXED;
-                            o_645 = s_175[CTX_STACKP];
+                            fp = s_174 + CTX_FIXED;
+                            o_645 = s_174[CTX_STACKP];
                             sp = fp + (((int64_t)o_645) >> 1) - 1;
-                            o_646 = s_175[CTX_PC];
+                            o_646 = s_174[CTX_PC];
                             if (!((o_646 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_647 = *(uint64_t *)(m_179 + 16 + 24);
-                            o_648 = s_175[CTX_PC];
+                            o_647 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_216 = c4_load_ref(m_179, 3U);
+        goto exit_load_ref_216;
+    }
+    r_load_ref_216 = *(uint64_t *)(m_179 + 16 + 24);
+exit_load_ref_216:;
+    r_load_ref_216; });
+                            o_648 = s_174[CTX_PC];
                             ip = (uint8_t *)(o_647 + 16) + (((int64_t)o_648) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9423,7 +14805,12 @@ exit_num_val_12:;
             goto exit_bool_result_8;
         }
         sp = sp - 1;
-        *sp = c_28 ? true_oop : false_oop;
+        v_360 = c_28 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_360);
+        } else {
+            *sp = v_360;
+        }
     exit_bool_result_8:;
         r_compare_for_4 = true;
         goto exit_compare_for_4;
@@ -9435,6 +14822,13 @@ exit_compare_for_4:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_198 = *(ip - 1);
     r_next_bytecode_198; })];
@@ -9447,8 +14841,8 @@ op_equal:;
         c_29 = a_28 == b_40;
         nx_15 = *ip;
         if ((nx_15 == 0x92) || (nx_15 == 0x91)) {
-            p_26 = ip + 1;
-            o_650 = *(int16_t *)(uint64_t)p_26;
+            p_94 = ip + 1;
+            o_650 = *(int16_t *)(uint64_t)p_94;
             sp = sp - 2;
             ip = ip + 3;
             if (c_29 == (nx_15 == 0x91)) {
@@ -9461,13 +14855,24 @@ op_equal:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_176 = (oop *)(active_ctx + 16);
-                            m_180 = s_176[CTX_METHOD];
-                            o_651 = *(uint64_t *)(m_180 + 16 + 24);
-                            v_314 = ip - (uint8_t *)(o_651 + 16);
-                            s_176[CTX_PC] = (uint64_t)((v_314 << 1) | 1);
-                            v_315 = sp - fp + 1;
-                            s_176[CTX_STACKP] = (uint64_t)((v_315 << 1) | 1);
+                            s_175 = (oop *)(active_ctx + 16);
+                            m_180 = s_175[CTX_METHOD];
+                            o_651 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_217 = c4_load_ref(m_180, 3U);
+        goto exit_load_ref_217;
+    }
+    r_load_ref_217 = *(uint64_t *)(m_180 + 16 + 24);
+exit_load_ref_217:;
+    r_load_ref_217; });
+                            v_361 = ip - (uint8_t *)(o_651 + 16);
+                            v_362 = (uint64_t)((v_361 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_362);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_362;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9477,21 +14882,28 @@ op_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_177 = (oop *)(active_ctx + 16);
-                            m_181 = s_177[CTX_METHOD];
+                            s_176 = (oop *)(active_ctx + 16);
+                            m_181 = s_176[CTX_METHOD];
                             o_652 = ((oop *)(m_181 + 16))[CM_LITERALS];
                             lits = (oop *)(o_652 + 16);
-                            fp = s_177 + CTX_FIXED;
-                            o_653 = s_177[CTX_STACKP];
+                            fp = s_176 + CTX_FIXED;
+                            o_653 = s_176[CTX_STACKP];
                             sp = fp + (((int64_t)o_653) >> 1) - 1;
-                            o_654 = s_177[CTX_PC];
+                            o_654 = s_176[CTX_PC];
                             if (!((o_654 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_655 = *(uint64_t *)(m_181 + 16 + 24);
-                            o_656 = s_177[CTX_PC];
+                            o_655 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_218 = c4_load_ref(m_181, 3U);
+        goto exit_load_ref_218;
+    }
+    r_load_ref_218 = *(uint64_t *)(m_181 + 16 + 24);
+exit_load_ref_218:;
+    r_load_ref_218; });
+                            o_656 = s_176[CTX_PC];
                             ip = (uint8_t *)(o_655 + 16) + (((int64_t)o_656) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9504,13 +14916,24 @@ op_equal:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_178 = (oop *)(active_ctx + 16);
-                                m_182 = s_178[CTX_METHOD];
-                                o_657 = *(uint64_t *)(m_182 + 16 + 24);
-                                v_316 = ip - (uint8_t *)(o_657 + 16);
-                                s_178[CTX_PC] = (uint64_t)((v_316 << 1) | 1);
-                                v_317 = sp - fp + 1;
-                                s_178[CTX_STACKP] = (uint64_t)((v_317 << 1) | 1);
+                                s_177 = (oop *)(active_ctx + 16);
+                                m_182 = s_177[CTX_METHOD];
+                                o_657 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_219 = c4_load_ref(m_182, 3U);
+        goto exit_load_ref_219;
+    }
+    r_load_ref_219 = *(uint64_t *)(m_182 + 16 + 24);
+exit_load_ref_219:;
+    r_load_ref_219; });
+                                v_363 = ip - (uint8_t *)(o_657 + 16);
+                                v_364 = (uint64_t)((v_363 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_364);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_364;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9520,33 +14943,51 @@ op_equal:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_179 = (oop *)(active_ctx + 16);
-                                m_183 = s_179[CTX_METHOD];
+                                s_178 = (oop *)(active_ctx + 16);
+                                m_183 = s_178[CTX_METHOD];
                                 o_658 = ((oop *)(m_183 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_658 + 16);
-                                fp = s_179 + CTX_FIXED;
-                                o_659 = s_179[CTX_STACKP];
+                                fp = s_178 + CTX_FIXED;
+                                o_659 = s_178[CTX_STACKP];
                                 sp = fp + (((int64_t)o_659) >> 1) - 1;
-                                o_660 = s_179[CTX_PC];
+                                o_660 = s_178[CTX_PC];
                                 if (!((o_660 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_661 = *(uint64_t *)(m_183 + 16 + 24);
-                                o_662 = s_179[CTX_PC];
+                                o_661 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_220 = c4_load_ref(m_183, 3U);
+        goto exit_load_ref_220;
+    }
+    r_load_ref_220 = *(uint64_t *)(m_183 + 16 + 24);
+exit_load_ref_220:;
+    r_load_ref_220; });
+                                o_662 = s_178[CTX_PC];
                                 ip = (uint8_t *)(o_661 + 16) + (((int64_t)o_662) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_180 = (oop *)(active_ctx + 16);
-                        m_184 = s_180[CTX_METHOD];
-                        o_663 = *(uint64_t *)(m_184 + 16 + 24);
-                        v_318 = ip - (uint8_t *)(o_663 + 16);
-                        s_180[CTX_PC] = (uint64_t)((v_318 << 1) | 1);
-                        v_319 = sp - fp + 1;
-                        s_180[CTX_STACKP] = (uint64_t)((v_319 << 1) | 1);
+                        s_179 = (oop *)(active_ctx + 16);
+                        m_184 = s_179[CTX_METHOD];
+                        o_663 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_221 = c4_load_ref(m_184, 3U);
+        goto exit_load_ref_221;
+    }
+    r_load_ref_221 = *(uint64_t *)(m_184 + 16 + 24);
+exit_load_ref_221:;
+    r_load_ref_221; });
+                        v_365 = ip - (uint8_t *)(o_663 + 16);
+                        v_366 = (uint64_t)((v_365 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_366);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_366;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9555,21 +14996,28 @@ op_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_181 = (oop *)(active_ctx + 16);
-                            m_185 = s_181[CTX_METHOD];
+                            s_180 = (oop *)(active_ctx + 16);
+                            m_185 = s_180[CTX_METHOD];
                             o_664 = ((oop *)(m_185 + 16))[CM_LITERALS];
                             lits = (oop *)(o_664 + 16);
-                            fp = s_181 + CTX_FIXED;
-                            o_665 = s_181[CTX_STACKP];
+                            fp = s_180 + CTX_FIXED;
+                            o_665 = s_180[CTX_STACKP];
                             sp = fp + (((int64_t)o_665) >> 1) - 1;
-                            o_666 = s_181[CTX_PC];
+                            o_666 = s_180[CTX_PC];
                             if (!((o_666 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_667 = *(uint64_t *)(m_185 + 16 + 24);
-                            o_668 = s_181[CTX_PC];
+                            o_667 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_222 = c4_load_ref(m_185, 3U);
+        goto exit_load_ref_222;
+    }
+    r_load_ref_222 = *(uint64_t *)(m_185 + 16 + 24);
+exit_load_ref_222:;
+    r_load_ref_222; });
+                            o_668 = s_180[CTX_PC];
                             ip = (uint8_t *)(o_667 + 16) + (((int64_t)o_668) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9579,7 +15027,12 @@ op_equal:;
             goto exit_bool_result_9;
         }
         sp = sp - 1;
-        *sp = c_29 ? true_oop : false_oop;
+        v_367 = c_29 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_367);
+        } else {
+            *sp = v_367;
+        }
     exit_bool_result_9:;
         r_compare_for_5 = true;
         goto exit_compare_for_5;
@@ -9616,8 +15069,8 @@ exit_num_val_14:;
         c_29 = x_5 == y_5;
         nx_16 = *ip;
         if ((nx_16 == 0x92) || (nx_16 == 0x91)) {
-            p_27 = ip + 1;
-            o_669 = *(int16_t *)(uint64_t)p_27;
+            p_95 = ip + 1;
+            o_669 = *(int16_t *)(uint64_t)p_95;
             sp = sp - 2;
             ip = ip + 3;
             if (c_29 == (nx_16 == 0x91)) {
@@ -9630,13 +15083,24 @@ exit_num_val_14:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_182 = (oop *)(active_ctx + 16);
-                            m_186 = s_182[CTX_METHOD];
-                            o_670 = *(uint64_t *)(m_186 + 16 + 24);
-                            v_320 = ip - (uint8_t *)(o_670 + 16);
-                            s_182[CTX_PC] = (uint64_t)((v_320 << 1) | 1);
-                            v_321 = sp - fp + 1;
-                            s_182[CTX_STACKP] = (uint64_t)((v_321 << 1) | 1);
+                            s_181 = (oop *)(active_ctx + 16);
+                            m_186 = s_181[CTX_METHOD];
+                            o_670 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_223 = c4_load_ref(m_186, 3U);
+        goto exit_load_ref_223;
+    }
+    r_load_ref_223 = *(uint64_t *)(m_186 + 16 + 24);
+exit_load_ref_223:;
+    r_load_ref_223; });
+                            v_368 = ip - (uint8_t *)(o_670 + 16);
+                            v_369 = (uint64_t)((v_368 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_369);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_369;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9646,21 +15110,28 @@ exit_num_val_14:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_183 = (oop *)(active_ctx + 16);
-                            m_187 = s_183[CTX_METHOD];
+                            s_182 = (oop *)(active_ctx + 16);
+                            m_187 = s_182[CTX_METHOD];
                             o_671 = ((oop *)(m_187 + 16))[CM_LITERALS];
                             lits = (oop *)(o_671 + 16);
-                            fp = s_183 + CTX_FIXED;
-                            o_672 = s_183[CTX_STACKP];
+                            fp = s_182 + CTX_FIXED;
+                            o_672 = s_182[CTX_STACKP];
                             sp = fp + (((int64_t)o_672) >> 1) - 1;
-                            o_673 = s_183[CTX_PC];
+                            o_673 = s_182[CTX_PC];
                             if (!((o_673 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_674 = *(uint64_t *)(m_187 + 16 + 24);
-                            o_675 = s_183[CTX_PC];
+                            o_674 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_224 = c4_load_ref(m_187, 3U);
+        goto exit_load_ref_224;
+    }
+    r_load_ref_224 = *(uint64_t *)(m_187 + 16 + 24);
+exit_load_ref_224:;
+    r_load_ref_224; });
+                            o_675 = s_182[CTX_PC];
                             ip = (uint8_t *)(o_674 + 16) + (((int64_t)o_675) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9673,13 +15144,24 @@ exit_num_val_14:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_184 = (oop *)(active_ctx + 16);
-                                m_188 = s_184[CTX_METHOD];
-                                o_676 = *(uint64_t *)(m_188 + 16 + 24);
-                                v_322 = ip - (uint8_t *)(o_676 + 16);
-                                s_184[CTX_PC] = (uint64_t)((v_322 << 1) | 1);
-                                v_323 = sp - fp + 1;
-                                s_184[CTX_STACKP] = (uint64_t)((v_323 << 1) | 1);
+                                s_183 = (oop *)(active_ctx + 16);
+                                m_188 = s_183[CTX_METHOD];
+                                o_676 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_225 = c4_load_ref(m_188, 3U);
+        goto exit_load_ref_225;
+    }
+    r_load_ref_225 = *(uint64_t *)(m_188 + 16 + 24);
+exit_load_ref_225:;
+    r_load_ref_225; });
+                                v_370 = ip - (uint8_t *)(o_676 + 16);
+                                v_371 = (uint64_t)((v_370 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_371);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_371;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9689,33 +15171,51 @@ exit_num_val_14:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_185 = (oop *)(active_ctx + 16);
-                                m_189 = s_185[CTX_METHOD];
+                                s_184 = (oop *)(active_ctx + 16);
+                                m_189 = s_184[CTX_METHOD];
                                 o_677 = ((oop *)(m_189 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_677 + 16);
-                                fp = s_185 + CTX_FIXED;
-                                o_678 = s_185[CTX_STACKP];
+                                fp = s_184 + CTX_FIXED;
+                                o_678 = s_184[CTX_STACKP];
                                 sp = fp + (((int64_t)o_678) >> 1) - 1;
-                                o_679 = s_185[CTX_PC];
+                                o_679 = s_184[CTX_PC];
                                 if (!((o_679 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_680 = *(uint64_t *)(m_189 + 16 + 24);
-                                o_681 = s_185[CTX_PC];
+                                o_680 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_226 = c4_load_ref(m_189, 3U);
+        goto exit_load_ref_226;
+    }
+    r_load_ref_226 = *(uint64_t *)(m_189 + 16 + 24);
+exit_load_ref_226:;
+    r_load_ref_226; });
+                                o_681 = s_184[CTX_PC];
                                 ip = (uint8_t *)(o_680 + 16) + (((int64_t)o_681) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_186 = (oop *)(active_ctx + 16);
-                        m_190 = s_186[CTX_METHOD];
-                        o_682 = *(uint64_t *)(m_190 + 16 + 24);
-                        v_324 = ip - (uint8_t *)(o_682 + 16);
-                        s_186[CTX_PC] = (uint64_t)((v_324 << 1) | 1);
-                        v_325 = sp - fp + 1;
-                        s_186[CTX_STACKP] = (uint64_t)((v_325 << 1) | 1);
+                        s_185 = (oop *)(active_ctx + 16);
+                        m_190 = s_185[CTX_METHOD];
+                        o_682 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_227 = c4_load_ref(m_190, 3U);
+        goto exit_load_ref_227;
+    }
+    r_load_ref_227 = *(uint64_t *)(m_190 + 16 + 24);
+exit_load_ref_227:;
+    r_load_ref_227; });
+                        v_372 = ip - (uint8_t *)(o_682 + 16);
+                        v_373 = (uint64_t)((v_372 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_373);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_373;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9724,21 +15224,28 @@ exit_num_val_14:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_187 = (oop *)(active_ctx + 16);
-                            m_191 = s_187[CTX_METHOD];
+                            s_186 = (oop *)(active_ctx + 16);
+                            m_191 = s_186[CTX_METHOD];
                             o_683 = ((oop *)(m_191 + 16))[CM_LITERALS];
                             lits = (oop *)(o_683 + 16);
-                            fp = s_187 + CTX_FIXED;
-                            o_684 = s_187[CTX_STACKP];
+                            fp = s_186 + CTX_FIXED;
+                            o_684 = s_186[CTX_STACKP];
                             sp = fp + (((int64_t)o_684) >> 1) - 1;
-                            o_685 = s_187[CTX_PC];
+                            o_685 = s_186[CTX_PC];
                             if (!((o_685 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_686 = *(uint64_t *)(m_191 + 16 + 24);
-                            o_687 = s_187[CTX_PC];
+                            o_686 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_228 = c4_load_ref(m_191, 3U);
+        goto exit_load_ref_228;
+    }
+    r_load_ref_228 = *(uint64_t *)(m_191 + 16 + 24);
+exit_load_ref_228:;
+    r_load_ref_228; });
+                            o_687 = s_186[CTX_PC];
                             ip = (uint8_t *)(o_686 + 16) + (((int64_t)o_687) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9748,7 +15255,12 @@ exit_num_val_14:;
             goto exit_bool_result_10;
         }
         sp = sp - 1;
-        *sp = c_29 ? true_oop : false_oop;
+        v_374 = c_29 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_374);
+        } else {
+            *sp = v_374;
+        }
     exit_bool_result_10:;
         r_compare_for_5 = true;
         goto exit_compare_for_5;
@@ -9760,6 +15272,13 @@ exit_compare_for_5:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_199 = *(ip - 1);
     r_next_bytecode_199; })];
@@ -9772,8 +15291,8 @@ op_not_equal:;
         c_30 = a_29 != b_43;
         nx_17 = *ip;
         if ((nx_17 == 0x92) || (nx_17 == 0x91)) {
-            p_28 = ip + 1;
-            o_689 = *(int16_t *)(uint64_t)p_28;
+            p_96 = ip + 1;
+            o_689 = *(int16_t *)(uint64_t)p_96;
             sp = sp - 2;
             ip = ip + 3;
             if (c_30 == (nx_17 == 0x91)) {
@@ -9786,13 +15305,24 @@ op_not_equal:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_188 = (oop *)(active_ctx + 16);
-                            m_192 = s_188[CTX_METHOD];
-                            o_690 = *(uint64_t *)(m_192 + 16 + 24);
-                            v_326 = ip - (uint8_t *)(o_690 + 16);
-                            s_188[CTX_PC] = (uint64_t)((v_326 << 1) | 1);
-                            v_327 = sp - fp + 1;
-                            s_188[CTX_STACKP] = (uint64_t)((v_327 << 1) | 1);
+                            s_187 = (oop *)(active_ctx + 16);
+                            m_192 = s_187[CTX_METHOD];
+                            o_690 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_229 = c4_load_ref(m_192, 3U);
+        goto exit_load_ref_229;
+    }
+    r_load_ref_229 = *(uint64_t *)(m_192 + 16 + 24);
+exit_load_ref_229:;
+    r_load_ref_229; });
+                            v_375 = ip - (uint8_t *)(o_690 + 16);
+                            v_376 = (uint64_t)((v_375 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_376);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_376;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9802,21 +15332,28 @@ op_not_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_189 = (oop *)(active_ctx + 16);
-                            m_193 = s_189[CTX_METHOD];
+                            s_188 = (oop *)(active_ctx + 16);
+                            m_193 = s_188[CTX_METHOD];
                             o_691 = ((oop *)(m_193 + 16))[CM_LITERALS];
                             lits = (oop *)(o_691 + 16);
-                            fp = s_189 + CTX_FIXED;
-                            o_692 = s_189[CTX_STACKP];
+                            fp = s_188 + CTX_FIXED;
+                            o_692 = s_188[CTX_STACKP];
                             sp = fp + (((int64_t)o_692) >> 1) - 1;
-                            o_693 = s_189[CTX_PC];
+                            o_693 = s_188[CTX_PC];
                             if (!((o_693 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_694 = *(uint64_t *)(m_193 + 16 + 24);
-                            o_695 = s_189[CTX_PC];
+                            o_694 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_230 = c4_load_ref(m_193, 3U);
+        goto exit_load_ref_230;
+    }
+    r_load_ref_230 = *(uint64_t *)(m_193 + 16 + 24);
+exit_load_ref_230:;
+    r_load_ref_230; });
+                            o_695 = s_188[CTX_PC];
                             ip = (uint8_t *)(o_694 + 16) + (((int64_t)o_695) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9829,13 +15366,24 @@ op_not_equal:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_190 = (oop *)(active_ctx + 16);
-                                m_194 = s_190[CTX_METHOD];
-                                o_696 = *(uint64_t *)(m_194 + 16 + 24);
-                                v_328 = ip - (uint8_t *)(o_696 + 16);
-                                s_190[CTX_PC] = (uint64_t)((v_328 << 1) | 1);
-                                v_329 = sp - fp + 1;
-                                s_190[CTX_STACKP] = (uint64_t)((v_329 << 1) | 1);
+                                s_189 = (oop *)(active_ctx + 16);
+                                m_194 = s_189[CTX_METHOD];
+                                o_696 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_231 = c4_load_ref(m_194, 3U);
+        goto exit_load_ref_231;
+    }
+    r_load_ref_231 = *(uint64_t *)(m_194 + 16 + 24);
+exit_load_ref_231:;
+    r_load_ref_231; });
+                                v_377 = ip - (uint8_t *)(o_696 + 16);
+                                v_378 = (uint64_t)((v_377 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_378);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_378;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -9845,33 +15393,51 @@ op_not_equal:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_191 = (oop *)(active_ctx + 16);
-                                m_195 = s_191[CTX_METHOD];
+                                s_190 = (oop *)(active_ctx + 16);
+                                m_195 = s_190[CTX_METHOD];
                                 o_697 = ((oop *)(m_195 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_697 + 16);
-                                fp = s_191 + CTX_FIXED;
-                                o_698 = s_191[CTX_STACKP];
+                                fp = s_190 + CTX_FIXED;
+                                o_698 = s_190[CTX_STACKP];
                                 sp = fp + (((int64_t)o_698) >> 1) - 1;
-                                o_699 = s_191[CTX_PC];
+                                o_699 = s_190[CTX_PC];
                                 if (!((o_699 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_700 = *(uint64_t *)(m_195 + 16 + 24);
-                                o_701 = s_191[CTX_PC];
+                                o_700 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_232 = c4_load_ref(m_195, 3U);
+        goto exit_load_ref_232;
+    }
+    r_load_ref_232 = *(uint64_t *)(m_195 + 16 + 24);
+exit_load_ref_232:;
+    r_load_ref_232; });
+                                o_701 = s_190[CTX_PC];
                                 ip = (uint8_t *)(o_700 + 16) + (((int64_t)o_701) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_192 = (oop *)(active_ctx + 16);
-                        m_196 = s_192[CTX_METHOD];
-                        o_702 = *(uint64_t *)(m_196 + 16 + 24);
-                        v_330 = ip - (uint8_t *)(o_702 + 16);
-                        s_192[CTX_PC] = (uint64_t)((v_330 << 1) | 1);
-                        v_331 = sp - fp + 1;
-                        s_192[CTX_STACKP] = (uint64_t)((v_331 << 1) | 1);
+                        s_191 = (oop *)(active_ctx + 16);
+                        m_196 = s_191[CTX_METHOD];
+                        o_702 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_233 = c4_load_ref(m_196, 3U);
+        goto exit_load_ref_233;
+    }
+    r_load_ref_233 = *(uint64_t *)(m_196 + 16 + 24);
+exit_load_ref_233:;
+    r_load_ref_233; });
+                        v_379 = ip - (uint8_t *)(o_702 + 16);
+                        v_380 = (uint64_t)((v_379 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_380);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_380;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -9880,21 +15446,28 @@ op_not_equal:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_193 = (oop *)(active_ctx + 16);
-                            m_197 = s_193[CTX_METHOD];
+                            s_192 = (oop *)(active_ctx + 16);
+                            m_197 = s_192[CTX_METHOD];
                             o_703 = ((oop *)(m_197 + 16))[CM_LITERALS];
                             lits = (oop *)(o_703 + 16);
-                            fp = s_193 + CTX_FIXED;
-                            o_704 = s_193[CTX_STACKP];
+                            fp = s_192 + CTX_FIXED;
+                            o_704 = s_192[CTX_STACKP];
                             sp = fp + (((int64_t)o_704) >> 1) - 1;
-                            o_705 = s_193[CTX_PC];
+                            o_705 = s_192[CTX_PC];
                             if (!((o_705 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_706 = *(uint64_t *)(m_197 + 16 + 24);
-                            o_707 = s_193[CTX_PC];
+                            o_706 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_234 = c4_load_ref(m_197, 3U);
+        goto exit_load_ref_234;
+    }
+    r_load_ref_234 = *(uint64_t *)(m_197 + 16 + 24);
+exit_load_ref_234:;
+    r_load_ref_234; });
+                            o_707 = s_192[CTX_PC];
                             ip = (uint8_t *)(o_706 + 16) + (((int64_t)o_707) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9904,7 +15477,12 @@ op_not_equal:;
             goto exit_bool_result_11;
         }
         sp = sp - 1;
-        *sp = c_30 ? true_oop : false_oop;
+        v_381 = c_30 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_381);
+        } else {
+            *sp = v_381;
+        }
     exit_bool_result_11:;
         r_compare_for_6 = true;
         goto exit_compare_for_6;
@@ -9941,8 +15519,8 @@ exit_num_val_16:;
         c_30 = x_6 != y_6;
         nx_18 = *ip;
         if ((nx_18 == 0x92) || (nx_18 == 0x91)) {
-            p_29 = ip + 1;
-            o_708 = *(int16_t *)(uint64_t)p_29;
+            p_97 = ip + 1;
+            o_708 = *(int16_t *)(uint64_t)p_97;
             sp = sp - 2;
             ip = ip + 3;
             if (c_30 == (nx_18 == 0x91)) {
@@ -9955,13 +15533,24 @@ exit_num_val_16:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_194 = (oop *)(active_ctx + 16);
-                            m_198 = s_194[CTX_METHOD];
-                            o_709 = *(uint64_t *)(m_198 + 16 + 24);
-                            v_332 = ip - (uint8_t *)(o_709 + 16);
-                            s_194[CTX_PC] = (uint64_t)((v_332 << 1) | 1);
-                            v_333 = sp - fp + 1;
-                            s_194[CTX_STACKP] = (uint64_t)((v_333 << 1) | 1);
+                            s_193 = (oop *)(active_ctx + 16);
+                            m_198 = s_193[CTX_METHOD];
+                            o_709 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_235 = c4_load_ref(m_198, 3U);
+        goto exit_load_ref_235;
+    }
+    r_load_ref_235 = *(uint64_t *)(m_198 + 16 + 24);
+exit_load_ref_235:;
+    r_load_ref_235; });
+                            v_382 = ip - (uint8_t *)(o_709 + 16);
+                            v_383 = (uint64_t)((v_382 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_383);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_383;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         interrupt_safepoint();
                         if (nframes != 0) {
@@ -9971,21 +15560,28 @@ exit_num_val_16:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_195 = (oop *)(active_ctx + 16);
-                            m_199 = s_195[CTX_METHOD];
+                            s_194 = (oop *)(active_ctx + 16);
+                            m_199 = s_194[CTX_METHOD];
                             o_710 = ((oop *)(m_199 + 16))[CM_LITERALS];
                             lits = (oop *)(o_710 + 16);
-                            fp = s_195 + CTX_FIXED;
-                            o_711 = s_195[CTX_STACKP];
+                            fp = s_194 + CTX_FIXED;
+                            o_711 = s_194[CTX_STACKP];
                             sp = fp + (((int64_t)o_711) >> 1) - 1;
-                            o_712 = s_195[CTX_PC];
+                            o_712 = s_194[CTX_PC];
                             if (!((o_712 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_713 = *(uint64_t *)(m_199 + 16 + 24);
-                            o_714 = s_195[CTX_PC];
+                            o_713 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_236 = c4_load_ref(m_199, 3U);
+        goto exit_load_ref_236;
+    }
+    r_load_ref_236 = *(uint64_t *)(m_199 + 16 + 24);
+exit_load_ref_236:;
+    r_load_ref_236; });
+                            o_714 = s_194[CTX_PC];
                             ip = (uint8_t *)(o_713 + 16) + (((int64_t)o_714) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -9998,13 +15594,24 @@ exit_num_val_16:;
                                 fr->sp = (int32_t)(sp - fp + 1);
                                 cstack_used = (uint64_t)(sp + 1 - cstack);
                             } else {
-                                s_196 = (oop *)(active_ctx + 16);
-                                m_200 = s_196[CTX_METHOD];
-                                o_715 = *(uint64_t *)(m_200 + 16 + 24);
-                                v_334 = ip - (uint8_t *)(o_715 + 16);
-                                s_196[CTX_PC] = (uint64_t)((v_334 << 1) | 1);
-                                v_335 = sp - fp + 1;
-                                s_196[CTX_STACKP] = (uint64_t)((v_335 << 1) | 1);
+                                s_195 = (oop *)(active_ctx + 16);
+                                m_200 = s_195[CTX_METHOD];
+                                o_715 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_237 = c4_load_ref(m_200, 3U);
+        goto exit_load_ref_237;
+    }
+    r_load_ref_237 = *(uint64_t *)(m_200 + 16 + 24);
+exit_load_ref_237:;
+    r_load_ref_237; });
+                                v_384 = ip - (uint8_t *)(o_715 + 16);
+                                v_385 = (uint64_t)((v_384 << 1) | 1);
+                                if (__builtin_expect(c4_enabled, 0)) {
+                                    c4_heap_store_ref(active_ctx, 1U, v_385);
+                                } else {
+                                    ((oop *)(active_ctx + 16))[CTX_PC] = v_385;
+                                }
+                                interpreter_ctx(active_ctx, sp - fp + 1);
                             }
                             jit_runtime_back_jump(fr);
                             if (nframes != 0) {
@@ -10014,33 +15621,51 @@ exit_num_val_16:;
                                 sp = fp + fr->sp - 1;
                                 ip = fr->ip;
                             } else {
-                                s_197 = (oop *)(active_ctx + 16);
-                                m_201 = s_197[CTX_METHOD];
+                                s_196 = (oop *)(active_ctx + 16);
+                                m_201 = s_196[CTX_METHOD];
                                 o_716 = ((oop *)(m_201 + 16))[CM_LITERALS];
                                 lits = (oop *)(o_716 + 16);
-                                fp = s_197 + CTX_FIXED;
-                                o_717 = s_197[CTX_STACKP];
+                                fp = s_196 + CTX_FIXED;
+                                o_717 = s_196[CTX_STACKP];
                                 sp = fp + (((int64_t)o_717) >> 1) - 1;
-                                o_718 = s_197[CTX_PC];
+                                o_718 = s_196[CTX_PC];
                                 if (!((o_718 & 1) != 0)) {
                                     fatal_begin();
                                     fprintf(stderr, "resuming a dead context");
                                     fatal_end();
                                 }
-                                o_719 = *(uint64_t *)(m_201 + 16 + 24);
-                                o_720 = s_197[CTX_PC];
+                                o_719 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_238 = c4_load_ref(m_201, 3U);
+        goto exit_load_ref_238;
+    }
+    r_load_ref_238 = *(uint64_t *)(m_201 + 16 + 24);
+exit_load_ref_238:;
+    r_load_ref_238; });
+                                o_720 = s_196[CTX_PC];
                                 ip = (uint8_t *)(o_719 + 16) + (((int64_t)o_720) >> 1);
                                 fr = (frame *)NULL;
                             }
                         }
                     } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                        s_198 = (oop *)(active_ctx + 16);
-                        m_202 = s_198[CTX_METHOD];
-                        o_721 = *(uint64_t *)(m_202 + 16 + 24);
-                        v_336 = ip - (uint8_t *)(o_721 + 16);
-                        s_198[CTX_PC] = (uint64_t)((v_336 << 1) | 1);
-                        v_337 = sp - fp + 1;
-                        s_198[CTX_STACKP] = (uint64_t)((v_337 << 1) | 1);
+                        s_197 = (oop *)(active_ctx + 16);
+                        m_202 = s_197[CTX_METHOD];
+                        o_721 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_239 = c4_load_ref(m_202, 3U);
+        goto exit_load_ref_239;
+    }
+    r_load_ref_239 = *(uint64_t *)(m_202 + 16 + 24);
+exit_load_ref_239:;
+    r_load_ref_239; });
+                        v_386 = ip - (uint8_t *)(o_721 + 16);
+                        v_387 = (uint64_t)((v_386 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_387);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_387;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                         resume_context(true);
                         if (nframes != 0) {
                             fr = frames + (nframes - 1);
@@ -10049,21 +15674,28 @@ exit_num_val_16:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_199 = (oop *)(active_ctx + 16);
-                            m_203 = s_199[CTX_METHOD];
+                            s_198 = (oop *)(active_ctx + 16);
+                            m_203 = s_198[CTX_METHOD];
                             o_722 = ((oop *)(m_203 + 16))[CM_LITERALS];
                             lits = (oop *)(o_722 + 16);
-                            fp = s_199 + CTX_FIXED;
-                            o_723 = s_199[CTX_STACKP];
+                            fp = s_198 + CTX_FIXED;
+                            o_723 = s_198[CTX_STACKP];
                             sp = fp + (((int64_t)o_723) >> 1) - 1;
-                            o_724 = s_199[CTX_PC];
+                            o_724 = s_198[CTX_PC];
                             if (!((o_724 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_725 = *(uint64_t *)(m_203 + 16 + 24);
-                            o_726 = s_199[CTX_PC];
+                            o_725 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_240 = c4_load_ref(m_203, 3U);
+        goto exit_load_ref_240;
+    }
+    r_load_ref_240 = *(uint64_t *)(m_203 + 16 + 24);
+exit_load_ref_240:;
+    r_load_ref_240; });
+                            o_726 = s_198[CTX_PC];
                             ip = (uint8_t *)(o_725 + 16) + (((int64_t)o_726) >> 1);
                             fr = (frame *)NULL;
                         }
@@ -10073,7 +15705,12 @@ exit_num_val_16:;
             goto exit_bool_result_12;
         }
         sp = sp - 1;
-        *sp = c_30 ? true_oop : false_oop;
+        v_388 = c_30 ? true_oop : false_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_388);
+        } else {
+            *sp = v_388;
+        }
     exit_bool_result_12:;
         r_compare_for_6 = true;
         goto exit_compare_for_6;
@@ -10085,6 +15722,13 @@ exit_compare_for_6:;
         goto send_special;
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_200 = *(ip - 1);
     r_next_bytecode_200; })];
@@ -10095,20 +15739,43 @@ op_multiply:;
     if ((o_727 & 1) != 0) {
         if (!__builtin_mul_overflow(((int64_t)a_30) >> 1, ((int64_t)b_46) >> 1, &r_30)) {
             if ((r_30 >= VM_INT_MIN) && (r_30 <= VM_INT_MAX)) {
-                v_338 = (uint64_t)((r_30 << 1) | 1);
+                v_389 = (uint64_t)((r_30 << 1) | 1);
                 nx_19 = *ip;
                 if ((nx_19 & 0xF8) == 0x60) {
-                    fp[nx_19 & 7] = v_338;
+                    p_98 = fp + (nx_19 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_98, v_389);
+                    } else {
+                        *p_98 = v_389;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_201 = *(ip - 1);
     r_next_bytecode_201; })];
                 }
                 sp = sp - 1;
-                *sp = v_338;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_389);
+                } else {
+                    *sp = v_389;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_202 = *(ip - 1);
     r_next_bytecode_202; })];
@@ -10160,17 +15827,40 @@ exit_float_imm_3:;
         if (f_3 != 0) {
             nx_20 = *ip;
             if ((nx_20 & 0xF8) == 0x60) {
-                fp[nx_20 & 7] = f_3;
+                p_99 = fp + (nx_20 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_99, f_3);
+                } else {
+                    *p_99 = f_3;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_203 = *(ip - 1);
     r_next_bytecode_203; })];
             }
             sp = sp - 1;
-            *sp = f_3;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, f_3);
+            } else {
+                *sp = f_3;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_204 = *(ip - 1);
     r_next_bytecode_204; })];
@@ -10182,23 +15872,46 @@ op_divide:;
     b_50 = *sp;
     o_728 = a_31 & b_50;
     if (((o_728 & 1) != 0) && (((((int64_t)b_50) >> 1) != 0) && (((((int64_t)a_31) >> 1) % (((int64_t)b_50) >> 1) == 0) && ({
-    v_339 = (((int64_t)a_31) >> 1) / (((int64_t)b_50) >> 1);
-    (v_339 >= VM_INT_MIN) && (v_339 <= VM_INT_MAX); })))) {
-        v_340 = (((int64_t)a_31) >> 1) / (((int64_t)b_50) >> 1);
-        v_341 = (uint64_t)((v_340 << 1) | 1);
+    v_390 = (((int64_t)a_31) >> 1) / (((int64_t)b_50) >> 1);
+    (v_390 >= VM_INT_MIN) && (v_390 <= VM_INT_MAX); })))) {
+        v_391 = (((int64_t)a_31) >> 1) / (((int64_t)b_50) >> 1);
+        v_392 = (uint64_t)((v_391 << 1) | 1);
         nx_21 = *ip;
         if ((nx_21 & 0xF8) == 0x60) {
-            fp[nx_21 & 7] = v_341;
+            p_100 = fp + (nx_21 & 7);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(p_100, v_392);
+            } else {
+                *p_100 = v_392;
+            }
             sp = sp - 2;
             ip = ip + 1;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_205 = *(ip - 1);
     r_next_bytecode_205; })];
         }
         sp = sp - 1;
-        *sp = v_341;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_392);
+        } else {
+            *sp = v_392;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_206 = *(ip - 1);
     r_next_bytecode_206; })];
@@ -10250,17 +15963,40 @@ exit_float_imm_4:;
             if (f_4 != 0) {
                 nx_22 = *ip;
                 if ((nx_22 & 0xF8) == 0x60) {
-                    fp[nx_22 & 7] = f_4;
+                    p_101 = fp + (nx_22 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_101, f_4);
+                    } else {
+                        *p_101 = f_4;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_207 = *(ip - 1);
     r_next_bytecode_207; })];
                 }
                 sp = sp - 1;
-                *sp = f_4;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, f_4);
+                } else {
+                    *sp = f_4;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_208 = *(ip - 1);
     r_next_bytecode_208; })];
@@ -10275,27 +16011,50 @@ op_modulo:;
     if (((o_729 & 1) != 0) && ((((int64_t)b_54) >> 1) != 0)) {
         a_33 = ((int64_t)a_32) >> 1;
         b_55 = ((int64_t)b_54) >> 1;
-        v_342 = ({
+        v_393 = ({
     r_35 = a_33 % b_55;
     if ((r_35 != 0) && (r_35 < 0 != b_55 < 0)) {
         r_35 = r_35 + b_55;
     }
     r_floor_mod = r_35;
     r_floor_mod; });
-        v_343 = (uint64_t)((v_342 << 1) | 1);
+        v_394 = (uint64_t)((v_393 << 1) | 1);
         nx_23 = *ip;
         if ((nx_23 & 0xF8) == 0x60) {
-            fp[nx_23 & 7] = v_343;
+            p_102 = fp + (nx_23 & 7);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(p_102, v_394);
+            } else {
+                *p_102 = v_394;
+            }
             sp = sp - 2;
             ip = ip + 1;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_209 = *(ip - 1);
     r_next_bytecode_209; })];
         }
         sp = sp - 1;
-        *sp = v_343;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_394);
+        } else {
+            *sp = v_394;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_210 = *(ip - 1);
     r_next_bytecode_210; })];
@@ -10306,65 +16065,134 @@ op_bit_shift:;
     b_56 = *sp;
     o_730 = a_34 & b_56;
     if ((o_730 & 1) != 0) {
-        v_344 = ((int64_t)a_34) >> 1;
-        s_200 = ((int64_t)b_56) >> 1;
-        if (s_200 >= 0) {
-            if ((s_200 < 62) && ({
-    v_345 = (int64_t)(((uint64_t)v_344) << s_200);
-    (v_345 >= VM_INT_MIN) && (v_345 <= VM_INT_MAX) && ((((int64_t)(((uint64_t)v_344) << s_200)) >> s_200) == v_344); })) {
-                v_346 = (int64_t)(((uint64_t)v_344) << s_200);
-                v_347 = (uint64_t)((v_346 << 1) | 1);
+        v_395 = ((int64_t)a_34) >> 1;
+        s_199 = ((int64_t)b_56) >> 1;
+        if (s_199 >= 0) {
+            if ((s_199 < 62) && ({
+    v_396 = (int64_t)(((uint64_t)v_395) << s_199);
+    (v_396 >= VM_INT_MIN) && (v_396 <= VM_INT_MAX) && ((((int64_t)(((uint64_t)v_395) << s_199)) >> s_199) == v_395); })) {
+                v_397 = (int64_t)(((uint64_t)v_395) << s_199);
+                v_398 = (uint64_t)((v_397 << 1) | 1);
                 nx_24 = *ip;
                 if ((nx_24 & 0xF8) == 0x60) {
-                    fp[nx_24 & 7] = v_347;
+                    p_103 = fp + (nx_24 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_103, v_398);
+                    } else {
+                        *p_103 = v_398;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_211 = *(ip - 1);
     r_next_bytecode_211; })];
                 }
                 sp = sp - 1;
-                *sp = v_347;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_398);
+                } else {
+                    *sp = v_398;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_212 = *(ip - 1);
     r_next_bytecode_212; })];
             }
-            if (v_344 == 0) {
+            if (v_395 == 0) {
                 nx_25 = *ip;
                 if ((nx_25 & 0xF8) == 0x60) {
-                    fp[nx_25 & 7] = a_34;
+                    p_104 = fp + (nx_25 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_104, a_34);
+                    } else {
+                        *p_104 = a_34;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_213 = *(ip - 1);
     r_next_bytecode_213; })];
                 }
                 sp = sp - 1;
-                *sp = a_34;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, a_34);
+                } else {
+                    *sp = a_34;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_214 = *(ip - 1);
     r_next_bytecode_214; })];
             }
         } else {
-            v_348 = s_200 <= -63 ? v_344 < 0 ? -1 : 0 : v_344 >> (-s_200);
-            v_349 = (uint64_t)((v_348 << 1) | 1);
+            v_399 = s_199 <= -63 ? v_395 < 0 ? -1 : 0 : v_395 >> (-s_199);
+            v_400 = (uint64_t)((v_399 << 1) | 1);
             nx_26 = *ip;
             if ((nx_26 & 0xF8) == 0x60) {
-                fp[nx_26 & 7] = v_349;
+                p_105 = fp + (nx_26 & 7);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(p_105, v_400);
+                } else {
+                    *p_105 = v_400;
+                }
                 sp = sp - 2;
                 ip = ip + 1;
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_215 = *(ip - 1);
     r_next_bytecode_215; })];
             }
             sp = sp - 1;
-            *sp = v_349;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_400);
+            } else {
+                *sp = v_400;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_216 = *(ip - 1);
     r_next_bytecode_216; })];
@@ -10378,37 +16206,60 @@ op_floor_divide:;
     if (((o_731 & 1) != 0) && (((((int64_t)b_57) >> 1) != 0) && ({
     a_36 = ((int64_t)a_35) >> 1;
     b_58 = ((int64_t)b_57) >> 1;
-    v_350 = ({
+    v_401 = ({
     q = a_36 / b_58;
     if ((a_36 % b_58 != 0) && (a_36 < 0 != b_58 < 0)) {
         q = q - 1;
     }
     r_floor_div = q;
     r_floor_div; });
-    (v_350 >= VM_INT_MIN) && (v_350 <= VM_INT_MAX); }))) {
+    (v_401 >= VM_INT_MIN) && (v_401 <= VM_INT_MAX); }))) {
         a_37 = ((int64_t)a_35) >> 1;
         b_59 = ((int64_t)b_57) >> 1;
-        v_351 = ({
+        v_402 = ({
     q_2 = a_37 / b_59;
     if ((a_37 % b_59 != 0) && (a_37 < 0 != b_59 < 0)) {
         q_2 = q_2 - 1;
     }
     r_floor_div_2 = q_2;
     r_floor_div_2; });
-        v_352 = (uint64_t)((v_351 << 1) | 1);
+        v_403 = (uint64_t)((v_402 << 1) | 1);
         nx_27 = *ip;
         if ((nx_27 & 0xF8) == 0x60) {
-            fp[nx_27 & 7] = v_352;
+            p_106 = fp + (nx_27 & 7);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(p_106, v_403);
+            } else {
+                *p_106 = v_403;
+            }
             sp = sp - 2;
             ip = ip + 1;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_217 = *(ip - 1);
     r_next_bytecode_217; })];
         }
         sp = sp - 1;
-        *sp = v_352;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_403);
+        } else {
+            *sp = v_403;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_218 = *(ip - 1);
     r_next_bytecode_218; })];
@@ -10419,20 +16270,43 @@ op_bit_and:;
     b_60 = *sp;
     o_732 = a_38 & b_60;
     if ((o_732 & 1) != 0) {
-        v_353 = a_38 & b_60;
+        v_404 = a_38 & b_60;
         nx_28 = *ip;
         if ((nx_28 & 0xF8) == 0x60) {
-            fp[nx_28 & 7] = v_353;
+            p_107 = fp + (nx_28 & 7);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(p_107, v_404);
+            } else {
+                *p_107 = v_404;
+            }
             sp = sp - 2;
             ip = ip + 1;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_219 = *(ip - 1);
     r_next_bytecode_219; })];
         }
         sp = sp - 1;
-        *sp = v_353;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_404);
+        } else {
+            *sp = v_404;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_220 = *(ip - 1);
     r_next_bytecode_220; })];
@@ -10443,20 +16317,43 @@ op_bit_or:;
     b_61 = *sp;
     o_733 = a_39 & b_61;
     if ((o_733 & 1) != 0) {
-        v_354 = a_39 | b_61;
+        v_405 = a_39 | b_61;
         nx_29 = *ip;
         if ((nx_29 & 0xF8) == 0x60) {
-            fp[nx_29 & 7] = v_354;
+            p_108 = fp + (nx_29 & 7);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(p_108, v_405);
+            } else {
+                *p_108 = v_405;
+            }
             sp = sp - 2;
             ip = ip + 1;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_221 = *(ip - 1);
     r_next_bytecode_221; })];
         }
         sp = sp - 1;
-        *sp = v_354;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_405);
+        } else {
+            *sp = v_405;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_222 = *(ip - 1);
     r_next_bytecode_222; })];
@@ -10470,20 +16367,43 @@ op_bc_at:;
         k_20 = (uint64_t)((((int64_t)b_62) >> 1) - 1);
         if (c_31 == cls_array) {
             if (k_20 < (uint32_t)*(uint64_t *)a_40) {
-                v_355 = ((oop *)(a_40 + 16))[k_20];
+                v_406 = ((oop *)(a_40 + 16))[k_20];
                 nx_30 = *ip;
                 if ((nx_30 & 0xF8) == 0x60) {
-                    fp[nx_30 & 7] = v_355;
+                    p_109 = fp + (nx_30 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_109, v_406);
+                    } else {
+                        *p_109 = v_406;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_223 = *(ip - 1);
     r_next_bytecode_223; })];
                 }
                 sp = sp - 1;
-                *sp = v_355;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_406);
+                } else {
+                    *sp = v_406;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_224 = *(ip - 1);
     r_next_bytecode_224; })];
@@ -10491,41 +16411,87 @@ op_bc_at:;
         } else if (c_31 == cls_bytestring) {
             if (k_20 < byte_size(a_40)) {
                 code_point = ((uint8_t *)(a_40 + 16))[k_20];
-                v_356 = (((uint64_t)code_point) << 3) | 2;
+                v_407 = (((uint64_t)code_point) << 3) | 2;
                 nx_31 = *ip;
                 if ((nx_31 & 0xF8) == 0x60) {
-                    fp[nx_31 & 7] = v_356;
+                    p_110 = fp + (nx_31 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_110, v_407);
+                    } else {
+                        *p_110 = v_407;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_225 = *(ip - 1);
     r_next_bytecode_225; })];
                 }
                 sp = sp - 1;
-                *sp = v_356;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_407);
+                } else {
+                    *sp = v_407;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_226 = *(ip - 1);
     r_next_bytecode_226; })];
             }
         } else if (c_31 == cls_bytearray) {
             if (k_20 < byte_size(a_40)) {
-                v_357 = ((uint8_t *)(a_40 + 16))[k_20];
-                v_358 = (uint64_t)((((int64_t)v_357) << 1) | 1);
+                v_408 = ((uint8_t *)(a_40 + 16))[k_20];
+                v_409 = (uint64_t)((((int64_t)v_408) << 1) | 1);
                 nx_32 = *ip;
                 if ((nx_32 & 0xF8) == 0x60) {
-                    fp[nx_32 & 7] = v_358;
+                    p_111 = fp + (nx_32 & 7);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_stack_slot(p_111, v_409);
+                    } else {
+                        *p_111 = v_409;
+                    }
                     sp = sp - 2;
                     ip = ip + 1;
                     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_227 = *(ip - 1);
     r_next_bytecode_227; })];
                 }
                 sp = sp - 1;
-                *sp = v_358;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, v_409);
+                } else {
+                    *sp = v_409;
+                }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_228 = *(ip - 1);
     r_next_bytecode_228; })];
@@ -10535,37 +16501,84 @@ op_bc_at:;
     goto op_special_send;
 op_bc_at_put:;
     o_734 = sp[-2];
-    v_359 = *sp;
+    v_410 = *sp;
     a_41 = sp[-1];
     if (((a_41 & 1) != 0) && (((o_734 & 7) == 0) && (!(((*(uint64_t *)o_734) & H_IMMUTABLE) != 0)))) {
         c_32 = *(uint64_t *)(o_734 + 8);
         k_21 = (uint64_t)((((int64_t)a_41) >> 1) - 1);
         if ((c_32 == cls_array) && (k_21 < (uint32_t)*(uint64_t *)o_734)) {
-            *(uint64_t *)(o_734 + 16 + 8 * k_21) = v_359;
-            if (((v_359 & 7) == 0) && (((uint64_t)(v_359 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_734 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_734) & H_REMEMBERED) == 0)))) {
+            if (__builtin_expect(c4_enabled, 0)) {
+                if (((k_21 == CM_LITERALS) || ((k_21 == CM_BYTECODES) || (k_21 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(o_734, (uint32_t)k_21, v_410)) {
+                    fatal_begin();
+                    fprintf(stderr, "C4 cannot replace compiled method storage");
+                    fatal_end();
+                }
+                if ((k_21 == CTX_STACKP) && (*(uint64_t *)(o_734 + 8) == cls_context)) {
+                    c4_store_context_stackp(o_734, v_410);
+                } else {
+                    c4_heap_store_ref(o_734, (uint32_t)k_21, v_410);
+                }
+                goto exit_store_ref_5;
+            }
+            *(uint64_t *)(o_734 + 16 + 8 * k_21) = v_410;
+            if (((v_410 & 7) == 0) && (((uint64_t)(v_410 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_734 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_734) & H_REMEMBERED) == 0)))) {
                 remember(o_734);
             }
+        exit_store_ref_5:;
             sp = sp - 2;
-            *sp = v_359;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_410);
+            } else {
+                *sp = v_410;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_229 = *(ip - 1);
     r_next_bytecode_229; })];
         }
-        if ((c_32 == cls_bytestring) && (((v_359 & 7) == 2) && (((uint32_t)(v_359 >> 3) < 256) && (k_21 < byte_size(o_734))))) {
-            ((uint8_t *)(o_734 + 16))[k_21] = (uint8_t)(uint32_t)(v_359 >> 3);
+        if ((c_32 == cls_bytestring) && (((v_410 & 7) == 2) && (((uint32_t)(v_410 >> 3) < 256) && (k_21 < byte_size(o_734))))) {
+            ((uint8_t *)(o_734 + 16))[k_21] = (uint8_t)(uint32_t)(v_410 >> 3);
             sp = sp - 2;
-            *sp = v_359;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_410);
+            } else {
+                *sp = v_410;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_230 = *(ip - 1);
     r_next_bytecode_230; })];
         }
-        if ((c_32 == cls_bytearray) && (((v_359 & 1) != 0) && (((uint64_t)(((int64_t)v_359) >> 1) < 256) && (k_21 < byte_size(o_734))))) {
-            ((uint8_t *)(o_734 + 16))[k_21] = (uint8_t)(((int64_t)v_359) >> 1);
+        if ((c_32 == cls_bytearray) && (((v_410 & 1) != 0) && (((uint64_t)(((int64_t)v_410) >> 1) < 256) && (k_21 < byte_size(o_734))))) {
+            ((uint8_t *)(o_734 + 16))[k_21] = (uint8_t)(((int64_t)v_410) >> 1);
             sp = sp - 2;
-            *sp = v_359;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_410);
+            } else {
+                *sp = v_410;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_231 = *(ip - 1);
     r_next_bytecode_231; })];
@@ -10577,17 +16590,41 @@ op_bc_size:;
     if ((b_63 & 7) == 0) {
         c_33 = *(uint64_t *)(b_63 + 8);
         if (c_33 == cls_array) {
-            v_360 = (uint32_t)*(uint64_t *)b_63;
-            *sp = (uint64_t)((((int64_t)v_360) << 1) | 1);
+            v_411 = (uint32_t)*(uint64_t *)b_63;
+            v_412 = (uint64_t)((((int64_t)v_411) << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_412);
+            } else {
+                *sp = v_412;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_232 = *(ip - 1);
     r_next_bytecode_232; })];
         }
         if ((c_33 == cls_bytestring) || (c_33 == cls_bytearray)) {
-            v_361 = (int64_t)byte_size(b_63);
-            *sp = (uint64_t)((v_361 << 1) | 1);
+            v_413 = (int64_t)byte_size(b_63);
+            v_414 = (uint64_t)((v_413 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_414);
+            } else {
+                *sp = v_414;
+            }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_233 = *(ip - 1);
     r_next_bytecode_233; })];
@@ -10598,8 +16635,8 @@ op_identical:;
     c_34 = sp[-1] == *sp;
     nx_33 = *ip;
     if ((nx_33 == 0x92) || (nx_33 == 0x91)) {
-        p_30 = ip + 1;
-        o_735 = *(int16_t *)(uint64_t)p_30;
+        p_112 = ip + 1;
+        o_735 = *(int16_t *)(uint64_t)p_112;
         sp = sp - 2;
         ip = ip + 3;
         if (c_34 == (nx_33 == 0x91)) {
@@ -10612,13 +16649,24 @@ op_identical:;
                         fr->sp = (int32_t)(sp - fp + 1);
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
-                        s_201 = (oop *)(active_ctx + 16);
-                        m_204 = s_201[CTX_METHOD];
-                        o_736 = *(uint64_t *)(m_204 + 16 + 24);
-                        v_362 = ip - (uint8_t *)(o_736 + 16);
-                        s_201[CTX_PC] = (uint64_t)((v_362 << 1) | 1);
-                        v_363 = sp - fp + 1;
-                        s_201[CTX_STACKP] = (uint64_t)((v_363 << 1) | 1);
+                        s_200 = (oop *)(active_ctx + 16);
+                        m_204 = s_200[CTX_METHOD];
+                        o_736 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_241 = c4_load_ref(m_204, 3U);
+        goto exit_load_ref_241;
+    }
+    r_load_ref_241 = *(uint64_t *)(m_204 + 16 + 24);
+exit_load_ref_241:;
+    r_load_ref_241; });
+                        v_415 = ip - (uint8_t *)(o_736 + 16);
+                        v_416 = (uint64_t)((v_415 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_416);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_416;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                     }
                     interrupt_safepoint();
                     if (nframes != 0) {
@@ -10628,21 +16676,28 @@ op_identical:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_202 = (oop *)(active_ctx + 16);
-                        m_205 = s_202[CTX_METHOD];
+                        s_201 = (oop *)(active_ctx + 16);
+                        m_205 = s_201[CTX_METHOD];
                         o_737 = ((oop *)(m_205 + 16))[CM_LITERALS];
                         lits = (oop *)(o_737 + 16);
-                        fp = s_202 + CTX_FIXED;
-                        o_738 = s_202[CTX_STACKP];
+                        fp = s_201 + CTX_FIXED;
+                        o_738 = s_201[CTX_STACKP];
                         sp = fp + (((int64_t)o_738) >> 1) - 1;
-                        o_739 = s_202[CTX_PC];
+                        o_739 = s_201[CTX_PC];
                         if (!((o_739 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_740 = *(uint64_t *)(m_205 + 16 + 24);
-                        o_741 = s_202[CTX_PC];
+                        o_740 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_242 = c4_load_ref(m_205, 3U);
+        goto exit_load_ref_242;
+    }
+    r_load_ref_242 = *(uint64_t *)(m_205 + 16 + 24);
+exit_load_ref_242:;
+    r_load_ref_242; });
+                        o_741 = s_201[CTX_PC];
                         ip = (uint8_t *)(o_740 + 16) + (((int64_t)o_741) >> 1);
                         fr = (frame *)NULL;
                     }
@@ -10655,13 +16710,24 @@ op_identical:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_203 = (oop *)(active_ctx + 16);
-                            m_206 = s_203[CTX_METHOD];
-                            o_742 = *(uint64_t *)(m_206 + 16 + 24);
-                            v_364 = ip - (uint8_t *)(o_742 + 16);
-                            s_203[CTX_PC] = (uint64_t)((v_364 << 1) | 1);
-                            v_365 = sp - fp + 1;
-                            s_203[CTX_STACKP] = (uint64_t)((v_365 << 1) | 1);
+                            s_202 = (oop *)(active_ctx + 16);
+                            m_206 = s_202[CTX_METHOD];
+                            o_742 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_243 = c4_load_ref(m_206, 3U);
+        goto exit_load_ref_243;
+    }
+    r_load_ref_243 = *(uint64_t *)(m_206 + 16 + 24);
+exit_load_ref_243:;
+    r_load_ref_243; });
+                            v_417 = ip - (uint8_t *)(o_742 + 16);
+                            v_418 = (uint64_t)((v_417 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_418);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_418;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         jit_runtime_back_jump(fr);
                         if (nframes != 0) {
@@ -10671,33 +16737,51 @@ op_identical:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_204 = (oop *)(active_ctx + 16);
-                            m_207 = s_204[CTX_METHOD];
+                            s_203 = (oop *)(active_ctx + 16);
+                            m_207 = s_203[CTX_METHOD];
                             o_743 = ((oop *)(m_207 + 16))[CM_LITERALS];
                             lits = (oop *)(o_743 + 16);
-                            fp = s_204 + CTX_FIXED;
-                            o_744 = s_204[CTX_STACKP];
+                            fp = s_203 + CTX_FIXED;
+                            o_744 = s_203[CTX_STACKP];
                             sp = fp + (((int64_t)o_744) >> 1) - 1;
-                            o_745 = s_204[CTX_PC];
+                            o_745 = s_203[CTX_PC];
                             if (!((o_745 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_746 = *(uint64_t *)(m_207 + 16 + 24);
-                            o_747 = s_204[CTX_PC];
+                            o_746 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_244 = c4_load_ref(m_207, 3U);
+        goto exit_load_ref_244;
+    }
+    r_load_ref_244 = *(uint64_t *)(m_207 + 16 + 24);
+exit_load_ref_244:;
+    r_load_ref_244; });
+                            o_747 = s_203[CTX_PC];
                             ip = (uint8_t *)(o_746 + 16) + (((int64_t)o_747) >> 1);
                             fr = (frame *)NULL;
                         }
                     }
                 } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                    s_205 = (oop *)(active_ctx + 16);
-                    m_208 = s_205[CTX_METHOD];
-                    o_748 = *(uint64_t *)(m_208 + 16 + 24);
-                    v_366 = ip - (uint8_t *)(o_748 + 16);
-                    s_205[CTX_PC] = (uint64_t)((v_366 << 1) | 1);
-                    v_367 = sp - fp + 1;
-                    s_205[CTX_STACKP] = (uint64_t)((v_367 << 1) | 1);
+                    s_204 = (oop *)(active_ctx + 16);
+                    m_208 = s_204[CTX_METHOD];
+                    o_748 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_245 = c4_load_ref(m_208, 3U);
+        goto exit_load_ref_245;
+    }
+    r_load_ref_245 = *(uint64_t *)(m_208 + 16 + 24);
+exit_load_ref_245:;
+    r_load_ref_245; });
+                    v_419 = ip - (uint8_t *)(o_748 + 16);
+                    v_420 = (uint64_t)((v_419 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_420);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_420;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                     resume_context(true);
                     if (nframes != 0) {
                         fr = frames + (nframes - 1);
@@ -10706,21 +16790,28 @@ op_identical:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_206 = (oop *)(active_ctx + 16);
-                        m_209 = s_206[CTX_METHOD];
+                        s_205 = (oop *)(active_ctx + 16);
+                        m_209 = s_205[CTX_METHOD];
                         o_749 = ((oop *)(m_209 + 16))[CM_LITERALS];
                         lits = (oop *)(o_749 + 16);
-                        fp = s_206 + CTX_FIXED;
-                        o_750 = s_206[CTX_STACKP];
+                        fp = s_205 + CTX_FIXED;
+                        o_750 = s_205[CTX_STACKP];
                         sp = fp + (((int64_t)o_750) >> 1) - 1;
-                        o_751 = s_206[CTX_PC];
+                        o_751 = s_205[CTX_PC];
                         if (!((o_751 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_752 = *(uint64_t *)(m_209 + 16 + 24);
-                        o_753 = s_206[CTX_PC];
+                        o_752 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_246 = c4_load_ref(m_209, 3U);
+        goto exit_load_ref_246;
+    }
+    r_load_ref_246 = *(uint64_t *)(m_209 + 16 + 24);
+exit_load_ref_246:;
+    r_load_ref_246; });
+                        o_753 = s_205[CTX_PC];
                         ip = (uint8_t *)(o_752 + 16) + (((int64_t)o_753) >> 1);
                         fr = (frame *)NULL;
                     }
@@ -10728,13 +16819,32 @@ op_identical:;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_234 = *(ip - 1);
     r_next_bytecode_234; })];
     }
     sp = sp - 1;
-    *sp = c_34 ? true_oop : false_oop;
+    v_421 = c_34 ? true_oop : false_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_421);
+    } else {
+        *sp = v_421;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_235 = *(ip - 1);
     r_next_bytecode_235; })];
@@ -10742,8 +16852,8 @@ op_not_identical:;
     c_35 = sp[-1] != *sp;
     nx_34 = *ip;
     if ((nx_34 == 0x92) || (nx_34 == 0x91)) {
-        p_31 = ip + 1;
-        o_754 = *(int16_t *)(uint64_t)p_31;
+        p_113 = ip + 1;
+        o_754 = *(int16_t *)(uint64_t)p_113;
         sp = sp - 2;
         ip = ip + 3;
         if (c_35 == (nx_34 == 0x91)) {
@@ -10756,13 +16866,24 @@ op_not_identical:;
                         fr->sp = (int32_t)(sp - fp + 1);
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
-                        s_207 = (oop *)(active_ctx + 16);
-                        m_210 = s_207[CTX_METHOD];
-                        o_755 = *(uint64_t *)(m_210 + 16 + 24);
-                        v_368 = ip - (uint8_t *)(o_755 + 16);
-                        s_207[CTX_PC] = (uint64_t)((v_368 << 1) | 1);
-                        v_369 = sp - fp + 1;
-                        s_207[CTX_STACKP] = (uint64_t)((v_369 << 1) | 1);
+                        s_206 = (oop *)(active_ctx + 16);
+                        m_210 = s_206[CTX_METHOD];
+                        o_755 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_247 = c4_load_ref(m_210, 3U);
+        goto exit_load_ref_247;
+    }
+    r_load_ref_247 = *(uint64_t *)(m_210 + 16 + 24);
+exit_load_ref_247:;
+    r_load_ref_247; });
+                        v_422 = ip - (uint8_t *)(o_755 + 16);
+                        v_423 = (uint64_t)((v_422 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_423);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_423;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                     }
                     interrupt_safepoint();
                     if (nframes != 0) {
@@ -10772,21 +16893,28 @@ op_not_identical:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_208 = (oop *)(active_ctx + 16);
-                        m_211 = s_208[CTX_METHOD];
+                        s_207 = (oop *)(active_ctx + 16);
+                        m_211 = s_207[CTX_METHOD];
                         o_756 = ((oop *)(m_211 + 16))[CM_LITERALS];
                         lits = (oop *)(o_756 + 16);
-                        fp = s_208 + CTX_FIXED;
-                        o_757 = s_208[CTX_STACKP];
+                        fp = s_207 + CTX_FIXED;
+                        o_757 = s_207[CTX_STACKP];
                         sp = fp + (((int64_t)o_757) >> 1) - 1;
-                        o_758 = s_208[CTX_PC];
+                        o_758 = s_207[CTX_PC];
                         if (!((o_758 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_759 = *(uint64_t *)(m_211 + 16 + 24);
-                        o_760 = s_208[CTX_PC];
+                        o_759 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_248 = c4_load_ref(m_211, 3U);
+        goto exit_load_ref_248;
+    }
+    r_load_ref_248 = *(uint64_t *)(m_211 + 16 + 24);
+exit_load_ref_248:;
+    r_load_ref_248; });
+                        o_760 = s_207[CTX_PC];
                         ip = (uint8_t *)(o_759 + 16) + (((int64_t)o_760) >> 1);
                         fr = (frame *)NULL;
                     }
@@ -10799,13 +16927,24 @@ op_not_identical:;
                             fr->sp = (int32_t)(sp - fp + 1);
                             cstack_used = (uint64_t)(sp + 1 - cstack);
                         } else {
-                            s_209 = (oop *)(active_ctx + 16);
-                            m_212 = s_209[CTX_METHOD];
-                            o_761 = *(uint64_t *)(m_212 + 16 + 24);
-                            v_370 = ip - (uint8_t *)(o_761 + 16);
-                            s_209[CTX_PC] = (uint64_t)((v_370 << 1) | 1);
-                            v_371 = sp - fp + 1;
-                            s_209[CTX_STACKP] = (uint64_t)((v_371 << 1) | 1);
+                            s_208 = (oop *)(active_ctx + 16);
+                            m_212 = s_208[CTX_METHOD];
+                            o_761 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_249 = c4_load_ref(m_212, 3U);
+        goto exit_load_ref_249;
+    }
+    r_load_ref_249 = *(uint64_t *)(m_212 + 16 + 24);
+exit_load_ref_249:;
+    r_load_ref_249; });
+                            v_424 = ip - (uint8_t *)(o_761 + 16);
+                            v_425 = (uint64_t)((v_424 << 1) | 1);
+                            if (__builtin_expect(c4_enabled, 0)) {
+                                c4_heap_store_ref(active_ctx, 1U, v_425);
+                            } else {
+                                ((oop *)(active_ctx + 16))[CTX_PC] = v_425;
+                            }
+                            interpreter_ctx(active_ctx, sp - fp + 1);
                         }
                         jit_runtime_back_jump(fr);
                         if (nframes != 0) {
@@ -10815,33 +16954,51 @@ op_not_identical:;
                             sp = fp + fr->sp - 1;
                             ip = fr->ip;
                         } else {
-                            s_210 = (oop *)(active_ctx + 16);
-                            m_213 = s_210[CTX_METHOD];
+                            s_209 = (oop *)(active_ctx + 16);
+                            m_213 = s_209[CTX_METHOD];
                             o_762 = ((oop *)(m_213 + 16))[CM_LITERALS];
                             lits = (oop *)(o_762 + 16);
-                            fp = s_210 + CTX_FIXED;
-                            o_763 = s_210[CTX_STACKP];
+                            fp = s_209 + CTX_FIXED;
+                            o_763 = s_209[CTX_STACKP];
                             sp = fp + (((int64_t)o_763) >> 1) - 1;
-                            o_764 = s_210[CTX_PC];
+                            o_764 = s_209[CTX_PC];
                             if (!((o_764 & 1) != 0)) {
                                 fatal_begin();
                                 fprintf(stderr, "resuming a dead context");
                                 fatal_end();
                             }
-                            o_765 = *(uint64_t *)(m_213 + 16 + 24);
-                            o_766 = s_210[CTX_PC];
+                            o_765 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_250 = c4_load_ref(m_213, 3U);
+        goto exit_load_ref_250;
+    }
+    r_load_ref_250 = *(uint64_t *)(m_213 + 16 + 24);
+exit_load_ref_250:;
+    r_load_ref_250; });
+                            o_766 = s_209[CTX_PC];
                             ip = (uint8_t *)(o_765 + 16) + (((int64_t)o_766) >> 1);
                             fr = (frame *)NULL;
                         }
                     }
                 } else if (__builtin_expect(jit_mode != JIT_NONE, 0)) {
-                    s_211 = (oop *)(active_ctx + 16);
-                    m_214 = s_211[CTX_METHOD];
-                    o_767 = *(uint64_t *)(m_214 + 16 + 24);
-                    v_372 = ip - (uint8_t *)(o_767 + 16);
-                    s_211[CTX_PC] = (uint64_t)((v_372 << 1) | 1);
-                    v_373 = sp - fp + 1;
-                    s_211[CTX_STACKP] = (uint64_t)((v_373 << 1) | 1);
+                    s_210 = (oop *)(active_ctx + 16);
+                    m_214 = s_210[CTX_METHOD];
+                    o_767 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_251 = c4_load_ref(m_214, 3U);
+        goto exit_load_ref_251;
+    }
+    r_load_ref_251 = *(uint64_t *)(m_214 + 16 + 24);
+exit_load_ref_251:;
+    r_load_ref_251; });
+                    v_426 = ip - (uint8_t *)(o_767 + 16);
+                    v_427 = (uint64_t)((v_426 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_427);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_427;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                     resume_context(true);
                     if (nframes != 0) {
                         fr = frames + (nframes - 1);
@@ -10850,21 +17007,28 @@ op_not_identical:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_212 = (oop *)(active_ctx + 16);
-                        m_215 = s_212[CTX_METHOD];
+                        s_211 = (oop *)(active_ctx + 16);
+                        m_215 = s_211[CTX_METHOD];
                         o_768 = ((oop *)(m_215 + 16))[CM_LITERALS];
                         lits = (oop *)(o_768 + 16);
-                        fp = s_212 + CTX_FIXED;
-                        o_769 = s_212[CTX_STACKP];
+                        fp = s_211 + CTX_FIXED;
+                        o_769 = s_211[CTX_STACKP];
                         sp = fp + (((int64_t)o_769) >> 1) - 1;
-                        o_770 = s_212[CTX_PC];
+                        o_770 = s_211[CTX_PC];
                         if (!((o_770 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_771 = *(uint64_t *)(m_215 + 16 + 24);
-                        o_772 = s_212[CTX_PC];
+                        o_771 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_252 = c4_load_ref(m_215, 3U);
+        goto exit_load_ref_252;
+    }
+    r_load_ref_252 = *(uint64_t *)(m_215 + 16 + 24);
+exit_load_ref_252:;
+    r_load_ref_252; });
+                        o_772 = s_211[CTX_PC];
                         ip = (uint8_t *)(o_771 + 16) + (((int64_t)o_772) >> 1);
                         fr = (frame *)NULL;
                     }
@@ -10872,32 +17036,69 @@ op_not_identical:;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_236 = *(ip - 1);
     r_next_bytecode_236; })];
     }
     sp = sp - 1;
-    *sp = c_35 ? true_oop : false_oop;
+    v_428 = c_35 ? true_oop : false_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_428);
+    } else {
+        *sp = v_428;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_237 = *(ip - 1);
     r_next_bytecode_237; })];
 op_bc_value_b5:;
     bl = *sp;
-    if (((bl & 7) == 0) && ((*(uint64_t *)(bl + 8) == cls_block) && (*(uint64_t *)(bl + 16 + 16) == 1ULL))) {
+    if (((bl & 7) == 0) && ((*(uint64_t *)(bl + 8) == cls_block) && (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_253 = c4_load_ref(bl, 2U);
+        goto exit_load_ref_253;
+    }
+    r_load_ref_253 = *(uint64_t *)(bl + 16 + 16);
+exit_load_ref_253:;
+    r_load_ref_253; }) == 1ULL))) {
         if (fr != NULL) {
             nframes = (int32_t)(fr - frames) + 1;
             fr->ip = ip;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_213 = (oop *)(active_ctx + 16);
-            m_216 = s_213[CTX_METHOD];
-            o_773 = *(uint64_t *)(m_216 + 16 + 24);
-            v_374 = ip - (uint8_t *)(o_773 + 16);
-            s_213[CTX_PC] = (uint64_t)((v_374 << 1) | 1);
-            v_375 = sp - fp + 1;
-            s_213[CTX_STACKP] = (uint64_t)((v_375 << 1) | 1);
+            s_212 = (oop *)(active_ctx + 16);
+            m_216 = s_212[CTX_METHOD];
+            o_773 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_254 = c4_load_ref(m_216, 3U);
+        goto exit_load_ref_254;
+    }
+    r_load_ref_254 = *(uint64_t *)(m_216 + 16 + 24);
+exit_load_ref_254:;
+    r_load_ref_254; });
+            v_429 = ip - (uint8_t *)(o_773 + 16);
+            v_430 = (uint64_t)((v_429 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_430);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_430;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         block_activate(0, false);
         fr = frames + (nframes - 1);
@@ -10913,13 +17114,24 @@ op_bc_value_b5:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_214 = (oop *)(active_ctx + 16);
-                m_217 = s_214[CTX_METHOD];
-                o_774 = *(uint64_t *)(m_217 + 16 + 24);
-                v_376 = ip - (uint8_t *)(o_774 + 16);
-                s_214[CTX_PC] = (uint64_t)((v_376 << 1) | 1);
-                v_377 = sp - fp + 1;
-                s_214[CTX_STACKP] = (uint64_t)((v_377 << 1) | 1);
+                s_213 = (oop *)(active_ctx + 16);
+                m_217 = s_213[CTX_METHOD];
+                o_774 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_255 = c4_load_ref(m_217, 3U);
+        goto exit_load_ref_255;
+    }
+    r_load_ref_255 = *(uint64_t *)(m_217 + 16 + 24);
+exit_load_ref_255:;
+    r_load_ref_255; });
+                v_431 = ip - (uint8_t *)(o_774 + 16);
+                v_432 = (uint64_t)((v_431 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_432);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_432;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             jit_runtime_resume(fr);
             if (nframes != 0) {
@@ -10929,25 +17141,39 @@ op_bc_value_b5:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_215 = (oop *)(active_ctx + 16);
-                m_218 = s_215[CTX_METHOD];
+                s_214 = (oop *)(active_ctx + 16);
+                m_218 = s_214[CTX_METHOD];
                 o_775 = ((oop *)(m_218 + 16))[CM_LITERALS];
                 lits = (oop *)(o_775 + 16);
-                fp = s_215 + CTX_FIXED;
-                o_776 = s_215[CTX_STACKP];
+                fp = s_214 + CTX_FIXED;
+                o_776 = s_214[CTX_STACKP];
                 sp = fp + (((int64_t)o_776) >> 1) - 1;
-                o_777 = s_215[CTX_PC];
+                o_777 = s_214[CTX_PC];
                 if (!((o_777 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_778 = *(uint64_t *)(m_218 + 16 + 24);
-                o_779 = s_215[CTX_PC];
+                o_778 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_256 = c4_load_ref(m_218, 3U);
+        goto exit_load_ref_256;
+    }
+    r_load_ref_256 = *(uint64_t *)(m_218 + 16 + 24);
+exit_load_ref_256:;
+    r_load_ref_256; });
+                o_779 = s_214[CTX_PC];
                 ip = (uint8_t *)(o_778 + 16) + (((int64_t)o_779) >> 1);
                 fr = (frame *)NULL;
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_238 = *(ip - 1);
     r_next_bytecode_238; })];
@@ -10959,13 +17185,24 @@ op_bc_value_b5:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_216 = (oop *)(active_ctx + 16);
-                m_219 = s_216[CTX_METHOD];
-                o_780 = *(uint64_t *)(m_219 + 16 + 24);
-                v_378 = ip - (uint8_t *)(o_780 + 16);
-                s_216[CTX_PC] = (uint64_t)((v_378 << 1) | 1);
-                v_379 = sp - fp + 1;
-                s_216[CTX_STACKP] = (uint64_t)((v_379 << 1) | 1);
+                s_215 = (oop *)(active_ctx + 16);
+                m_219 = s_215[CTX_METHOD];
+                o_780 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_257 = c4_load_ref(m_219, 3U);
+        goto exit_load_ref_257;
+    }
+    r_load_ref_257 = *(uint64_t *)(m_219 + 16 + 24);
+exit_load_ref_257:;
+    r_load_ref_257; });
+                v_433 = ip - (uint8_t *)(o_780 + 16);
+                v_434 = (uint64_t)((v_433 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_434);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_434;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             entry_safepoint();
             if (nframes != 0) {
@@ -10975,26 +17212,40 @@ op_bc_value_b5:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_217 = (oop *)(active_ctx + 16);
-                m_220 = s_217[CTX_METHOD];
+                s_216 = (oop *)(active_ctx + 16);
+                m_220 = s_216[CTX_METHOD];
                 o_781 = ((oop *)(m_220 + 16))[CM_LITERALS];
                 lits = (oop *)(o_781 + 16);
-                fp = s_217 + CTX_FIXED;
-                o_782 = s_217[CTX_STACKP];
+                fp = s_216 + CTX_FIXED;
+                o_782 = s_216[CTX_STACKP];
                 sp = fp + (((int64_t)o_782) >> 1) - 1;
-                o_783 = s_217[CTX_PC];
+                o_783 = s_216[CTX_PC];
                 if (!((o_783 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_784 = *(uint64_t *)(m_220 + 16 + 24);
-                o_785 = s_217[CTX_PC];
+                o_784 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_258 = c4_load_ref(m_220, 3U);
+        goto exit_load_ref_258;
+    }
+    r_load_ref_258 = *(uint64_t *)(m_220 + 16 + 24);
+exit_load_ref_258:;
+    r_load_ref_258; });
+                o_785 = s_216[CTX_PC];
                 ip = (uint8_t *)(o_784 + 16) + (((int64_t)o_785) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_239 = *(ip - 1);
     r_next_bytecode_239; })];
@@ -11002,20 +17253,38 @@ op_bc_value_b5:;
     goto op_special_send;
 op_bc_value_b6:;
     bl_2 = sp[-1];
-    if (((bl_2 & 7) == 0) && ((*(uint64_t *)(bl_2 + 8) == cls_block) && (*(uint64_t *)(bl_2 + 16 + 16) == 3ULL))) {
+    if (((bl_2 & 7) == 0) && ((*(uint64_t *)(bl_2 + 8) == cls_block) && (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_259 = c4_load_ref(bl_2, 2U);
+        goto exit_load_ref_259;
+    }
+    r_load_ref_259 = *(uint64_t *)(bl_2 + 16 + 16);
+exit_load_ref_259:;
+    r_load_ref_259; }) == 3ULL))) {
         if (fr != NULL) {
             nframes = (int32_t)(fr - frames) + 1;
             fr->ip = ip;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_218 = (oop *)(active_ctx + 16);
-            m_221 = s_218[CTX_METHOD];
-            o_786 = *(uint64_t *)(m_221 + 16 + 24);
-            v_380 = ip - (uint8_t *)(o_786 + 16);
-            s_218[CTX_PC] = (uint64_t)((v_380 << 1) | 1);
-            v_381 = sp - fp + 1;
-            s_218[CTX_STACKP] = (uint64_t)((v_381 << 1) | 1);
+            s_217 = (oop *)(active_ctx + 16);
+            m_221 = s_217[CTX_METHOD];
+            o_786 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_260 = c4_load_ref(m_221, 3U);
+        goto exit_load_ref_260;
+    }
+    r_load_ref_260 = *(uint64_t *)(m_221 + 16 + 24);
+exit_load_ref_260:;
+    r_load_ref_260; });
+            v_435 = ip - (uint8_t *)(o_786 + 16);
+            v_436 = (uint64_t)((v_435 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_436);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_436;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         block_activate(1, false);
         fr = frames + (nframes - 1);
@@ -11031,13 +17300,24 @@ op_bc_value_b6:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_219 = (oop *)(active_ctx + 16);
-                m_222 = s_219[CTX_METHOD];
-                o_787 = *(uint64_t *)(m_222 + 16 + 24);
-                v_382 = ip - (uint8_t *)(o_787 + 16);
-                s_219[CTX_PC] = (uint64_t)((v_382 << 1) | 1);
-                v_383 = sp - fp + 1;
-                s_219[CTX_STACKP] = (uint64_t)((v_383 << 1) | 1);
+                s_218 = (oop *)(active_ctx + 16);
+                m_222 = s_218[CTX_METHOD];
+                o_787 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_261 = c4_load_ref(m_222, 3U);
+        goto exit_load_ref_261;
+    }
+    r_load_ref_261 = *(uint64_t *)(m_222 + 16 + 24);
+exit_load_ref_261:;
+    r_load_ref_261; });
+                v_437 = ip - (uint8_t *)(o_787 + 16);
+                v_438 = (uint64_t)((v_437 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_438);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_438;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             jit_runtime_resume(fr);
             if (nframes != 0) {
@@ -11047,25 +17327,39 @@ op_bc_value_b6:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_220 = (oop *)(active_ctx + 16);
-                m_223 = s_220[CTX_METHOD];
+                s_219 = (oop *)(active_ctx + 16);
+                m_223 = s_219[CTX_METHOD];
                 o_788 = ((oop *)(m_223 + 16))[CM_LITERALS];
                 lits = (oop *)(o_788 + 16);
-                fp = s_220 + CTX_FIXED;
-                o_789 = s_220[CTX_STACKP];
+                fp = s_219 + CTX_FIXED;
+                o_789 = s_219[CTX_STACKP];
                 sp = fp + (((int64_t)o_789) >> 1) - 1;
-                o_790 = s_220[CTX_PC];
+                o_790 = s_219[CTX_PC];
                 if (!((o_790 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_791 = *(uint64_t *)(m_223 + 16 + 24);
-                o_792 = s_220[CTX_PC];
+                o_791 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_262 = c4_load_ref(m_223, 3U);
+        goto exit_load_ref_262;
+    }
+    r_load_ref_262 = *(uint64_t *)(m_223 + 16 + 24);
+exit_load_ref_262:;
+    r_load_ref_262; });
+                o_792 = s_219[CTX_PC];
                 ip = (uint8_t *)(o_791 + 16) + (((int64_t)o_792) >> 1);
                 fr = (frame *)NULL;
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_240 = *(ip - 1);
     r_next_bytecode_240; })];
@@ -11077,13 +17371,24 @@ op_bc_value_b6:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_221 = (oop *)(active_ctx + 16);
-                m_224 = s_221[CTX_METHOD];
-                o_793 = *(uint64_t *)(m_224 + 16 + 24);
-                v_384 = ip - (uint8_t *)(o_793 + 16);
-                s_221[CTX_PC] = (uint64_t)((v_384 << 1) | 1);
-                v_385 = sp - fp + 1;
-                s_221[CTX_STACKP] = (uint64_t)((v_385 << 1) | 1);
+                s_220 = (oop *)(active_ctx + 16);
+                m_224 = s_220[CTX_METHOD];
+                o_793 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_263 = c4_load_ref(m_224, 3U);
+        goto exit_load_ref_263;
+    }
+    r_load_ref_263 = *(uint64_t *)(m_224 + 16 + 24);
+exit_load_ref_263:;
+    r_load_ref_263; });
+                v_439 = ip - (uint8_t *)(o_793 + 16);
+                v_440 = (uint64_t)((v_439 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_440);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_440;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             entry_safepoint();
             if (nframes != 0) {
@@ -11093,26 +17398,40 @@ op_bc_value_b6:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_222 = (oop *)(active_ctx + 16);
-                m_225 = s_222[CTX_METHOD];
+                s_221 = (oop *)(active_ctx + 16);
+                m_225 = s_221[CTX_METHOD];
                 o_794 = ((oop *)(m_225 + 16))[CM_LITERALS];
                 lits = (oop *)(o_794 + 16);
-                fp = s_222 + CTX_FIXED;
-                o_795 = s_222[CTX_STACKP];
+                fp = s_221 + CTX_FIXED;
+                o_795 = s_221[CTX_STACKP];
                 sp = fp + (((int64_t)o_795) >> 1) - 1;
-                o_796 = s_222[CTX_PC];
+                o_796 = s_221[CTX_PC];
                 if (!((o_796 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_797 = *(uint64_t *)(m_225 + 16 + 24);
-                o_798 = s_222[CTX_PC];
+                o_797 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_264 = c4_load_ref(m_225, 3U);
+        goto exit_load_ref_264;
+    }
+    r_load_ref_264 = *(uint64_t *)(m_225 + 16 + 24);
+exit_load_ref_264:;
+    r_load_ref_264; });
+                o_798 = s_221[CTX_PC];
                 ip = (uint8_t *)(o_797 + 16) + (((int64_t)o_798) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_241 = *(ip - 1);
     r_next_bytecode_241; })];
@@ -11120,20 +17439,38 @@ op_bc_value_b6:;
     goto op_special_send;
 op_bc_value_be:;
     bl_3 = sp[-2];
-    if (((bl_3 & 7) == 0) && ((*(uint64_t *)(bl_3 + 8) == cls_block) && (*(uint64_t *)(bl_3 + 16 + 16) == 5ULL))) {
+    if (((bl_3 & 7) == 0) && ((*(uint64_t *)(bl_3 + 8) == cls_block) && (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_265 = c4_load_ref(bl_3, 2U);
+        goto exit_load_ref_265;
+    }
+    r_load_ref_265 = *(uint64_t *)(bl_3 + 16 + 16);
+exit_load_ref_265:;
+    r_load_ref_265; }) == 5ULL))) {
         if (fr != NULL) {
             nframes = (int32_t)(fr - frames) + 1;
             fr->ip = ip;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_223 = (oop *)(active_ctx + 16);
-            m_226 = s_223[CTX_METHOD];
-            o_799 = *(uint64_t *)(m_226 + 16 + 24);
-            v_386 = ip - (uint8_t *)(o_799 + 16);
-            s_223[CTX_PC] = (uint64_t)((v_386 << 1) | 1);
-            v_387 = sp - fp + 1;
-            s_223[CTX_STACKP] = (uint64_t)((v_387 << 1) | 1);
+            s_222 = (oop *)(active_ctx + 16);
+            m_226 = s_222[CTX_METHOD];
+            o_799 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_266 = c4_load_ref(m_226, 3U);
+        goto exit_load_ref_266;
+    }
+    r_load_ref_266 = *(uint64_t *)(m_226 + 16 + 24);
+exit_load_ref_266:;
+    r_load_ref_266; });
+            v_441 = ip - (uint8_t *)(o_799 + 16);
+            v_442 = (uint64_t)((v_441 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_442);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_442;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         block_activate(2, false);
         fr = frames + (nframes - 1);
@@ -11149,13 +17486,24 @@ op_bc_value_be:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_224 = (oop *)(active_ctx + 16);
-                m_227 = s_224[CTX_METHOD];
-                o_800 = *(uint64_t *)(m_227 + 16 + 24);
-                v_388 = ip - (uint8_t *)(o_800 + 16);
-                s_224[CTX_PC] = (uint64_t)((v_388 << 1) | 1);
-                v_389 = sp - fp + 1;
-                s_224[CTX_STACKP] = (uint64_t)((v_389 << 1) | 1);
+                s_223 = (oop *)(active_ctx + 16);
+                m_227 = s_223[CTX_METHOD];
+                o_800 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_267 = c4_load_ref(m_227, 3U);
+        goto exit_load_ref_267;
+    }
+    r_load_ref_267 = *(uint64_t *)(m_227 + 16 + 24);
+exit_load_ref_267:;
+    r_load_ref_267; });
+                v_443 = ip - (uint8_t *)(o_800 + 16);
+                v_444 = (uint64_t)((v_443 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_444);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_444;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             jit_runtime_resume(fr);
             if (nframes != 0) {
@@ -11165,25 +17513,39 @@ op_bc_value_be:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_225 = (oop *)(active_ctx + 16);
-                m_228 = s_225[CTX_METHOD];
+                s_224 = (oop *)(active_ctx + 16);
+                m_228 = s_224[CTX_METHOD];
                 o_801 = ((oop *)(m_228 + 16))[CM_LITERALS];
                 lits = (oop *)(o_801 + 16);
-                fp = s_225 + CTX_FIXED;
-                o_802 = s_225[CTX_STACKP];
+                fp = s_224 + CTX_FIXED;
+                o_802 = s_224[CTX_STACKP];
                 sp = fp + (((int64_t)o_802) >> 1) - 1;
-                o_803 = s_225[CTX_PC];
+                o_803 = s_224[CTX_PC];
                 if (!((o_803 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_804 = *(uint64_t *)(m_228 + 16 + 24);
-                o_805 = s_225[CTX_PC];
+                o_804 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_268 = c4_load_ref(m_228, 3U);
+        goto exit_load_ref_268;
+    }
+    r_load_ref_268 = *(uint64_t *)(m_228 + 16 + 24);
+exit_load_ref_268:;
+    r_load_ref_268; });
+                o_805 = s_224[CTX_PC];
                 ip = (uint8_t *)(o_804 + 16) + (((int64_t)o_805) >> 1);
                 fr = (frame *)NULL;
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_242 = *(ip - 1);
     r_next_bytecode_242; })];
@@ -11195,13 +17557,24 @@ op_bc_value_be:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_226 = (oop *)(active_ctx + 16);
-                m_229 = s_226[CTX_METHOD];
-                o_806 = *(uint64_t *)(m_229 + 16 + 24);
-                v_390 = ip - (uint8_t *)(o_806 + 16);
-                s_226[CTX_PC] = (uint64_t)((v_390 << 1) | 1);
-                v_391 = sp - fp + 1;
-                s_226[CTX_STACKP] = (uint64_t)((v_391 << 1) | 1);
+                s_225 = (oop *)(active_ctx + 16);
+                m_229 = s_225[CTX_METHOD];
+                o_806 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_269 = c4_load_ref(m_229, 3U);
+        goto exit_load_ref_269;
+    }
+    r_load_ref_269 = *(uint64_t *)(m_229 + 16 + 24);
+exit_load_ref_269:;
+    r_load_ref_269; });
+                v_445 = ip - (uint8_t *)(o_806 + 16);
+                v_446 = (uint64_t)((v_445 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_446);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_446;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             entry_safepoint();
             if (nframes != 0) {
@@ -11211,26 +17584,40 @@ op_bc_value_be:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_227 = (oop *)(active_ctx + 16);
-                m_230 = s_227[CTX_METHOD];
+                s_226 = (oop *)(active_ctx + 16);
+                m_230 = s_226[CTX_METHOD];
                 o_807 = ((oop *)(m_230 + 16))[CM_LITERALS];
                 lits = (oop *)(o_807 + 16);
-                fp = s_227 + CTX_FIXED;
-                o_808 = s_227[CTX_STACKP];
+                fp = s_226 + CTX_FIXED;
+                o_808 = s_226[CTX_STACKP];
                 sp = fp + (((int64_t)o_808) >> 1) - 1;
-                o_809 = s_227[CTX_PC];
+                o_809 = s_226[CTX_PC];
                 if (!((o_809 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_810 = *(uint64_t *)(m_230 + 16 + 24);
-                o_811 = s_227[CTX_PC];
+                o_810 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_270 = c4_load_ref(m_230, 3U);
+        goto exit_load_ref_270;
+    }
+    r_load_ref_270 = *(uint64_t *)(m_230 + 16 + 24);
+exit_load_ref_270:;
+    r_load_ref_270; });
+                o_811 = s_226[CTX_PC];
                 ip = (uint8_t *)(o_810 + 16) + (((int64_t)o_811) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_243 = *(ip - 1);
     r_next_bytecode_243; })];
@@ -11239,8 +17626,20 @@ op_bc_value_be:;
 op_bc_point_bb:;
     b_64 = *sp;
     if (((b_64 & 7) == 0) && (*(uint64_t *)(b_64 + 8) == cls_point)) {
-        *sp = ((oop *)(b_64 + 16))[0];
+        v_447 = ((oop *)(b_64 + 16))[0];
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_447);
+        } else {
+            *sp = v_447;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_244 = *(ip - 1);
     r_next_bytecode_244; })];
@@ -11249,8 +17648,20 @@ op_bc_point_bb:;
 op_bc_point_bc:;
     b_65 = *sp;
     if (((b_65 & 7) == 0) && (*(uint64_t *)(b_65 + 8) == cls_point)) {
-        *sp = ((oop *)(b_65 + 16))[1];
+        v_448 = ((oop *)(b_65 + 16))[1];
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_448);
+        } else {
+            *sp = v_448;
+        }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_245 = *(ip - 1);
     r_next_bytecode_245; })];
@@ -11258,8 +17669,20 @@ op_bc_point_bc:;
     goto op_special_send;
 op_bc_class:;
     r_36 = *sp;
-    *sp = (r_36 & 7) == 0 ? *(uint64_t *)(r_36 + 8) : (r_36 & 1) != 0 ? cls_smallint : class_of(r_36);
+    v_449 = (r_36 & 7) == 0 ? *(uint64_t *)(r_36 + 8) : (r_36 & 1) != 0 ? cls_smallint : class_of(r_36);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, v_449);
+    } else {
+        *sp = v_449;
+    }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_246 = *(ip - 1);
     r_next_bytecode_246; })];
@@ -11274,13 +17697,24 @@ op_bad_bytecode:;
         fr->sp = (int32_t)(sp - fp + 1);
         cstack_used = (uint64_t)(sp + 1 - cstack);
     } else {
-        s_228 = (oop *)(active_ctx + 16);
-        m_231 = s_228[CTX_METHOD];
-        o_812 = *(uint64_t *)(m_231 + 16 + 24);
-        v_392 = ip - (uint8_t *)(o_812 + 16);
-        s_228[CTX_PC] = (uint64_t)((v_392 << 1) | 1);
-        v_393 = sp - fp + 1;
-        s_228[CTX_STACKP] = (uint64_t)((v_393 << 1) | 1);
+        s_227 = (oop *)(active_ctx + 16);
+        m_231 = s_227[CTX_METHOD];
+        o_812 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_271 = c4_load_ref(m_231, 3U);
+        goto exit_load_ref_271;
+    }
+    r_load_ref_271 = *(uint64_t *)(m_231 + 16 + 24);
+exit_load_ref_271:;
+    r_load_ref_271; });
+        v_450 = ip - (uint8_t *)(o_812 + 16);
+        v_451 = (uint64_t)((v_450 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_451);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_451;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
     }
     a_42 = (int32_t)ip[-1];
     fatal_begin();
@@ -11300,25 +17734,46 @@ activate:;
         materialize_all();
         new_method = tmp_roots[0];
         tmp_roots[0] = nil_oop;
-        o_813 = *(uint64_t *)(new_method + 16 + 24);
+        o_813 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_272 = c4_load_ref(new_method, 3U);
+        goto exit_load_ref_272;
+    }
+    r_load_ref_272 = *(uint64_t *)(new_method + 16 + 24);
+exit_load_ref_272:;
+    r_load_ref_272; });
         new_bcs = (uint8_t *)(o_813 + 16);
-        o_814 = *(uint64_t *)(new_method + 16 + 16);
+        o_814 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_273 = c4_load_ref(new_method, 2U);
+        goto exit_load_ref_273;
+    }
+    r_load_ref_273 = *(uint64_t *)(new_method + 16 + 16);
+exit_load_ref_273:;
+    r_load_ref_273; });
         new_lits = (oop *)(o_814 + 16);
-        s_229 = (oop *)(active_ctx + 16);
-        m_232 = s_229[CTX_METHOD];
+        s_228 = (oop *)(active_ctx + 16);
+        m_232 = s_228[CTX_METHOD];
         o_815 = ((oop *)(m_232 + 16))[CM_LITERALS];
         lits = (oop *)(o_815 + 16);
-        fp = s_229 + CTX_FIXED;
-        o_816 = s_229[CTX_STACKP];
+        fp = s_228 + CTX_FIXED;
+        o_816 = s_228[CTX_STACKP];
         sp = fp + (((int64_t)o_816) >> 1) - 1;
-        o_817 = s_229[CTX_PC];
+        o_817 = s_228[CTX_PC];
         if (!((o_817 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_818 = *(uint64_t *)(m_232 + 16 + 24);
-        o_819 = s_229[CTX_PC];
+        o_818 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_274 = c4_load_ref(m_232, 3U);
+        goto exit_load_ref_274;
+    }
+    r_load_ref_274 = *(uint64_t *)(m_232 + 16 + 24);
+exit_load_ref_274:;
+    r_load_ref_274; });
+        o_819 = s_228[CTX_PC];
         ip = (uint8_t *)(o_818 + 16) + (((int64_t)o_819) >> 1);
         fr = (frame *)NULL;
         goto activate_from_context;
@@ -11329,37 +17784,94 @@ activate:;
     goto enter_frame;
 activate_from_context:;
     src_2 = sp - argc;
-    cstack[0] = src_2[0];
+    v_452 = src_2[0];
+    if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+        i_8 = (uint64_t)(cstack - cstack);
+        if ((i_8 >= c4_stack_next) && ((i_8 < c4_stack_limit) && (!c4_saved_stack_bits[i_8]))) {
+            c4_saved_stack[i_8] = *cstack;
+            c4_saved_stack_bits[i_8] = true;
+        }
+    }
+    *cstack = v_452;
     for (k_22 = 1; k_22 <= argc; k_22++) {
-        cstack[k_22] = src_2[k_22];
+        p_114 = cstack + k_22;
+        v_453 = src_2[k_22];
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i_9 = (uint64_t)(p_114 - cstack);
+            if ((i_9 >= c4_stack_next) && ((i_9 < c4_stack_limit) && (!c4_saved_stack_bits[i_9]))) {
+                c4_saved_stack[i_9] = *p_114;
+                c4_saved_stack_bits[i_9] = true;
+            }
+        }
+        *p_114 = v_453;
     }
     sp = src_2 - 1;
-    s_230 = (oop *)(active_ctx + 16);
-    m_233 = s_230[CTX_METHOD];
-    o_820 = *(uint64_t *)(m_233 + 16 + 24);
-    v_394 = ip - (uint8_t *)(o_820 + 16);
-    s_230[CTX_PC] = (uint64_t)((v_394 << 1) | 1);
-    v_395 = sp - fp + 1;
-    s_230[CTX_STACKP] = (uint64_t)((v_395 << 1) | 1);
+    s_229 = (oop *)(active_ctx + 16);
+    m_233 = s_229[CTX_METHOD];
+    o_820 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_275 = c4_load_ref(m_233, 3U);
+        goto exit_load_ref_275;
+    }
+    r_load_ref_275 = *(uint64_t *)(m_233 + 16 + 24);
+exit_load_ref_275:;
+    r_load_ref_275; });
+    v_454 = ip - (uint8_t *)(o_820 + 16);
+    v_455 = (uint64_t)((v_454 << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(active_ctx, 1U, v_455);
+    } else {
+        ((oop *)(active_ctx + 16))[CTX_PC] = v_455;
+    }
+    interpreter_ctx(active_ctx, sp - fp + 1);
     new_fp = cstack + 1;
     fr = frames + 0;
     goto enter_frame;
 cannot_return:;
-    *sp = active_ctx;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, active_ctx);
+    } else {
+        *sp = active_ctx;
+    }
     sp = sp + 1;
-    *sp = result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, result);
+    } else {
+        *sp = result;
+    }
     sel = object_memory_special(SO_SEL_CANNOTRETURN);
     argc = 1;
     goto do_send_global;
 context_non_local_return:;
     home_2 = ctx_home(active_ctx);
-    o_821 = *(uint64_t *)(home_2 + 16 + 8);
+    o_821 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_276 = c4_load_ref(home_2, 1U);
+        goto exit_load_ref_276;
+    }
+    r_load_ref_276 = *(uint64_t *)(home_2 + 16 + 8);
+exit_load_ref_276:;
+    r_load_ref_276; });
     if (!((o_821 & 1) != 0)) {
         goto cannot_return;
     }
-    hs_2 = *(uint64_t *)(home_2 + 16 + 0);
+    hs_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_277 = c4_load_ref(home_2, 0U);
+        goto exit_load_ref_277;
+    }
+    r_load_ref_277 = *(uint64_t *)(home_2 + 16 + 0);
+exit_load_ref_277:;
+    r_load_ref_277; });
     if ((hs_2 == nil_oop) || ({
-    o_822 = *(uint64_t *)(hs_2 + 16 + 8);
+    o_822 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_278 = c4_load_ref(hs_2, 1U);
+        goto exit_load_ref_278;
+    }
+    r_load_ref_278 = *(uint64_t *)(hs_2 + 16 + 8);
+exit_load_ref_278:;
+    r_load_ref_278; });
     !((o_822 & 1) != 0); })) {
         goto cannot_return;
     }
@@ -11370,69 +17882,146 @@ context_non_local_return:;
             goto cannot_return;
         }
         if ((marked_2 == 0) && ({
-    m_234 = *(uint64_t *)(c_39 + 16 + 24);
+    m_234 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_279 = c4_load_ref(c_39, 3U);
+        goto exit_load_ref_279;
+    }
+    r_load_ref_279 = *(uint64_t *)(c_39 + 16 + 24);
+exit_load_ref_279:;
+    r_load_ref_279; });
     (({
-    p_32 = *(uint64_t *)(m_234 + 16 + 56);
-    r_method_prim_4 = (p_32 & 1) != 0 ? ((int64_t)p_32) >> 1 : 0;
+    p_115 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_280 = c4_load_ref(m_234, 7U);
+        goto exit_load_ref_280;
+    }
+    r_load_ref_280 = *(uint64_t *)(m_234 + 16 + 56);
+exit_load_ref_280:;
+    r_load_ref_280; });
+    r_method_prim_4 = (p_115 & 1) != 0 ? ((int64_t)p_115) >> 1 : 0;
     r_method_prim_4; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER; })) {
             marked_2 = c_39;
         }
         if (!(c_39 != home_2)) {
             break;
         }
-        c_39 = *(uint64_t *)(c_39 + 16 + 0);
+        c_39 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_281 = c4_load_ref(c_39, 0U);
+        goto exit_load_ref_281;
+    }
+    r_load_ref_281 = *(uint64_t *)(c_39 + 16 + 0);
+exit_load_ref_281:;
+    r_load_ref_281; });
     }
     if (marked_2 != 0) {
-        *sp = active_ctx;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, active_ctx);
+        } else {
+            *sp = active_ctx;
+        }
         sp = sp + 1;
-        *sp = result;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, result);
+        } else {
+            *sp = result;
+        }
         sp = sp + 1;
-        *sp = marked_2;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, marked_2);
+        } else {
+            *sp = marked_2;
+        }
         sel = object_memory_special(SO_SEL_ABOUTTORETURN);
         argc = 2;
         goto do_send_global;
     }
+    if (__builtin_expect(c4_enabled, 0)) {
+        interpreter_ctx(active_ctx, sp - fp + 1);
+    }
     c_39 = active_ctx;
     for (;;) {
-        next_2 = *(uint64_t *)(c_39 + 16 + 0);
-        ((oop *)(c_39 + 16))[CTX_PC] = nil_oop;
-        ((oop *)(c_39 + 16))[CTX_SENDER] = nil_oop;
+        next_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_282 = c4_load_ref(c_39, 0U);
+        goto exit_load_ref_282;
+    }
+    r_load_ref_282 = *(uint64_t *)(c_39 + 16 + 0);
+exit_load_ref_282:;
+    r_load_ref_282; });
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(c_39, 1U, nil_oop);
+        } else {
+            ((oop *)(c_39 + 16))[CTX_PC] = nil_oop;
+        }
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(c_39, 0U, nil_oop);
+        } else {
+            ((oop *)(c_39 + 16))[CTX_SENDER] = nil_oop;
+        }
         if (!(c_39 != home_2)) {
             break;
         }
         c_39 = next_2;
     }
     active_ctx = hs_2;
-    if (((hs_2 & 7) == 0) && ((!(hs_2 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)hs_2) & H_REMEMBERED) == 0))) {
+    if (c4_enabled) {
+        goto exit_remember_if_old_5;
+    }
+    if (((hs_2 & 7) == 0) && ((!((uint64_t)(hs_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)hs_2) & H_REMEMBERED) == 0))) {
         remember(hs_2);
     }
-    s_231 = (oop *)(active_ctx + 16);
-    m_235 = s_231[CTX_METHOD];
+exit_remember_if_old_5:;
+    s_230 = (oop *)(active_ctx + 16);
+    m_235 = s_230[CTX_METHOD];
     o_823 = ((oop *)(m_235 + 16))[CM_LITERALS];
     lits = (oop *)(o_823 + 16);
-    fp = s_231 + CTX_FIXED;
-    o_824 = s_231[CTX_STACKP];
+    fp = s_230 + CTX_FIXED;
+    o_824 = s_230[CTX_STACKP];
     sp = fp + (((int64_t)o_824) >> 1) - 1;
-    o_825 = s_231[CTX_PC];
+    o_825 = s_230[CTX_PC];
     if (!((o_825 & 1) != 0)) {
         fatal_begin();
         fprintf(stderr, "resuming a dead context");
         fatal_end();
     }
-    o_826 = *(uint64_t *)(m_235 + 16 + 24);
-    o_827 = s_231[CTX_PC];
+    o_826 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_283 = c4_load_ref(m_235, 3U);
+        goto exit_load_ref_283;
+    }
+    r_load_ref_283 = *(uint64_t *)(m_235 + 16 + 24);
+exit_load_ref_283:;
+    r_load_ref_283; });
+    o_827 = s_230[CTX_PC];
     ip = (uint8_t *)(o_826 + 16) + (((int64_t)o_827) >> 1);
     fr = (frame *)NULL;
     sp = sp + 1;
-    *sp = result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, result);
+    } else {
+        *sp = result;
+    }
     if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
-        s_232 = (oop *)(active_ctx + 16);
-        m_236 = s_232[CTX_METHOD];
-        o_828 = *(uint64_t *)(m_236 + 16 + 24);
-        v_396 = ip - (uint8_t *)(o_828 + 16);
-        s_232[CTX_PC] = (uint64_t)((v_396 << 1) | 1);
-        v_397 = sp - fp + 1;
-        s_232[CTX_STACKP] = (uint64_t)((v_397 << 1) | 1);
+        s_231 = (oop *)(active_ctx + 16);
+        m_236 = s_231[CTX_METHOD];
+        o_828 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_284 = c4_load_ref(m_236, 3U);
+        goto exit_load_ref_284;
+    }
+    r_load_ref_284 = *(uint64_t *)(m_236 + 16 + 24);
+exit_load_ref_284:;
+    r_load_ref_284; });
+        v_456 = ip - (uint8_t *)(o_828 + 16);
+        v_457 = (uint64_t)((v_456 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_457);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_457;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
         resume_context(false);
         if (nframes != 0) {
             fr = frames + (nframes - 1);
@@ -11441,70 +18030,121 @@ context_non_local_return:;
             sp = fp + fr->sp - 1;
             ip = fr->ip;
         } else {
-            s_233 = (oop *)(active_ctx + 16);
-            m_237 = s_233[CTX_METHOD];
+            s_232 = (oop *)(active_ctx + 16);
+            m_237 = s_232[CTX_METHOD];
             o_829 = ((oop *)(m_237 + 16))[CM_LITERALS];
             lits = (oop *)(o_829 + 16);
-            fp = s_233 + CTX_FIXED;
-            o_830 = s_233[CTX_STACKP];
+            fp = s_232 + CTX_FIXED;
+            o_830 = s_232[CTX_STACKP];
             sp = fp + (((int64_t)o_830) >> 1) - 1;
-            o_831 = s_233[CTX_PC];
+            o_831 = s_232[CTX_PC];
             if (!((o_831 & 1) != 0)) {
                 fatal_begin();
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_832 = *(uint64_t *)(m_237 + 16 + 24);
-            o_833 = s_233[CTX_PC];
+            o_832 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_285 = c4_load_ref(m_237, 3U);
+        goto exit_load_ref_285;
+    }
+    r_load_ref_285 = *(uint64_t *)(m_237 + 16 + 24);
+exit_load_ref_285:;
+    r_load_ref_285; });
+            o_833 = s_232[CTX_PC];
             ip = (uint8_t *)(o_832 + 16) + (((int64_t)o_833) >> 1);
             fr = (frame *)NULL;
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_247 = *(ip - 1);
     r_next_bytecode_247; })];
 context_return:;
-    s_234 = (oop *)(active_ctx + 16);
-    sender = s_234[CTX_SENDER];
+    s_233 = (oop *)(active_ctx + 16);
+    sender = s_233[CTX_SENDER];
     if ((sender == nil_oop) || ({
     o_834 = ((oop *)(sender + 16))[CTX_PC];
     !((o_834 & 1) != 0); })) {
         goto cannot_return;
     }
-    s_234[CTX_PC] = nil_oop;
-    s_234[CTX_SENDER] = nil_oop;
+    if (__builtin_expect(c4_enabled, 0)) {
+        interpreter_ctx(active_ctx, sp - fp + 1);
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(active_ctx, 1U, nil_oop);
+    } else {
+        ((oop *)(active_ctx + 16))[CTX_PC] = nil_oop;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(active_ctx, 0U, nil_oop);
+    } else {
+        ((oop *)(active_ctx + 16))[CTX_SENDER] = nil_oop;
+    }
     active_ctx = sender;
+    if (c4_enabled) {
+        goto exit_remember_if_old_6;
+    }
     if (((sender & 7) == 0) && ((!((uint64_t)(sender - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)sender) & H_REMEMBERED) == 0))) {
         remember(sender);
     }
-    s_235 = (oop *)(active_ctx + 16);
-    m_238 = s_235[CTX_METHOD];
+exit_remember_if_old_6:;
+    s_234 = (oop *)(active_ctx + 16);
+    m_238 = s_234[CTX_METHOD];
     o_835 = ((oop *)(m_238 + 16))[CM_LITERALS];
     lits = (oop *)(o_835 + 16);
-    fp = s_235 + CTX_FIXED;
-    o_836 = s_235[CTX_STACKP];
+    fp = s_234 + CTX_FIXED;
+    o_836 = s_234[CTX_STACKP];
     sp = fp + (((int64_t)o_836) >> 1) - 1;
-    o_837 = s_235[CTX_PC];
+    o_837 = s_234[CTX_PC];
     if (!((o_837 & 1) != 0)) {
         fatal_begin();
         fprintf(stderr, "resuming a dead context");
         fatal_end();
     }
-    o_838 = *(uint64_t *)(m_238 + 16 + 24);
-    o_839 = s_235[CTX_PC];
+    o_838 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_286 = c4_load_ref(m_238, 3U);
+        goto exit_load_ref_286;
+    }
+    r_load_ref_286 = *(uint64_t *)(m_238 + 16 + 24);
+exit_load_ref_286:;
+    r_load_ref_286; });
+    o_839 = s_234[CTX_PC];
     ip = (uint8_t *)(o_838 + 16) + (((int64_t)o_839) >> 1);
     fr = (frame *)NULL;
     sp = sp + 1;
-    *sp = result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, result);
+    } else {
+        *sp = result;
+    }
     if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
-        s_236 = (oop *)(active_ctx + 16);
-        m_239 = s_236[CTX_METHOD];
-        o_840 = *(uint64_t *)(m_239 + 16 + 24);
-        v_398 = ip - (uint8_t *)(o_840 + 16);
-        s_236[CTX_PC] = (uint64_t)((v_398 << 1) | 1);
-        v_399 = sp - fp + 1;
-        s_236[CTX_STACKP] = (uint64_t)((v_399 << 1) | 1);
+        s_235 = (oop *)(active_ctx + 16);
+        m_239 = s_235[CTX_METHOD];
+        o_840 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_287 = c4_load_ref(m_239, 3U);
+        goto exit_load_ref_287;
+    }
+    r_load_ref_287 = *(uint64_t *)(m_239 + 16 + 24);
+exit_load_ref_287:;
+    r_load_ref_287; });
+        v_458 = ip - (uint8_t *)(o_840 + 16);
+        v_459 = (uint64_t)((v_458 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_459);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_459;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
         resume_context(false);
         if (nframes != 0) {
             fr = frames + (nframes - 1);
@@ -11513,30 +18153,52 @@ context_return:;
             sp = fp + fr->sp - 1;
             ip = fr->ip;
         } else {
-            s_237 = (oop *)(active_ctx + 16);
-            m_240 = s_237[CTX_METHOD];
+            s_236 = (oop *)(active_ctx + 16);
+            m_240 = s_236[CTX_METHOD];
             o_841 = ((oop *)(m_240 + 16))[CM_LITERALS];
             lits = (oop *)(o_841 + 16);
-            fp = s_237 + CTX_FIXED;
-            o_842 = s_237[CTX_STACKP];
+            fp = s_236 + CTX_FIXED;
+            o_842 = s_236[CTX_STACKP];
             sp = fp + (((int64_t)o_842) >> 1) - 1;
-            o_843 = s_237[CTX_PC];
+            o_843 = s_236[CTX_PC];
             if (!((o_843 & 1) != 0)) {
                 fatal_begin();
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_844 = *(uint64_t *)(m_240 + 16 + 24);
-            o_845 = s_237[CTX_PC];
+            o_844 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_288 = c4_load_ref(m_240, 3U);
+        goto exit_load_ref_288;
+    }
+    r_load_ref_288 = *(uint64_t *)(m_240 + 16 + 24);
+exit_load_ref_288:;
+    r_load_ref_288; });
+            o_845 = s_236[CTX_PC];
             ip = (uint8_t *)(o_844 + 16) + (((int64_t)o_845) >> 1);
             fr = (frame *)NULL;
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_248 = *(ip - 1);
     r_next_bytecode_248; })];
 do_lookup:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        e_5 = fill_cache(cls, sel);
+        if (e_5 == NULL) {
+            goto send_does_not_understand;
+        }
+        e_6 = e_5;
+        goto have_entry;
+    }
     e_5 = cache + (((cls >> 3) ^ (sel >> 3) ^ (sel >> 12)) & 4095);
     if (__builtin_expect((e_5->cls != cls) || (e_5->sel != sel), 0)) {
         e_5 = fill_cache(cls, sel);
@@ -11555,9 +18217,12 @@ do_send_global:;
     cls = (r_38 & 7) != 0 ? tag_class[r_38 & 7] : *(uint64_t *)(r_38 + 8);
     goto do_lookup;
 do_site_lookup:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        goto do_lookup;
+    }
     e_7 = icache + ({
-    s_238 = (uint64_t)ip;
-    r_icache_index_of = (s_238 ^ (s_238 >> 12)) & 4095;
+    s_237 = (uint64_t)ip;
+    r_icache_index_of = (s_237 ^ (s_237 >> 12)) & 4095;
     r_icache_index_of; });
     if (__builtin_expect((e_7->cls != cls) || (e_7->sel != (oop)ip), 0)) {
         g = cache + (((cls >> 3) ^ (sel >> 3) ^ (sel >> 12)) & 4095);
@@ -11573,6 +18238,16 @@ do_site_lookup:;
     e_6 = e_7;
     goto have_entry;
 enter_frame:;
+    if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
+        i_10 = (uint64_t)(fr - frames);
+        if ((i_10 >= c4_frame_next) && ((i_10 < c4_frame_limit) && (!c4_saved_frame_bits[i_10]))) {
+            k_23 = i_10 * 3;
+            c4_saved_frames[k_23] = fr->method;
+            c4_saved_frames[k_23 + 1] = fr->closure;
+            c4_saved_frames[k_23 + 2] = fr->ctx;
+            c4_saved_frame_bits[i_10] = true;
+        }
+    }
     fr->method = new_method;
     fr->closure = nil_oop;
     fr->ctx = nil_oop;
@@ -11583,12 +18258,25 @@ enter_frame:;
     lits = new_lits;
     fr->lits = new_lits;
     sp = new_fp + argc - 1;
-    for (k_23 = 1; k_23 <= new_temps; k_23++) {
+    for (k_24 = 1; k_24 <= new_temps; k_24++) {
         sp = sp + 1;
-        *sp = nil_oop;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, nil_oop);
+        } else {
+            *sp = nil_oop;
+        }
     }
     if (__builtin_expect(new_ecode >= 0, 0)) {
-        new_fp[argc] = (uint64_t)((((int64_t)new_ecode) << 1) | 1);
+        p_116 = new_fp + argc;
+        v_460 = (uint64_t)((((int64_t)new_ecode) << 1) | 1);
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            i_11 = (uint64_t)(p_116 - cstack);
+            if ((i_11 >= c4_stack_next) && ((i_11 < c4_stack_limit) && (!c4_saved_stack_bits[i_11]))) {
+                c4_saved_stack[i_11] = *p_116;
+                c4_saved_stack_bits[i_11] = true;
+            }
+        }
+        *p_116 = v_460;
     }
     if (__builtin_expect(new_code != 0, 0)) {
         if (fr != NULL) {
@@ -11597,13 +18285,24 @@ enter_frame:;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_239 = (oop *)(active_ctx + 16);
-            m_241 = s_239[CTX_METHOD];
-            o_846 = *(uint64_t *)(m_241 + 16 + 24);
-            v_400 = ip - (uint8_t *)(o_846 + 16);
-            s_239[CTX_PC] = (uint64_t)((v_400 << 1) | 1);
-            v_401 = sp - fp + 1;
-            s_239[CTX_STACKP] = (uint64_t)((v_401 << 1) | 1);
+            s_238 = (oop *)(active_ctx + 16);
+            m_241 = s_238[CTX_METHOD];
+            o_846 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_289 = c4_load_ref(m_241, 3U);
+        goto exit_load_ref_289;
+    }
+    r_load_ref_289 = *(uint64_t *)(m_241 + 16 + 24);
+exit_load_ref_289:;
+    r_load_ref_289; });
+            v_461 = ip - (uint8_t *)(o_846 + 16);
+            v_462 = (uint64_t)((v_461 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_462);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_462;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         activated(fr);
         if (nframes != 0) {
@@ -11613,25 +18312,39 @@ enter_frame:;
             sp = fp + fr->sp - 1;
             ip = fr->ip;
         } else {
-            s_240 = (oop *)(active_ctx + 16);
-            m_242 = s_240[CTX_METHOD];
+            s_239 = (oop *)(active_ctx + 16);
+            m_242 = s_239[CTX_METHOD];
             o_847 = ((oop *)(m_242 + 16))[CM_LITERALS];
             lits = (oop *)(o_847 + 16);
-            fp = s_240 + CTX_FIXED;
-            o_848 = s_240[CTX_STACKP];
+            fp = s_239 + CTX_FIXED;
+            o_848 = s_239[CTX_STACKP];
             sp = fp + (((int64_t)o_848) >> 1) - 1;
-            o_849 = s_240[CTX_PC];
+            o_849 = s_239[CTX_PC];
             if (!((o_849 & 1) != 0)) {
                 fatal_begin();
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_850 = *(uint64_t *)(m_242 + 16 + 24);
-            o_851 = s_240[CTX_PC];
+            o_850 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_290 = c4_load_ref(m_242, 3U);
+        goto exit_load_ref_290;
+    }
+    r_load_ref_290 = *(uint64_t *)(m_242 + 16 + 24);
+exit_load_ref_290:;
+    r_load_ref_290; });
+            o_851 = s_239[CTX_PC];
             ip = (uint8_t *)(o_850 + 16) + (((int64_t)o_851) >> 1);
             fr = (frame *)NULL;
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_249 = *(ip - 1);
     r_next_bytecode_249; })];
@@ -11643,13 +18356,24 @@ enter_frame:;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_241 = (oop *)(active_ctx + 16);
-            m_243 = s_241[CTX_METHOD];
-            o_852 = *(uint64_t *)(m_243 + 16 + 24);
-            v_402 = ip - (uint8_t *)(o_852 + 16);
-            s_241[CTX_PC] = (uint64_t)((v_402 << 1) | 1);
-            v_403 = sp - fp + 1;
-            s_241[CTX_STACKP] = (uint64_t)((v_403 << 1) | 1);
+            s_240 = (oop *)(active_ctx + 16);
+            m_243 = s_240[CTX_METHOD];
+            o_852 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_291 = c4_load_ref(m_243, 3U);
+        goto exit_load_ref_291;
+    }
+    r_load_ref_291 = *(uint64_t *)(m_243 + 16 + 24);
+exit_load_ref_291:;
+    r_load_ref_291; });
+            v_463 = ip - (uint8_t *)(o_852 + 16);
+            v_464 = (uint64_t)((v_463 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_464);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_464;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         entry_safepoint();
         if (nframes != 0) {
@@ -11659,26 +18383,40 @@ enter_frame:;
             sp = fp + fr->sp - 1;
             ip = fr->ip;
         } else {
-            s_242 = (oop *)(active_ctx + 16);
-            m_244 = s_242[CTX_METHOD];
+            s_241 = (oop *)(active_ctx + 16);
+            m_244 = s_241[CTX_METHOD];
             o_853 = ((oop *)(m_244 + 16))[CM_LITERALS];
             lits = (oop *)(o_853 + 16);
-            fp = s_242 + CTX_FIXED;
-            o_854 = s_242[CTX_STACKP];
+            fp = s_241 + CTX_FIXED;
+            o_854 = s_241[CTX_STACKP];
             sp = fp + (((int64_t)o_854) >> 1) - 1;
-            o_855 = s_242[CTX_PC];
+            o_855 = s_241[CTX_PC];
             if (!((o_855 & 1) != 0)) {
                 fatal_begin();
                 fprintf(stderr, "resuming a dead context");
                 fatal_end();
             }
-            o_856 = *(uint64_t *)(m_244 + 16 + 24);
-            o_857 = s_242[CTX_PC];
+            o_856 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_292 = c4_load_ref(m_244, 3U);
+        goto exit_load_ref_292;
+    }
+    r_load_ref_292 = *(uint64_t *)(m_244 + 16 + 24);
+exit_load_ref_292:;
+    r_load_ref_292; });
+            o_857 = s_241[CTX_PC];
             ip = (uint8_t *)(o_856 + 16) + (((int64_t)o_857) >> 1);
             fr = (frame *)NULL;
         }
     }
     goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_250 = *(ip - 1);
     r_next_bytecode_250; })];
@@ -11693,16 +18431,28 @@ frame_non_local_return_through:;
     sp = fp + fr->sp - 1;
     ip = fr->ip;
     result = *sp;
-    *sp = rcv;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, rcv);
+    } else {
+        *sp = rcv;
+    }
     sp = sp + 1;
-    *sp = result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, result);
+    } else {
+        *sp = result;
+    }
     if (mk_2 == nil_oop) {
         sel = object_memory_special(SO_SEL_CANNOTRETURN);
         argc = 1;
         goto do_send_global;
     }
     sp = sp + 1;
-    *sp = mk_2;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, mk_2);
+    } else {
+        *sp = mk_2;
+    }
     sel = object_memory_special(SO_SEL_ABOUTTORETURN);
     argc = 2;
     goto do_send_global;
@@ -11728,25 +18478,47 @@ have_entry:;
         e_6->prim();
         if (__builtin_expect(prim_status == PS_OK, 1)) {
             sp = sp - argc;
-            *sp = prim_result;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, prim_result);
+            } else {
+                *sp = prim_result;
+            }
             prim_result = nil_oop;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_251 = *(ip - 1);
     r_next_bytecode_251; })];
         }
         if ((prim_error_code >= 0) && ((new_temps > 0) && ((({
-    p_33 = *(uint64_t *)(new_method + 16 + 56);
-    r_method_prim_5 = (p_33 & 1) != 0 ? ((int64_t)p_33) >> 1 : 0;
+    p_117 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_293 = c4_load_ref(new_method, 7U);
+        goto exit_load_ref_293;
+    }
+    r_load_ref_293 = *(uint64_t *)(new_method + 16 + 56);
+exit_load_ref_293:;
+    r_load_ref_293; });
+    r_method_prim_5 = (p_117 & 1) != 0 ? ((int64_t)p_117) >> 1 : 0;
     r_method_prim_5; }) & CM_PRIM_ERROR_FLAG) != 0))) {
             new_ecode = prim_error_code;
         }
         goto activate;
     }
     if ((e_6->kind & K_CONST) != 0) {
-        v_404 = e_6->qconst != 0 ? e_6->qconst : sp[-argc];
+        v_465 = e_6->qconst != 0 ? e_6->qconst : sp[-argc];
         sp = sp - argc;
-        *sp = v_404;
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_stack_slot(sp, v_465);
+        } else {
+            *sp = v_465;
+        }
         if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
@@ -11754,13 +18526,24 @@ have_entry:;
                 fr->sp = (int32_t)(sp - fp + 1);
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
-                s_243 = (oop *)(active_ctx + 16);
-                m_245 = s_243[CTX_METHOD];
-                o_858 = *(uint64_t *)(m_245 + 16 + 24);
-                v_405 = ip - (uint8_t *)(o_858 + 16);
-                s_243[CTX_PC] = (uint64_t)((v_405 << 1) | 1);
-                v_406 = sp - fp + 1;
-                s_243[CTX_STACKP] = (uint64_t)((v_406 << 1) | 1);
+                s_242 = (oop *)(active_ctx + 16);
+                m_245 = s_242[CTX_METHOD];
+                o_858 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_294 = c4_load_ref(m_245, 3U);
+        goto exit_load_ref_294;
+    }
+    r_load_ref_294 = *(uint64_t *)(m_245 + 16 + 24);
+exit_load_ref_294:;
+    r_load_ref_294; });
+                v_466 = ip - (uint8_t *)(o_858 + 16);
+                v_467 = (uint64_t)((v_466 << 1) | 1);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_heap_store_ref(active_ctx, 1U, v_467);
+                } else {
+                    ((oop *)(active_ctx + 16))[CTX_PC] = v_467;
+                }
+                interpreter_ctx(active_ctx, sp - fp + 1);
             }
             interrupt_safepoint();
             if (nframes != 0) {
@@ -11770,26 +18553,40 @@ have_entry:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_244 = (oop *)(active_ctx + 16);
-                m_246 = s_244[CTX_METHOD];
+                s_243 = (oop *)(active_ctx + 16);
+                m_246 = s_243[CTX_METHOD];
                 o_859 = ((oop *)(m_246 + 16))[CM_LITERALS];
                 lits = (oop *)(o_859 + 16);
-                fp = s_244 + CTX_FIXED;
-                o_860 = s_244[CTX_STACKP];
+                fp = s_243 + CTX_FIXED;
+                o_860 = s_243[CTX_STACKP];
                 sp = fp + (((int64_t)o_860) >> 1) - 1;
-                o_861 = s_244[CTX_PC];
+                o_861 = s_243[CTX_PC];
                 if (!((o_861 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_862 = *(uint64_t *)(m_246 + 16 + 24);
-                o_863 = s_244[CTX_PC];
+                o_862 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_295 = c4_load_ref(m_246, 3U);
+        goto exit_load_ref_295;
+    }
+    r_load_ref_295 = *(uint64_t *)(m_246 + 16 + 24);
+exit_load_ref_295:;
+    r_load_ref_295; });
+                o_863 = s_243[CTX_PC];
                 ip = (uint8_t *)(o_862 + 16) + (((int64_t)o_863) >> 1);
                 fr = (frame *)NULL;
             }
         }
         goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_252 = *(ip - 1);
     r_next_bytecode_252; })];
@@ -11799,20 +18596,38 @@ have_entry:;
         if (((r_39 & 7) == 0) && ((!(((*(uint64_t *)r_39) & H_IMMUTABLE) != 0)) && ((int32_t)(((*(uint64_t *)r_39) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR))) {
             ns = (uint32_t)*(uint64_t *)r_39;
             ok = true;
-            for (k_24 = 0; k_24 <= argc - 1; k_24++) {
-                ok = ok && (e_6->set_ivar[k_24] < ns);
+            for (k_25 = 0; k_25 <= argc - 1; k_25++) {
+                ok = ok && (e_6->set_ivar[k_25] < ns);
             }
             if (ok) {
-                for (k_25 = 0; k_25 <= argc - 1; k_25++) {
-                    i_7 = e_6->set_ivar[k_25];
-                    v_407 = sp[-argc + 1 + k_25];
-                    *(uint64_t *)(r_39 + 16 + 8 * i_7) = v_407;
-                    if (((v_407 & 7) == 0) && (((uint64_t)(v_407 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r_39 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r_39) & H_REMEMBERED) == 0)))) {
+                for (k_26 = 0; k_26 <= argc - 1; k_26++) {
+                    i_12 = e_6->set_ivar[k_26];
+                    v_468 = sp[-argc + 1 + k_26];
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        if (((i_12 == CM_LITERALS) || ((i_12 == CM_BYTECODES) || (i_12 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r_39, (uint32_t)i_12, v_468)) {
+                            fatal_begin();
+                            fprintf(stderr, "C4 cannot replace compiled method storage");
+                            fatal_end();
+                        }
+                        if ((i_12 == CTX_STACKP) && (*(uint64_t *)(r_39 + 8) == cls_context)) {
+                            c4_store_context_stackp(r_39, v_468);
+                        } else {
+                            c4_heap_store_ref(r_39, (uint32_t)i_12, v_468);
+                        }
+                        goto exit_store_ref_6;
+                    }
+                    *(uint64_t *)(r_39 + 16 + 8 * i_12) = v_468;
+                    if (((v_468 & 7) == 0) && (((uint64_t)(v_468 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r_39 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r_39) & H_REMEMBERED) == 0)))) {
                         remember(r_39);
                     }
+                exit_store_ref_6:;
                 }
                 sp = sp - argc;
-                *sp = r_39;
+                if (__builtin_expect(c4_enabled, 0)) {
+                    c4_stack_slot(sp, r_39);
+                } else {
+                    *sp = r_39;
+                }
                 if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
                     if (fr != NULL) {
                         nframes = (int32_t)(fr - frames) + 1;
@@ -11820,13 +18635,24 @@ have_entry:;
                         fr->sp = (int32_t)(sp - fp + 1);
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
-                        s_245 = (oop *)(active_ctx + 16);
-                        m_247 = s_245[CTX_METHOD];
-                        o_864 = *(uint64_t *)(m_247 + 16 + 24);
-                        v_408 = ip - (uint8_t *)(o_864 + 16);
-                        s_245[CTX_PC] = (uint64_t)((v_408 << 1) | 1);
-                        v_409 = sp - fp + 1;
-                        s_245[CTX_STACKP] = (uint64_t)((v_409 << 1) | 1);
+                        s_244 = (oop *)(active_ctx + 16);
+                        m_247 = s_244[CTX_METHOD];
+                        o_864 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_296 = c4_load_ref(m_247, 3U);
+        goto exit_load_ref_296;
+    }
+    r_load_ref_296 = *(uint64_t *)(m_247 + 16 + 24);
+exit_load_ref_296:;
+    r_load_ref_296; });
+                        v_469 = ip - (uint8_t *)(o_864 + 16);
+                        v_470 = (uint64_t)((v_469 << 1) | 1);
+                        if (__builtin_expect(c4_enabled, 0)) {
+                            c4_heap_store_ref(active_ctx, 1U, v_470);
+                        } else {
+                            ((oop *)(active_ctx + 16))[CTX_PC] = v_470;
+                        }
+                        interpreter_ctx(active_ctx, sp - fp + 1);
                     }
                     interrupt_safepoint();
                     if (nframes != 0) {
@@ -11836,26 +18662,40 @@ have_entry:;
                         sp = fp + fr->sp - 1;
                         ip = fr->ip;
                     } else {
-                        s_246 = (oop *)(active_ctx + 16);
-                        m_248 = s_246[CTX_METHOD];
+                        s_245 = (oop *)(active_ctx + 16);
+                        m_248 = s_245[CTX_METHOD];
                         o_865 = ((oop *)(m_248 + 16))[CM_LITERALS];
                         lits = (oop *)(o_865 + 16);
-                        fp = s_246 + CTX_FIXED;
-                        o_866 = s_246[CTX_STACKP];
+                        fp = s_245 + CTX_FIXED;
+                        o_866 = s_245[CTX_STACKP];
                         sp = fp + (((int64_t)o_866) >> 1) - 1;
-                        o_867 = s_246[CTX_PC];
+                        o_867 = s_245[CTX_PC];
                         if (!((o_867 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_868 = *(uint64_t *)(m_248 + 16 + 24);
-                        o_869 = s_246[CTX_PC];
+                        o_868 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_297 = c4_load_ref(m_248, 3U);
+        goto exit_load_ref_297;
+    }
+    r_load_ref_297 = *(uint64_t *)(m_248 + 16 + 24);
+exit_load_ref_297:;
+    r_load_ref_297; });
+                        o_869 = s_245[CTX_PC];
                         ip = (uint8_t *)(o_868 + 16) + (((int64_t)o_869) >> 1);
                         fr = (frame *)NULL;
                     }
                 }
                 goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_253 = *(ip - 1);
     r_next_bytecode_253; })];
@@ -11865,8 +18705,20 @@ have_entry:;
     if ((e_6->quick >= 0) && (argc == 0)) {
         r_39 = *sp;
         if (((r_39 & 7) == 0) && (((int32_t)(((*(uint64_t *)r_39) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR) && ((uint32_t)*(uint64_t *)r_39 > (uint32_t)e_6->quick))) {
-            i_8 = e_6->quick;
-            *sp = *(uint64_t *)(r_39 + 16 + 8 * i_8);
+            i_13 = e_6->quick;
+            v_471 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_13 >= CTX_FIXED)) {
+        r_load_ref_298 = c4_load_ref(r_39, (uint32_t)i_13);
+        goto exit_load_ref_298;
+    }
+    r_load_ref_298 = *(uint64_t *)(r_39 + 16 + 8 * i_13);
+exit_load_ref_298:;
+    r_load_ref_298; });
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, v_471);
+            } else {
+                *sp = v_471;
+            }
             if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
                 if (fr != NULL) {
                     nframes = (int32_t)(fr - frames) + 1;
@@ -11874,13 +18726,24 @@ have_entry:;
                     fr->sp = (int32_t)(sp - fp + 1);
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
-                    s_247 = (oop *)(active_ctx + 16);
-                    m_249 = s_247[CTX_METHOD];
-                    o_870 = *(uint64_t *)(m_249 + 16 + 24);
-                    v_410 = ip - (uint8_t *)(o_870 + 16);
-                    s_247[CTX_PC] = (uint64_t)((v_410 << 1) | 1);
-                    v_411 = sp - fp + 1;
-                    s_247[CTX_STACKP] = (uint64_t)((v_411 << 1) | 1);
+                    s_246 = (oop *)(active_ctx + 16);
+                    m_249 = s_246[CTX_METHOD];
+                    o_870 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_299 = c4_load_ref(m_249, 3U);
+        goto exit_load_ref_299;
+    }
+    r_load_ref_299 = *(uint64_t *)(m_249 + 16 + 24);
+exit_load_ref_299:;
+    r_load_ref_299; });
+                    v_472 = ip - (uint8_t *)(o_870 + 16);
+                    v_473 = (uint64_t)((v_472 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_473);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_473;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 interrupt_safepoint();
                 if (nframes != 0) {
@@ -11890,26 +18753,40 @@ have_entry:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_248 = (oop *)(active_ctx + 16);
-                    m_250 = s_248[CTX_METHOD];
+                    s_247 = (oop *)(active_ctx + 16);
+                    m_250 = s_247[CTX_METHOD];
                     o_871 = ((oop *)(m_250 + 16))[CM_LITERALS];
                     lits = (oop *)(o_871 + 16);
-                    fp = s_248 + CTX_FIXED;
-                    o_872 = s_248[CTX_STACKP];
+                    fp = s_247 + CTX_FIXED;
+                    o_872 = s_247[CTX_STACKP];
                     sp = fp + (((int64_t)o_872) >> 1) - 1;
-                    o_873 = s_248[CTX_PC];
+                    o_873 = s_247[CTX_PC];
                     if (!((o_873 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_874 = *(uint64_t *)(m_250 + 16 + 24);
-                    o_875 = s_248[CTX_PC];
+                    o_874 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_300 = c4_load_ref(m_250, 3U);
+        goto exit_load_ref_300;
+    }
+    r_load_ref_300 = *(uint64_t *)(m_250 + 16 + 24);
+exit_load_ref_300:;
+    r_load_ref_300; });
+                    o_875 = s_247[CTX_PC];
                     ip = (uint8_t *)(o_874 + 16) + (((int64_t)o_875) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_254 = *(ip - 1);
     r_next_bytecode_254; })];
@@ -11923,13 +18800,24 @@ have_entry:;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_249 = (oop *)(active_ctx + 16);
-            m_251 = s_249[CTX_METHOD];
-            o_876 = *(uint64_t *)(m_251 + 16 + 24);
-            v_412 = ip - (uint8_t *)(o_876 + 16);
-            s_249[CTX_PC] = (uint64_t)((v_412 << 1) | 1);
-            v_413 = sp - fp + 1;
-            s_249[CTX_STACKP] = (uint64_t)((v_413 << 1) | 1);
+            s_248 = (oop *)(active_ctx + 16);
+            m_251 = s_248[CTX_METHOD];
+            o_876 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_301 = c4_load_ref(m_251, 3U);
+        goto exit_load_ref_301;
+    }
+    r_load_ref_301 = *(uint64_t *)(m_251 + 16 + 24);
+exit_load_ref_301:;
+    r_load_ref_301; });
+            v_474 = ip - (uint8_t *)(o_876 + 16);
+            v_475 = (uint64_t)((v_474 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_475);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_475;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         prim_nargs = argc;
         prim_base = sp - argc;
@@ -11947,30 +18835,48 @@ have_entry:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_250 = (oop *)(active_ctx + 16);
-                    m_252 = s_250[CTX_METHOD];
+                    s_249 = (oop *)(active_ctx + 16);
+                    m_252 = s_249[CTX_METHOD];
                     o_877 = ((oop *)(m_252 + 16))[CM_LITERALS];
                     lits = (oop *)(o_877 + 16);
-                    fp = s_250 + CTX_FIXED;
-                    o_878 = s_250[CTX_STACKP];
+                    fp = s_249 + CTX_FIXED;
+                    o_878 = s_249[CTX_STACKP];
                     sp = fp + (((int64_t)o_878) >> 1) - 1;
-                    o_879 = s_250[CTX_PC];
+                    o_879 = s_249[CTX_PC];
                     if (!((o_879 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_880 = *(uint64_t *)(m_252 + 16 + 24);
-                    o_881 = s_250[CTX_PC];
+                    o_880 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_302 = c4_load_ref(m_252, 3U);
+        goto exit_load_ref_302;
+    }
+    r_load_ref_302 = *(uint64_t *)(m_252 + 16 + 24);
+exit_load_ref_302:;
+    r_load_ref_302; });
+                    o_881 = s_249[CTX_PC];
                     ip = (uint8_t *)(o_880 + 16) + (((int64_t)o_881) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             sp = sp - argc;
-            *sp = prim_result;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_stack_slot(sp, prim_result);
+            } else {
+                *sp = prim_result;
+            }
             prim_result = nil_oop;
             tmp_roots[0] = nil_oop;
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_255 = *(ip - 1);
     r_next_bytecode_255; })];
@@ -11983,21 +18889,28 @@ have_entry:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_251 = (oop *)(active_ctx + 16);
-                m_253 = s_251[CTX_METHOD];
+                s_250 = (oop *)(active_ctx + 16);
+                m_253 = s_250[CTX_METHOD];
                 o_882 = ((oop *)(m_253 + 16))[CM_LITERALS];
                 lits = (oop *)(o_882 + 16);
-                fp = s_251 + CTX_FIXED;
-                o_883 = s_251[CTX_STACKP];
+                fp = s_250 + CTX_FIXED;
+                o_883 = s_250[CTX_STACKP];
                 sp = fp + (((int64_t)o_883) >> 1) - 1;
-                o_884 = s_251[CTX_PC];
+                o_884 = s_250[CTX_PC];
                 if (!((o_884 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_885 = *(uint64_t *)(m_253 + 16 + 24);
-                o_886 = s_251[CTX_PC];
+                o_885 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_303 = c4_load_ref(m_253, 3U);
+        goto exit_load_ref_303;
+    }
+    r_load_ref_303 = *(uint64_t *)(m_253 + 16 + 24);
+exit_load_ref_303:;
+    r_load_ref_303; });
+                o_886 = s_250[CTX_PC];
                 ip = (uint8_t *)(o_885 + 16) + (((int64_t)o_886) >> 1);
                 fr = (frame *)NULL;
             }
@@ -12010,13 +18923,24 @@ have_entry:;
                     fr->sp = (int32_t)(sp - fp + 1);
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
-                    s_252 = (oop *)(active_ctx + 16);
-                    m_254 = s_252[CTX_METHOD];
-                    o_887 = *(uint64_t *)(m_254 + 16 + 24);
-                    v_414 = ip - (uint8_t *)(o_887 + 16);
-                    s_252[CTX_PC] = (uint64_t)((v_414 << 1) | 1);
-                    v_415 = sp - fp + 1;
-                    s_252[CTX_STACKP] = (uint64_t)((v_415 << 1) | 1);
+                    s_251 = (oop *)(active_ctx + 16);
+                    m_254 = s_251[CTX_METHOD];
+                    o_887 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_304 = c4_load_ref(m_254, 3U);
+        goto exit_load_ref_304;
+    }
+    r_load_ref_304 = *(uint64_t *)(m_254 + 16 + 24);
+exit_load_ref_304:;
+    r_load_ref_304; });
+                    v_476 = ip - (uint8_t *)(o_887 + 16);
+                    v_477 = (uint64_t)((v_476 << 1) | 1);
+                    if (__builtin_expect(c4_enabled, 0)) {
+                        c4_heap_store_ref(active_ctx, 1U, v_477);
+                    } else {
+                        ((oop *)(active_ctx + 16))[CTX_PC] = v_477;
+                    }
+                    interpreter_ctx(active_ctx, sp - fp + 1);
                 }
                 jit_runtime_resume(fr);
                 if (nframes != 0) {
@@ -12026,26 +18950,40 @@ have_entry:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_253 = (oop *)(active_ctx + 16);
-                    m_255 = s_253[CTX_METHOD];
+                    s_252 = (oop *)(active_ctx + 16);
+                    m_255 = s_252[CTX_METHOD];
                     o_888 = ((oop *)(m_255 + 16))[CM_LITERALS];
                     lits = (oop *)(o_888 + 16);
-                    fp = s_253 + CTX_FIXED;
-                    o_889 = s_253[CTX_STACKP];
+                    fp = s_252 + CTX_FIXED;
+                    o_889 = s_252[CTX_STACKP];
                     sp = fp + (((int64_t)o_889) >> 1) - 1;
-                    o_890 = s_253[CTX_PC];
+                    o_890 = s_252[CTX_PC];
                     if (!((o_890 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_891 = *(uint64_t *)(m_255 + 16 + 24);
-                    o_892 = s_253[CTX_PC];
+                    o_891 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_305 = c4_load_ref(m_255, 3U);
+        goto exit_load_ref_305;
+    }
+    r_load_ref_305 = *(uint64_t *)(m_255 + 16 + 24);
+exit_load_ref_305:;
+    r_load_ref_305; });
+                    o_892 = s_252[CTX_PC];
                     ip = (uint8_t *)(o_891 + 16) + (((int64_t)o_892) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             goto *ops[({
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_countdown = c4_countdown - 1;
+        if (__builtin_expect(c4_countdown <= 0, 0)) {
+            c4_countdown = 64;
+            c4_checkpoint_at(ip, sp, fp, fr);
+        }
+    }
     ip = ip + 1;
     r_next_bytecode_256 = *(ip - 1);
     r_next_bytecode_256; })];
@@ -12058,21 +18996,28 @@ have_entry:;
                 sp = fp + fr->sp - 1;
                 ip = fr->ip;
             } else {
-                s_254 = (oop *)(active_ctx + 16);
-                m_256 = s_254[CTX_METHOD];
+                s_253 = (oop *)(active_ctx + 16);
+                m_256 = s_253[CTX_METHOD];
                 o_893 = ((oop *)(m_256 + 16))[CM_LITERALS];
                 lits = (oop *)(o_893 + 16);
-                fp = s_254 + CTX_FIXED;
-                o_894 = s_254[CTX_STACKP];
+                fp = s_253 + CTX_FIXED;
+                o_894 = s_253[CTX_STACKP];
                 sp = fp + (((int64_t)o_894) >> 1) - 1;
-                o_895 = s_254[CTX_PC];
+                o_895 = s_253[CTX_PC];
                 if (!((o_895 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_896 = *(uint64_t *)(m_256 + 16 + 24);
-                o_897 = s_254[CTX_PC];
+                o_896 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_306 = c4_load_ref(m_256, 3U);
+        goto exit_load_ref_306;
+    }
+    r_load_ref_306 = *(uint64_t *)(m_256 + 16 + 24);
+exit_load_ref_306:;
+    r_load_ref_306; });
+                o_897 = s_253[CTX_PC];
                 ip = (uint8_t *)(o_896 + 16) + (((int64_t)o_897) >> 1);
                 fr = (frame *)NULL;
             }
@@ -12088,34 +19033,62 @@ have_entry:;
                     sp = fp + fr->sp - 1;
                     ip = fr->ip;
                 } else {
-                    s_255 = (oop *)(active_ctx + 16);
-                    m_257 = s_255[CTX_METHOD];
+                    s_254 = (oop *)(active_ctx + 16);
+                    m_257 = s_254[CTX_METHOD];
                     o_898 = ((oop *)(m_257 + 16))[CM_LITERALS];
                     lits = (oop *)(o_898 + 16);
-                    fp = s_255 + CTX_FIXED;
-                    o_899 = s_255[CTX_STACKP];
+                    fp = s_254 + CTX_FIXED;
+                    o_899 = s_254[CTX_STACKP];
                     sp = fp + (((int64_t)o_899) >> 1) - 1;
-                    o_900 = s_255[CTX_PC];
+                    o_900 = s_254[CTX_PC];
                     if (!((o_900 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_901 = *(uint64_t *)(m_257 + 16 + 24);
-                    o_902 = s_255[CTX_PC];
+                    o_901 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_307 = c4_load_ref(m_257, 3U);
+        goto exit_load_ref_307;
+    }
+    r_load_ref_307 = *(uint64_t *)(m_257 + 16 + 24);
+exit_load_ref_307:;
+    r_load_ref_307; });
+                    o_902 = s_254[CTX_PC];
                     ip = (uint8_t *)(o_901 + 16) + (((int64_t)o_902) >> 1);
                     fr = (frame *)NULL;
                 }
             }
             new_method = tmp_roots[0];
             tmp_roots[0] = nil_oop;
-            o_903 = *(uint64_t *)(new_method + 16 + 24);
+            o_903 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_308 = c4_load_ref(new_method, 3U);
+        goto exit_load_ref_308;
+    }
+    r_load_ref_308 = *(uint64_t *)(new_method + 16 + 24);
+exit_load_ref_308:;
+    r_load_ref_308; });
             new_bcs = (uint8_t *)(o_903 + 16);
-            o_904 = *(uint64_t *)(new_method + 16 + 16);
+            o_904 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_309 = c4_load_ref(new_method, 2U);
+        goto exit_load_ref_309;
+    }
+    r_load_ref_309 = *(uint64_t *)(new_method + 16 + 16);
+exit_load_ref_309:;
+    r_load_ref_309; });
             new_lits = (oop *)(o_904 + 16);
             if ((prim_error_code >= 0) && ((new_temps > 0) && ((({
-    p_34 = *(uint64_t *)(new_method + 16 + 56);
-    r_method_prim_6 = (p_34 & 1) != 0 ? ((int64_t)p_34) >> 1 : 0;
+    p_118 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_310 = c4_load_ref(new_method, 7U);
+        goto exit_load_ref_310;
+    }
+    r_load_ref_310 = *(uint64_t *)(new_method + 16 + 56);
+exit_load_ref_310:;
+    r_load_ref_310; });
+    r_method_prim_6 = (p_118 & 1) != 0 ? ((int64_t)p_118) >> 1 : 0;
     r_method_prim_6; }) & CM_PRIM_ERROR_FLAG) != 0))) {
                 new_ecode = prim_error_code;
             }
@@ -12132,19 +19105,37 @@ send_does_not_understand:;
             fr->sp = (int32_t)(sp - fp + 1);
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
-            s_256 = (oop *)(active_ctx + 16);
-            m_258 = s_256[CTX_METHOD];
-            o_905 = *(uint64_t *)(m_258 + 16 + 24);
-            v_416 = ip - (uint8_t *)(o_905 + 16);
-            s_256[CTX_PC] = (uint64_t)((v_416 << 1) | 1);
-            v_417 = sp - fp + 1;
-            s_256[CTX_STACKP] = (uint64_t)((v_417 << 1) | 1);
+            s_255 = (oop *)(active_ctx + 16);
+            m_258 = s_255[CTX_METHOD];
+            o_905 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_311 = c4_load_ref(m_258, 3U);
+        goto exit_load_ref_311;
+    }
+    r_load_ref_311 = *(uint64_t *)(m_258 + 16 + 24);
+exit_load_ref_311:;
+    r_load_ref_311; });
+            v_478 = ip - (uint8_t *)(o_905 + 16);
+            v_479 = (uint64_t)((v_478 << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(active_ctx, 1U, v_479);
+            } else {
+                ((oop *)(active_ctx + 16))[CTX_PC] = v_479;
+            }
+            interpreter_ctx(active_ctx, sp - fp + 1);
         }
         msg = *sp;
         fprintf(stderr, "samaltak: doesNotUnderstand: not understood (");
         print_class_name(cls, stderr);
         fputs(">>", stderr);
-        print_symbol(((msg & 7) == 0) && ((uint32_t)*(uint64_t *)msg > 0) ? *(uint64_t *)(msg + 16 + 0) : nil_oop, stderr);
+        print_symbol(((msg & 7) == 0) && ((uint32_t)*(uint64_t *)msg > 0) ? ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_312 = c4_load_ref(msg, 0U);
+        goto exit_load_ref_312;
+    }
+    r_load_ref_312 = *(uint64_t *)(msg + 16 + 0);
+exit_load_ref_312:;
+    r_load_ref_312; }) : nil_oop, stderr);
         fputs(")\n", stderr);
         fatal_begin();
         fprintf(stderr, "recursive doesNotUnderstand:");
@@ -12156,13 +19147,24 @@ send_does_not_understand:;
         fr->sp = (int32_t)(sp - fp + 1);
         cstack_used = (uint64_t)(sp + 1 - cstack);
     } else {
-        s_257 = (oop *)(active_ctx + 16);
-        m_259 = s_257[CTX_METHOD];
-        o_906 = *(uint64_t *)(m_259 + 16 + 24);
-        v_418 = ip - (uint8_t *)(o_906 + 16);
-        s_257[CTX_PC] = (uint64_t)((v_418 << 1) | 1);
-        v_419 = sp - fp + 1;
-        s_257[CTX_STACKP] = (uint64_t)((v_419 << 1) | 1);
+        s_256 = (oop *)(active_ctx + 16);
+        m_259 = s_256[CTX_METHOD];
+        o_906 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_313 = c4_load_ref(m_259, 3U);
+        goto exit_load_ref_313;
+    }
+    r_load_ref_313 = *(uint64_t *)(m_259 + 16 + 24);
+exit_load_ref_313:;
+    r_load_ref_313; });
+        v_480 = ip - (uint8_t *)(o_906 + 16);
+        v_481 = (uint64_t)((v_480 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(active_ctx, 1U, v_481);
+        } else {
+            ((oop *)(active_ctx + 16))[CTX_PC] = v_481;
+        }
+        interpreter_ctx(active_ctx, sp - fp + 1);
     }
     tmp_roots[1] = sel;
     tmp_roots[2] = cls;
@@ -12174,21 +19176,28 @@ send_does_not_understand:;
         sp = fp + fr->sp - 1;
         ip = fr->ip;
     } else {
-        s_258 = (oop *)(active_ctx + 16);
-        m_260 = s_258[CTX_METHOD];
+        s_257 = (oop *)(active_ctx + 16);
+        m_260 = s_257[CTX_METHOD];
         o_907 = ((oop *)(m_260 + 16))[CM_LITERALS];
         lits = (oop *)(o_907 + 16);
-        fp = s_258 + CTX_FIXED;
-        o_908 = s_258[CTX_STACKP];
+        fp = s_257 + CTX_FIXED;
+        o_908 = s_257[CTX_STACKP];
         sp = fp + (((int64_t)o_908) >> 1) - 1;
-        o_909 = s_258[CTX_PC];
+        o_909 = s_257[CTX_PC];
         if (!((o_909 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_910 = *(uint64_t *)(m_260 + 16 + 24);
-        o_911 = s_258[CTX_PC];
+        o_910 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_314 = c4_load_ref(m_260, 3U);
+        goto exit_load_ref_314;
+    }
+    r_load_ref_314 = *(uint64_t *)(m_260 + 16 + 24);
+exit_load_ref_314:;
+    r_load_ref_314; });
+        o_911 = s_257[CTX_PC];
         ip = (uint8_t *)(o_910 + 16) + (((int64_t)o_911) >> 1);
         fr = (frame *)NULL;
     }
@@ -12200,7 +19209,14 @@ send_does_not_understand:;
     }
     tmp_roots[3] = args;
     mc = cls_message;
-    o_912 = *(uint64_t *)(mc + 16 + 16);
+    o_912 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_315 = c4_load_ref(mc, 2U);
+        goto exit_load_ref_315;
+    }
+    r_load_ref_315 = *(uint64_t *)(mc + 16 + 16);
+exit_load_ref_315:;
+    r_load_ref_315; });
     isize_2 = (((int64_t)o_912) >> 1) & CLS_INSTSIZE_MASK;
     msg = alloc_obj(mc, F_FIXED, (uint32_t)(isize_2 < 2 ? 2 : isize_2));
     if (nframes != 0) {
@@ -12210,47 +19226,75 @@ send_does_not_understand:;
         sp = fp + fr->sp - 1;
         ip = fr->ip;
     } else {
-        s_259 = (oop *)(active_ctx + 16);
-        m_261 = s_259[CTX_METHOD];
+        s_258 = (oop *)(active_ctx + 16);
+        m_261 = s_258[CTX_METHOD];
         o_913 = ((oop *)(m_261 + 16))[CM_LITERALS];
         lits = (oop *)(o_913 + 16);
-        fp = s_259 + CTX_FIXED;
-        o_914 = s_259[CTX_STACKP];
+        fp = s_258 + CTX_FIXED;
+        o_914 = s_258[CTX_STACKP];
         sp = fp + (((int64_t)o_914) >> 1) - 1;
-        o_915 = s_259[CTX_PC];
+        o_915 = s_258[CTX_PC];
         if (!((o_915 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_916 = *(uint64_t *)(m_261 + 16 + 24);
-        o_917 = s_259[CTX_PC];
+        o_916 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_316 = c4_load_ref(m_261, 3U);
+        goto exit_load_ref_316;
+    }
+    r_load_ref_316 = *(uint64_t *)(m_261 + 16 + 24);
+exit_load_ref_316:;
+    r_load_ref_316; });
+        o_917 = s_258[CTX_PC];
         ip = (uint8_t *)(o_916 + 16) + (((int64_t)o_917) >> 1);
         fr = (frame *)NULL;
     }
-    v_420 = tmp_roots[1];
-    *(uint64_t *)(msg + 16 + 0) = v_420;
-    if (((v_420 & 7) == 0) && (((uint64_t)(v_420 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(msg - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)msg) & H_REMEMBERED) == 0)))) {
+    v_482 = tmp_roots[1];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(msg, 0U, v_482);
+        goto exit_store_ref_7;
+    }
+    *(uint64_t *)(msg + 16 + 0) = v_482;
+    if (((v_482 & 7) == 0) && (((uint64_t)(v_482 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(msg - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)msg) & H_REMEMBERED) == 0)))) {
         remember(msg);
     }
-    v_421 = tmp_roots[3];
-    *(uint64_t *)(msg + 16 + 8) = v_421;
-    if (((v_421 & 7) == 0) && (((uint64_t)(v_421 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(msg - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)msg) & H_REMEMBERED) == 0)))) {
+exit_store_ref_7:;
+    v_483 = tmp_roots[3];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(msg, 1U, v_483);
+        goto exit_store_ref_8;
+    }
+    *(uint64_t *)(msg + 16 + 8) = v_483;
+    if (((v_483 & 7) == 0) && (((uint64_t)(v_483 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(msg - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)msg) & H_REMEMBERED) == 0)))) {
         remember(msg);
     }
+exit_store_ref_8:;
     cls = tmp_roots[2];
     tmp_roots[1] = nil_oop;
     tmp_roots[2] = nil_oop;
     tmp_roots[3] = nil_oop;
     sp = sp - argc;
     sp = sp + 1;
-    *sp = msg;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(sp, msg);
+    } else {
+        *sp = msg;
+    }
     sel = object_memory_special(SO_SEL_DNU);
     argc = 1;
     goto do_lookup;
 send_special:;
     o_918 = object_memory_special(SO_SPECIAL_SELECTORS);
-    sel = *(uint64_t *)(o_918 + 16 + 8 * six);
+    sel = ({
+    if (__builtin_expect(c4_enabled, 0) && (six >= CTX_FIXED)) {
+        r_load_ref_317 = c4_load_ref(o_918, (uint32_t)six);
+        goto exit_load_ref_317;
+    }
+    r_load_ref_317 = *(uint64_t *)(o_918 + 16 + 8 * six);
+exit_load_ref_317:;
+    r_load_ref_317; });
     argc = special_argc[six];
     goto do_send;
 }
@@ -12258,19 +19302,25 @@ send_special:;
 /* Interpreter>>interruptSafepoint */
 void interrupt_safepoint(void)
 {
-    uint64_t o;
+    oop o;
     int64_t depth;
     oop sel;
-    uint64_t m;
+    oop m;
     int64_t r_method_prim;
-    uint64_t p;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop p;
+    oop r_load_ref_2;
+    oop r_load_ref_3;
+    oop o_2;
     int64_t ntemps;
-    uint64_t o_3;
+    oop r_load_ref_4;
+    oop o_3;
     int64_t fsize;
     uint64_t ctx;
-    oop *s;
     int64_t v;
+    uint64_t v_2;
+    oop v_3;
+    uint64_t v_4;
     depth = stack_check_due && ({
     o = active_process();
     (uint32_t)(((*(uint64_t *)o) >> H_HASH_SHIFT) & H_HASH_MASK) == stack_check_hash; }) ? stack_overflow_depth() : 0;
@@ -12283,29 +19333,83 @@ void interrupt_safepoint(void)
     sel = object_memory_special(SO_SEL_STACKOVERFLOW);
     m = lookup_method(*(uint64_t *)(active_ctx + 8), sel);
     if ((m == 0) || ((!((m & 7) == 0)) || ((({
-    p = *(uint64_t *)(m + 16 + 56);
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref = c4_load_ref(m, 7U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 56);
+exit_load_ref:;
+    r_load_ref; });
     r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
-    r_method_prim; }) != 0) || (*(uint64_t *)(m + 16 + 32) != 3ULL)))) {
+    r_method_prim; }) != 0) || (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 4U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 32);
+exit_load_ref_2:;
+    r_load_ref_2; }) != 3ULL)))) {
         handle_interrupts();
         return;
     }
-    o_2 = *(uint64_t *)(m + 16 + 40);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(m, 5U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_3:;
+    r_load_ref_3; });
     ntemps = ((int64_t)o_2) >> 1;
-    o_3 = *(uint64_t *)(m + 16 + 48);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_4 = c4_load_ref(m, 6U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m + 16 + 48);
+exit_load_ref_4:;
+    r_load_ref_4; });
     fsize = ((int64_t)o_3) >> 1;
     if (fsize < 1 + ntemps) {
         fsize = 1 + ntemps;
     }
     tmp_roots[0] = m;
     ctx = alloc_context((uint32_t)(fsize + CTX_SLACK));
-    s = (oop *)(ctx + 16);
-    s[CTX_SENDER] = active_ctx;
-    s[CTX_RECEIVER] = active_ctx;
-    s[CTX_PC] = 1ULL;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 0U, active_ctx);
+    } else {
+        ((oop *)(ctx + 16))[CTX_SENDER] = active_ctx;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 5U, active_ctx);
+    } else {
+        ((oop *)(ctx + 16))[CTX_RECEIVER] = active_ctx;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 1U, 1ULL);
+    } else {
+        ((oop *)(ctx + 16))[CTX_PC] = 1ULL;
+    }
     v = 1 + ntemps;
-    s[CTX_STACKP] = (uint64_t)((v << 1) | 1);
-    s[CTX_METHOD] = tmp_roots[0];
-    s[CTX_FIXED] = (uint64_t)((depth << 1) | 1);
+    v_2 = (uint64_t)((v << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 2U, v_2);
+    } else {
+        ((oop *)(ctx + 16))[CTX_STACKP] = v_2;
+    }
+    v_3 = tmp_roots[0];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 3U, v_3);
+    } else {
+        ((oop *)(ctx + 16))[CTX_METHOD] = v_3;
+    }
+    v_4 = (uint64_t)((depth << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 6U, v_4);
+    } else {
+        ((oop *)(ctx + 16))[CTX_FIXED] = v_4;
+    }
     tmp_roots[0] = nil_oop;
     active_ctx = ctx;
 }
@@ -12313,41 +19417,90 @@ void interrupt_safepoint(void)
 /* Interpreter>>isMarried: */
 bool is_married(oop o)
 {
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     return ((o & 7) == 0) && ((*(uint64_t *)(o + 8) == cls_context) && ({
-    o_2 = *(uint64_t *)(o + 16 + 0);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     (o_2 & 1) != 0; }));
 }
 
 /* Interpreter>>lookupMethod:selector: */
-uint64_t lookup_method(oop a_class, oop a_selector)
+oop lookup_method(oop a_class, oop a_selector)
 {
     uint32_t h;
     oop c;
-    uint64_t md;
-    uint64_t keys;
-    uint64_t vals;
+    oop r_load_ref;
+    oop md;
+    oop r_load_ref_2;
+    oop keys;
+    oop r_load_ref_3;
+    oop vals;
     uint32_t cap;
     uint32_t mask;
     uint32_t i;
     int64_t n;
-    uint64_t k;
+    oop r_load_ref_4;
+    oop k;
+    oop r_load_ref_5;
+    oop r_load_ref_6;
     h = (uint32_t)(((*(uint64_t *)a_selector) >> H_HASH_SHIFT) & H_HASH_MASK);
     c = a_class;
     while (((c & 7) == 0) && (c != nil_oop)) {
-        md = *(uint64_t *)(c + 16 + 8);
+        md = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
         if (((md & 7) == 0) && (md != nil_oop)) {
-            keys = *(uint64_t *)(md + 16 + 8);
-            vals = *(uint64_t *)(md + 16 + 16);
+            keys = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(md, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(md + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
+            vals = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(md, 2U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(md + 16 + 16);
+exit_load_ref_3:;
+    r_load_ref_3; });
             cap = (uint32_t)*(uint64_t *)keys;
             if ((cap != 0) && (((vals & 7) == 0) && ((uint32_t)*(uint64_t *)vals >= cap))) {
                 mask = cap - 1;
                 i = h & mask;
                 n = 0;
                 while (n < cap) {
-                    k = *(uint64_t *)(keys + 16 + 8 * i);
+                    k = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_4 = c4_load_ref(keys, i);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(keys + 16 + 8 * i);
+exit_load_ref_4:;
+    r_load_ref_4; });
                     if (k == a_selector) {
-                        return *(uint64_t *)(vals + 16 + 8 * i);
+                        return ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_5 = c4_load_ref(vals, i);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(vals + 16 + 8 * i);
+exit_load_ref_5:;
+    r_load_ref_5; });
                     }
                     if (k == nil_oop) {
                         n = cap;
@@ -12358,7 +19511,14 @@ uint64_t lookup_method(oop a_class, oop a_selector)
                 }
             }
         }
-        c = *(uint64_t *)(c + 16 + 0);
+        c = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(c, 0U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(c + 16 + 0);
+exit_load_ref_6:;
+    r_load_ref_6; });
     }
     return 0;
 }
@@ -12368,8 +19528,13 @@ oop marry(frame *f)
 {
     int64_t n;
     uint64_t ctx;
-    oop *s;
     int64_t v;
+    uint64_t v_2;
+    oop v_3;
+    oop v_4;
+    oop v_5;
+    uint64_t i;
+    uint64_t k;
     if (f->ctx != nil_oop) {
         return f->ctx;
     }
@@ -12378,15 +19543,52 @@ oop marry(frame *f)
         n = f->sp;
     }
     ctx = alloc_context((uint32_t)n);
-    s = (oop *)(ctx + 16);
     v = f - frames;
-    s[CTX_SENDER] = (uint64_t)((v << 1) | 1);
-    s[CTX_STACKP] = 1ULL;
-    s[CTX_METHOD] = f->method;
-    s[CTX_CLOSURE] = f->closure;
-    s[CTX_RECEIVER] = f->fp[-1];
+    v_2 = (uint64_t)((v << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 0U, v_2);
+    } else {
+        ((oop *)(ctx + 16))[CTX_SENDER] = v_2;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 2U, 1ULL);
+    } else {
+        ((oop *)(ctx + 16))[CTX_STACKP] = 1ULL;
+    }
+    v_3 = f->method;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 3U, v_3);
+    } else {
+        ((oop *)(ctx + 16))[CTX_METHOD] = v_3;
+    }
+    v_4 = f->closure;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 4U, v_4);
+    } else {
+        ((oop *)(ctx + 16))[CTX_CLOSURE] = v_4;
+    }
+    v_5 = f->fp[-1];
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 5U, v_5);
+    } else {
+        ((oop *)(ctx + 16))[CTX_RECEIVER] = v_5;
+    }
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((ctx & 7) == 0) && ((!(ctx - young_lo < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
         remember(ctx);
+    }
+exit_remember_if_old:;
+    if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
+        i = (uint64_t)(f - frames);
+        if ((i >= c4_frame_next) && ((i < c4_frame_limit) && (!c4_saved_frame_bits[i]))) {
+            k = i * 3;
+            c4_saved_frames[k] = f->method;
+            c4_saved_frames[k + 1] = f->closure;
+            c4_saved_frames[k + 2] = f->ctx;
+            c4_saved_frame_bits[i] = true;
+        }
     }
     f->ctx = ctx;
     return ctx;
@@ -12400,14 +19602,19 @@ void materialize_all(void)
     uint64_t c;
     oop ctx;
     int64_t n;
-    oop *s;
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t v;
-    int32_t v_2;
+    uint64_t v_2;
+    int32_t v_3;
+    uint64_t v_4;
+    oop v_5;
+    oop v_6;
+    oop v_7;
     uint64_t n_2;
     int64_t by_heap;
-    uint64_t o_2;
+    oop o_2;
     if (nframes != 0) {
         stat_flushes = stat_flushes + 1;
         frame_epoch = frame_epoch + 1;
@@ -12427,17 +19634,52 @@ void materialize_all(void)
                 }
                 ctx = alloc_context((uint32_t)n);
             }
-            s = (oop *)(ctx + 16);
-            s[CTX_SENDER] = active_ctx;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 0U, active_ctx);
+            } else {
+                ((oop *)(ctx + 16))[CTX_SENDER] = active_ctx;
+            }
             m = f->method;
-            o = *(uint64_t *)(m + 16 + 24);
+            o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
             v = f->ip - (uint8_t *)(o + 16);
-            s[CTX_PC] = (uint64_t)((v << 1) | 1);
-            v_2 = f->sp;
-            s[CTX_STACKP] = (uint64_t)((((int64_t)v_2) << 1) | 1);
-            s[CTX_METHOD] = f->method;
-            s[CTX_CLOSURE] = f->closure;
-            s[CTX_RECEIVER] = f->fp[-1];
+            v_2 = (uint64_t)((v << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 1U, v_2);
+            } else {
+                ((oop *)(ctx + 16))[CTX_PC] = v_2;
+            }
+            v_3 = f->sp;
+            v_4 = (uint64_t)((((int64_t)v_3) << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 2U, v_4);
+            } else {
+                ((oop *)(ctx + 16))[CTX_STACKP] = v_4;
+            }
+            v_5 = f->method;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 3U, v_5);
+            } else {
+                ((oop *)(ctx + 16))[CTX_METHOD] = v_5;
+            }
+            v_6 = f->closure;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 4U, v_6);
+            } else {
+                ((oop *)(ctx + 16))[CTX_CLOSURE] = v_6;
+            }
+            v_7 = f->fp[-1];
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(ctx, 5U, v_7);
+            } else {
+                ((oop *)(ctx + 16))[CTX_RECEIVER] = v_7;
+            }
             object_memory_copy_refs_at_from_buffer_count(ctx, CTX_FIXED, f->fp, (uint64_t)f->sp);
             active_ctx = ctx;
         }
@@ -12460,7 +19702,11 @@ void materialize_all(void)
 /* Interpreter>>primCommit: */
 void prim_commit(oop a_result)
 {
-    prim_base[0] = a_result;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_stack_slot(prim_base, a_result);
+    } else {
+        *prim_base = a_result;
+    }
     active_set_stackp(active_stackp() - prim_nargs);
     prim_nargs = 0;
     prim_status = PS_SWITCHED;
@@ -12470,12 +19716,21 @@ void prim_commit(oop a_result)
 void print_activation(oop m, oop r, oop closure, FILE *f)
 {
     oop rc;
-    uint64_t mc;
+    oop r_load_ref;
+    oop mc;
+    oop r_load_ref_2;
     if (closure != nil_oop) {
         fputs("[] in ", f);
     }
     rc = class_of(r);
-    mc = (m & 7) == 0 ? *(uint64_t *)(m + 16 + 8) : nil_oop;
+    mc = (m & 7) == 0 ? ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 8);
+exit_load_ref:;
+    r_load_ref; }) : nil_oop;
     print_class_name(rc, f);
     if (mc != rc) {
         fputc(40, f);
@@ -12483,7 +19738,14 @@ void print_activation(oop m, oop r, oop closure, FILE *f)
         fputc(41, f);
     }
     fputs(">>", f);
-    print_symbol((m & 7) == 0 ? *(uint64_t *)(m + 16 + 0) : nil_oop, f);
+    print_symbol((m & 7) == 0 ? ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; }) : nil_oop, f);
     fputc(10, f);
 }
 
@@ -12491,32 +19753,80 @@ void print_activation(oop m, oop r, oop closure, FILE *f)
 void print_class_name(oop a_class, FILE *f)
 {
     uint64_t cc;
-    uint64_t o;
-    uint64_t o_2;
-    uint64_t o_3;
-    uint64_t n;
-    uint64_t o_4;
-    uint64_t t;
+    oop r_load_ref;
+    oop o;
+    oop r_load_ref_2;
+    oop o_2;
+    oop r_load_ref_3;
+    oop o_3;
+    oop r_load_ref_4;
+    oop n;
+    oop r_load_ref_5;
+    oop o_4;
+    oop r_load_ref_6;
+    oop t;
     if ((!((a_class & 7) == 0)) || (a_class == nil_oop)) {
         fputs("nil", f);
         return;
     }
     cc = *(uint64_t *)(a_class + 8);
     if (((uint32_t)*(uint64_t *)a_class > CLS_NAME) && ({
-    o = *(uint64_t *)(a_class + 16 + 48);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref = c4_load_ref(a_class, 6U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(a_class + 16 + 48);
+exit_load_ref:;
+    r_load_ref; });
     (o & 7) == 0; }) && ({
-    o_2 = *(uint64_t *)(a_class + 16 + 48);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_2 = c4_load_ref(a_class, 6U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(a_class + 16 + 48);
+exit_load_ref_2:;
+    r_load_ref_2; });
     ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES) && ({
-    o_3 = *(uint64_t *)(a_class + 16 + 48);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_3 = c4_load_ref(a_class, 6U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(a_class + 16 + 48);
+exit_load_ref_3:;
+    r_load_ref_3; });
     *(uint64_t *)(o_3 + 8) == object_memory_special(SO_BYTESYMBOL); }); })) {
-        n = *(uint64_t *)(a_class + 16 + 48);
+        n = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_4 = c4_load_ref(a_class, 6U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(a_class + 16 + 48);
+exit_load_ref_4:;
+    r_load_ref_4; });
         fprintf(f, "%.*s", (int32_t)byte_size(n), (char *)(uint8_t *)(n + 16));
         return;
     }
     if (((uint32_t)*(uint64_t *)a_class > META_THISCLASS) && ({
-    o_4 = *(uint64_t *)(a_class + 16 + 40);
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(a_class, 5U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(a_class + 16 + 40);
+exit_load_ref_5:;
+    r_load_ref_5; });
     ((o_4 & 7) == 0) && (cc != a_class); })) {
-        t = *(uint64_t *)(a_class + 16 + 40);
+        t = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(a_class, 5U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(a_class + 16 + 40);
+exit_load_ref_6:;
+    r_load_ref_6; });
         if ((uint32_t)*(uint64_t *)t > CLS_NAME) {
             print_class_name(t, f);
             fputs(" class", f);
@@ -12532,14 +19842,26 @@ static void print_stack(oop a_context, FILE *f)
     int64_t depth;
     int64_t i;
     oop c;
+    oop r_load_ref;
     int32_t k;
     frame *fr2;
+    oop r_load_ref_2;
+    oop r_load_ref_3;
+    oop r_load_ref_4;
+    oop r_load_ref_5;
     depth = (int64_t)nframes;
     i = 0;
     c = a_context;
     while (((c & 7) == 0) && (c != nil_oop)) {
         depth = depth + 1;
-        c = *(uint64_t *)(c + 16 + 0);
+        c = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     }
     for (k = nframes - 1; k >= 0; k--) {
         if ((depth > 60) && (i == 40)) {
@@ -12557,9 +19879,37 @@ static void print_stack(oop a_context, FILE *f)
             fprintf(f, "... %lld more frames ...\n", (long long)(depth - 50));
         }
         if ((depth <= 60) || ((i < 40) || (i >= depth - 10))) {
-            print_activation(*(uint64_t *)(c + 16 + 24), *(uint64_t *)(c + 16 + 40), *(uint64_t *)(c + 16 + 32), f);
+            print_activation(({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(c, 3U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(c + 16 + 24);
+exit_load_ref_2:;
+    r_load_ref_2; }), ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(c, 5U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(c + 16 + 40);
+exit_load_ref_3:;
+    r_load_ref_3; }), ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(c, 4U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(c + 16 + 32);
+exit_load_ref_4:;
+    r_load_ref_4; }), f);
         }
-        c = *(uint64_t *)(c + 16 + 0);
+        c = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(c, 0U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(c + 16 + 0);
+exit_load_ref_5:;
+    r_load_ref_5; });
         i = i + 1;
     }
 }
@@ -12578,19 +19928,37 @@ void print_symbol(oop s, FILE *f)
 frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode)
 {
     frame *f;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t ntemps;
-    uint64_t o_2;
+    oop r_load_ref_2;
+    oop o_2;
     int64_t fsize;
     oop *nfp;
     frame *g;
-    uint64_t o_3;
-    uint64_t o_4;
+    oop r_load_ref_3;
+    oop o_3;
+    oop r_load_ref_4;
+    oop o_4;
     int64_t i;
     f = frames + (nframes - 1);
-    o = *(uint64_t *)(m + 16 + 40);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 5U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 40);
+exit_load_ref:;
+    r_load_ref; });
     ntemps = ((int64_t)o) >> 1;
-    o_2 = *(uint64_t *)(m + 16 + 48);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_2 = c4_load_ref(m, 6U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 48);
+exit_load_ref_2:;
+    r_load_ref_2; });
     fsize = ((int64_t)o_2) >> 1;
     if (fsize < n + ntemps) {
         fsize = n + ntemps;
@@ -12606,9 +19974,23 @@ frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode)
     g->ctx = nil_oop;
     g->code = c;
     g->fp = nfp;
-    o_3 = *(uint64_t *)(m + 16 + 24);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(m, 3U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(m + 16 + 24);
+exit_load_ref_3:;
+    r_load_ref_3; });
     g->ip = (uint8_t *)(o_3 + 16);
-    o_4 = *(uint64_t *)(m + 16 + 16);
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(m, 2U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_4:;
+    r_load_ref_4; });
     g->lits = (oop *)(o_4 + 16);
     g->sp = (int32_t)(n + ntemps);
     for (i = n; i <= n + ntemps - 1; i++) {
@@ -12737,19 +20119,32 @@ int selector_argc(oop a_selector)
 oop sender_of(oop c, int64_t p, oop stop)
 {
     oop x;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t j;
     frame *f;
     oop m;
     int64_t r_method_prim;
-    uint64_t p_2;
-    uint64_t m_2;
+    oop r_load_ref_2;
+    oop p_2;
+    oop r_load_ref_3;
+    oop r_load_ref_4;
+    oop r_load_ref_5;
+    oop m_2;
     int64_t r_method_prim_2;
-    uint64_t p_3;
+    oop r_load_ref_6;
+    oop p_3;
     x = c;
     for (;;) {
         if (is_married(x)) {
-            o = *(uint64_t *)(x + 16 + 0);
+            o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(x, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(x + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
             j = ((int64_t)o) >> 1;
             while (j > 0) {
                 j = j - 1;
@@ -12760,7 +20155,14 @@ oop sender_of(oop c, int64_t p, oop stop)
                 if ((f->closure == nil_oop) && ({
     m = f->method;
     (({
-    p_2 = *(uint64_t *)(m + 16 + 56);
+    p_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_2 = c4_load_ref(m, 7U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_2:;
+    r_load_ref_2; });
     r_method_prim = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK) == p; })) {
                     return marry(f);
@@ -12768,15 +20170,43 @@ oop sender_of(oop c, int64_t p, oop stop)
             }
             x = active_ctx;
         } else {
-            x = *(uint64_t *)(x + 16 + 0);
+            x = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(x, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(x + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
         }
         if (!(((x & 7) == 0) && ((x != nil_oop) && (x != stop)))) {
             break;
         }
-        if ((*(uint64_t *)(x + 16 + 32) == nil_oop) && ({
-    m_2 = *(uint64_t *)(x + 16 + 24);
+        if ((({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(x, 4U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(x + 16 + 32);
+exit_load_ref_4:;
+    r_load_ref_4; }) == nil_oop) && ({
+    m_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(x, 3U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(x + 16 + 24);
+exit_load_ref_5:;
+    r_load_ref_5; });
     (({
-    p_3 = *(uint64_t *)(m_2 + 16 + 56);
+    p_3 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_6 = c4_load_ref(m_2, 7U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(m_2 + 16 + 56);
+exit_load_ref_6:;
+    r_load_ref_6; });
     r_method_prim_2 = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK) == p; })) {
             return x;
@@ -12825,6 +20255,7 @@ static int64_t stack_overflow_depth(void)
     int64_t depth;
     uint64_t bytes;
     oop c;
+    oop r_load_ref;
     stack_check_due = false;
     if (stack_limit <= 0) {
         return 0;
@@ -12835,7 +20266,14 @@ static int64_t stack_overflow_depth(void)
     while (((c & 7) == 0) && (c != nil_oop)) {
         depth = depth + 1;
         bytes = bytes + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)c);
-        c = *(uint64_t *)(c + 16 + 0);
+        c = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     }
     return (depth > stack_limit) || (bytes > max_heap_bytes / 4) ? depth : 0;
 }
@@ -12844,10 +20282,18 @@ static int64_t stack_overflow_depth(void)
 void sync_frame(frame *f)
 {
     oop m;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     nframes = (int32_t)(f - frames) + 1;
     m = f->method;
-    o = *(uint64_t *)(m + 16 + 24);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
     f->ip = (uint8_t *)(o + 16) + f->pc;
     cstack_used = (uint64_t)(f->fp + f->sp - cstack);
 }
@@ -12856,29 +20302,53 @@ void sync_frame(frame *f)
 bool terminate(oop c, oop target)
 {
     int32_t t;
+    oop r_load_ref;
     frame *f;
     uint64_t c_2;
-    uint64_t o;
+    oop r_load_ref_2;
+    oop o;
     int64_t j;
     frame *f_2;
     uint64_t c_3;
     oop x;
-    uint64_t next;
+    oop r_load_ref_3;
+    oop r_load_ref_4;
+    oop next;
     int64_t k;
     frame *f_3;
     frame *g;
     oop *nfp;
+    int64_t i;
+    oop *p;
+    uint64_t i_2;
+    uint64_t i_3;
+    uint64_t k_2;
     oop o_2;
+    uint64_t v;
     uint64_t n;
     t = nframes - 1;
-    if (!((t >= 0) && (is_married(c) && ((*(uint64_t *)(c + 16 + 0) == (uint64_t)((((int64_t)t) << 1) | 1)) && ({
+    if (!((t >= 0) && (is_married(c) && ((({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 0);
+exit_load_ref:;
+    r_load_ref; }) == (uint64_t)((((int64_t)t) << 1) | 1)) && ({
     f = frames + t;
     c_2 = f->code;
     !((c_2 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT)); }))))) {
         return false;
     }
     if (is_married(target)) {
-        o = *(uint64_t *)(target + 16 + 0);
+        o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(target, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(target + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; });
         j = ((int64_t)o) >> 1;
         if ((j >= t) || ({
     f_2 = frames + j;
@@ -12890,7 +20360,14 @@ bool terminate(oop c, oop target)
         j = -1;
         x = active_ctx;
         while ((x != target) && (((x & 7) == 0) && (x != nil_oop))) {
-            x = *(uint64_t *)(x + 16 + 0);
+            x = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(x, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(x + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
         }
         if (!((x == target) && (target != nil_oop))) {
             return false;
@@ -12900,15 +20377,32 @@ bool terminate(oop c, oop target)
     if (j < 0) {
         x = active_ctx;
         while (x != target) {
-            next = *(uint64_t *)(x + 16 + 0);
+            next = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(x, 0U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(x + 16 + 0);
+exit_load_ref_4:;
+    r_load_ref_4; });
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(x, 0U, nil_oop);
+                goto exit_store_ref;
+            }
             *(uint64_t *)(x + 16 + 0) = nil_oop;
             if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(x - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)x) & H_REMEMBERED) == 0)))) {
                 remember(x);
+            }
+        exit_store_ref:;
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(x, 1U, nil_oop);
+                goto exit_store_ref_2;
             }
             *(uint64_t *)(x + 16 + 8) = nil_oop;
             if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(x - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)x) & H_REMEMBERED) == 0)))) {
                 remember(x);
             }
+        exit_store_ref_2:;
             x = next;
         }
         active_ctx = target;
@@ -12918,12 +20412,37 @@ bool terminate(oop c, oop target)
         f_3 = frames + t;
         g = frames + k;
         nfp = g->fp;
+        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+            for (i = -1; i <= (int64_t)f_3->sp - 1; i++) {
+                p = nfp + i;
+                i_2 = (uint64_t)(p - cstack);
+                if ((i_2 >= c4_stack_next) && ((i_2 < c4_stack_limit) && (!c4_saved_stack_bits[i_2]))) {
+                    c4_saved_stack[i_2] = *p;
+                    c4_saved_stack_bits[i_2] = true;
+                }
+            }
+        }
         memmove(nfp - 1, f_3->fp - 1, ((uint64_t)f_3->sp + 1) * 8);
+        if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
+            i_3 = (uint64_t)(g - frames);
+            if ((i_3 >= c4_frame_next) && ((i_3 < c4_frame_limit) && (!c4_saved_frame_bits[i_3]))) {
+                k_2 = i_3 * 3;
+                c4_saved_frames[k_2] = g->method;
+                c4_saved_frames[k_2 + 1] = g->closure;
+                c4_saved_frames[k_2 + 2] = g->ctx;
+                c4_saved_frame_bits[i_3] = true;
+            }
+        }
         *g = *f_3;
         g->fp = nfp;
         if (g->ctx != nil_oop) {
             o_2 = g->ctx;
-            ((oop *)(o_2 + 16))[CTX_SENDER] = (uint64_t)((k << 1) | 1);
+            v = (uint64_t)((k << 1) | 1);
+            if (__builtin_expect(c4_enabled, 0)) {
+                c4_heap_store_ref(o_2, 0U, v);
+            } else {
+                ((oop *)(o_2 + 16))[CTX_SENDER] = v;
+            }
         }
         nframes = (int32_t)(k + 1);
         cstack_used = (uint64_t)(nfp + g->sp - cstack);
@@ -12946,9 +20465,11 @@ frame *thaw_for(uint64_t code)
     int64_t n;
     oop m;
     frame *f;
-    uint64_t o_3;
+    oop r_load_ref;
+    oop o_3;
     oop o_4;
-    uint64_t o_5;
+    oop r_load_ref_2;
+    oop o_5;
     c = active_ctx;
     s = (oop *)(c + 16);
     sender = s[CTX_SENDER];
@@ -12968,10 +20489,24 @@ frame *thaw_for(uint64_t code)
     f->ctx = c;
     f->code = code;
     f->fp = cstack + 1;
-    o_3 = *(uint64_t *)(m + 16 + 24);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
     o_4 = s[CTX_PC];
     f->ip = (uint8_t *)(o_3 + 16) + (((int64_t)o_4) >> 1);
-    o_5 = *(uint64_t *)(m + 16 + 16);
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
     f->lits = (oop *)(o_5 + 16);
     f->sp = (int32_t)n;
     s[CTX_SENDER] = 1ULL;
@@ -12986,11 +20521,12 @@ frame *thaw_for(uint64_t code)
 void interpreter_widow(frame *f)
 {
     oop ctx;
-    oop *s;
     int64_t n;
     uint64_t c;
+    uint64_t v;
+    uint64_t i;
+    uint64_t k;
     ctx = f->ctx;
-    s = (oop *)(ctx + 16);
     n = (int64_t)(uint32_t)*(uint64_t *)ctx - CTX_FIXED;
     if (f->sp < n) {
         n = f->sp;
@@ -12999,10 +20535,33 @@ void interpreter_widow(frame *f)
     if ((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) && ((int64_t)((jit_method *)f->code)->raw_base < (int64_t)((jit_method *)f->code)->slots)) {
         n = n < (int64_t)((jit_method *)f->code)->raw_base ? n : (int64_t)((jit_method *)f->code)->raw_base;
     }
-    s[CTX_SENDER] = nil_oop;
-    s[CTX_PC] = nil_oop;
-    s[CTX_STACKP] = (uint64_t)((n << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 0U, nil_oop);
+    } else {
+        ((oop *)(ctx + 16))[CTX_SENDER] = nil_oop;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 1U, nil_oop);
+    } else {
+        ((oop *)(ctx + 16))[CTX_PC] = nil_oop;
+    }
+    v = (uint64_t)((n << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(ctx, 2U, v);
+    } else {
+        ((oop *)(ctx + 16))[CTX_STACKP] = v;
+    }
     object_memory_copy_refs_at_from_buffer_count(ctx, CTX_FIXED, f->fp, (uint64_t)n);
+    if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
+        i = (uint64_t)(f - frames);
+        if ((i >= c4_frame_next) && ((i < c4_frame_limit) && (!c4_saved_frame_bits[i]))) {
+            k = i * 3;
+            c4_saved_frames[k] = f->method;
+            c4_saved_frames[k + 1] = f->closure;
+            c4_saved_frames[k + 2] = f->ctx;
+            c4_saved_frame_bits[i] = true;
+        }
+    }
     f->ctx = nil_oop;
 }
 

@@ -4,6 +4,59 @@
 
 char *image_path;
 
+static void import_c4(void);
+
+/* ImageFile>>importC4 */
+static void import_c4(void)
+{
+    uint64_t p;
+    int32_t fmt;
+    uint32_t slots;
+    uint64_t bytes;
+    uint32_t refs;
+    oop r_load_ref;
+    oop sp;
+    c4_heap_set_context_class(cls_context);
+    p = old_lo;
+    while (p < old_top) {
+        fmt = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (fmt == F_WEAK) {
+            fatal_begin();
+            fprintf(stderr, "--c4 does not support images containing weak objects");
+            fatal_end();
+        }
+        slots = (uint32_t)*(uint64_t *)p;
+        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p;
+        refs = (fmt >= 1) && (fmt <= 4) ? slots : 0;
+        if (*(uint64_t *)(p + 8) == cls_context) {
+            if ((fmt != F_FIXVAR) || (slots < CTX_FIXED)) {
+                fatal_begin();
+                fprintf(stderr, "bad C4 image Context layout");
+                fatal_end();
+            }
+            sp = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(p, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(p + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
+            if (!(((sp & 1) != 0) && ((sp >> 1) <= slots - CTX_FIXED))) {
+                fatal_begin();
+                fprintf(stderr, "bad C4 image Context stack pointer");
+                fatal_end();
+            }
+        }
+        if (!c4_heap_import(p, bytes, refs)) {
+            fatal_begin();
+            fprintf(stderr, "cannot import object into C4 heap");
+            fatal_end();
+        }
+        p = p + bytes;
+    }
+}
+
 /* ImageFile>>loadImage: */
 void load_image(char *path)
 {
@@ -14,6 +67,7 @@ void load_image(char *path)
     uint64_t a;
     uint64_t p;
     uint64_t o;
+    uint64_t bytes;
     uint64_t h_2;
     uint64_t c;
     int32_t f_2;
@@ -56,10 +110,26 @@ void load_image(char *path)
     p = old_lo;
     while (p < old_top) {
         o = p;
+        if (c4_requested && (old_top - p < 16)) {
+            fatal_begin();
+            fprintf(stderr, "truncated C4 image object header");
+            fatal_end();
+        }
+        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
+        if (c4_requested && (bytes > old_top - p)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 image object extent");
+            fatal_end();
+        }
         h_2 = (*(uint64_t *)o) & 1152921504606846975ULL;
         *(uint64_t *)o = h_2;
         c = *(uint64_t *)(o + 8) + delta;
+        if (c4_enabled) {
+            c4_heap_store((uint64_t *)(o + 8), c);
+            goto exit_raw_class;
+        }
         *(uint64_t *)(o + 8) = c;
+    exit_raw_class:;
         f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
         if ((f_2 >= 1) && (f_2 <= 4)) {
             s = (oop *)(o + 16);
@@ -70,7 +140,7 @@ void load_image(char *path)
                 }
             }
         }
-        p = p + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o);
+        p = p + bytes;
     }
     o_3 = h->specials + delta;
     specials_oop = o_3;
@@ -93,6 +163,9 @@ void load_image(char *path)
         fatal_end();
     }
     refresh_specials();
+    if (c4_requested) {
+        import_c4();
+    }
 }
 
 /* ImageFile>>writeSnapshot: */
@@ -102,6 +175,9 @@ bool write_snapshot(char *path)
     image_header *h;
     FILE *f;
     bool ok;
+    if (c4_enabled) {
+        return false;
+    }
     full_gc();
     memset(&local, 0, sizeof local);
     h = &local;

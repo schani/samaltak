@@ -33,6 +33,11 @@ void prim_gc(void)
 {
     int64_t v;
     uint64_t v_2;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     full_gc();
     v = (int64_t)(old_budget - (old_top - old_lo));
     v_2 = (uint64_t)((v << 1) | 1);
@@ -114,6 +119,9 @@ void prim_quit(void)
     fflush(stdout);
     fflush(stderr);
     platform_interface_shutdown();
+    if (c4_enabled && (getenv("SAMALTAK_C4_STATS") != NULL)) {
+        c4_heap_stats();
+    }
     exit((c & 1) != 0 ? (int32_t)(((int64_t)c) >> 1) : 0);
 }
 
@@ -121,6 +129,11 @@ void prim_quit(void)
 void prim_release_memory(void)
 {
     oop v;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     release_free_memory();
     release_memory();
     v = prim_base[0];
@@ -133,6 +146,11 @@ void prim_scavenge(void)
 {
     int64_t v;
     uint64_t v_2;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     scavenge();
     v = (int64_t)(eden_hi - eden_box[0]);
     v_2 = (uint64_t)((v << 1) | 1);
@@ -144,10 +162,15 @@ void prim_scavenge(void)
 void prim_snapshot(void)
 {
     char *path;
-    uint64_t o;
+    oop o;
     bool ok;
-    uint64_t o_2;
+    oop o_2;
     oop ctx;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     if (!is_kind_of_string(prim_nargs > 0 ? prim_base[1] : nil_oop)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -162,17 +185,27 @@ void prim_snapshot(void)
     prim_commit(true_oop);
     materialize_all();
     o = active_process();
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o, 1U, active_ctx);
+        goto exit_store_ref;
+    }
     *(uint64_t *)(o + 16 + 8) = active_ctx;
-    if (((active_ctx & 7) == 0) && (((uint64_t)(active_ctx - young_lo) < young_hi - young_lo) && ((!(o - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
+    if (((active_ctx & 7) == 0) && (((uint64_t)(active_ctx - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
         remember(o);
     }
+exit_store_ref:;
     ok = write_snapshot(path);
     free(path);
     o_2 = active_process();
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o_2, 1U, nil_oop);
+        goto exit_store_ref_2;
+    }
     *(uint64_t *)(o_2 + 16 + 8) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!(o_2 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_2) & H_REMEMBERED) == 0)))) {
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_2) & H_REMEMBERED) == 0)))) {
         remember(o_2);
     }
+exit_store_ref_2:;
     ctx = active_ctx;
     ((oop *)(ctx + 16))[CTX_FIXED + ctx_stackp(ctx) - 1] = ok ? false_oop : nil_oop;
 }
@@ -304,6 +337,7 @@ void prim_vm_stats(void)
     uint64_t a;
     int i_3;
     int64_t v_2;
+    uint64_t v_3;
     memset(&local, 0, sizeof local);
     v = local;
     v[0] = (int64_t)stat_scavenges;
@@ -341,7 +375,25 @@ void prim_vm_stats(void)
     a = alloc_obj(cls_array, F_VAR, 42);
     for (i_3 = 0; i_3 <= 41; i_3++) {
         v_2 = v[i_3];
-        ((oop *)(a + 16))[i_3] = (uint64_t)((v_2 << 1) | 1);
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((i_3 == CM_LITERALS) || ((i_3 == CM_BYTECODES) || (i_3 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(a, (uint32_t)i_3, v_3)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((i_3 == CTX_STACKP) && (*(uint64_t *)(a + 8) == cls_context)) {
+                c4_store_context_stackp(a, v_3);
+            } else {
+                c4_heap_store_ref(a, (uint32_t)i_3, v_3);
+            }
+            goto exit_store_ref;
+        }
+        *(uint64_t *)(a + 16 + 8 * i_3) = v_3;
+        if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!(a - young_lo < young_hi - young_lo)) && (((*(uint64_t *)a) & H_REMEMBERED) == 0)))) {
+            remember(a);
+        }
+    exit_store_ref:;
     }
     prim_result = a;
     prim_status = PS_OK;
@@ -501,10 +553,24 @@ static oop strings_array(char **v, int32_t n)
     for (i = 0; i <= n - 1; i++) {
         s = string_from_utf8(v[i], strlen(v[i]));
         o = *root;
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(o, (uint32_t)i, s)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((i == CTX_STACKP) && (*(uint64_t *)(o + 8) == cls_context)) {
+                c4_store_context_stackp(o, s);
+            } else {
+                c4_heap_store_ref(o, (uint32_t)i, s);
+            }
+            goto exit_store_ref;
+        }
         *(uint64_t *)(o + 16 + 8 * i) = s;
         if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
             remember(o);
         }
+    exit_store_ref:;
     }
     pop_root();
     return *root;

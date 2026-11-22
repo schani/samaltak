@@ -119,6 +119,7 @@ primJitCode
 	"aCompiledMethod jitCode: modeName (nil: the current compiler, baseline under --jit none): {address. code (ByteArray). map {pc. offset ...}. notes {offset. text or nil (a bytecode). value ...}. symbols {address. name ...}. mode} of its machine code with the compiler's notes. Installed code with notes is answered as it is; otherwise the method is compiled for this and the code dropped. Answers nil if the compiler does not compile it."
 	<vmPrimitive: 181 name: 'jitCode'>
 	| m md p h scratch top |
+	vmMain c4Enabled ifTrue: [^self fail].
 	m := self receiver.
 	((self isPtr: m) and: [(self rawClass: m) = (memory special: SO_COMPILEDMETHOD)]) ifFalse: [^self fail].
 	md := jit mode = 0 ifTrue: [jit baselineMode] ifFalse: [jit mode].

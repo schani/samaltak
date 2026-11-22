@@ -8,6 +8,7 @@ oop cls_boxedfloat;
 oop cls_bytearray;
 oop cls_bytestring;
 oop cls_char;
+static oop cls_compiledmethod;
 oop cls_context;
 oop cls_message;
 oop cls_point;
@@ -24,6 +25,8 @@ oop specials_oop;
 oop true_oop;
 bool word_hash = true;
 
+static uint64_t alloc_c4(oop cls, int32_t fmt, uint32_t n);
+static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n);
 static uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n);
 static uint64_t alloc_slow(oop *cls, uint64_t bytes);
 static uint64_t alloc_words32(oop cls, uint64_t n);
@@ -36,6 +39,68 @@ static size_t utf8_decode(uint8_t *s, size_t n, size_t *index);
 uint64_t alloc_bytes(oop cls, uint64_t n)
 {
     return alloc_obj(cls, F_BYTES + (int32_t)((8 - n % 8) % 8), (uint32_t)((n + 7) / 8));
+}
+
+/* ObjectMemory>>allocC4:format:slots: */
+static uint64_t alloc_c4(oop cls, int32_t fmt, uint32_t n)
+{
+    uint64_t p;
+    uint64_t a;
+    if (fmt == F_WEAK) {
+        fatal_begin();
+        fprintf(stderr, "C4 does not support weak allocation");
+        fatal_end();
+    }
+    p = alloc_c4_try(cls, fmt, n);
+    if (p == 0) {
+        a = 16 + 8 * (uint64_t)n;
+        fatal_begin();
+        fprintf(stderr, "C4 out of memory allocating %llu bytes", (unsigned long long)a);
+        fatal_end();
+    }
+    return p;
+}
+
+/* ObjectMemory>>allocC4Try:format:slots: */
+static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
+{
+    uint64_t bytes;
+    uint64_t p;
+    oop *s;
+    oop nl;
+    int64_t i;
+    uint64_t an_address;
+    uint64_t n_2;
+    if (fmt == F_WEAK) {
+        return 0;
+    }
+    if ((cls == cls_context) && ((fmt != F_FIXVAR) || (n < CTX_FIXED))) {
+        return 0;
+    }
+    bytes = 16 + 8 * (uint64_t)n;
+    p = c4_heap_alloc(bytes);
+    if (p == 0) {
+        return 0;
+    }
+    *(uint64_t *)p = ((uint64_t)n) | (((uint64_t)fmt) << H_FMT_SHIFT) | (((uint64_t)next_hash()) << H_HASH_SHIFT);
+    *(uint64_t *)(p + 8) = cls;
+    if ((fmt >= 1) && (fmt <= 4)) {
+        s = (oop *)(p + 16);
+        nl = nil_oop;
+        for (i = 0; i <= (int64_t)n - 1; i++) {
+            s[i] = nl;
+        }
+    } else {
+        an_address = p + 16;
+        memset((void *)an_address, 0, (uint64_t)n * 8);
+    }
+    if (cls == cls_context) {
+        ((oop *)(p + 16))[CTX_STACKP] = 1ULL;
+    }
+    c4_heap_publish(p, (fmt >= 1) && (fmt <= 4) ? n : 0);
+    n_2 = stat_allocated + bytes;
+    stat_allocated = n_2;
+    return p;
 }
 
 /* ObjectMemory>>allocContext: */
@@ -61,6 +126,9 @@ uint64_t alloc_obj(oop cls, int32_t fmt, uint32_t n)
     oop nl_2;
     int64_t i_2;
     uint64_t an_address_2;
+    if (c4_enabled) {
+        return alloc_c4(cls, fmt, n);
+    }
     bytes = 16 + 8 * (uint64_t)n;
     if (bytes > large_object_bytes) {
         if (alloc_sample_interval > 0) {
@@ -113,6 +181,9 @@ uint64_t alloc_obj_try(oop cls, int32_t fmt, uint64_t n)
     if (n > 0xFFFFFFFFLL) {
         return 0;
     }
+    if (c4_enabled) {
+        return alloc_c4_try(cls, fmt, (uint32_t)n);
+    }
     bytes = 16 + 8 * n;
     if (bytes <= large_object_bytes) {
         return alloc_obj(cls, fmt, (uint32_t)n);
@@ -128,6 +199,9 @@ uint64_t alloc_old(oop cls, int32_t fmt, uint32_t n)
 {
     uint64_t o;
     uint64_t a;
+    if (c4_enabled) {
+        return alloc_c4(cls, fmt, n);
+    }
     o = alloc_old_try(cls, fmt, n);
     if (o == 0) {
         a = 16 + 8 * (uint64_t)n;
@@ -152,6 +226,9 @@ static uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n)
     uint64_t n_2;
     oop o;
     oop o_2;
+    if (c4_enabled) {
+        return alloc_c4_try(cls, fmt, n);
+    }
     memset(&local, 0, sizeof local);
     cls_root = &local;
     *cls_root = cls;
@@ -289,6 +366,85 @@ size_t byte_size(oop o)
     return (uint32_t)*(uint64_t *)o * 8;
 }
 
+/* ObjectMemory>>c4CannotReplaceCodeSlot:at:put: */
+bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v)
+{
+    if (i == SO_COMPILEDMETHOD) {
+        return (o == specials_oop) && (v != cls_compiledmethod);
+    }
+    if (!(*(uint64_t *)(o + 8) == cls_compiledmethod)) {
+        return false;
+    }
+    return (((oop *)(o + 16))[i] != nil_oop) && (((oop *)(o + 16))[i] != v);
+}
+
+/* ObjectMemory>>c4LoadRef:at: */
+oop c4_load_ref(oop o, uint32_t i)
+{
+    uint32_t r_context_prefix;
+    uint32_t slots;
+    uint64_t sp;
+    if ((*(uint64_t *)(o + 8) == cls_context) && (i >= ({
+    slots = (uint32_t)*(uint64_t *)o;
+    if (slots < CTX_FIXED) {
+        r_context_prefix = slots;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(o + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; }))) {
+        return nil_oop;
+    }
+    return *(uint64_t *)(o + 16 + 8 * (uint64_t)i);
+}
+
+/* ObjectMemory>>c4StoreContextStackp:value: */
+void c4_store_context_stackp(oop o, oop v)
+{
+    uint32_t slots;
+    int64_t end;
+    uint32_t r_context_prefix;
+    uint32_t slots_2;
+    uint64_t sp;
+    uint32_t old;
+    int64_t i;
+    slots = (uint32_t)*(uint64_t *)o;
+    if (!((slots >= CTX_FIXED) && (((v & 1) != 0) && ((uint64_t)(((int64_t)v) >> 1) <= (uint64_t)(slots - CTX_FIXED))))) {
+        fatal_begin();
+        fprintf(stderr, "invalid C4 Context stack pointer");
+        fatal_end();
+    }
+    end = CTX_FIXED + (((int64_t)v) >> 1);
+    old = ({
+    slots_2 = (uint32_t)*(uint64_t *)o;
+    if (slots_2 < CTX_FIXED) {
+        r_context_prefix = slots_2;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(o + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots_2 - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; });
+    if (end - (int64_t)old > 256) {
+        fatal_begin();
+        fprintf(stderr, "unsupported C4 Context stack pointer growth");
+        fatal_end();
+    }
+    for (i = (int64_t)old; i <= end - 1; i++) {
+        c4_heap_store_ref(o, (uint32_t)i, nil_oop);
+    }
+    c4_heap_store_ref(o, CTX_STACKP, v);
+}
+
 /* ObjectMemory>>classOf: */
 oop class_of(oop o)
 {
@@ -313,22 +469,171 @@ oop class_of(oop o)
     return v;
 }
 
+/* ObjectMemory>>copyC4Context:from: */
+void copy_c4_context(oop dst, oop src)
+{
+    uint32_t r_context_prefix;
+    uint32_t slots;
+    uint64_t sp;
+    int64_t i;
+    int64_t stop;
+    oop r_load_ref;
+    stop = (int64_t)({
+    slots = (uint32_t)*(uint64_t *)src;
+    if (slots < CTX_FIXED) {
+        r_context_prefix = slots;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(src + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; }) - 1;
+    for (i = 0; i <= stop; i++) {
+        c4_heap_store_ref(dst, (uint32_t)i, ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(src, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(src + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; }));
+    }
+}
+
 /* ObjectMemory>>copyRefs:at:from:at:count: */
 void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_t si, size_t n)
 {
+    size_t i;
+    size_t i_2;
+    size_t i_3;
+    oop r_load_ref;
+    oop v;
+    int64_t j;
+    size_t i_4;
+    size_t i_5;
+    oop r_load_ref_2;
+    oop v_2;
+    if (c4_enabled) {
+        if ((dst == src) && ((di > si) && (di - si < n))) {
+            i = n;
+            while (i > 0) {
+                i = i - 1;
+                i_2 = di + i;
+                i_3 = si + i;
+                v = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(src, (uint32_t)i_3);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(src + 16 + 8 * i_3);
+exit_load_ref:;
+    r_load_ref; });
+                if (__builtin_expect(c4_enabled, 0)) {
+                    if (((i_2 == CM_LITERALS) || ((i_2 == CM_BYTECODES) || (i_2 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(dst, (uint32_t)i_2, v)) {
+                        fatal_begin();
+                        fprintf(stderr, "C4 cannot replace compiled method storage");
+                        fatal_end();
+                    }
+                    if ((i_2 == CTX_STACKP) && (*(uint64_t *)(dst + 8) == cls_context)) {
+                        c4_store_context_stackp(dst, v);
+                    } else {
+                        c4_heap_store_ref(dst, (uint32_t)i_2, v);
+                    }
+                    goto exit_store_ref;
+                }
+                *(uint64_t *)(dst + 16 + 8 * i_2) = v;
+                if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0)))) {
+                    remember(dst);
+                }
+            exit_store_ref:;
+            }
+        } else {
+            for (j = 0; j <= (int64_t)n - 1; j++) {
+                i_4 = di + j;
+                i_5 = si + j;
+                v_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i_5 >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(src, (uint32_t)i_5);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(src + 16 + 8 * i_5);
+exit_load_ref_2:;
+    r_load_ref_2; });
+                if (__builtin_expect(c4_enabled, 0)) {
+                    if (((i_4 == CM_LITERALS) || ((i_4 == CM_BYTECODES) || (i_4 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(dst, (uint32_t)i_4, v_2)) {
+                        fatal_begin();
+                        fprintf(stderr, "C4 cannot replace compiled method storage");
+                        fatal_end();
+                    }
+                    if ((i_4 == CTX_STACKP) && (*(uint64_t *)(dst + 8) == cls_context)) {
+                        c4_store_context_stackp(dst, v_2);
+                    } else {
+                        c4_heap_store_ref(dst, (uint32_t)i_4, v_2);
+                    }
+                    goto exit_store_ref_2;
+                }
+                *(uint64_t *)(dst + 16 + 8 * i_4) = v_2;
+                if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0)))) {
+                    remember(dst);
+                }
+            exit_store_ref_2:;
+            }
+        }
+        return;
+    }
     memmove((oop *)(dst + 16) + di, (oop *)(src + 16) + si, n * 8);
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((dst & 7) == 0) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0))) {
         remember(dst);
     }
+exit_remember_if_old:;
 }
 
 /* ObjectMemory>>copyRefs:at:fromBuffer:count: */
 void object_memory_copy_refs_at_from_buffer_count(oop dst, size_t di, oop *src, size_t n)
 {
+    int64_t i;
+    size_t i_2;
+    oop v;
+    if (c4_enabled) {
+        for (i = 0; i <= (int64_t)n - 1; i++) {
+            i_2 = di + i;
+            v = src[i];
+            if (__builtin_expect(c4_enabled, 0)) {
+                if (((i_2 == CM_LITERALS) || ((i_2 == CM_BYTECODES) || (i_2 == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(dst, (uint32_t)i_2, v)) {
+                    fatal_begin();
+                    fprintf(stderr, "C4 cannot replace compiled method storage");
+                    fatal_end();
+                }
+                if ((i_2 == CTX_STACKP) && (*(uint64_t *)(dst + 8) == cls_context)) {
+                    c4_store_context_stackp(dst, v);
+                } else {
+                    c4_heap_store_ref(dst, (uint32_t)i_2, v);
+                }
+                goto exit_store_ref;
+            }
+            *(uint64_t *)(dst + 16 + 8 * i_2) = v;
+            if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0)))) {
+                remember(dst);
+            }
+        exit_store_ref:;
+        }
+        return;
+    }
     memcpy((oop *)(dst + 16) + di, src, n * 8);
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((dst & 7) == 0) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0))) {
         remember(dst);
     }
+exit_remember_if_old:;
 }
 
 /* ObjectMemory>>fixedFields: */
@@ -336,14 +641,22 @@ uint32_t fixed_fields(oop o)
 {
     int32_t f;
     uint64_t o_2;
-    uint64_t o_3;
+    oop r_load_ref;
+    oop o_3;
     f = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
     if (f == F_FIXED) {
         return (uint32_t)*(uint64_t *)o;
     }
     if ((f == F_FIXVAR) || (f == F_WEAK)) {
         o_2 = *(uint64_t *)(o + 8);
-        o_3 = *(uint64_t *)(o_2 + 16 + 16);
+        o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o_2, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o_2 + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
         return (uint32_t)((((int64_t)o_3) >> 1) & CLS_INSTSIZE_MASK);
     }
     return 0;
@@ -434,7 +747,8 @@ size_t indexable_size(oop o)
 /* ObjectMemory>>instantiate:size:error: */
 oop instantiate(oop cls, uint64_t n, int *err)
 {
-    uint64_t fo;
+    oop r_load_ref;
+    oop fo;
     int64_t spec;
     int64_t isize;
     int fmt;
@@ -444,7 +758,14 @@ oop instantiate(oop cls, uint64_t n, int *err)
     if ((!((cls & 7) == 0)) || ((uint32_t)*(uint64_t *)cls <= BEH_FORMAT)) {
         return nil_oop;
     }
-    fo = *(uint64_t *)(cls + 16 + 16);
+    fo = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(cls, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(cls + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     if (!((fo & 1) != 0)) {
         return nil_oop;
     }
@@ -471,6 +792,9 @@ oop instantiate(oop cls, uint64_t n, int *err)
         }
         fmt = F_BYTES + (int32_t)((8 - n % 8) % 8);
         nslots = n / 8 + (n % 8 != 0 ? 1 : 0);
+    }
+    if (c4_enabled && (fmt == F_WEAK)) {
+        return nil_oop;
     }
     o = n > 0x7FFFFFF0 ? 0 : alloc_obj_try(cls, fmt, nslots);
     *err = o != 0 ? 0 : PRIM_ERR_NO_MEMORY;
@@ -646,6 +970,7 @@ void refresh_specials(void)
     cls_bytestring = s[SO_BYTESTRING];
     cls_bytearray = s[SO_BYTEARRAY];
     cls_message = s[SO_MESSAGE];
+    cls_compiledmethod = s[SO_COMPILEDMETHOD];
 }
 
 /* ObjectMemory>>resetAllocLimit */
@@ -653,6 +978,9 @@ void reset_alloc_limit(void)
 {
     uint64_t a;
     uint64_t a_2;
+    if (c4_enabled) {
+        return;
+    }
     eden_box[1] = eden_hi;
     sample_mark = eden_box[0];
     if ((alloc_sample_interval > 0) && (eden_box[0] + alloc_sample_countdown < eden_hi)) {
@@ -668,10 +996,18 @@ void reset_alloc_limit(void)
 /* ObjectMemory>>special: */
 oop object_memory_special(int index)
 {
+    oop r_load_ref;
     if ((index < 0) || ((uint32_t)index >= (uint32_t)*(uint64_t *)specials_oop)) {
         return nil_oop;
     }
-    return *(uint64_t *)(specials_oop + 16 + 8 * index);
+    return ({
+    if (__builtin_expect(c4_enabled, 0) && (index >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(specials_oop, (uint32_t)index);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(specials_oop + 16 + 8 * index);
+exit_load_ref:;
+    r_load_ref; });
 }
 
 /* ObjectMemory>>stringCharAt:index: */

@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include "c4_heap.h"
 #define guest_display_open(w, h, cell) ((void)(w), (void)(h), (void)(cell), false)
 #define guest_display_fill(x, y, w, h, rule) ((void)(x), (void)(y), (void)(w), (void)(h), (void)(rule))
 #define guest_display_copy(x, y, w, h, to_x, to_y) ((void)(x), (void)(y), (void)(w), (void)(h), (void)(to_x), (void)(to_y))
@@ -147,6 +148,7 @@ typedef void (*prim_fn)(void);
 #define BL_PIC_JMP_X64 10
 #define BL_SITE_MEGA 1073741824
 #define BL_UENTRY 20
+#define C4_FRAME_ROOTS 196608
 #define CACHE_SIZE 4096
 #define CACHE_SPACE 134234112
 #define CD_INSTVARS 3
@@ -1528,6 +1530,8 @@ extern uint64_t stat_reconciles;
 extern int32_t argc;
 extern int32_t args_start;
 extern char **argv;
+extern bool c4_enabled;
+extern bool c4_requested;
 #ifdef __APPLE__
 #endif
 #ifdef __linux__
@@ -1700,10 +1704,12 @@ void activate_block(int32_t n);
 void activate_block_with_array(void);
 int64_t active_capacity(void);
 void active_set_stackp(int64_t n);
+void active_slot(int64_t k, oop v);
 oop *active_slots(void);
 int64_t active_stackp(void);
 void interpreter_after_gc(void);
 void before_gc(void);
+void c4_stack_slot(oop *p, oop v);
 int32_t call_primitive(prim_fn fn, oop *b, int32_t n);
 bool interpreter_context(oop c, int64_t k, oop v);
 oop interpreter_context_field(int64_t i, oop c);
@@ -1720,7 +1726,7 @@ bool frames_valid(bool (*valid)(oop));
 void interpret(void);
 void interrupt_safepoint(void);
 bool is_married(oop o);
-uint64_t lookup_method(oop a_class, oop a_selector);
+oop lookup_method(oop a_class, oop a_selector);
 oop marry(frame *f);
 void materialize_all(void);
 void prim_commit(oop a_result);
@@ -1790,10 +1796,10 @@ void jit_runtime_back_jump(frame *f);
 uint64_t baseline_stat(int32_t i);
 void become_method(oop from);
 uint64_t jit_runtime_block_code_for(oop m);
-uint64_t cache_code_for(uint64_t m);
+uint64_t cache_code_for(oop m);
 void class_changed(void);
 uint64_t jit_runtime_closure(frame *f);
-bool code_address_of(uint64_t m);
+bool code_address_of(oop m);
 void code_changed(oop m);
 jit_method *code_of(oop m, bool counting);
 jit_method *jit_runtime_compile(oop m, int32_t md, bool want_notes);
@@ -1906,7 +1912,11 @@ uint64_t alloc_old(oop cls, int32_t fmt, uint32_t n);
 oop alloc_slots(oop cls, uint32_t n);
 uint64_t alloc_unfilled_try(oop cls, int32_t fmt, uint64_t n);
 size_t byte_size(oop o);
+bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v);
+oop c4_load_ref(oop o, uint32_t i);
+void c4_store_context_stackp(oop o, oop v);
 oop class_of(oop o);
+void copy_c4_context(oop dst, oop src);
 void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_t si, size_t n);
 void object_memory_copy_refs_at_from_buffer_count(oop dst, size_t di, oop *src, size_t n);
 uint32_t fixed_fields(oop o);
@@ -1994,7 +2004,7 @@ void cleanup(int32_t entry);
 bool opt_regalloc_allocate(int32_t num_args, int32_t n);
 void opt_regalloc_release(void);
 void opt_runtime_all_roots(void (*fn)(oop *), bool updating);
-uint64_t opt_runtime_block_code_for(uint64_t m, int32_t s);
+uint64_t opt_runtime_block_code_for(oop m, int32_t s);
 bool opt_runtime_compile(oop m);
 uint64_t deopt_guard(frame *f, int64_t k);
 uint64_t deopt_return(frame *f, int64_t k, int64_t not_made);
@@ -2012,13 +2022,13 @@ uint64_t return_bottom(frame *f, int64_t k);
 oop send_from(frame *f, uint64_t ret);
 uint64_t stack_full(frame *f);
 uint64_t opt_runtime_tier_up(frame *f, int64_t loop);
-uint64_t unit_entry_of(uint64_t m, int64_t s);
+uint64_t unit_entry_of(oop m, int64_t s);
 void opt_runtime_young_roots(void (*fn)(oop *));
 bool is_leaf(int64_t n);
 bool is_tryable(int64_t n);
 prim_fn primitive_table_lookup(int64_t n);
 oop names_array(void);
-uint64_t active_process(void);
+oop active_process(void);
 void alloc_sample_hit(oop a_class, uint64_t bytes);
 void handle_interrupts(void);
 void scheduler_init(void);
@@ -2028,7 +2038,7 @@ int64_t pause_charging(void);
 int64_t process_cpu_time_us(oop proc);
 void processor_yield(void);
 void relinquish(int64_t microseconds);
-bool remove_link(oop link, uint64_t list);
+bool remove_link(oop link, oop list);
 void request_interrupt_check(void);
 void request_periodic_poll(int64_t interval_us);
 int64_t resume_charging(void);

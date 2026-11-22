@@ -1,16 +1,22 @@
 VMCoreModule subclass: #VMMain
-	instanceVariableNames: 'headless argc argv argsStart'
+	instanceVariableNames: 'headless argc argv argsStart c4Requested c4Enabled'
 	classVariableNames: ''
 	package: 'VM-Core'!
 
-VMMain comment: 'The entry point: samaltak [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
+VMMain comment: 'The entry point: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
 
 !VMMain class methodsFor: 'declaring'!
 declarations
-	^#((headless bool) (argc int32_t) (argv 'char **') (argsStart int32_t))
+	^#((headless bool) (argc int32_t) (argv 'char **') (argsStart int32_t) (c4Requested bool) (c4Enabled bool))
 ! !
 
 !VMMain methodsFor: 'accessing'!
+c4Requested
+	^c4Requested
+!
+c4Enabled
+	^c4Enabled
+!
 headless
 	^headless
 !
@@ -32,8 +38,9 @@ banner
 !
 usage
 	<noreturn>
-	libc fputs: 'usage: samaltak [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
+	libc fputs: 'usage: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
+  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
   --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized
@@ -47,8 +54,9 @@ main: n argv: v
 	<function>
 	<var: #n type: 'int'>
 	<var: #v type: 'char **'>
-	| maxHeap eden i image proc ctx |
+	| maxHeap eden i image proc ctx explicitJit |
 	jit defaults.
+	explicitJit := false.
 	maxHeap := (4096 << 20) asUInt64.
 	eden := (16 << 20) asUInt64.
 	i := 1.
@@ -58,17 +66,22 @@ main: n argv: v
 				i := i + 1.
 				maxHeap := (libc atol: (v at: i)) asUInt64 << 20]
 			ifFalse: [
-				((libc strcmp: (v at: i) with: '--eden') = 0 and: [i + 1 < n])
-					ifTrue: [
-						i := i + 1.
-						eden := (libc atol: (v at: i)) asUInt64 << 20]
+				(libc strcmp: (v at: i) with: '--c4') = 0
+					ifTrue: [c4Requested := true]
 					ifFalse: [
-						(libc strcmp: (v at: i) with: '--headless') = 0
-							ifTrue: [headless := true]
+						((libc strcmp: (v at: i) with: '--eden') = 0 and: [i + 1 < n])
+							ifTrue: [
+								i := i + 1.
+								eden := (libc atol: (v at: i)) asUInt64 << 20]
 							ifFalse: [
-								(self jitOption: v at: i asInt32 count: n)
-									ifTrue: [i := i + 1]
-									ifFalse: [self usage]]]].
+								(libc strcmp: (v at: i) with: '--headless') = 0
+									ifTrue: [headless := true]
+									ifFalse: [
+										(self jitOption: v at: i asInt32 count: n)
+											ifTrue: [
+												(libc strcmp: (v at: i) with: '--jit') = 0 ifTrue: [explicitJit := true].
+												i := i + 1]
+											ifFalse: [self usage]]]]].
 		i := i + 1].
 	i >= n ifTrue: [self usage].
 	image := v at: i.
@@ -76,8 +89,20 @@ main: n argv: v
 	argv := v.
 	argsStart := (i + 1) asInt32.
 	i + 1 to: n - 1 do: [:k | (libc strcmp: (v at: k) with: '--headless') = 0 ifTrue: [headless := true]].
+	c4Requested ifTrue: [
+		c4 supported ifFalse: [self fatal: '--c4 requires a Linux x86-64 NO_PLATFORM=1 build'].
+		headless ifFalse: [self fatal: '--c4 requires --headless'].
+		(explicitJit and: [jit enabled]) ifTrue: [self fatal: '--c4 does not support JIT execution'].
+		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].
+		jit mode: 0].
 	memory memoryInit: eden maxHeap: maxHeap.
+	c4Requested ifTrue: [
+		(c4 init: (self ptr: gc oldLo) capacity: maxHeap) ifFalse: [self fatal: 'cannot initialize C4 heap'].
+		c4 threshold: eden].
 	imageFile loadImage: image.
+	c4Requested ifTrue: [
+		c4 start ifFalse: [self fatal: 'cannot start C4 worker'].
+		c4Enabled := true].
 	scheduler init.
 	jit start.
 	headless ifFalse: [platform init].
@@ -86,7 +111,7 @@ main: n argv: v
 	((self isPtr: ctx) not or: [ctx = memory nilOop]) ifTrue: [self fatal: 'image has no active context'].
 	interpreter activeCtx: ctx.
 	self storeRef: proc at: PROC_SUSPENDED put: memory nilOop.
-	gc rememberIfOld: ctx.
+	c4Enabled ifFalse: [gc rememberIfOld: ctx].
 	interpreter interpret.
 	^0
 !

@@ -18,7 +18,7 @@ imagePath
 !ImageFile methodsFor: 'loading'!
 loadImage: path
 	<function>
-	| f h delta p o s budget |
+	| f h delta p o s budget bytes |
 	f := libc fopen: path mode: 'rb'.
 	f isNull ifTrue: [self fatal: 'cannot open image %s' with: path].
 	h := self local: 'ImageHeader'.
@@ -35,13 +35,16 @@ loadImage: path
 	p := gc oldLo.
 	[p < gc oldTop] whileTrue: [
 		o := p.
+		(vmMain c4Requested and: [gc oldTop - p < 16]) ifTrue: [self fatal: 'truncated C4 image object header'].
+		bytes := self objBytes: o.
+		(vmMain c4Requested and: [bytes > (gc oldTop - p)]) ifTrue: [self fatal: 'bad C4 image object extent'].
 		self header: o put: ((self header: o) bitClear: H_GCBITS).
 		self rawClass: o put: ((self rawClass: o) + delta) asUInt64.
 		(self fmtHasPointers: (self formatOf: o)) ifTrue: [
 			s := self slotsOf: o.
 			0 to: (self numSlots: o) asInt64 - 1 do: [:i |
 				((self isPtr: (s at: i)) and: [(s at: i) ~= 0]) ifTrue: [s at: i put: ((s at: i) + delta) asUInt64]]].
-		p := p + (self objBytes: o)].
+		p := p + bytes].
 	memory specialsOop: (h specials + delta) asUInt64.
 	memory hashSeed: h hashSeed.
 	"its hashed collections are by the String hash it was saved with (0: FNV-1a, images from before the other)"
@@ -51,13 +54,35 @@ loadImage: path
 	imagePath := posix realpath: path into: self null.
 	imagePath isNull ifTrue: [imagePath := libc strdup: path].
 	imagePath isNull ifTrue: [self fatal: 'out of memory'].
-	memory refreshSpecials
+	memory refreshSpecials.
+	vmMain c4Requested ifTrue: [self importC4]
+!
+importC4
+	"Startup only: all image references have been relocated."
+	<function>
+	| p fmt bytes slots refs sp |
+	c4 contextClass: memory clsContext.
+	p := gc oldLo.
+	[p < gc oldTop] whileTrue: [
+		fmt := self formatOf: p.
+		fmt = F_WEAK ifTrue: [self fatal: '--c4 does not support images containing weak objects'].
+		slots := self numSlots: p.
+		bytes := self objBytes: p.
+		refs := (self fmtHasPointers: fmt) ifTrue: [slots] ifFalse: [0].
+		(self rawClass: p) = memory clsContext ifTrue: [
+			(fmt ~= F_FIXVAR or: [slots < CTX_FIXED]) ifTrue: [self fatal: 'bad C4 image Context layout'].
+			sp := self loadRef: p at: CTX_STACKP.
+			((self isInt: sp) and: [(sp >> 1) <= (slots - CTX_FIXED)]) ifFalse: [
+				self fatal: 'bad C4 image Context stack pointer']].
+		(c4 import: p bytes: bytes refs: refs) ifFalse: [self fatal: 'cannot import object into C4 heap'].
+		p := p + bytes]
 ! !
 
 !ImageFile methodsFor: 'saving'!
 writeSnapshot: path
 	<function>
 	| h f ok |
+	vmMain c4Enabled ifTrue: [^false].
 	gc fullGC.
 	h := self local: 'ImageHeader'.
 	h version: 1.

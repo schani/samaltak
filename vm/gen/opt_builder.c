@@ -69,7 +69,7 @@ static int32_t analysis_of(oop m);
 static int32_t block_at(int32_t pc, int32_t a);
 static void build_act(int32_t a);
 static bool build_once(oop m);
-static bool can_inline(uint64_t m, int32_t a);
+static bool can_inline(oop m, int32_t a);
 static int32_t closure_of(int32_t v, int d);
 static int32_t constant(oop v);
 static int32_t emit(int32_t pc, int32_t a);
@@ -84,7 +84,7 @@ static void inline_block(int32_t c, int32_t d, int32_t pc, int32_t a, int32_t r,
 static void inline_body(int32_t c, int32_t d, oop m, int32_t ana, int32_t o, int32_t h, int32_t rcv, int32_t pc, int32_t a, int32_t r, int32_t argc);
 static bool inline_foreign_closure(int32_t x, int32_t pc, int32_t a, int32_t r, int32_t argc);
 static void inline_frame_closure(int32_t x, int32_t d, int32_t pc, int32_t a, int32_t r, int32_t argc);
-static void inline_method(uint64_t m, oop cls, int32_t pc, int32_t a, int32_t r, int32_t argc);
+static void inline_method(oop m, oop cls, int32_t pc, int32_t a, int32_t r, int32_t argc);
 static bool inline_primitive(int64_t p, oop cls, int32_t argc, int32_t pc, int32_t a, int32_t r);
 static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int32_t pc, int32_t a, int32_t r);
 static oop known_object(int32_t v);
@@ -1051,7 +1051,7 @@ exit_build_osr:;
 }
 
 /* OptBuilder>>canInline:act: */
-static bool can_inline(uint64_t m, int32_t a)
+static bool can_inline(oop m, int32_t a)
 {
     int32_t i;
     int32_t size;
@@ -8579,7 +8579,7 @@ exit_guard:;
 }
 
 /* OptBuilder>>inlineMethod:receiverClass:pc:act:rcvSlot:argc: */
-static void inline_method(uint64_t m, oop cls, int32_t pc, int32_t a, int32_t r, int32_t argc)
+static void inline_method(oop m, oop cls, int32_t pc, int32_t a, int32_t r, int32_t argc)
 {
     int32_t b;
     opt_act *ac;
@@ -10524,7 +10524,7 @@ static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int
     uint64_t o_2;
     uint64_t cls;
     bool r_send;
-    uint64_t m;
+    oop m;
     int32_t i;
     int32_t var_2;
     int32_t r_add;
@@ -10813,7 +10813,7 @@ static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int
     oop r_class_of_2;
     oop r_class_of_3;
     bool r_send_2;
-    uint64_t m_7;
+    oop m_7;
     int32_t i_18;
     int32_t var_14;
     int32_t r_add_12;
@@ -11123,7 +11123,7 @@ static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int
     int32_t g;
     oop cls_3;
     bool r_send_3;
-    uint64_t m_15;
+    oop m_15;
     int32_t i_39;
     int32_t var_26;
     int32_t r_add_25;
@@ -11465,7 +11465,7 @@ static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int
     int32_t n_127;
     int32_t n_129;
     bool r_send_4;
-    uint64_t m_21;
+    oop m_21;
     int32_t i_58;
     int32_t var_39;
     int32_t r_add_42;
@@ -18617,7 +18617,7 @@ static bool send_performed(uint64_t sel, int32_t rcv, oop cls, int32_t n, int32_
     int32_t n_3;
     int32_t n_2;
     int32_t n_4;
-    uint64_t m;
+    oop m;
     int32_t i_5;
     int32_t var_3;
     int32_t r_add_2;

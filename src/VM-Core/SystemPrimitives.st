@@ -95,12 +95,14 @@ primQuit
 	libc fflush: libc stdout.
 	libc fflush: libc stderr.
 	platform shutdown.
+	(vmMain c4Enabled and: [(libc getenv: 'SAMALTAK_C4_STATS') notNull]) ifTrue: [c4 report].
 	libc exit: ((self isInt: c) ifTrue: [(self intVal: c) asInt32] ifFalse: [0])
 !
 primSnapshot
 	<vmPrimitive: 161 name: 'snapshot'>
 	<notTryable>
 	| path ok ctx |
+	vmMain c4Enabled ifTrue: [^self fail].
 	(memory isKindOfString: self arg0) ifFalse: [^self fail].
 	path := memory utf8Of: self arg0.
 	path isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
@@ -115,17 +117,20 @@ primSnapshot
 !
 primGC
 	<vmPrimitive: 162 name: 'gc'>
+	vmMain c4Enabled ifTrue: [^self fail].
 	gc fullGC.
 	self answer: (self intOop: (gc oldBudget - (gc oldTop - gc oldLo)) asInt64)
 !
 primScavenge
 	<vmPrimitive: 163 name: 'scavenge'>
+	vmMain c4Enabled ifTrue: [^self fail].
 	gc scavenge.
 	self answer: (self intOop: (gc edenHi - gc edenTop) asInt64)
 !
 primReleaseMemory
 	"Give back to the system the memory an idle program holds only because it was busy before: eden's and the empty survivor space's pages (after a scavenge), and all machine code with its feedback and the JIT's scratch areas (dropped before Smalltalk goes on; what runs again is compiled again). Answers the receiver."
 	<vmPrimitive: 174 name: 'releaseMemory'>
+	vmMain c4Enabled ifTrue: [^self fail].
 	gc releaseFreeMemory.
 	jit releaseMemory.
 	self answer: self receiver
@@ -163,7 +168,7 @@ primVMStats
 	v at: 40 put: gc tenureAge asInt64.
 	v at: 41 put: scheduler statReconciles asInt64.
 	a := memory allocObj: memory clsArray format: F_VAR slots: 42.
-	0 to: 41 do: [:i | (self slotsOf: a) at: i put: (self intOop: (v at: i))].
+	0 to: 41 do: [:i | self storeRef: a at: i put: (self intOop: (v at: i))].
 	self answer: a
 !
 primFlushMethodCache

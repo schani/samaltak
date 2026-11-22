@@ -21,7 +21,7 @@ else
   CFLAGS ?= -O2 -g -flto=auto
   CFLAGS += -Wno-type-limits -Wno-parentheses -Wno-maybe-uninitialized -Wno-format-truncation
 endif
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen -I.
 ifeq ($(UNAME_S),Darwin)
   CFLAGS += -D_DARWIN_C_SOURCE
   OS_PLATFORM_LIBS := -framework CoreVideo -lobjc
@@ -77,6 +77,9 @@ ifneq ($(and $(PLATFORM_SRCS),$(SDL_LIBS),$(if $(NO_PLATFORM),,yes)),)
 else
   VARIANT := headless
   SRCS := $(CORE_SRCS) $(HEADLESS_SRCS)
+  ifeq ($(OS)/$(ARCH),LINUX/X86_64)
+    SRCS += c4_heap.c
+  endif
   CFLAGS += -DSAMALTAK_NO_PLATFORM
 endif
 

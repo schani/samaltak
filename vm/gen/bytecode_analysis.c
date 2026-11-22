@@ -22,19 +22,29 @@ static int32_t work_count;
 /* BytecodeAnalysis>>analyze: */
 bool analyze(oop m)
 {
-    uint64_t bc;
-    uint64_t lo;
-    uint64_t o;
-    uint64_t o_2;
-    uint64_t o_3;
-    uint64_t o_4;
-    uint64_t o_5;
-    uint64_t o_6;
+    oop r_load_ref;
+    oop bc;
+    oop r_load_ref_2;
+    oop lo;
+    oop r_load_ref_3;
+    oop o;
+    oop r_load_ref_4;
+    oop o_2;
+    oop r_load_ref_5;
+    oop o_3;
+    oop r_load_ref_6;
+    oop o_4;
+    oop r_load_ref_7;
+    oop o_5;
+    oop r_load_ref_8;
+    oop o_6;
     int32_t v;
     int64_t r_method_prim;
-    uint64_t p;
+    oop r_load_ref_9;
+    oop p;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    oop r_load_ref_10;
+    oop p_2;
     int32_t i;
     int32_t d_2;
     bool r_flow_to;
@@ -74,12 +84,40 @@ bool analyze(oop m)
     bool r_flow_to_6;
     bool r_sends;
     uint8_t op_5;
-    bc = *(uint64_t *)(m + 16 + 24);
-    lo = *(uint64_t *)(m + 16 + 16);
+    bc = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(m + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
+    lo = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(m, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(m + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
     if (!(((bc & 7) == 0) && (((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES) && (((lo & 7) == 0) && ({
-    o = *(uint64_t *)(m + 16 + 32);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(m, 4U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(m + 16 + 32);
+exit_load_ref_3:;
+    r_load_ref_3; });
     ((o & 1) != 0) && ({
-    o_2 = *(uint64_t *)(m + 16 + 40);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(m, 5U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_4:;
+    r_load_ref_4; });
     (o_2 & 1) != 0; }); }))))) {
         return false;
     }
@@ -90,17 +128,45 @@ bool analyze(oop m)
     ana_lits = (oop *)(lo + 16);
     bc_size = (int32_t)byte_size(bc);
     num_lits = (int32_t)(uint32_t)*(uint64_t *)lo;
-    o_3 = *(uint64_t *)(m + 16 + 32);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(m, 4U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(m + 16 + 32);
+exit_load_ref_5:;
+    r_load_ref_5; });
     num_args = (int32_t)(((int64_t)o_3) >> 1);
-    o_4 = *(uint64_t *)(m + 16 + 40);
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_6 = c4_load_ref(m, 5U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(m + 16 + 40);
+exit_load_ref_6:;
+    r_load_ref_6; });
     num_temps = (int32_t)(((int64_t)o_4) >> 1);
     if ((num_args < 0) || ((num_temps < 0) || (num_args + num_temps > ANA_MAX_DEPTH))) {
         return false;
     }
-    o_5 = *(uint64_t *)(m + 16 + 48);
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_7 = c4_load_ref(m, 6U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(m + 16 + 48);
+exit_load_ref_7:;
+    r_load_ref_7; });
     ana_frame_size = ({
     if ((o_5 & 1) != 0) {
-        o_6 = *(uint64_t *)(m + 16 + 48);
+        o_6 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_8 = c4_load_ref(m, 6U);
+        goto exit_load_ref_8;
+    }
+    r_load_ref_8 = *(uint64_t *)(m + 16 + 48);
+exit_load_ref_8:;
+    r_load_ref_8; });
         v = (int32_t)(((int64_t)o_6) >> 1);
     } else {
         v = 0;
@@ -110,11 +176,25 @@ bool analyze(oop m)
         ana_frame_size = num_args + num_temps;
     }
     prim_index = (int32_t)(({
-    p = *(uint64_t *)(m + 16 + 56);
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_9 = c4_load_ref(m, 7U);
+        goto exit_load_ref_9;
+    }
+    r_load_ref_9 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_9:;
+    r_load_ref_9; });
     r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK);
     prim_error = ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
+    p_2 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_10 = c4_load_ref(m, 7U);
+        goto exit_load_ref_10;
+    }
+    r_load_ref_10 = *(uint64_t *)(m + 16 + 56);
+exit_load_ref_10:;
+    r_load_ref_10; });
     r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0) && (num_temps > 0);
     has_closures = false;

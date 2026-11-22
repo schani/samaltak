@@ -285,6 +285,11 @@ void full_gc(void)
     uint64_t live;
     uint64_t a;
     size_t b;
+    if (c4_enabled) {
+        fatal_begin();
+        fprintf(stderr, "legacy full GC entered in C4 mode");
+        fatal_end();
+    }
     before_gc();
     t0 = work_clock_held_us();
     stat_full_gcs = stat_full_gcs + 1;
@@ -330,7 +335,12 @@ void full_gc(void)
     *(uint64_t *)dst = h_2;
     h_3 = h | H_FORWARDED;
     *(uint64_t *)v = h_3;
+    if (c4_enabled) {
+        c4_heap_store((uint64_t *)(v + 8), dst);
+        goto exit_raw_class;
+    }
     *(uint64_t *)(v + 8) = dst;
+exit_raw_class:;
     r_full_copy = dst;
 exit_full_copy:;
     r_full_copy; });
@@ -358,9 +368,13 @@ exit_full_copy:;
     if (old_budget > max_heap_bytes) {
         old_budget = max_heap_bytes;
     }
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+exit_remember_if_old:;
     garbage_collector_after_gc();
     stat_full_us = stat_full_us + (uint64_t)(work_clock_held_us() - t0);
     if (live > max_heap_bytes) {
@@ -398,7 +412,12 @@ static void full_root(oop *p)
     *(uint64_t *)dst = h_2;
     h_3 = h | H_FORWARDED;
     *(uint64_t *)v = h_3;
+    if (c4_enabled) {
+        c4_heap_store((uint64_t *)(v + 8), dst);
+        goto exit_raw_class;
+    }
     *(uint64_t *)(v + 8) = dst;
+exit_raw_class:;
     r_full_copy = dst;
 exit_full_copy:;
     r_full_copy; });
@@ -410,6 +429,18 @@ void garbage_collector_init(uint64_t eden_bytes, uint64_t max_heap)
 {
     uint64_t surv;
     uint64_t young;
+    if (c4_requested) {
+        if (max_heap == 0) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires a positive --max-heap");
+            fatal_end();
+        }
+        max_heap_bytes = max_heap;
+        old_lo = old_top = reserve(max_heap);
+        old_hi = old_lo + max_heap;
+        old_budget = max_heap;
+        return;
+    }
     surv = eden_bytes / 4;
     young = eden_bytes + 2 * surv;
     young_lo = reserve(young);
@@ -735,7 +766,12 @@ static uint64_t scav_copy(oop o)
     }
     h_4 = h | H_FORWARDED;
     *(uint64_t *)o = h_4;
+    if (c4_enabled) {
+        c4_heap_store((uint64_t *)(o + 8), dst);
+        goto exit_raw_class;
+    }
     *(uint64_t *)(o + 8) = dst;
+exit_raw_class:;
     return dst;
 }
 
@@ -781,7 +817,12 @@ static bool scav_scan(oop o)
     c = *(uint64_t *)(o + 8);
     if (c - young_lo < young_hi - young_lo) {
         c = scav_copy(c);
+        if (c4_enabled) {
+            c4_heap_store((uint64_t *)(o + 8), c);
+            goto exit_raw_class;
+        }
         *(uint64_t *)(o + 8) = c;
+    exit_raw_class:;
         young = young || (c - young_lo < young_hi - young_lo);
     }
     s = (oop *)(o + 16);
@@ -810,6 +851,11 @@ void scavenge(void)
     uint64_t scan;
     int64_t k;
     oop w;
+    if (c4_enabled) {
+        fatal_begin();
+        fprintf(stderr, "legacy scavenge entered in C4 mode");
+        fatal_end();
+    }
     before_gc();
     t0 = work_clock_held_us();
     stat_scavenges = stat_scavenges + 1;
@@ -859,9 +905,13 @@ void scavenge(void)
     surv_top = to_top;
     surv_hi = to_hi;
     eden_box[0] = eden_lo;
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+exit_remember_if_old:;
     garbage_collector_after_gc();
     stat_scavenge_us = stat_scavenge_us + (uint64_t)(work_clock_held_us() - t0);
 }

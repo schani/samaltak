@@ -121,7 +121,7 @@ exit_decoded_roots:;
 }
 
 /* OptRuntime>>blockCodeFor:start: */
-uint64_t opt_runtime_block_code_for(uint64_t m, int32_t s)
+uint64_t opt_runtime_block_code_for(oop m, int32_t s)
 {
     jit_method *o;
     o = unit_of(m, s, 0);
@@ -1423,14 +1423,22 @@ uint64_t opt_runtime_leave(frame *f, bool after)
 oop opt_runtime_make_array(frame *f, uint64_t n)
 {
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
     o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     f->lits = (oop *)(o_2 + 16);
     return new_array((uint32_t)n, f->fp + ((int64_t)f->sp - (int64_t)n));
 }
@@ -1471,9 +1479,13 @@ static void make_sunk(int32_t s, oop ctx)
     o[BC_NUMTEMPS] = (uint64_t)((((int64_t)v_3) << 1) | 1);
     v_4 = (info >> 16) & 255;
     o[BC_FRAMESIZE] = (uint64_t)((((int64_t)v_4) << 1) | 1);
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((b & 7) == 0) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)b) & H_REMEMBERED) == 0))) {
         remember(b);
     }
+exit_remember_if_old:;
     for (i = 0; i <= rt_sunk_use_count - 1; i++) {
         if (rt_sunk_use_id[i] == s) {
             rt_deopt_vals[rt_sunk_use_val[i]] = b;
@@ -1930,9 +1942,13 @@ uint64_t return_bottom(frame *f, int64_t k)
     }
     v_2 = sp + 1;
     ((oop *)(ctx + 16))[CTX_STACKP] = (uint64_t)((v_2 << 1) | 1);
+    if (c4_enabled) {
+        goto exit_remember_if_old;
+    }
     if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
         remember(ctx);
     }
+exit_remember_if_old:;
     bottom_returned = true;
     return 1;
 }
@@ -1951,7 +1967,8 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop *base;
     oop r;
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     uint64_t moved;
     oop r_innermost_method_of;
     int32_t nacts;
@@ -1972,9 +1989,11 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     cache_entry *g;
     uint64_t r_leave_before;
     oop o_5;
-    uint64_t o_6;
+    oop r_load_ref_2;
+    oop o_6;
     oop o_7;
-    uint64_t o_8;
+    oop r_load_ref_3;
+    oop o_8;
     oop local[3];
     oop *roots;
     uint64_t o_9;
@@ -1999,7 +2018,8 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     bool r_call_leaf;
     uint64_t r_sent_5;
     oop o_10;
-    uint64_t o_11;
+    oop r_load_ref_4;
+    oop o_11;
     uint64_t r_perform;
     oop *base_3;
     oop sel_2;
@@ -2010,7 +2030,8 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     cache_entry *g_3;
     uint64_t r_leave_before_2;
     oop o_12;
-    uint64_t o_13;
+    oop r_load_ref_5;
+    oop o_13;
     int32_t i_5;
     uint64_t r_resend_2;
     uint64_t r_4;
@@ -2046,7 +2067,14 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
             }
             sync_frame(f);
             o = f->method;
-            o_2 = *(uint64_t *)(o + 16 + 16);
+            o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
             f->lits = (oop *)(o_2 + 16);
             moved = frame_epoch;
             activate_block(n);
@@ -2094,7 +2122,14 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     }
     sync_frame(f);
     o_5 = f->method;
-    o_6 = *(uint64_t *)(o_5 + 16 + 16);
+    o_6 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(o_5, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_5 + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
     f->lits = (oop *)(o_6 + 16);
     r_leave_before = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before; });
@@ -2106,7 +2141,14 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     }
     sync_frame(f);
     o_7 = f->method;
-    o_8 = *(uint64_t *)(o_7 + 16 + 16);
+    o_8 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(o_7, 2U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(o_7 + 16 + 16);
+exit_load_ref_3:;
+    r_load_ref_3; });
     f->lits = (oop *)(o_8 + 16);
     memset(&local, 0, sizeof local);
     roots = local;
@@ -2237,7 +2279,14 @@ exit_sent_5:;
     }
     sync_frame(f);
     o_10 = f->method;
-    o_11 = *(uint64_t *)(o_10 + 16 + 16);
+    o_11 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(o_10, 2U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(o_10 + 16 + 16);
+exit_load_ref_4:;
+    r_load_ref_4; });
     f->lits = (oop *)(o_11 + 16);
     if (((e->kind & K_PRIM) != 0) && ((e->prim == perform_fn) || (e->prim == perform_args_fn))) {
         return ({
@@ -2261,7 +2310,14 @@ exit_sent_5:;
     }
     sync_frame(f);
     o_12 = f->method;
-    o_13 = *(uint64_t *)(o_12 + 16 + 16);
+    o_13 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(o_12, 2U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(o_12 + 16 + 16);
+exit_load_ref_5:;
+    r_load_ref_5; });
     f->lits = (oop *)(o_13 + 16);
     r_leave_before_2 = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before_2; });
@@ -2580,7 +2636,7 @@ static void trace_deopt(jit_method *h, int64_t k, int mode)
 }
 
 /* OptRuntime>>unitEntryOf:start: */
-uint64_t unit_entry_of(uint64_t m, int64_t s)
+uint64_t unit_entry_of(oop m, int64_t s)
 {
     jit_method *o;
     o = unit_of(m, (int32_t)s, 0);

@@ -5,6 +5,8 @@
 int32_t argc;
 int32_t args_start;
 char **argv;
+bool c4_enabled;
+bool c4_requested;
 static bool headless;
 
 static bool jit_option(char **v, int32_t i, int n);
@@ -69,15 +71,19 @@ static bool jit_option(char **v, int32_t i, int n)
 /* VMMain>>main:argv: */
 int main(int n, char **v)
 {
+    bool explicit_jit;
     uint64_t max_heap;
     uint64_t eden;
     int64_t i;
     char *image;
     int64_t k;
     oop o;
-    uint64_t proc;
-    uint64_t ctx;
+    oop r_load_ref;
+    oop proc;
+    oop r_load_ref_2;
+    oop ctx;
     defaults();
+    explicit_jit = false;
     max_heap = 4294967296ULL;
     eden = 16777216ULL;
     i = 1;
@@ -85,12 +91,17 @@ int main(int n, char **v)
         if ((strcmp(v[i], "--max-heap") == 0) && (i + 1 < n)) {
             i = i + 1;
             max_heap = ((uint64_t)atol(v[i])) << 20;
+        } else if (strcmp(v[i], "--c4") == 0) {
+            c4_requested = true;
         } else if ((strcmp(v[i], "--eden") == 0) && (i + 1 < n)) {
             i = i + 1;
             eden = ((uint64_t)atol(v[i])) << 20;
         } else if (strcmp(v[i], "--headless") == 0) {
             headless = true;
         } else if (jit_option(v, (int32_t)i, n)) {
+            if (strcmp(v[i], "--jit") == 0) {
+                explicit_jit = true;
+            }
             i = i + 1;
         } else {
             vm_main_usage();
@@ -109,28 +120,92 @@ int main(int n, char **v)
             headless = true;
         }
     }
+    if (c4_requested) {
+        if (!c4_heap_supported()) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires a Linux x86-64 NO_PLATFORM=1 build");
+            fatal_end();
+        }
+        if (!headless) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires --headless");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != JIT_NONE)) {
+            fatal_begin();
+            fprintf(stderr, "--c4 does not support JIT execution");
+            fatal_end();
+        }
+        if (eden == 0) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires a positive --eden threshold");
+            fatal_end();
+        }
+        jit_mode = 0;
+    }
     memory_init(eden, max_heap);
+    if (c4_requested) {
+        if (!c4_heap_init((void *)old_lo, max_heap)) {
+            fatal_begin();
+            fprintf(stderr, "cannot initialize C4 heap");
+            fatal_end();
+        }
+        c4_heap_set_threshold(eden);
+    }
     load_image(image);
+    if (c4_requested) {
+        if (!c4_heap_start()) {
+            fatal_begin();
+            fprintf(stderr, "cannot start C4 worker");
+            fatal_end();
+        }
+        c4_enabled = true;
+    }
     scheduler_init();
     jit_runtime_start();
     if (!headless) {
         platform_interface_init();
     }
     o = object_memory_special(SO_PROCESSOR);
-    proc = *(uint64_t *)(o + 16 + 8);
-    ctx = *(uint64_t *)(proc + 16 + 8);
+    proc = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
+    ctx = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(proc, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(proc + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
     if ((!((ctx & 7) == 0)) || (ctx == nil_oop)) {
         fatal_begin();
         fprintf(stderr, "image has no active context");
         fatal_end();
     }
     active_ctx = ctx;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(proc, 1U, nil_oop);
+        goto exit_store_ref;
+    }
     *(uint64_t *)(proc + 16 + 8) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!(proc - young_lo < young_hi - young_lo)) && (((*(uint64_t *)proc) & H_REMEMBERED) == 0)))) {
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)proc) & H_REMEMBERED) == 0)))) {
         remember(proc);
     }
-    if (((ctx & 7) == 0) && ((!(ctx - young_lo < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
-        remember(ctx);
+exit_store_ref:;
+    if (!c4_enabled) {
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
+        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
+            remember(ctx);
+        }
+    exit_remember_if_old:;
     }
     interpret();
     return 0;
@@ -139,7 +214,7 @@ int main(int n, char **v)
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

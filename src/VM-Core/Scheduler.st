@@ -206,7 +206,7 @@ requestInterruptCheck
 	"Any thread."
 	<function>
 	self atomicStore: #interruptPending value: 1.
-	jit requestInterrupt
+	vmMain c4Enabled ifFalse: [jit requestInterrupt]
 !
 signalExternalSemaphore: index
 	"1-based index into externalObjects; VM thread only, queued."
@@ -535,7 +535,7 @@ transferTo: aProcess
 	((self isPtr: ctx) not or: [ctx = memory nilOop]) ifTrue: [self fatal: 'resuming a process without a context'].
 	self storeRef: proc value at: PROC_SUSPENDED put: memory nilOop.
 	interpreter activeCtx: ctx.
-	gc rememberIfOld: ctx.
+	vmMain c4Enabled ifFalse: [gc rememberIfOld: ctx].
 	statProcessSwitches := statProcessSwitches + 1.
 	self sliceCheck
 !

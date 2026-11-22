@@ -1,5 +1,5 @@
 VMCoreModule subclass: #ObjectMemory
-	instanceVariableNames: 'nilOop trueOop falseOop specialsOop clsSmallint clsChar clsSmallfloat clsBoxedfloat clsArray clsContext clsBlock clsPoint clsBytestring clsBytearray clsMessage hashBox rootStack rootCount largeObjectBytes sampleMark wordHash'
+	instanceVariableNames: 'nilOop trueOop falseOop specialsOop clsSmallint clsChar clsSmallfloat clsBoxedfloat clsArray clsContext clsBlock clsPoint clsBytestring clsBytearray clsMessage clsCompiledmethod hashBox rootStack rootCount largeObjectBytes sampleMark wordHash'
 	classVariableNames: 'MAX_ROOTS'
 	package: 'VM-Core'!
 
@@ -9,7 +9,7 @@ ObjectMemory comment: 'Object memory: special objects, allocation (bump allocati
 declarations
 	^#((nilOop oop) (trueOop oop) (falseOop oop) (specialsOop oop)
 		(clsSmallint oop) (clsChar oop) (clsSmallfloat oop) (clsBoxedfloat oop) (clsArray oop) (clsContext oop)
-		(clsBlock oop) (clsPoint oop) (clsBytestring oop) (clsBytearray oop) (clsMessage oop)
+		(clsBlock oop) (clsPoint oop) (clsBytestring oop) (clsBytearray oop) (clsMessage oop) (clsCompiledmethod oop)
 		(hashBox 'uint64_t[1]' #(16r5A4D414C54414B))
 		(rootStack 'oop *[MAX_ROOTS]') (rootCount int32_t)
 		(largeObjectBytes size_t 262144)
@@ -114,7 +114,8 @@ refreshSpecials
 	clsPoint := s at: SO_POINT.
 	clsBytestring := s at: SO_BYTESTRING.
 	clsBytearray := s at: SO_BYTEARRAY.
-	clsMessage := s at: SO_MESSAGE
+	clsMessage := s at: SO_MESSAGE.
+	clsCompiledmethod := s at: SO_COMPILEDMETHOD
 !
 special: index
 	"The special objects array, 0-based."
@@ -221,7 +222,49 @@ indexableSize: o
 	^0
 ! !
 
+!ObjectMemory methodsFor: 'C4 references'!
+c4LoadRef: o at: i
+	<function>
+	<var: #o type: 'oop'>
+	<var: #i type: 'uint32_t'>
+	((self rawClass: o) = clsContext and: [i >= (self contextPrefix: o)]) ifTrue: [^nilOop].
+	^self uint64At: o + 16 + (8 * i asUInt64)
+!
+c4CannotReplaceCodeSlot: o at: i put: v
+	"Interpreter activations borrow interior pointers into method storage."
+	<function>
+	<var: #o type: 'oop'>
+	<var: #i type: 'uint32_t'>
+	<var: #v type: 'oop'>
+	i = SO_COMPILEDMETHOD ifTrue: [^o = specialsOop and: [v ~= clsCompiledmethod]].
+	(self rawClass: o) = clsCompiledmethod ifFalse: [^false].
+	^((self slotsOf: o) at: i) ~= nilOop and: [((self slotsOf: o) at: i) ~= v]
+!
+c4StoreContextStackp: o value: v
+	"Smalltalk's Context constructor and push may extend the live range. Do not re-expose stale slots. VM-internal stack writes publish separately."
+	<function>
+	<var: #o type: 'oop'>
+	<var: #v type: 'oop'>
+	| old end slots |
+	slots := self numSlots: o.
+	(slots >= CTX_FIXED and: [(self isInt: v) and: [(self intVal: v) asUInt64 <= (slots - CTX_FIXED) asUInt64]])
+		ifFalse: [self fatal: 'invalid C4 Context stack pointer'].
+	end := CTX_FIXED + (self intVal: v).
+	old := self contextPrefix: o.
+	end - old asInt64 > 256 ifTrue: [self fatal: 'unsupported C4 Context stack pointer growth'].
+	old asInt64 to: end - 1 do: [:i | c4 storeRef: o at: i asUInt32 put: nilOop].
+	c4 storeRef: o at: CTX_STACKP put: v
+! !
+
 !ObjectMemory methodsFor: 'bulk reference stores'!
+copyC4Context: dst from: src
+	"Clone into a fresh Context; only the live prefix is meaningful."
+	<function>
+	<var: #dst type: 'oop'>
+	<var: #src type: 'oop'>
+	0 to: (self contextPrefix: src) asInt64 - 1 do: [:i |
+		c4 storeRef: dst at: i asUInt32 put: (self loadRef: src at: i)]
+!
 copyRefs: dst at: di from: src at: si count: n
 	"Copy validated pointer slots between heap objects (including weak slots). Indices are zero-based; ranges may overlap. Does not collect."
 	<function>
@@ -230,6 +273,18 @@ copyRefs: dst at: di from: src at: si count: n
 	<var: #src type: 'oop'>
 	<var: #si type: 'size_t'>
 	<var: #n type: 'size_t'>
+	| i |
+	vmMain c4Enabled ifTrue: [
+		(dst = src and: [di > si and: [di - si < n]])
+			ifTrue: [
+				i := n.
+				[i > 0] whileTrue: [
+					i := i - 1.
+					self storeRef: dst at: di + i put: (self loadRef: src at: si + i)]]
+			ifFalse: [
+				0 to: n asInt64 - 1 do: [:j |
+					self storeRef: dst at: di + j put: (self loadRef: src at: si + j)]].
+		^self].
 	libc memmove: (self slotsOf: dst) + di from: (self slotsOf: src) + si size: n * 8.
 	gc rememberIfOld: dst
 !
@@ -240,6 +295,9 @@ copyRefs: dst at: di fromBuffer: src count: n
 	<var: #di type: 'size_t'>
 	<var: #src type: 'oop *'>
 	<var: #n type: 'size_t'>
+	vmMain c4Enabled ifTrue: [
+		0 to: n asInt64 - 1 do: [:i | self storeRef: dst at: di + i put: (src at: i)].
+		^self].
 	libc memcpy: (self slotsOf: dst) + di from: src size: n * 8.
 	gc rememberIfOld: dst
 ! !
@@ -254,6 +312,7 @@ nextHash
 	^h = 0 ifTrue: [1] ifFalse: [h]
 !
 initObjectAt: p class: cls format: fmt slots: n
+	"Initialize private storage. C4 does not see the object until publish."
 	| s nl |
 	self initHeaderAt: p class: cls format: fmt slots: n.
 	(self fmtHasPointers: fmt)
@@ -269,6 +328,7 @@ oldOverBudget
 resetAllocLimit
 	"Fast-path limit: eden's end or the next allocation sample; eden_top while old space is over its budget (after the scavenge primitive), so that the next allocation collects."
 	<function>
+	vmMain c4Enabled ifTrue: [^self].
 	gc allocLimit: gc edenHi.
 	sampleMark := gc edenTop.
 	(scheduler allocSampleInterval > 0 and: [gc edenTop + scheduler allocSampleCountdown < gc edenHi]) ifTrue: [
@@ -295,9 +355,35 @@ allocSlow: cls bytes: bytes
 	self resetAllocLimit.
 	^p
 !
+allocC4Try: cls format: fmt slots: n
+	"No cycle start, root enumeration or wait on allocation pressure."
+	<function>
+	<var: #n type: 'uint32_t'>
+	| p bytes |
+	fmt = F_WEAK ifTrue: [^0].
+	(cls = clsContext and: [fmt ~= F_FIXVAR or: [n < CTX_FIXED]]) ifTrue: [^0].
+	bytes := 16 + (8 * n asUInt64).
+	p := c4 alloc: bytes.
+	p = 0 ifTrue: [^0].
+	self initObjectAt: p class: cls format: fmt slots: n.
+	cls = clsContext ifTrue: [
+		(self slotsOf: p) at: CTX_STACKP put: (self intOop: 0)].
+	c4 publish: p refs: ((self fmtHasPointers: fmt) ifTrue: [n] ifFalse: [0]).
+	gc statAllocated: gc statAllocated + bytes.
+	^p
+!
+allocC4: cls format: fmt slots: n
+	<function>
+	| p |
+	fmt = F_WEAK ifTrue: [self fatal: 'C4 does not support weak allocation'].
+	p := self allocC4Try: cls format: fmt slots: n.
+	p = 0 ifTrue: [self fatal: 'C4 out of memory allocating %llu bytes' with: 16 + (8 * n asUInt64)].
+	^p
+!
 allocOldTry: cls format: fmt slots: n
 	<function>
 	| p clsRoot |
+	vmMain c4Enabled ifTrue: [^self allocC4Try: cls format: fmt slots: n].
 	clsRoot := self local: 'oop'.
 	clsRoot value: cls.
 	self pushRoot: clsRoot.
@@ -313,6 +399,7 @@ allocOld: cls format: fmt slots: n
 	"Directly in old space."
 	<function>
 	| o |
+	vmMain c4Enabled ifTrue: [^self allocC4: cls format: fmt slots: n].
 	o := self allocOldTry: cls format: fmt slots: n.
 	o = 0 ifTrue: [self fatal: 'out of memory allocating %llu bytes' with: 16 + (8 * n asUInt64)].
 	^o
@@ -321,6 +408,7 @@ allocObj: cls format: fmt slots: n
 	"Pointer formats nil-filled, others zeroed. May GC."
 	<function>
 	| bytes p clsRoot |
+	vmMain c4Enabled ifTrue: [^self allocC4: cls format: fmt slots: n].
 	bytes := 16 + (8 * n asUInt64).
 	bytes > largeObjectBytes ifTrue: [
 		scheduler allocSampleInterval > 0 ifTrue: [scheduler allocSampleHit: cls bytes: bytes].
@@ -365,6 +453,7 @@ allocObjTry: cls format: fmt slots: n
 	<function>
 	| bytes |
 	n > 16rFFFFFFFF ifTrue: [^0].
+	vmMain c4Enabled ifTrue: [^self allocC4Try: cls format: fmt slots: n asUInt32].
 	bytes := 16 + (8 * n).
 	bytes <= largeObjectBytes ifTrue: [^self allocObj: cls format: fmt slots: n asUInt32].
 	scheduler allocSampleInterval > 0 ifTrue: [scheduler allocSampleHit: cls bytes: bytes].
@@ -427,6 +516,7 @@ instantiate: cls size: n error: err
 									spec = 16 ifFalse: [^nilOop].
 									fmt := F_BYTES + ((8 - (n rem: 8)) rem: 8) asInt32.
 									nslots := (n quo: 8) + ((n rem: 8) ~= 0 ifTrue: [1] ifFalse: [0])]]]].
+	(vmMain c4Enabled and: [fmt = F_WEAK]) ifTrue: [^nilOop].
 	o := n > 16r7FFFFFF0 ifTrue: [0] ifFalse: [self allocObjTry: cls format: fmt slots: nslots].
 	err value: (o ~= 0 ifTrue: [0] ifFalse: [PRIM_ERR_NO_MEMORY]).
 	^o ~= 0 ifTrue: [o] ifFalse: [nilOop]

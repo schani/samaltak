@@ -171,6 +171,7 @@ void prim_display_next_event(void)
     int64_t *event;
     int i;
     int64_t v;
+    uint64_t v_2;
     a = prim_nargs > 0 ? prim_base[1] : nil_oop;
     if (!(opened && ((prim_nargs == 1) && (((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)a == 5) && (!(((*(uint64_t *)a) & H_IMMUTABLE) != 0)))))))) {
         prim_status = PS_FAIL;
@@ -186,7 +187,25 @@ void prim_display_next_event(void)
     }
     for (i = 0; i <= 4; i++) {
         v = event[i];
-        ((oop *)(a + 16))[i] = (uint64_t)((v << 1) | 1);
+        v_2 = (uint64_t)((v << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(a, (uint32_t)i, v_2)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((i == CTX_STACKP) && (*(uint64_t *)(a + 8) == cls_context)) {
+                c4_store_context_stackp(a, v_2);
+            } else {
+                c4_heap_store_ref(a, (uint32_t)i, v_2);
+            }
+            goto exit_store_ref;
+        }
+        *(uint64_t *)(a + 16 + 8 * i) = v_2;
+        if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!((uint64_t)(a - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)a) & H_REMEMBERED) == 0)))) {
+            remember(a);
+        }
+    exit_store_ref:;
     }
     prim_result = a;
     prim_status = PS_OK;
@@ -207,7 +226,9 @@ void prim_display_open(void)
     oop o_8;
     uint64_t p;
     int32_t v;
-    int32_t v_2;
+    uint64_t v_2;
+    int32_t v_3;
+    uint64_t v_4;
     opened = false;
     if (!((prim_nargs == 2) && ({
     o = prim_base[1];
@@ -246,9 +267,27 @@ void prim_display_open(void)
     opened = true;
     p = alloc_obj(cls_point, F_FIXED, 2);
     v = cell[0];
-    ((oop *)(p + 16))[0] = (uint64_t)((((int64_t)v) << 1) | 1);
-    v_2 = cell[1];
-    ((oop *)(p + 16))[1] = (uint64_t)((((int64_t)v_2) << 1) | 1);
+    v_2 = (uint64_t)((((int64_t)v) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(p, 0U, v_2);
+        goto exit_store_ref;
+    }
+    *(uint64_t *)(p + 16 + 0) = v_2;
+    if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!(p - young_lo < young_hi - young_lo)) && (((*(uint64_t *)p) & H_REMEMBERED) == 0)))) {
+        remember(p);
+    }
+exit_store_ref:;
+    v_3 = cell[1];
+    v_4 = (uint64_t)((((int64_t)v_3) << 1) | 1);
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(p, 1U, v_4);
+        goto exit_store_ref_2;
+    }
+    *(uint64_t *)(p + 16 + 8) = v_4;
+    if (((v_4 & 7) == 0) && ((v_4 - young_lo < young_hi - young_lo) && ((!(p - young_lo < young_hi - young_lo)) && (((*(uint64_t *)p) & H_REMEMBERED) == 0)))) {
+        remember(p);
+    }
+exit_store_ref_2:;
     prim_result = p;
     prim_status = PS_OK;
 }

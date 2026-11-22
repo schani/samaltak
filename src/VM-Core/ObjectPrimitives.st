@@ -93,7 +93,12 @@ primAtPut
 		v := self arg: 1].
 	f := self formatOf: r.
 	(self fmtHasPointers: f)
-		ifTrue: [self storeRef: r at: (memory fixedFields: r) + k asUInt32 put: v]
+		ifTrue: [
+			k := (memory fixedFields: r) asInt64 + k.
+			(vmMain c4Enabled and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail].
+			(self c4InactiveContext: r at: k) ifTrue: [
+				^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
+			self storeRef: r at: k put: v]
 		ifFalse: [
 			f = F_W64
 				ifTrue: [
@@ -135,6 +140,9 @@ primInstVarAtPut
 	k := self indexOf: (self arg: 0) limit: (self numSlots: r).
 	k < 0 ifTrue: [^self fail].
 	v := self arg: 1.
+	(vmMain c4Enabled and: [
+		(k = CTX_STACKP and: [(self rawClass: r) = memory clsContext]) or: [
+			self c4CodeStoreRejected: r at: k put: v]]) ifTrue: [^self fail].
 	"a married Context: a slot goes to its frame; a fixed field may change how it continues, its frames are flushed first"
 	(interpreter isMarried: r) ifTrue: [
 		k >= CTX_FIXED
@@ -142,8 +150,14 @@ primInstVarAtPut
 			ifFalse: [interpreter materializeAll].
 		r := self receiver.
 		v := self arg: 1].
+	(self c4InactiveContext: r at: k) ifTrue: [
+		^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
 	self storeRef: r at: k put: v.
 	self answer: v
+!
+c4InactiveContext: o at: k
+	^vmMain c4Enabled and: [k >= CTX_FIXED and: [
+		(self rawClass: o) = memory clsContext and: [k asUInt64 >= (self contextPrefix: o)]]]
 !
 primShallowCopy
 	<vmPrimitive: 80 name: 'shallowCopy'>
@@ -157,7 +171,10 @@ primShallowCopy
 	r := self receiver.
 	n := self numSlots: r.
 	(self fmtHasPointers: (self formatOf: r))
-		ifTrue: [memory copyRefs: c at: 0 from: r at: 0 count: n]
+		ifTrue: [
+			(vmMain c4Enabled and: [(self rawClass: r) = memory clsContext])
+				ifTrue: [memory copyC4Context: c from: r]
+				ifFalse: [memory copyRefs: c at: 0 from: r at: 0 count: n]]
 		ifFalse: [libc memcpy: (self bytesOf: c) from: (self bytesOf: r) size: n asUInt64 * 8].
 	self answer: c
 !
@@ -185,6 +202,7 @@ primSetImmutable
 primChangeClassTo
 	<vmPrimitive: 85 name: 'changeClassTo:'>
 	| r c spec isize f nf |
+	vmMain c4Enabled ifTrue: [^self fail].
 	r := self receiver.
 	c := self arg0.
 	((self isPtr: r) and: [(self isPtr: c) and: [(self numSlots: c) > BEH_FORMAT and: [self isInt: (self loadRef: c at: BEH_FORMAT)]]]) ifFalse: [^self fail].
@@ -230,6 +248,7 @@ countInstance: o data: d
 primAllInstances
 	<vmPrimitive: 86 name: 'allInstances'>
 	| a |
+	vmMain c4Enabled ifTrue: [^self fail].
 	gc fullGC.
 	instancesClass := self receiver.
 	instancesResult := 0.
@@ -245,6 +264,7 @@ primAllInstances
 !
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
+	vmMain c4Enabled ifTrue: [^self fail].
 	((self isPtr: self receiver) and: [(self isPtr: self arg0) and: [self receiver ~= memory nilOop]]) ifFalse: [^self fail].
 	interpreter flushIfMarried: self receiver.
 	gc fullGC.
@@ -455,6 +475,9 @@ primReplaceFromTo
 	kind = 1 ifTrue: [
 		fr := memory fixedFields: r.
 		fs := memory fixedFields: src.
+		(self c4InactiveContext: r at: fr asInt64 + stop - 1) ifTrue: [^self fail].
+		(vmMain c4Enabled and: [r = memory specialsOop and: [
+			fr asInt64 + start - 1 <= SO_COMPILEDMETHOD and: [fr asInt64 + stop - 1 >= SO_COMPILEDMETHOD]]]) ifTrue: [^self fail].
 		memory copyRefs: r at: (fr + start - 1) asUInt64 from: src at: (fs + rstart - 1) asUInt64 count: n asUInt64].
 	kind = 2 ifTrue: [libc memmove: (self bytesOf: r) + ((start - 1) * 8) from: (self bytesOf: src) + ((rstart - 1) * 8) size: n asUInt64 * 8].
 	kind = 3 ifTrue: [libc memmove: (self words32Of: r) + start - 1 from: (self words32Of: src) + rstart - 1 size: n asUInt64 * 4].

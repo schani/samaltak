@@ -8,7 +8,7 @@ UEFI_CC ?= clang
 UEFI_LD ?= ld.lld
 UEFI_TARGET ?= x86_64
 UEFI_CFLAGS := -target $(UEFI_TARGET)-unknown-none-elf -ffreestanding -fno-builtin -fno-stack-protector -fPIE -mno-red-zone \
-	-fno-math-errno -ffp-contract=off -O2 -std=gnu11 -fsigned-char -DSAMALTAK_UEFI -I$(GEN) -MMD -MP \
+	-fno-math-errno -ffp-contract=off -O2 -std=gnu11 -fsigned-char -DSAMALTAK_UEFI -I$(GEN) -I$(dir $(lastword $(MAKEFILE_LIST))) -MMD -MP \
 	-Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-type-limits -Wno-parentheses -Wno-unused-value -Wno-self-assign
 OBJS := $(patsubst $(GEN)/%.c,$(OBJ)/%.o,$(wildcard $(GEN)/*.c))
 

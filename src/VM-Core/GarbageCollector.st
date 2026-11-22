@@ -161,6 +161,13 @@ discard: p size: n
 init: edenBytes maxHeap: maxHeap
 	<function>
 	| surv young |
+	vmMain c4Requested ifTrue: [
+		maxHeap = 0 ifTrue: [self fatal: '--c4 requires a positive --max-heap'].
+		maxHeapBytes := maxHeap.
+		oldLo := oldTop := self reserve: maxHeap.
+		oldHi := oldLo + maxHeap.
+		oldBudget := maxHeap.
+		^self].
 	surv := edenBytes quo: 4.
 	young := edenBytes + (2 * surv).
 	youngLo := self reserve: young.
@@ -194,6 +201,7 @@ remember: o
 	remsetCount := remsetCount + 1
 !
 rememberIfOld: o
+	vmMain c4Enabled ifTrue: [^self].
 	((self isPtr: o) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]) ifTrue: [self remember: o]
 ! !
 
@@ -419,6 +427,7 @@ scavScan: o
 scavenge
 	<function>
 	| t0 tenureScan kept o scan w |
+	vmMain c4Enabled ifTrue: [self fatal: 'legacy scavenge entered in C4 mode'].
 	interpreter beforeGC.
 	t0 := scheduler workClockHeldUs.
 	statScavenges := statScavenges + 1.
@@ -594,6 +603,7 @@ fullDead: v
 fullGC
 	<function>
 	| t0 oldUsed scan s lo hi live classSlot nl |
+	vmMain c4Enabled ifTrue: [self fatal: 'legacy full GC entered in C4 mode'].
 	interpreter beforeGC.
 	t0 := scheduler workClockHeldUs.
 	statFullGcs := statFullGcs + 1.

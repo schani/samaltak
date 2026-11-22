@@ -56,10 +56,24 @@ static void count_instance(uint64_t o, void *d)
             return;
         }
         if (instances_result != 0) {
+            if (__builtin_expect(c4_enabled, 0)) {
+                if (((instances_count == CM_LITERALS) || ((instances_count == CM_BYTECODES) || (instances_count == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(instances_result, (uint32_t)instances_count, o)) {
+                    fatal_begin();
+                    fprintf(stderr, "C4 cannot replace compiled method storage");
+                    fatal_end();
+                }
+                if ((instances_count == CTX_STACKP) && (*(uint64_t *)(instances_result + 8) == cls_context)) {
+                    c4_store_context_stackp(instances_result, o);
+                } else {
+                    c4_heap_store_ref(instances_result, (uint32_t)instances_count, o);
+                }
+                goto exit_store_ref;
+            }
             *(uint64_t *)(instances_result + 16 + 8 * instances_count) = o;
             if (((o & 7) == 0) && ((o - young_lo < young_hi - young_lo) && ((!((uint64_t)(instances_result - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)instances_result) & H_REMEMBERED) == 0)))) {
                 remember(instances_result);
             }
+        exit_store_ref:;
         }
         instances_count = instances_count + 1;
     }
@@ -69,6 +83,11 @@ static void count_instance(uint64_t o, void *d)
 void prim_all_instances(void)
 {
     uint64_t a;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     full_gc();
     instances_class = prim_base[0];
     instances_result = 0;
@@ -95,7 +114,8 @@ void prim_at(void)
     oop v;
     int32_t f;
     uint32_t i;
-    uint64_t v_2;
+    oop r_load_ref;
+    oop v_2;
     int64_t v_3;
     uint64_t v_4;
     uint64_t v_5;
@@ -136,7 +156,14 @@ exit_index_of:;
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
     if ((f >= 1) && (f <= 4)) {
         i = fixed_fields(r) + (uint32_t)k;
-        v_2 = *(uint64_t *)(r + 16 + 8 * i);
+        v_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(r, i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(r + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
         prim_result = v_2;
         prim_status = PS_OK;
         return;
@@ -183,7 +210,9 @@ void prim_at_put(void)
     int64_t k;
     oop v;
     int32_t f;
-    uint32_t i;
+    uint32_t r_context_prefix;
+    uint32_t slots;
+    uint64_t sp;
     uint64_t local;
     uint64_t *u;
     r = prim_base[0];
@@ -219,11 +248,53 @@ exit_index_of:;
     }
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
     if ((f >= 1) && (f <= 4)) {
-        i = fixed_fields(r) + (uint32_t)k;
-        *(uint64_t *)(r + 16 + 8 * i) = v;
+        k = (int64_t)fixed_fields(r) + k;
+        if (c4_enabled && (((k == CM_LITERALS) || ((k == CM_BYTECODES) || (k == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)k, v))) {
+            prim_status = PS_FAIL;
+            prim_error_code = -1;
+            return;
+        }
+        if (c4_enabled && ((k >= CTX_FIXED) && ((*(uint64_t *)(r + 8) == cls_context) && ((uint64_t)k >= ({
+    slots = (uint32_t)*(uint64_t *)r;
+    if (slots < CTX_FIXED) {
+        r_context_prefix = slots;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(r + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; }))))) {
+            if (v == nil_oop) {
+                prim_result = v;
+                prim_status = PS_OK;
+            } else {
+                prim_status = PS_FAIL;
+                prim_error_code = -1;
+            }
+            return;
+        }
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (((k == CM_LITERALS) || ((k == CM_BYTECODES) || (k == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)k, v)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if ((k == CTX_STACKP) && (*(uint64_t *)(r + 8) == cls_context)) {
+                c4_store_context_stackp(r, v);
+            } else {
+                c4_heap_store_ref(r, (uint32_t)k, v);
+            }
+            goto exit_store_ref;
+        }
+        *(uint64_t *)(r + 16 + 8 * k) = v;
         if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0)))) {
             remember(r);
         }
+    exit_store_ref:;
     } else if (f == F_W64) {
         memset(&local, 0, sizeof local);
         u = &local;
@@ -338,6 +409,11 @@ void prim_become_forward(void)
     oop o;
     oop o_2;
     oop v;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     o = prim_base[0];
     if (!(((o & 7) == 0) && ({
     o_2 = prim_nargs > 0 ? prim_base[1] : nil_oop;
@@ -965,18 +1041,33 @@ void prim_change_class_to(void)
 {
     oop r;
     oop c;
-    uint64_t o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o;
+    oop r_load_ref_2;
+    oop o_2;
     int64_t spec;
-    uint64_t o_3;
+    oop r_load_ref_3;
+    oop o_3;
     int64_t isize;
     int32_t f;
     int32_t nf;
     uint64_t h;
+    if (c4_enabled) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     r = prim_base[0];
     c = prim_nargs > 0 ? prim_base[1] : nil_oop;
     if (!(((r & 7) == 0) && (((c & 7) == 0) && (((uint32_t)*(uint64_t *)c > BEH_FORMAT) && ({
-    o = *(uint64_t *)(c + 16 + 16);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(c, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(c + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     (o & 1) != 0; }))))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -987,9 +1078,23 @@ void prim_change_class_to(void)
         r = prim_base[0];
         c = prim_nargs > 0 ? prim_base[1] : nil_oop;
     }
-    o_2 = *(uint64_t *)(c + 16 + 16);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(c, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(c + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
     spec = ((int64_t)o_2) >> 1 >> CLS_SPEC_SHIFT;
-    o_3 = *(uint64_t *)(c + 16 + 16);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(c, 2U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(c + 16 + 16);
+exit_load_ref_3:;
+    r_load_ref_3; });
     isize = (((int64_t)o_3) >> 1) & CLS_INSTSIZE_MASK;
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
     nf = f;
@@ -1033,11 +1138,20 @@ void prim_change_class_to(void)
     }
     h = ((*(uint64_t *)r) & 18446743940565565439ULL) | (((uint64_t)nf) << H_FMT_SHIFT);
     *(uint64_t *)r = h;
+    if (c4_enabled) {
+        c4_heap_store((uint64_t *)(r + 8), c);
+        goto exit_raw_class;
+    }
     *(uint64_t *)(r + 8) = c;
+exit_raw_class:;
     if ((uint64_t)(c - young_lo) < young_hi - young_lo) {
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
         if (((r & 7) == 0) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0))) {
             remember(r);
         }
+    exit_remember_if_old:;
     }
     class_changed();
     prim_result = r;
@@ -1110,7 +1224,8 @@ void prim_inst_var_at(void)
     int64_t r_index_of;
     int64_t k;
     oop v;
-    uint64_t v_2;
+    oop r_load_ref;
+    oop v_2;
     r = prim_base[0];
     if (!(((r & 7) == 0) && ({
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
@@ -1143,7 +1258,14 @@ exit_index_of:;
         }
         r = prim_base[0];
     }
-    v_2 = *(uint64_t *)(r + 16 + 8 * k);
+    v_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (k >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(r, (uint32_t)k);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(r + 16 + 8 * k);
+exit_load_ref:;
+    r_load_ref; });
     prim_result = v_2;
     prim_status = PS_OK;
 }
@@ -1158,6 +1280,9 @@ void prim_inst_var_at_put(void)
     int64_t r_index_of;
     int64_t k;
     oop v;
+    uint32_t r_context_prefix;
+    uint32_t slots;
+    uint64_t sp;
     r = prim_base[0];
     if ((prim_nargs < 2) || ((!((r & 7) == 0)) || ((((*(uint64_t *)r) & H_IMMUTABLE) != 0) || ({
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
@@ -1182,6 +1307,11 @@ exit_index_of:;
         return;
     }
     v = prim_base[2];
+    if (c4_enabled && (((k == CTX_STACKP) && (*(uint64_t *)(r + 8) == cls_context)) || (((k == CM_LITERALS) || ((k == CM_BYTECODES) || (k == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)k, v)))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     if (is_married(r)) {
         if (k >= CTX_FIXED) {
             if (interpreter_context(r, k - CTX_FIXED, v)) {
@@ -1195,10 +1325,47 @@ exit_index_of:;
         r = prim_base[0];
         v = prim_base[2];
     }
+    if (c4_enabled && ((k >= CTX_FIXED) && ((*(uint64_t *)(r + 8) == cls_context) && ((uint64_t)k >= ({
+    slots = (uint32_t)*(uint64_t *)r;
+    if (slots < CTX_FIXED) {
+        r_context_prefix = slots;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(r + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; }))))) {
+        if (v == nil_oop) {
+            prim_result = v;
+            prim_status = PS_OK;
+        } else {
+            prim_status = PS_FAIL;
+            prim_error_code = -1;
+        }
+        return;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (((k == CM_LITERALS) || ((k == CM_BYTECODES) || (k == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(r, (uint32_t)k, v)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        if ((k == CTX_STACKP) && (*(uint64_t *)(r + 8) == cls_context)) {
+            c4_store_context_stackp(r, v);
+        } else {
+            c4_heap_store_ref(r, (uint32_t)k, v);
+        }
+        goto exit_store_ref;
+    }
     *(uint64_t *)(r + 16 + 8 * k) = v;
     if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0)))) {
         remember(r);
     }
+exit_store_ref:;
     prim_result = v;
     prim_status = PS_OK;
 }
@@ -1235,6 +1402,10 @@ void prim_replace_from_to(void)
     int64_t n;
     uint32_t fr;
     uint32_t fs;
+    int64_t k;
+    uint32_t r_context_prefix;
+    uint32_t slots;
+    uint64_t sp;
     if (prim_nargs < 4) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1318,6 +1489,30 @@ exit_element_kind_of_2:;
     if (kind == 1) {
         fr = fixed_fields(r);
         fs = fixed_fields(src);
+        k = (int64_t)fr + stop - 1;
+        if (c4_enabled && ((k >= CTX_FIXED) && ((*(uint64_t *)(r + 8) == cls_context) && ((uint64_t)k >= ({
+    slots = (uint32_t)*(uint64_t *)r;
+    if (slots < CTX_FIXED) {
+        r_context_prefix = slots;
+        goto exit_context_prefix;
+    }
+    sp = *(uint64_t *)(r + 16 + 16);
+    if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
+        r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+        goto exit_context_prefix;
+    }
+    r_context_prefix = 6U;
+exit_context_prefix:;
+    r_context_prefix; }))))) {
+            prim_status = PS_FAIL;
+            prim_error_code = -1;
+            return;
+        }
+        if (c4_enabled && ((r == specials_oop) && (((int64_t)fr + start - 1 <= SO_COMPILEDMETHOD) && ((int64_t)fr + stop - 1 >= SO_COMPILEDMETHOD)))) {
+            prim_status = PS_FAIL;
+            prim_error_code = -1;
+            return;
+        }
         object_memory_copy_refs_at_from_at_count(r, (uint64_t)(fr + start - 1), src, (uint64_t)(fs + rstart - 1), (uint64_t)n);
     }
     if (kind == 2) {
@@ -1400,7 +1595,11 @@ void prim_shallow_copy(void)
     n = (uint32_t)*(uint64_t *)r;
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
     if ((f >= 1) && (f <= 4)) {
-        object_memory_copy_refs_at_from_at_count(c, 0, r, 0, n);
+        if (c4_enabled && (*(uint64_t *)(r + 8) == cls_context)) {
+            copy_c4_context(c, r);
+        } else {
+            object_memory_copy_refs_at_from_at_count(c, 0, r, 0, n);
+        }
     } else {
         memcpy((uint8_t *)(c + 16), (uint8_t *)(r + 16), (uint64_t)n * 8);
     }

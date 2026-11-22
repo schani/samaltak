@@ -56,7 +56,7 @@ static bool work_clock_running;
 static int64_t work_clock_us;
 static bool work_clock_uses_cycles;
 
-static void add_first_link(uint64_t link, uint64_t list);
+static void add_first_link(oop link, oop list);
 static void add_last_link(oop link, oop list);
 static void idle_wait(void);
 static int64_t priority_of(oop p);
@@ -73,66 +73,161 @@ static void transfer_to(oop a_process);
 static void transfer_to_highest(void);
 
 /* Scheduler>>activeProcess */
-uint64_t active_process(void)
+oop active_process(void)
 {
     oop o;
+    oop r_load_ref;
     o = object_memory_special(SO_PROCESSOR);
-    return *(uint64_t *)(o + 16 + 8);
+    return ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
 }
 
 /* Scheduler>>addFirstLink:to: */
-static void add_first_link(uint64_t link, uint64_t list)
+static void add_first_link(oop link, oop list)
 {
-    uint64_t v;
-    v = *(uint64_t *)(list + 16 + 0);
+    oop r_load_ref;
+    oop v;
+    oop r_load_ref_2;
+    v = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(list, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(list + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(link, 0U, v);
+        goto exit_store_ref;
+    }
     *(uint64_t *)(link + 16 + 0) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!(link - young_lo < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
+    if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
         remember(link);
     }
-    if (*(uint64_t *)(list + 16 + 0) == nil_oop) {
-        *(uint64_t *)(list + 16 + 8) = link;
-        if (((link & 7) == 0) && ((link - young_lo < young_hi - young_lo) && ((!(list - young_lo < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
-            remember(list);
+exit_store_ref:;
+    if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(list, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(list + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; }) == nil_oop) {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(list, 1U, link);
+            goto exit_store_ref_2;
         }
-    }
-    *(uint64_t *)(list + 16 + 0) = link;
-    if (((link & 7) == 0) && ((link - young_lo < young_hi - young_lo) && ((!(list - young_lo < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
-        remember(list);
-    }
-    *(uint64_t *)(link + 16 + 24) = list;
-    if (((list & 7) == 0) && ((list - young_lo < young_hi - young_lo) && ((!(link - young_lo < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
-        remember(link);
-    }
-}
-
-/* Scheduler>>addLastLink:to: */
-static void add_last_link(oop link, oop list)
-{
-    uint64_t o;
-    *(uint64_t *)(link + 16 + 0) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
-        remember(link);
-    }
-    if (*(uint64_t *)(list + 16 + 0) == nil_oop) {
-        *(uint64_t *)(list + 16 + 0) = link;
+        *(uint64_t *)(list + 16 + 8) = link;
         if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
             remember(list);
         }
-    } else {
-        o = *(uint64_t *)(list + 16 + 8);
-        *(uint64_t *)(o + 16 + 0) = link;
-        if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!(o - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
-            remember(o);
-        }
+    exit_store_ref_2:;
     }
-    *(uint64_t *)(list + 16 + 8) = link;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(list, 0U, link);
+        goto exit_store_ref_3;
+    }
+    *(uint64_t *)(list + 16 + 0) = link;
     if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
         remember(list);
+    }
+exit_store_ref_3:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (c4_cannot_replace_code_slot(link, 3U, list)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(link, 3U, list);
+        goto exit_store_ref_4;
     }
     *(uint64_t *)(link + 16 + 24) = list;
     if (((list & 7) == 0) && (((uint64_t)(list - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
         remember(link);
     }
+exit_store_ref_4:;
+}
+
+/* Scheduler>>addLastLink:to: */
+static void add_last_link(oop link, oop list)
+{
+    oop r_load_ref;
+    oop r_load_ref_2;
+    oop o;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(link, 0U, nil_oop);
+        goto exit_store_ref;
+    }
+    *(uint64_t *)(link + 16 + 0) = nil_oop;
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
+        remember(link);
+    }
+exit_store_ref:;
+    if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(list, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(list + 16 + 0);
+exit_load_ref:;
+    r_load_ref; }) == nil_oop) {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(list, 0U, link);
+            goto exit_store_ref_2;
+        }
+        *(uint64_t *)(list + 16 + 0) = link;
+        if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
+            remember(list);
+        }
+    exit_store_ref_2:;
+    } else {
+        o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(list, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(list + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(o, 0U, link);
+            goto exit_store_ref_3;
+        }
+        *(uint64_t *)(o + 16 + 0) = link;
+        if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
+            remember(o);
+        }
+    exit_store_ref_3:;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(list, 1U, link);
+        goto exit_store_ref_4;
+    }
+    *(uint64_t *)(list + 16 + 8) = link;
+    if (((link & 7) == 0) && (((uint64_t)(link - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
+        remember(list);
+    }
+exit_store_ref_4:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (c4_cannot_replace_code_slot(link, 3U, list)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(link, 3U, list);
+        goto exit_store_ref_5;
+    }
+    *(uint64_t *)(link + 16 + 24) = list;
+    if (((list & 7) == 0) && (((uint64_t)(list - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
+        remember(link);
+    }
+exit_store_ref_5:;
 }
 
 /* Scheduler>>allocSampleHit:bytes: */
@@ -481,9 +576,17 @@ int64_t pause_charging(void)
 /* Scheduler>>priorityOf: */
 static int64_t priority_of(oop p)
 {
-    uint64_t v;
+    oop r_load_ref;
+    oop v;
     int64_t pr;
-    v = *(uint64_t *)(p + 16 + 16);
+    v = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(p, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(p + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     pr = (v & 1) != 0 ? ((int64_t)v) >> 1 : 1;
     return pr < 1 ? 1 : pr > 80 ? 80 : pr;
 }
@@ -493,7 +596,8 @@ int64_t process_cpu_time_us(oop proc)
 {
     bool r_in_ledger;
     int32_t i;
-    uint64_t ct;
+    oop r_load_ref;
+    oop ct;
     if ((!in_idle) && ((proc == active_process()) || ({
     for (i = 0; i <= ledger_n - 1; i++) {
         if (ledger_procs[i] == proc) {
@@ -506,26 +610,57 @@ exit_in_ledger:;
     r_in_ledger; }))) {
         reconcile();
     }
-    ct = *(uint64_t *)(proc + 16 + 40);
+    ct = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(proc, 5U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(proc + 16 + 40);
+exit_load_ref:;
+    r_load_ref; });
     return (ct & 1) != 0 ? ((int64_t)ct) >> 1 : 0;
 }
 
 /* Scheduler>>processorYield */
 void processor_yield(void)
 {
-    uint64_t active;
+    oop active;
     int64_t pri;
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     int64_t i;
-    uint64_t l;
+    oop r_load_ref_2;
+    oop l;
+    oop r_load_ref_3;
     active = active_process();
     pri = priority_of(active);
     o = object_memory_special(SO_PROCESSOR);
-    o_2 = *(uint64_t *)(o + 16 + 0);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     i = pri - 1;
-    l = *(uint64_t *)(o_2 + 16 + 8 * i);
-    if (*(uint64_t *)(l + 16 + 0) == nil_oop) {
+    l = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 8 * i);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(l, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(l + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; }) == nil_oop) {
         return;
     }
     add_last_link(active, l);
@@ -558,7 +693,7 @@ static int64_t raw_now_us(void)
 static int64_t reconcile(void)
 {
     int64_t now;
-    uint64_t proc;
+    oop proc;
     int64_t ns;
     int32_t i;
     int64_t cpu;
@@ -572,7 +707,8 @@ static int64_t reconcile(void)
     int64_t share;
     oop proc_2;
     int64_t us;
-    uint64_t ct;
+    oop r_load_ref;
+    oop ct;
     int64_t v;
     uint64_t v_2;
     now = raw_now_ns();
@@ -605,13 +741,25 @@ exit_ledger_add:;
         share = total == 0 ? i_3 == ledger_n - 1 ? t : 0 : t * (acc >> scale) / (total >> scale);
         proc_2 = ledger_procs[i_3];
         us = share - given;
-        ct = *(uint64_t *)(proc_2 + 16 + 40);
+        ct = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(proc_2, 5U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(proc_2 + 16 + 40);
+exit_load_ref:;
+    r_load_ref; });
         v = ((ct & 1) != 0 ? ((int64_t)ct) >> 1 : 0) + us;
         v_2 = (uint64_t)((v << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(proc_2, 5U, v_2);
+            goto exit_store_ref;
+        }
         *(uint64_t *)(proc_2 + 16 + 40) = v_2;
         if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!((uint64_t)(proc_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)proc_2) & H_REMEMBERED) == 0)))) {
             remember(proc_2);
         }
+    exit_store_ref:;
         given = share;
     }
     ledger_n = 0;
@@ -781,75 +929,178 @@ exit_work_clock_thread_cycles_2:;
 /* Scheduler>>removeFirstLink: */
 static oop remove_first_link(oop list)
 {
-    uint64_t first;
-    uint64_t next;
-    first = *(uint64_t *)(list + 16 + 0);
+    oop r_load_ref;
+    oop first;
+    oop r_load_ref_2;
+    oop next;
+    first = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(list, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(list + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     if (first == nil_oop) {
         return nil_oop;
     }
-    next = *(uint64_t *)(first + 16 + 0);
+    next = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(first, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(first + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(list, 0U, next);
+        goto exit_store_ref;
+    }
     *(uint64_t *)(list + 16 + 0) = next;
-    if (((next & 7) == 0) && ((next - young_lo < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
+    if (((next & 7) == 0) && (((uint64_t)(next - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
         remember(list);
     }
+exit_store_ref:;
     if (next == nil_oop) {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(list, 1U, nil_oop);
+            goto exit_store_ref_2;
+        }
         *(uint64_t *)(list + 16 + 8) = nil_oop;
         if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
             remember(list);
         }
+    exit_store_ref_2:;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(first, 0U, nil_oop);
+        goto exit_store_ref_3;
     }
     *(uint64_t *)(first + 16 + 0) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!(first - young_lo < young_hi - young_lo)) && (((*(uint64_t *)first) & H_REMEMBERED) == 0)))) {
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(first - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)first) & H_REMEMBERED) == 0)))) {
         remember(first);
+    }
+exit_store_ref_3:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (c4_cannot_replace_code_slot(first, 3U, nil_oop)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(first, 3U, nil_oop);
+        goto exit_store_ref_4;
     }
     *(uint64_t *)(first + 16 + 24) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!(first - young_lo < young_hi - young_lo)) && (((*(uint64_t *)first) & H_REMEMBERED) == 0)))) {
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(first - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)first) & H_REMEMBERED) == 0)))) {
         remember(first);
     }
+exit_store_ref_4:;
     return first;
 }
 
 /* Scheduler>>removeLink:from: */
-bool remove_link(oop link, uint64_t list)
+bool remove_link(oop link, oop list)
 {
     oop prev;
-    uint64_t cur;
-    uint64_t next;
+    oop r_load_ref;
+    oop cur;
+    oop r_load_ref_2;
+    oop r_load_ref_3;
+    oop next;
+    oop r_load_ref_4;
     prev = nil_oop;
-    cur = *(uint64_t *)(list + 16 + 0);
+    cur = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(list, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(list + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     while ((cur != nil_oop) && (cur != link)) {
         prev = cur;
-        cur = *(uint64_t *)(cur + 16 + 0);
+        cur = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(cur, 0U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(cur + 16 + 0);
+exit_load_ref_2:;
+    r_load_ref_2; });
     }
     if (cur == nil_oop) {
         return false;
     }
-    next = *(uint64_t *)(link + 16 + 0);
+    next = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(link, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(link + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
     if (prev == nil_oop) {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(list, 0U, next);
+            goto exit_store_ref;
+        }
         *(uint64_t *)(list + 16 + 0) = next;
-        if (((next & 7) == 0) && ((next - young_lo < young_hi - young_lo) && ((!(list - young_lo < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
+        if (((next & 7) == 0) && (((uint64_t)(next - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
             remember(list);
         }
+    exit_store_ref:;
     } else {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(prev, 0U, next);
+            goto exit_store_ref_2;
+        }
         *(uint64_t *)(prev + 16 + 0) = next;
-        if (((next & 7) == 0) && ((next - young_lo < young_hi - young_lo) && ((!((uint64_t)(prev - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)prev) & H_REMEMBERED) == 0)))) {
+        if (((next & 7) == 0) && (((uint64_t)(next - young_lo) < young_hi - young_lo) && ((!((uint64_t)(prev - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)prev) & H_REMEMBERED) == 0)))) {
             remember(prev);
         }
+    exit_store_ref_2:;
     }
-    if (*(uint64_t *)(list + 16 + 8) == link) {
+    if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_4 = c4_load_ref(list, 1U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(list + 16 + 8);
+exit_load_ref_4:;
+    r_load_ref_4; }) == link) {
+        if (__builtin_expect(c4_enabled, 0)) {
+            c4_heap_store_ref(list, 1U, prev);
+            goto exit_store_ref_3;
+        }
         *(uint64_t *)(list + 16 + 8) = prev;
-        if (((prev & 7) == 0) && (((uint64_t)(prev - young_lo) < young_hi - young_lo) && ((!(list - young_lo < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
+        if (((prev & 7) == 0) && (((uint64_t)(prev - young_lo) < young_hi - young_lo) && ((!((uint64_t)(list - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)list) & H_REMEMBERED) == 0)))) {
             remember(list);
         }
+    exit_store_ref_3:;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(link, 0U, nil_oop);
+        goto exit_store_ref_4;
     }
     *(uint64_t *)(link + 16 + 0) = nil_oop;
     if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
         remember(link);
     }
+exit_store_ref_4:;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (c4_cannot_replace_code_slot(link, 3U, nil_oop)) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(link, 3U, nil_oop);
+        goto exit_store_ref_5;
+    }
     *(uint64_t *)(link + 16 + 24) = nil_oop;
     if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(link - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)link) & H_REMEMBERED) == 0)))) {
         remember(link);
     }
+exit_store_ref_5:;
     return true;
 }
 
@@ -857,8 +1108,10 @@ bool remove_link(oop link, uint64_t list)
 void request_interrupt_check(void)
 {
     atomic_store_explicit(&interrupt_pending, 1, memory_order_relaxed);
-    state_block->interrupt = 1;
-    state_block->stack_limit = 0;
+    if (!c4_enabled) {
+        state_block->interrupt = 1;
+        state_block->stack_limit = 0;
+    }
 }
 
 /* Scheduler>>requestPeriodicPoll: */
@@ -880,33 +1133,67 @@ int64_t resume_charging(void)
 /* Scheduler>>resumeProcess: */
 void resume_process(oop proc)
 {
-    uint64_t active;
+    oop active;
     int64_t pri;
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     int64_t i;
+    oop r_load_ref_2;
     int64_t pri_2;
     oop o_3;
-    uint64_t o_4;
+    oop r_load_ref_3;
+    oop o_4;
     int64_t i_2;
+    oop r_load_ref_4;
     int64_t pri_3;
     oop o_5;
-    uint64_t o_6;
+    oop r_load_ref_5;
+    oop o_6;
     int64_t i_3;
+    oop r_load_ref_6;
     active = active_process();
     if ((!in_idle) && (priority_of(proc) > priority_of(active))) {
         if (preempt_to_front) {
             pri = priority_of(active);
             o = object_memory_special(SO_PROCESSOR);
-            o_2 = *(uint64_t *)(o + 16 + 0);
+            o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
             i = pri - 1;
-            add_first_link(active, *(uint64_t *)(o_2 + 16 + 8 * i));
+            add_first_link(active, ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 8 * i);
+exit_load_ref_2:;
+    r_load_ref_2; }));
         } else {
             pri_2 = priority_of(active);
             o_3 = object_memory_special(SO_PROCESSOR);
-            o_4 = *(uint64_t *)(o_3 + 16 + 0);
+            o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(o_3, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(o_3 + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; });
             i_2 = pri_2 - 1;
-            add_last_link(active, *(uint64_t *)(o_4 + 16 + 8 * i_2));
+            add_last_link(active, ({
+    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+        r_load_ref_4 = c4_load_ref(o_4, (uint32_t)i_2);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(o_4 + 16 + 8 * i_2);
+exit_load_ref_4:;
+    r_load_ref_4; }));
         }
         last_preempted = active;
         last_preempted_at_entry = safepoint_at_entry;
@@ -914,9 +1201,23 @@ void resume_process(oop proc)
     } else {
         pri_3 = priority_of(proc);
         o_5 = object_memory_special(SO_PROCESSOR);
-        o_6 = *(uint64_t *)(o_5 + 16 + 0);
+        o_6 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_5 = c4_load_ref(o_5, 0U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(o_5 + 16 + 0);
+exit_load_ref_5:;
+    r_load_ref_5; });
         i_3 = pri_3 - 1;
-        add_last_link(proc, *(uint64_t *)(o_6 + 16 + 8 * i_3));
+        add_last_link(proc, ({
+    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+        r_load_ref_6 = c4_load_ref(o_6, (uint32_t)i_3);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(o_6 + 16 + 8 * i_3);
+exit_load_ref_6:;
+    r_load_ref_6; }));
         if ((!in_idle) && (priority_of(proc) == priority_of(active))) {
             slice_check();
         }
@@ -926,17 +1227,47 @@ void resume_process(oop proc)
 /* Scheduler>>semaphoreSignal: */
 void scheduler_semaphore_signal(oop sem)
 {
-    uint64_t ex;
+    oop r_load_ref;
+    oop r_load_ref_2;
+    oop ex;
     int64_t v;
     uint64_t v_2;
-    if (*(uint64_t *)(sem + 16 + 0) == nil_oop) {
-        ex = *(uint64_t *)(sem + 16 + 16);
+    if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(sem, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(sem + 16 + 0);
+exit_load_ref:;
+    r_load_ref; }) == nil_oop) {
+        ex = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_2 = c4_load_ref(sem, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(sem + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
         v = ((ex & 1) != 0 ? ((int64_t)ex) >> 1 : 0) + 1;
         v_2 = (uint64_t)((v << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (c4_cannot_replace_code_slot(sem, 2U, v_2)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if (*(uint64_t *)(sem + 8) == cls_context) {
+                c4_store_context_stackp(sem, v_2);
+            } else {
+                c4_heap_store_ref(sem, 2U, v_2);
+            }
+            goto exit_store_ref;
+        }
         *(uint64_t *)(sem + 16 + 16) = v_2;
         if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!((uint64_t)(sem - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)sem) & H_REMEMBERED) == 0)))) {
             remember(sem);
         }
+    exit_store_ref:;
     } else {
         resume_process(remove_first_link(sem));
     }
@@ -945,17 +1276,39 @@ void scheduler_semaphore_signal(oop sem)
 /* Scheduler>>semaphoreWait: */
 void scheduler_semaphore_wait(oop sem)
 {
-    uint64_t ex;
+    oop r_load_ref;
+    oop ex;
     int64_t v;
     uint64_t v_2;
-    ex = *(uint64_t *)(sem + 16 + 16);
+    ex = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(sem, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(sem + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     if (((ex & 1) != 0) && ((((int64_t)ex) >> 1) > 0)) {
         v = (((int64_t)ex) >> 1) - 1;
         v_2 = (uint64_t)((v << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (c4_cannot_replace_code_slot(sem, 2U, v_2)) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if (*(uint64_t *)(sem + 8) == cls_context) {
+                c4_store_context_stackp(sem, v_2);
+            } else {
+                c4_heap_store_ref(sem, 2U, v_2);
+            }
+            goto exit_store_ref;
+        }
         *(uint64_t *)(sem + 16 + 16) = v_2;
         if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!((uint64_t)(sem - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)sem) & H_REMEMBERED) == 0)))) {
             remember(sem);
         }
+    exit_store_ref:;
         return;
     }
     add_last_link(active_process(), sem);
@@ -1010,14 +1363,22 @@ static void signal_index(int32_t index)
 {
     oop ext;
     int32_t i;
-    uint64_t s;
+    oop r_load_ref;
+    oop s;
     int32_t f;
     ext = object_memory_special(SO_EXTERNAL_OBJECTS);
     if ((index < 1) || ((!((ext & 7) == 0)) || ((ext == nil_oop) || ((uint32_t)index > (uint32_t)*(uint64_t *)ext)))) {
         return;
     }
     i = index - 1;
-    s = *(uint64_t *)(ext + 16 + 8 * i);
+    s = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref = c4_load_ref(ext, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(ext + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
     if (((s & 7) == 0) && ((s != nil_oop) && ({
     f = (int32_t)(((*(uint64_t *)s) >> H_FMT_SHIFT) & H_FMT_MASK);
     (f >= 1) && (f <= 4) && ((uint32_t)*(uint64_t *)s > SEM_EXCESS); }))) {
@@ -1030,9 +1391,12 @@ static void slice_check(void)
 {
     int64_t pri;
     oop o;
-    uint64_t o_2;
+    oop r_load_ref;
+    oop o_2;
     int64_t i;
-    uint64_t o_3;
+    oop r_load_ref_2;
+    oop o_3;
+    oop r_load_ref_3;
     bool contended;
     if (slice_us == 0) {
         return;
@@ -1043,10 +1407,31 @@ static void slice_check(void)
     }
     contended = (!in_idle) && ({
     o = object_memory_special(SO_PROCESSOR);
-    o_2 = *(uint64_t *)(o + 16 + 0);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
     i = pri - 1;
-    o_3 = *(uint64_t *)(o_2 + 16 + 8 * i);
-    *(uint64_t *)(o_3 + 16 + 0) != nil_oop; });
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 8 * i);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(o_3, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(o_3 + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; }) != nil_oop; });
     if (contended) {
         if (slice_expired && (pri == slice_priority)) {
             slice_expired = false;
@@ -1160,14 +1545,15 @@ static void transfer_to(oop a_process)
 {
     oop local;
     oop *proc;
-    uint64_t old;
+    oop old;
     int64_t now;
     int64_t ns;
     int32_t i;
     oop o;
     oop v;
     oop o_2;
-    uint64_t ctx;
+    oop r_load_ref;
+    oop ctx;
     oop o_3;
     memset(&local, 0, sizeof local);
     proc = &local;
@@ -1196,31 +1582,59 @@ exit_ledger_add:;
     if ((ledger_n == LEDGER_SIZE) || (now - window_start_ns >= RECONCILE_NS)) {
         reconcile();
     }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(old, 1U, active_ctx);
+        goto exit_store_ref;
+    }
     *(uint64_t *)(old + 16 + 8) = active_ctx;
-    if (((active_ctx & 7) == 0) && (((uint64_t)(active_ctx - young_lo) < young_hi - young_lo) && ((!(old - young_lo < young_hi - young_lo)) && (((*(uint64_t *)old) & H_REMEMBERED) == 0)))) {
+    if (((active_ctx & 7) == 0) && (((uint64_t)(active_ctx - young_lo) < young_hi - young_lo) && ((!((uint64_t)(old - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)old) & H_REMEMBERED) == 0)))) {
         remember(old);
     }
+exit_store_ref:;
     o = object_memory_special(SO_PROCESSOR);
     v = *proc;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o, 1U, v);
+        goto exit_store_ref_2;
+    }
     *(uint64_t *)(o + 16 + 8) = v;
     if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
         remember(o);
     }
+exit_store_ref_2:;
     o_2 = *proc;
-    ctx = *(uint64_t *)(o_2 + 16 + 8);
+    ctx = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o_2, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o_2 + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
     if ((!((ctx & 7) == 0)) || (ctx == nil_oop)) {
         fatal_begin();
         fprintf(stderr, "resuming a process without a context");
         fatal_end();
     }
     o_3 = *proc;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(o_3, 1U, nil_oop);
+        goto exit_store_ref_3;
+    }
     *(uint64_t *)(o_3 + 16 + 8) = nil_oop;
     if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_3) & H_REMEMBERED) == 0)))) {
         remember(o_3);
     }
+exit_store_ref_3:;
     active_ctx = ctx;
-    if (((ctx & 7) == 0) && ((!(ctx - young_lo < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
-        remember(ctx);
+    if (!c4_enabled) {
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
+        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
+            remember(ctx);
+        }
+    exit_remember_if_old:;
     }
     stat_process_switches = stat_process_switches + 1;
     slice_check();
@@ -1230,15 +1644,39 @@ exit_ledger_add:;
 static void transfer_to_highest(void)
 {
     oop o;
-    uint64_t lists;
+    oop r_load_ref;
+    oop lists;
     int64_t i;
-    uint64_t l;
+    oop r_load_ref_2;
+    oop l;
+    oop r_load_ref_3;
     for (;;) {
         o = object_memory_special(SO_PROCESSOR);
-        lists = *(uint64_t *)(o + 16 + 0);
+        lists = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(o + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
         for (i = (int64_t)(uint32_t)*(uint64_t *)lists - 1; i >= (work_clock_on && (!(work_clock_running || (work_clock_paced || work_clock_querying))) ? 49 : 0); i--) {
-            l = *(uint64_t *)(lists + 16 + 8 * i);
-            if (*(uint64_t *)(l + 16 + 0) != nil_oop) {
+            l = ({
+    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+        r_load_ref_2 = c4_load_ref(lists, (uint32_t)i);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(lists + 16 + 8 * i);
+exit_load_ref_2:;
+    r_load_ref_2; });
+            if (({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref_3 = c4_load_ref(l, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(l + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; }) != nil_oop) {
                 transfer_to(remove_first_link(l));
                 return;
             }

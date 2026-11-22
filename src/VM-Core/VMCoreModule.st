@@ -1,5 +1,5 @@
 VMModule subclass: #VMCoreModule
-	instanceVariableNames: 'memory gc interpreter scheduler imageFile primitives platform vmMain jit libc libm posix'
+	instanceVariableNames: 'memory gc interpreter scheduler imageFile primitives platform vmMain c4 jit libc libm posix'
 	classVariableNames: 'K_CONST K_JIT K_LEAF K_PRIM K_QUICK K_SETTER PS_FAIL PS_NONE PS_OK PS_RESEND PS_SWITCHED'
 	package: 'VM-Core'!
 
@@ -7,7 +7,7 @@ VMCoreModule comment: 'I am the abstract class of the VM core''s modules: I conn
 
 !VMCoreModule class methodsFor: 'declaring'!
 declarations
-	^#((memory ObjectMemory) (gc GarbageCollector) (interpreter Interpreter) (scheduler Scheduler) (imageFile ImageFile) (primitives PrimitiveTable) (platform PlatformInterface) (vmMain VMMain) (jit JitRuntime) (libc LibC) (libm LibM) (posix Posix))
+	^#((memory ObjectMemory) (gc GarbageCollector) (interpreter Interpreter) (scheduler Scheduler) (imageFile ImageFile) (primitives PrimitiveTable) (platform PlatformInterface) (vmMain VMMain) (c4 C4Heap) (jit JitRuntime) (libc LibC) (libm LibM) (posix Posix))
 !
 isAbstractModule
 	^self == VMCoreModule
@@ -84,6 +84,9 @@ rawClass: o
 	^self uint64At: o + 8
 !
 rawClass: o put: c
+	vmMain c4Enabled ifTrue: [
+		c4 store: (self cCoerce: o + 8 to: 'uint64_t *') value: c.
+		^self].
 	self uint64At: o + 8 put: c
 !
 objBytes: o
@@ -105,15 +108,37 @@ words32Of: o
 isYoung: o
 	^(o - gc youngLo) asUInt64 < (gc youngHi - gc youngLo)
 !
+contextPrefix: o
+	"C4 Context slots past this prefix can contain reclaimed addresses."
+	| sp slots |
+	slots := self numSlots: o.
+	slots < CTX_FIXED ifTrue: [^slots].
+	sp := self uint64At: o + 16 + (8 * CTX_STACKP).
+	((self isInt: sp) and: [(self intVal: sp) asUInt64 <= (slots - CTX_FIXED) asUInt64])
+		ifTrue: [^(CTX_FIXED + (self intVal: sp)) asUInt32].
+	^CTX_FIXED asUInt32
+!
 loadRef: o at: i
-	"The scalar heap body reference load. Bulk copies and native fast paths handle their loads separately."
+	"The scalar heap body reference load."
+	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED])
+		ifTrue: [^memory c4LoadRef: o at: i asUInt32].
 	^self uint64At: o + 16 + (8 * i)
 !
 storeRef: o at: i put: v
-	"The scalar generational write barrier. For bulk copies see ObjectMemory's copyRefs: methods."
+	"The scalar heap write barrier. For bulk copies see ObjectMemory's copyRefs: methods."
+	(self unlikely: vmMain c4Enabled) ifTrue: [
+		(self c4CodeStoreRejected: o at: i put: v) ifTrue: [self fatal: 'C4 cannot replace compiled method storage'].
+		(i = CTX_STACKP and: [(self rawClass: o) = memory clsContext])
+			ifTrue: [memory c4StoreContextStackp: o value: v]
+			ifFalse: [c4 storeRef: o at: i asUInt32 put: v].
+		^self].
 	self uint64At: o + 16 + (8 * i) put: v.
 	((self isPtr: v) and: [(self isYoung: v) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]])
 		ifTrue: [gc remember: o]
+!
+c4CodeStoreRejected: o at: i put: v
+	^(i = CM_LITERALS or: [i = CM_BYTECODES or: [i = SO_COMPILEDMETHOD]]) and: [
+		memory c4CannotReplaceCodeSlot: o at: i asUInt32 put: v]
 !
 ptr: anAddress
 	"An address as a void * (for the C library)."

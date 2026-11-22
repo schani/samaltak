@@ -48433,7 +48433,8 @@ static void emit_inline_closure(int32_t pc, int32_t fail)
     int64_t tn_27;
     uint64_t v_100;
     int64_t n_93;
-    uint64_t o;
+    oop r_load_ref;
+    oop o;
     int64_t cls_off_2;
     int64_t value_3;
     uint64_t v_101;
@@ -50899,7 +50900,14 @@ exit_op_27:;
 exit_str_11:;
     amd64_assembler_move_any_from(X13, X9);
     amd64_assembler_bind(have);
-    o = *(uint64_t *)(cls_block + 16 + 16);
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(cls_block, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(cls_block + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     n = (int32_t)((((int64_t)o) >> 1) & CLS_INSTSIZE_MASK) > 5 ? (int32_t)((((int64_t)o) >> 1) & CLS_INSTSIZE_MASK) : 5;
     if (asm_noting) {
         note("the closure: outerContext, startpc, numArgs, numTemps, frameSize, the rest nil", 0);
@@ -52429,7 +52437,8 @@ static void emit_inline_closure(int32_t pc, int32_t fail)
     int64_t off_14;
     uint64_t a_word_24;
     uint64_t a_word_25;
-    uint64_t o_4;
+    oop r_load_ref;
+    oop o_4;
     int64_t cls_off_2;
     int64_t value_3;
     uint64_t a_word_26;
@@ -53072,7 +53081,14 @@ exit_adr:;
         asm_error = ASM_ERR_FULL;
     }
     arm64_assembler_bind(have);
-    o_4 = *(uint64_t *)(cls_block + 16 + 16);
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && false) {
+        r_load_ref = c4_load_ref(cls_block, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(cls_block + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
     n = (int32_t)((((int64_t)o_4) >> 1) & CLS_INSTSIZE_MASK) > 5 ? (int32_t)((((int64_t)o_4) >> 1) & CLS_INSTSIZE_MASK) : 5;
     if (asm_noting) {
         note("the closure: outerContext, startpc, numArgs, numTemps, frameSize, the rest nil", 0);

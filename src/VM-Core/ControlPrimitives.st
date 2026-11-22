@@ -15,7 +15,9 @@ primPerform
 	b := interpreter primStackBase.
 	s := b at: 1.
 	(interpreter selectorArgc: s) ~= n ifTrue: [^self fail].
-	libc memmove: b + 1 from: b + 2 size: n asUInt64 * 8.
+	vmMain c4Enabled
+		ifTrue: [0 to: n - 1 do: [:i | interpreter stackSlot: b + 1 + i put: (b at: 2 + i)]]
+		ifFalse: [libc memmove: b + 1 from: b + 2 size: n asUInt64 * 8].
 	interpreter activeSetStackp: interpreter activeStackp - 1.
 	interpreter primResend: s argc: n
 !
@@ -31,7 +33,7 @@ primPerformWithArguments
 	n := (self numSlots: arr) asInt32.
 	bi := b - interpreter activeSlots.
 	((interpreter selectorArgc: s) ~= n or: [bi + 1 + n > interpreter activeCapacity]) ifTrue: [^self fail].
-	0 to: n - 1 do: [:i | b at: 1 + i put: ((self slotsOf: arr) at: i)].
+	0 to: n - 1 do: [:i | interpreter stackSlot: b + 1 + i put: (self loadRef: arr at: i)].
 	interpreter activeSetStackp: bi + 1 + n.
 	interpreter primResend: s argc: n
 ! !
@@ -190,6 +192,7 @@ primSamplerInterval
 primAllocationSampling
 	<vmPrimitive: 139 name: 'allocationSampling'>
 	| n |
+	vmMain c4Enabled ifTrue: [^self fail].
 	(self argCount < 2 or: [(self isInt: (self arg: 0)) not or: [(self isInt: (self arg: 1)) not]]) ifTrue: [^self fail].
 	n := self intVal: (self arg: 0).
 	scheduler allocSampleInterval: (n > 0 ifTrue: [n] ifFalse: [0]).
@@ -297,15 +300,15 @@ primTryPrimitive
 	n := self numSlots: arr.
 	(fn isNull or: [(primitives isTryable: (self intVal: idx)) not or: [bi + 1 + n asInt64 > interpreter activeCapacity]]) ifTrue: [^self answer: failed].
 	b := interpreter activeSlots + bi.
-	b at: 0 put: (b at: 2).
-	0 to: n asInt64 - 1 do: [:i | b at: 1 + i put: ((self slotsOf: arr) at: i)].
+	interpreter stackSlot: b put: (b at: 2).
+	0 to: n asInt64 - 1 do: [:i | interpreter stackSlot: b + 1 + i put: (self loadRef: arr at: i)].
 	interpreter activeSetStackp: bi + 1 + n asInt64.
 	interpreter setPrimBase: n asInt32.
 	interpreter primStatus: PS_NONE.
 	fn call.
 	res := interpreter primStatus = PS_OK ifTrue: [interpreter primResult] ifFalse: [memory special: SO_SEL_PRIMITIVEFAILED].
 	interpreter primResult: memory nilOop.
-	interpreter activeSlots at: bi put: res.
+	interpreter activeSlot: bi put: res.
 	interpreter activeSetStackp: bi + 1.
 	interpreter primCommitted
 ! !
