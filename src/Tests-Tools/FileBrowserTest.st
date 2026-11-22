@@ -213,7 +213,7 @@ testPreviewsACFile
 	self assert: (self tokenTypeAt: i + 10) equals: #global.
 	i := text indexOfSubCollection: (String with: Character lf), 'static '.
 	self assert: (self tokenTypeAt: i + 1) equals: #keyword.
-	self assert: (self tokenTypeAt: i + 8) equals: #identifier
+	self assert: (self tokenTypeAt: (text indexOfSubCollection: 'count')) equals: #identifier
 !
 testCSourceScanner
 	| source tokens |
