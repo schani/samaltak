@@ -619,15 +619,38 @@ terminate: c to: target
 	j + 1 < t ifTrue: [self moveTop: t to: j + 1].
 	^true
 !
+moveStackDown: dst from: src count: count
+	"dst < src in cstack. In the unpublished part of the root cut, save the
+	raw old word at each existing copy. Copy low to high for overlap."
+	<function>
+	<var: #dst type: 'oop *'>
+	<var: #src type: 'oop *'>
+	<var: #count type: 'size_t'>
+	| start lo hi prefix suffix |
+	(self unlikely: c4StackNext < c4StackLimit) ifTrue: [
+		start := (dst - cstack) asUInt64.
+		lo := start max: c4StackNext.
+		hi := start + count min: c4StackLimit.
+		lo < hi ifTrue: [
+			prefix := lo - start.
+			prefix > 0 ifTrue: [libc memmove: dst from: src size: prefix * 8].
+			lo asInt64 to: hi asInt64 - 1 do: [:i |
+				(c4SavedStackBits at: i) ifFalse: [
+					c4SavedStack at: i put: (cstack at: i).
+					c4SavedStackBits at: i put: true].
+				cstack at: i put: (src at: i - start)].
+			suffix := hi - start.
+			suffix < count ifTrue: [libc memmove: dst + suffix from: src + suffix size: (count - suffix) * 8].
+			^self]].
+	libc memmove: dst from: src size: count * 8
+!
 moveTop: t to: k
 	"Top frame t becomes frame k (k < t; the frames between are dropped): its receiver and slots move to where frame k's are, its Context follows."
 	| f g nfp |
 	f := frames + t.
 	g := frames + k.
 	nfp := g fp.
-	(self unlikely: c4StackNext < c4StackLimit) ifTrue: [
-		-1 to: f sp asInt64 - 1 do: [:i | self preserveStackRoot: nfp + i]].
-	libc memmove: nfp - 1 from: f fp - 1 size: (f sp asUInt64 + 1) * 8.
+	self moveStackDown: nfp - 1 from: f fp - 1 count: f sp asUInt64 + 1.
 	self preserveFrameRoots: g.
 	g copyStructFrom: f.
 	g fp: nfp.

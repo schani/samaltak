@@ -50,6 +50,7 @@ static oop ctx_home(oop a_context);
 static cache_entry *fill_cache(oop a_class, oop a_selector);
 static cache_entry *fill_entry(cache_entry *e, oop m, oop a_class, oop a_selector);
 static int64_t frame_size(frame *f);
+static void move_stack_down(oop *dst, oop *src, size_t count);
 static void print_stack(oop a_context, FILE *f);
 static void refresh_prim_base(void);
 static void refresh_tag_classes(void);
@@ -72036,6 +72037,41 @@ exit_object_address_8:;
     }
 }
 
+/* Interpreter>>moveStackDown:from:count: */
+static void move_stack_down(oop *dst, oop *src, size_t count)
+{
+    uint64_t start;
+    uint64_t lo;
+    uint64_t hi;
+    uint64_t prefix;
+    int64_t i;
+    uint64_t suffix;
+    if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
+        start = (uint64_t)(dst - cstack);
+        lo = start > c4_stack_next ? start : c4_stack_next;
+        hi = start + count < c4_stack_limit ? start + count : c4_stack_limit;
+        if (lo < hi) {
+            prefix = lo - start;
+            if (prefix > 0) {
+                memmove(dst, src, prefix * 8);
+            }
+            for (i = (int64_t)lo; i <= (int64_t)hi - 1; i++) {
+                if (!c4_saved_stack_bits[i]) {
+                    c4_saved_stack[i] = cstack[i];
+                    c4_saved_stack_bits[i] = true;
+                }
+                cstack[i] = src[i - start];
+            }
+            suffix = hi - start;
+            if (suffix < count) {
+                memmove(dst + suffix, src + suffix, (count - suffix) * 8);
+            }
+            return;
+        }
+    }
+    memmove(dst, src, count * 8);
+}
+
 /* Interpreter>>primCommit: */
 void prim_commit(oop a_result)
 {
@@ -73379,10 +73415,7 @@ bool terminate(uint64_t c, uint64_t target)
     frame *f_3;
     frame *g;
     oop *nfp;
-    int64_t i;
-    oop *p;
-    uint64_t i_2;
-    uint64_t i_3;
+    uint64_t i;
     uint64_t k_2;
     oop o_2;
     uint64_t v;
@@ -73587,25 +73620,15 @@ exit_object_address_10:;
         f_3 = frames + t;
         g = frames + k;
         nfp = g->fp;
-        if (__builtin_expect(c4_stack_next < c4_stack_limit, 0)) {
-            for (i = -1; i <= (int64_t)f_3->sp - 1; i++) {
-                p = nfp + i;
-                i_2 = (uint64_t)(p - cstack);
-                if ((i_2 >= c4_stack_next) && ((i_2 < c4_stack_limit) && (!c4_saved_stack_bits[i_2]))) {
-                    c4_saved_stack[i_2] = *p;
-                    c4_saved_stack_bits[i_2] = true;
-                }
-            }
-        }
-        memmove(nfp - 1, f_3->fp - 1, ((uint64_t)f_3->sp + 1) * 8);
+        move_stack_down(nfp - 1, f_3->fp - 1, (uint64_t)f_3->sp + 1);
         if (__builtin_expect(c4_frame_next < c4_frame_limit, 0)) {
-            i_3 = (uint64_t)(g - frames);
-            if ((i_3 >= c4_frame_next) && ((i_3 < c4_frame_limit) && (!c4_saved_frame_bits[i_3]))) {
-                k_2 = i_3 * 3;
+            i = (uint64_t)(g - frames);
+            if ((i >= c4_frame_next) && ((i < c4_frame_limit) && (!c4_saved_frame_bits[i]))) {
+                k_2 = i * 3;
                 c4_saved_frames[k_2] = g->method;
                 c4_saved_frames[k_2 + 1] = g->closure;
                 c4_saved_frames[k_2 + 2] = g->ctx;
-                c4_saved_frame_bits[i_3] = true;
+                c4_saved_frame_bits[i] = true;
             }
         }
         *g = *f_3;

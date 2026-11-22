@@ -106,6 +106,7 @@ endif
 
 test-c4-live:
 	tests/vm/c4-live/run-engine.sh
+	tests/vm/c4-live/run-stack-move.sh
 	OUT="$(OUT)" tests/vm/c4-live/run.sh
 
 test-tools: image
