@@ -59,6 +59,8 @@ static bool layout_at(uint64_t layout, uint32_t at)
     return layout_words(layout) && ((layout >> 32) & 1) == (at & 1);
 }
 
+enum { SHADOW_CHUNK = 64 }; /* arena words; aligned independently of object starts */
+
 enum { BIN_GROUPS = 4, BINS = BIN_GROUPS * 64 };
 
 typedef struct {
@@ -130,6 +132,7 @@ static struct {
     c4_bins bins;
     c4_cell *cells;
     _Atomic uint64_t *shadow;
+    _Atomic uint64_t *chunk_tags;
     c4_move_lane *moving;
 
     _Atomic uint32_t phase, epoch;
@@ -144,6 +147,9 @@ static struct {
     uint64_t unpublished;         /* sole private reserve; cannot cross a poll */
     uint32_t unpublished_words;   /* exact body size, excluding extent padding */
     uint64_t imports, cycles_started, closed, close_retries, allocated, reused, failed;
+
+    uint64_t shadow_tag, chunk_inits;
+    uint32_t max_publish_refs, max_chunk_init_refs;
 
     /* Worker-owned; reports are cumulative as of the last completed sweep. */
     _Atomic uint64_t cycles_completed, marked, traced_edges, reclaimed, reclaimed_bytes;
@@ -224,13 +230,18 @@ static uint32_t refs_at(uint64_t layout, uint32_t at)
     return at >= heap.capacity || layout_at(layout, at) ? (uint32_t)layout : C4_FREE;
 }
 
-/* The unused pinned shadow header is zero, C4_FORBID, or a target oop.
+/* Pinned shadow headers are zero, a forwarding target, C4_FORBID, or
+ * an odd lazy-shadow incarnation tag (> C4_FORBID).
  * A weak reader may sample a slot just before CLEAR rewrites it, so keep
  * the marker and cell start through sweep. Only private reserve resets it. */
+static uint64_t forward_target(uint64_t marker)
+{
+    return (marker & 7) ? 0 : marker;
+}
+
 static uint64_t forward_at(uint32_t at)
 {
-    uint64_t target = acquire(&heap.shadow[at]);
-    return target == C4_FORBID ? 0 : target;
+    return forward_target(acquire(&heap.shadow[at]));
 }
 
 bool c4_heap_has_forwarding(void)
@@ -359,6 +370,7 @@ void c4_heap_forbid_become(uint64_t obj)
     uint32_t at;
     if (!heap.started || !live_pinned(obj, &at) || forward_at(at))
         bad_contract("raw borrow without live unforwarded pinned owner");
+    if (relaxed(&heap.shadow[at]) > C4_FORBID) bad_contract("raw borrow with lazy reference shadow");
     put_relaxed(&heap.shadow[at], C4_FORBID);
 }
 
@@ -403,6 +415,50 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
     return true;
 }
 
+/* Keep the class and at least CTX_FIXED slots eager, including Context
+ * stackp. The lazy suffix starts on an absolute chunk boundary. Each tag
+ * belongs to at most one live owner: the next object's prefix is eager,
+ * even if its header lands in a previous object's final partial chunk. */
+static uint32_t lazy_start(uint32_t at)
+{
+    return (at + 2 + CTX_FIXED + SHADOW_CHUNK - 1) & ~(SHADOW_CHUNK - 1u);
+}
+
+static uint64_t lazy_tag(uint32_t at)
+{
+    if (at >= heap.capacity) return 0;
+    uint64_t tag = relaxed(&heap.shadow[at]);
+    return (tag & 1) && tag > C4_FORBID ? tag : 0;
+}
+
+/* A mismatched tag means implicit nil, including after splits or reuse.
+ * The worker never initializes a chunk. A concurrent first store publishes
+ * its initialized chunk before the edge store; the insertion barrier
+ * covers marking, and after ACK weak stores cannot insert a white edge. */
+static _Atomic uint64_t *shadow_field(uint32_t at, uint32_t i, uint32_t refs, bool write)
+{
+    if (at >= heap.capacity) return &shadow_row(at)[1 + i];
+    uint32_t word = at + 2 + i;
+    if (word >= lazy_start(at)) {
+        uint64_t tag = lazy_tag(at);
+        if (tag) {
+            _Atomic uint64_t *entry = &heap.chunk_tags[word / SHADOW_CHUNK];
+            if (acquire(entry) != tag) {
+                if (!write) return NULL;
+                uint32_t first = word & ~(SHADOW_CHUNK - 1u);
+                uint32_t end = first + SHADOW_CHUNK;
+                if (end > at + 2 + refs) end = at + 2 + refs;
+                uint32_t j = first;
+                for (; j < end; ++j) put_relaxed(&heap.shadow[j], heap.nil);
+                if (j - first > heap.max_chunk_init_refs) heap.max_chunk_init_refs = j - first;
+                ++heap.chunk_inits;
+                release(entry, tag);
+            }
+        }
+    }
+    return &heap.shadow[word];
+}
+
 static void shade_worker(uint64_t value, uint32_t *work)
 {
     uint32_t at;
@@ -444,7 +500,8 @@ static uint64_t clear_weak(uint32_t limit)
         uint32_t refs = (uint32_t)layout;
         if (refs < C4_RESERVED && relaxed(&cell->seen) == epoch) {
             for (uint32_t i = cell->weak_start; i < refs; ++i) {
-                _Atomic uint64_t *slot = &heap.shadow[at + 2 + i];
+                _Atomic uint64_t *slot = shadow_field(at, i, refs, false);
+                if (!slot) continue;
                 uint64_t prev = acquire(slot);
                 uint64_t next = c4_heap_canonical(prev);
                 if (!post_close_live(next)) next = heap.nil;
@@ -560,6 +617,20 @@ static void view_push(uint64_t value, uint32_t *work)
     *work = at + 1;
 }
 
+static uint64_t view_ref(uint32_t at, uint32_t i, uint32_t refs, c4_view_word *word)
+{
+    _Atomic uint64_t *slot = shadow_field(at, i, refs, false);
+#ifdef SAMALTAK_C4_TEST
+    extern void c4_heap_test_enum_field(uint32_t at, uint32_t i, bool materialized);
+    c4_heap_test_enum_field(at, i, slot != NULL);
+#endif
+    /* A tag mismatch at the read means the cut slot was nil: a cut-live
+     * owner cannot lose its chunk during a view. If we acquire a chunk
+     * published after the cut, its initial value is nil, and the first
+     * store preserves that nil before releasing its new slot value. */
+    return slot ? read_view(word, slot) : heap.nil;
+}
+
 static int32_t enumerate_view(void)
 {
     uint32_t work = 0;
@@ -573,8 +644,8 @@ static int32_t enumerate_view(void)
         c4_view_word *row = view_row(at);
         bool pinned = at < heap.capacity;
         if (pinned) {
-            uint64_t target = read_view(row, &heap.shadow[at]);
-            if (target && target != C4_FORBID) {
+            uint64_t target = forward_target(read_view(row, &heap.shadow[at]));
+            if (target) {
                 view_push(target, &work);
                 continue; /* never emit a forwarding source */
             }
@@ -601,7 +672,7 @@ static int32_t enumerate_view(void)
             limit = CTX_FIXED + (uint32_t)n;
         }
         for (uint32_t i = 0; i < limit; ++i)
-            view_push(read_view(row + 2 + i, shadow + 1 + i), &work);
+            view_push(view_ref(at, i, refs, row + 2 + i), &work);
     }
     return count;
 }
@@ -637,8 +708,36 @@ static void *worker(void *unused)
                 uint32_t limit = cell->weak_start != C4_NO_WEAK ? cell->weak_start :
                     is_context(at, refs) ? context_snapshot_limit(at, cell, refs) : refs;
                 edges += (uint64_t)limit + 1;
-                for (uint32_t f = 0; f <= limit; ++f)
-                    shade_worker(acquire(&shadow_row(at)[f]), &local);
+                uint32_t eager = limit;
+                uint64_t tag = 0;
+                if (refs > CTX_FIXED + SHADOW_CHUNK - 1 && limit > CTX_FIXED) {
+                    tag = lazy_tag(at);
+                    if (tag) {
+                        uint32_t prefix = lazy_start(at) - (at + 2);
+                        if (prefix < eager) eager = prefix;
+                    }
+                }
+                _Atomic uint64_t *row = shadow_row(at);
+                for (uint32_t f = 0; f <= eager; ++f)
+                    shade_worker(acquire(&row[f]), &local);
+
+                /* A matching acquire publishes the initialized fields. On
+                 * mismatch the whole span is implicit nil at this read.
+                 * A racing first strong store shades its value in MARK or
+                 * CLOSE; the mutator cannot ACK before publishing that work. */
+                uint32_t end = at + 2 + limit;
+                for (uint32_t word = at + 2 + eager; word < end; word += SHADOW_CHUNK) {
+                    bool materialized = acquire(&heap.chunk_tags[word / SHADOW_CHUNK]) == tag;
+#ifdef SAMALTAK_C4_TEST
+                    extern void c4_heap_test_mark_chunk(uint32_t at, uint32_t word, bool materialized);
+                    c4_heap_test_mark_chunk(at, word, materialized);
+#endif
+                    if (!materialized) continue;
+                    uint32_t stop = word + SHADOW_CHUNK;
+                    if (stop > end) stop = end;
+                    for (uint32_t j = word; j < stop; ++j)
+                        shade_worker(acquire(&heap.shadow[j]), &local);
+                }
                 continue;
             }
             if (phase == C4_MARK) {
@@ -702,11 +801,16 @@ bool c4_heap_init(void *base, size_t capacity)
     size_t words = capacity / 8;
     heap.cells = calloc((words + 1) / 2, sizeof *heap.cells);
     heap.shadow = calloc(words, sizeof *heap.shadow);
-    if (!heap.cells || !heap.shadow) {
+    /* Demand-zero tags. Reserving capacity must not touch all its chunks. */
+    size_t tag_bytes = ((words + SHADOW_CHUNK - 1) / SHADOW_CHUNK) * sizeof *heap.chunk_tags;
+    heap.chunk_tags = mmap(NULL, tag_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (!heap.cells || !heap.shadow || heap.chunk_tags == MAP_FAILED) {
         free(heap.cells);
         free(heap.shadow);
+        if (heap.chunk_tags != MAP_FAILED) munmap(heap.chunk_tags, tag_bytes);
         heap.cells = NULL;
         heap.shadow = NULL;
+        heap.chunk_tags = NULL;
         return false;
     }
     heap.base = (uintptr_t)base;
@@ -803,7 +907,7 @@ void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
 /* Real object access is mutator-only and occurs in private reserved blocks
  * or during import. weak_start comes from the validated class format. */
 static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
-    uint32_t weak_start, unsigned phase)
+    uint32_t weak_start, unsigned phase, bool nil_filled)
 {
     uint64_t *obj = (uint64_t *)(uintptr_t)addr;
     uint64_t header = obj[0];
@@ -820,7 +924,19 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
     bool shade_edges = marking(phase);
     bool closed = phase == C4_CLEAR || phase == C4_SWEEP;
     bool normalize = c4_heap_has_forwarding();
-    for (uint32_t i = 0; i <= refs; ++i) {
+    uint32_t eager = refs;
+    if (nil_filled && at < heap.capacity && refs > CTX_FIXED + SHADOW_CHUNK - 1) {
+        uint32_t prefix = lazy_start(at) - (at + 2);
+        if (refs > prefix) {
+            eager = prefix;
+            /* Never reuse a tag, even across mark epochs or split extents.
+             * Exhaustion would require 2^63 large allocations. */
+            if (heap.shadow_tag >= UINT64_MAX - 1) bad_contract("shadow tag exhausted");
+            heap.shadow_tag = (heap.shadow_tag + 2) | 1;
+            put_relaxed(&heap.shadow[at], heap.shadow_tag);
+        }
+    }
+    for (uint32_t i = 0; i <= eager; ++i) {
         uint64_t value = obj[1 + i];
         if (i && normalize) {
             uint64_t next = canonical(value);
@@ -834,6 +950,7 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
         }
         put_relaxed(&shadow_row(at)[i], value);
     }
+    if (heap.started && eager > heap.max_publish_refs) heap.max_publish_refs = eager;
     return true;
 }
 
@@ -850,7 +967,7 @@ bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_sta
     uint32_t at, words;
     if (heap.started || !offset(obj, &at) || at != relaxed(&heap.top) ||
         !object_size(bytes, &words) || words > heap.capacity - at ||
-        !mirror(at, obj, words, refs, weak_start, C4_IDLE))
+        !mirror(at, obj, words, refs, weak_start, C4_IDLE, false))
         return false;
 
     c4_cell *cell = heap.cells + at / 2;
@@ -1084,7 +1201,7 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
     return obj;
 }
 
-void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
+static void publish(uint64_t obj, uint32_t refs, uint32_t weak_start, bool nil_filled)
 {
     uint32_t at;
     if (!obj || obj != heap.unpublished || !key_of(obj, &at))
@@ -1097,11 +1214,23 @@ void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
     unsigned phase = acquire(&heap.phase);
     bool point = at >= heap.capacity;
     uint64_t addr = point ? heap.moving->points[at - heap.capacity].addr : obj;
-    if (!mirror(at, addr, heap.unpublished_words, refs, weak_start, phase))
+    if (!mirror(at, addr, heap.unpublished_words, refs, weak_start, phase, nil_filled))
         bad_contract("unsupported format, extent or weak layout");
     publish_layout(cell, refs, weak_start);
     heap.unpublished = 0;
 }
+
+void c4_heap_publish_nil(uint64_t obj, uint32_t refs, uint32_t weak_start)
+{
+    publish(obj, refs, weak_start, true);
+}
+
+#ifdef SAMALTAK_C4_TEST
+void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
+{
+    publish(obj, refs, weak_start, false);
+}
+#endif
 
 void c4_heap_store_class(uint64_t obj, uint64_t value)
 {
@@ -1142,9 +1271,10 @@ uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
     obj = c4_heap_canonical(obj);
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body load outside reference slots");
-    _Atomic uint64_t *field = &shadow_row(at)[1 + index];
+    _Atomic uint64_t *field;
     if (index < cell->weak_start) {
-        uint64_t raw = acquire(field);
+        field = shadow_field(at, index, refs, false);
+        uint64_t raw = field ? acquire(field) : heap.nil;
         uint64_t value = c4_heap_canonical(raw);
         if (value != raw) c4_heap_store_ref(obj, index, value);
         return value;
@@ -1153,7 +1283,8 @@ uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
     /* Observe the phase first: an IDLE load must be ordered after CLEAR,
      * not sample stale shadow just before the worker publishes IDLE. */
     unsigned phase = acquire(&heap.phase);
-    uint64_t raw = acquire(field);
+    field = shadow_field(at, index, refs, false);
+    uint64_t raw = field ? acquire(field) : heap.nil;
 #ifdef SAMALTAK_C4_TEST
     extern void c4_heap_test_after_weak_load(uint64_t obj, uint32_t i, uint64_t value);
     c4_heap_test_after_weak_load(obj, index, raw);
@@ -1163,7 +1294,7 @@ uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
     else if ((phase == C4_CLEAR || phase == C4_SWEEP) && !post_close_live(value))
         return heap.nil;
     /* Only weak shadow is authoritative. Do not restore a worker clear. */
-    if (value != raw)
+    if (field && value != raw)
         atomic_compare_exchange_strong_explicit(field, &raw, value,
             memory_order_acq_rel, memory_order_relaxed);
     return value;
@@ -1176,7 +1307,7 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
     value = c4_heap_canonical(value);
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body store outside reference slots");
-    _Atomic uint64_t *field = &shadow_row(at)[1 + index];
+    _Atomic uint64_t *field = shadow_field(at, index, refs, true);
     unsigned phase = acquire(&heap.phase);
     if (index >= cell->weak_start) {
         /* No SATB or insertion barrier for weak edges. After ACK even a
@@ -1447,6 +1578,8 @@ void c4_heap_stats(void)
         relaxed(&heap.reclaimed_bytes), relaxed(&heap.weak_cleared),
         heap.allocated, heap.reused, heap.failed,
         (uint64_t)relaxed(&heap.top) * 8, (uint64_t)relaxed(&heap.occupied) * 8);
+    fprintf(stderr, "c4-publish: max_refs=%u max_chunk_init_refs=%u chunk_inits=%" PRIu64 "\n",
+        heap.max_publish_refs, heap.max_chunk_init_refs, heap.chunk_inits);
     c4_move_lane *m = heap.moving;
     if (m) fprintf(stderr,
         "c4-moving: pool_bytes=%u reserve_bytes=%u ids=%u metadata_bytes=%zu"

@@ -85,7 +85,7 @@ movable: obj
 	^false
 !
 publish: obj refs: refs weakStart: first
-	<c: 'void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t first)'>
+	<c: 'void c4_heap_publish_nil(uint64_t obj, uint32_t refs, uint32_t first)'>
 !
 loadRef: obj at: i
 	<c: 'uint64_t c4_heap_load_ref(uint64_t obj, uint32_t i)'>

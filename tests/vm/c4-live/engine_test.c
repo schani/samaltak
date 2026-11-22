@@ -13,6 +13,10 @@ static _Atomic bool stall_cas, at_cas;
 static oop race_owner, race_prev;
 static uint32_t race_slot;
 static bool finish_during_load;
+static _Atomic bool stall_enum_field, at_enum_field;
+static uint32_t enum_owner_word, enum_slot;
+static _Atomic bool stall_mark_chunk, at_mark_chunk;
+static uint32_t mark_owner_word, mark_chunk_word;
 
 /* Runs on the mutator after the shadow read. Force the worker to finish
  * while that read still holds the pre-CAS bits in a local. */
@@ -47,6 +51,25 @@ void c4_heap_test_before_enum(void)
 {
     atomic_store(&at_enum, true);
     while (atomic_load(&stall_enum)) sched_yield();
+}
+
+/* Park the worker after it observes an implicit-nil slot. The adjacent
+ * slot in the same chunk will then take the materialized/version path. */
+void c4_heap_test_enum_field(uint32_t at, uint32_t i, bool materialized)
+{
+    if (!atomic_load(&stall_enum_field) || at != enum_owner_word || i != enum_slot) return;
+    assert(!materialized);
+    atomic_store(&at_enum_field, true);
+    while (atomic_load(&stall_enum_field)) sched_yield();
+}
+
+/* Stop after the tag load, before the worker acts on the mismatch. */
+void c4_heap_test_mark_chunk(uint32_t at, uint32_t word, bool materialized)
+{
+    if (!atomic_load(&stall_mark_chunk) || at != mark_owner_word || word != mark_chunk_word) return;
+    assert(!materialized);
+    atomic_store(&at_mark_chunk, true);
+    while (atomic_load(&stall_mark_chunk)) sched_yield();
 }
 
 static void *arena(size_t size)
@@ -1210,6 +1233,228 @@ static void enumeration_limit(void)
     c4_heap_enum_finish();
 }
 
+static oop alloc_nil(oop cls, unsigned fmt, uint32_t slots, uint32_t weak_start, oop nil)
+{
+    oop obj = reserve_pinned(extent(slots));
+    assert(obj);
+    oop *p = (oop *)(uintptr_t)obj;
+    p[0] = ((oop)fmt << H_FMT_SHIFT) | slots;
+    p[1] = cls;
+    for (uint32_t i = 0; i < slots; ++i) p[2 + i] = nil;
+    c4_heap_publish_nil(obj, slots, weak_start);
+    return obj;
+}
+
+static void lazy_mark(void)
+{
+    enum { SLOTS = 1025, FIRST_WORD = 512 };
+    oop nil = (oop)(uintptr_t)arena(extent(0) + extent(SLOTS) + 5 * extent(1));
+    initialize(nil, nil, F_EMPTY, 0);
+    c4_heap_set_nil(nil);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    assert(c4_heap_start());
+    oop old = alloc_nil(nil, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    uint32_t first = FIRST_WORD - (old - nil) / 8 - 2;
+    oop stale = alloc(nil, F_VAR, 1);
+    c4_heap_store_ref(old, first + 1, stale);
+    c4_heap_store_ref(old, first - 256, stale); /* this old tag stays mismatched */
+    assert(c4_heap_begin());
+    c4_heap_root(stale);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    oop owner = alloc_nil(nil, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    assert(owner == old);
+    oop branch = alloc(nil, F_VAR, 1);
+    oop child = alloc(nil, F_VAR, 1);
+    oop tail = alloc(nil, F_VAR, 1);
+    oop at_ack = alloc(nil, F_VAR, 1);
+    c4_heap_store_ref(branch, 0, child);
+    c4_heap_store_ref(owner, SLOTS - 1, tail); /* materialized final partial chunk */
+
+    mark_owner_word = (owner - nil) / 8;
+    mark_chunk_word = FIRST_WORD;
+    unsigned before = atomic_load(&proposals);
+    atomic_store(&stall_mark_chunk, true);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_mark_chunk)) sched_yield();
+    c4_heap_store_ref(owner, first, branch); /* first store after the skip decision */
+    assert(c4_heap_load_ref(owner, first + 1) == nil);
+    atomic_store(&stall_mark_chunk, false);
+    while (!atomic_load(&at_close)) sched_yield();
+    c4_heap_store_ref(owner, first + 256, at_ack); /* first store while CLOSE is proposed */
+    c4_heap_finish_poll(); /* must retry, not ACK */
+    atomic_store(&stall_close, false);
+    finish_cycle();
+
+    assert(atomic_load(&proposals) >= before + 2);
+    assert(c4_heap_load_ref(branch, 0) == child);
+    assert(c4_heap_load_ref(child, 0) == 1);
+    assert(c4_heap_load_ref(tail, 0) == 1);
+    assert(c4_heap_load_ref(at_ack, 0) == 1);
+    assert(alloc(nil, F_VAR, 1) == stale);
+}
+
+static void lazy_publish(void)
+{
+    enum { SLOTS = 65536 };
+    size_t room = extent(0) + 2 * extent(SLOTS) + 2 * extent(1);
+    oop nil = (oop)(uintptr_t)arena(room);
+    initialize(nil, nil, F_EMPTY, 0);
+    c4_heap_set_nil(nil);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    assert(c4_heap_start());
+    oop strong = alloc_nil(nil, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    oop weak = alloc_nil(nil, F_WEAK, SLOTS, 0, nil);
+    oop kept = alloc(nil, F_VAR, 1);
+    oop dead = alloc(nil, F_VAR, 1);
+    c4_heap_store_ref(strong, SLOTS - 1, kept);
+    c4_heap_store_ref(weak, SLOTS - 1, kept);
+    c4_heap_store_ref(weak, SLOTS - 2, dead);
+    c4_heap_store_ref(weak, SLOTS - 3, dead);
+    assert(c4_heap_load_ref(strong, SLOTS - 2) == nil);
+    assert(c4_heap_load_ref(weak, SLOTS - 4) == nil);
+
+    /* Pause the worker during the clear. Materialize a previously untouched
+     * chunk in the mutator, after ACK: a dead edge still must not enter it. */
+    race_owner = weak;
+    race_slot = SLOTS - 2;
+    race_prev = dead;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(strong);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    c4_heap_store_ref(weak, SLOTS - 2, 45); /* make the pending CLEAR CAS lose */
+    c4_heap_store_ref(weak, SLOTS / 2, dead);
+    c4_heap_store_ref(weak, SLOTS / 2 + 1, 41);
+    assert(c4_heap_load_ref(weak, SLOTS / 2) == nil);
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(c4_heap_load_ref(weak, SLOTS - 3) == nil);
+    assert(c4_heap_load_ref(weak, SLOTS - 2) == 45);
+    assert(c4_heap_load_ref(weak, SLOTS - 1) == kept);
+    assert(c4_heap_load_ref(weak, SLOTS / 2 + 1) == 41);
+
+    /* Reuse the same large extent. Physical shadow still has kept in the
+     * old incarnation's tag; it must not look like a fresh edge. */
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(kept);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(nil, F_VAR, 3) == strong);
+    oop tail = alloc_nil(nil, F_VAR, SLOTS - 5, C4_NO_WEAK, nil);
+    assert(tail == strong + extent(3));
+    assert(c4_heap_load_ref(tail, SLOTS - 6) == nil);
+    c4_heap_store_ref(tail, SLOTS - 6, kept);
+
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(kept);
+    c4_heap_end_roots();
+    finish_cycle();
+    oop reused = alloc_nil(nil, F_WEAK, SLOTS, 0, nil);
+    assert(reused == strong);
+    assert(c4_heap_load_ref(reused, SLOTS - 1) == nil);
+    c4_heap_store_ref(reused, SLOTS - 2, 43);
+    assert(c4_heap_load_ref(reused, SLOTS - 1) == nil);
+    assert(c4_heap_load_ref(reused, SLOTS - 2) == 43);
+}
+
+
+static void lazy_enumeration(void)
+{
+    enum { SLOTS = 8192, RACE_SLOT = SLOTS / 2 };
+    oop nil = (oop)(uintptr_t)arena(5 * extent(SLOTS) + 4096);
+    initialize(nil, nil, F_EMPTY, 0);
+    c4_heap_set_nil(nil);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    oop cls = nil + extent(0);
+    initialize(cls, nil, F_EMPTY, 0);
+    assert(c4_heap_import(cls, extent(0), 0, C4_NO_WEAK));
+    oop imported_item = cls + extent(0);
+    initialize(imported_item, cls, F_EMPTY, 0);
+    assert(c4_heap_import(imported_item, extent(0), 0, C4_NO_WEAK));
+    oop imported = imported_item + extent(0);
+    initialize(imported, nil, F_VAR, SLOTS);
+    ((oop *)(uintptr_t)imported)[SLOTS + 1] = imported_item;
+    assert(c4_heap_import(imported, extent(SLOTS), SLOTS, C4_NO_WEAK));
+    assert(c4_heap_start());
+    oop owner = alloc_nil(nil, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    oop weak = alloc_nil(nil, F_WEAK, SLOTS, 1, nil);
+    oop kept = alloc(cls, F_EMPTY, 0);
+    oop fixed = alloc(cls, F_EMPTY, 0);
+    oop weak_only = alloc(cls, F_EMPTY, 0);
+    c4_heap_store_ref(owner, SLOTS - 1, kept);
+    c4_heap_store_ref(weak, 0, fixed);
+    c4_heap_store_ref(weak, SLOTS - 1, weak_only);
+
+    enum_begin(cls, owner);
+    c4_heap_root(imported);
+    c4_heap_root(weak);
+    c4_heap_store_ref(imported, SLOTS - 1, nil);
+    c4_heap_store_ref(owner, SLOTS - 1, nil);
+    c4_heap_store_ref(weak, 0, nil);
+    enum_owner_word = (owner - nil) / 8;
+    enum_slot = RACE_SLOT;
+    atomic_store(&stall_enum_field, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum_field)) sched_yield();
+    oop fresh = alloc_nil(cls, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    c4_heap_store_ref(owner, RACE_SLOT, fresh);
+    c4_heap_store_ref(owner, RACE_SLOT + 1, fresh);
+    c4_heap_store_ref(weak, SLOTS - 2, fresh);
+    assert(c4_heap_load_ref(owner, RACE_SLOT + 2) == nil);
+    atomic_store(&stall_enum_field, false);
+
+    assert(enum_count() == 3);
+    unsigned found = 0;
+    for (uint32_t i = 0; i < 3; ++i) {
+        oop result = c4_heap_enum_at(i);
+        found |= result == imported_item ? 1 : result == kept ? 2 : result == fixed ? 4 : 0;
+    }
+    assert(found == 7);
+    c4_heap_enum_finish();
+
+    enum_begin(cls, owner);
+    c4_heap_root(imported);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == fresh);
+    c4_heap_enum_finish();
+
+    /* The marker has already finished scanning the rooted old owner. An
+     * insertion into an untouched chunk and stores on a fresh black owner
+     * must reopen marking and retain both white targets. */
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    c4_heap_store_ref(owner, SLOTS / 4, kept);
+    oop black = alloc_nil(cls, F_VAR, SLOTS, C4_NO_WEAK, nil);
+    c4_heap_store_ref(owner, SLOTS / 4 + 1, black);
+    c4_heap_store_ref(black, SLOTS - 1, weak_only);
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(atomic_load(&proposals) >= 2);
+
+    enum_begin(cls, owner);
+    c4_heap_end_roots();
+    assert(enum_count() == 4); /* fresh, kept, black and weak_only */
+    c4_heap_enum_finish();
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -1218,6 +1463,9 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "oracle")) oracle();
     else if (!strcmp(argv[1], "weak-close")) weak_close();
     else if (!strcmp(argv[1], "weak-shadow")) weak_shadow();
+    else if (!strcmp(argv[1], "lazy-publish")) lazy_publish();
+    else if (!strcmp(argv[1], "lazy-mark")) lazy_mark();
+    else if (!strcmp(argv[1], "lazy-enumeration")) lazy_enumeration();
     else if (!strcmp(argv[1], "weak-idle")) weak_idle_transition();
     else if (!strcmp(argv[1], "forward-strong")) forward_strong();
     else if (!strcmp(argv[1], "forward-claimed")) forward_claimed();

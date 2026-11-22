@@ -41,7 +41,12 @@ bool c4_heap_start(void);
  * No fit returns zero; allocation does not collect or wait for a cycle. refs
  * is the full slot count for pointer formats 1–4, zero for raw formats. */
 uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr);
+/* All ref slots must be initialized to nil except the fixed Context stackp.
+ * Arbitrary initialized edges are supported at startup (import) only. */
+void c4_heap_publish_nil(uint64_t obj, uint32_t refs, uint32_t weak_start);
+#ifdef SAMALTAK_C4_TEST
 void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start);
+#endif
 /* Configure exact pinned ByteString and WideString classes before start.
  * The classes are roots. Omit to disable forwarding. The target header
  * (including its identity hash) is unchanged. */
@@ -114,7 +119,7 @@ static inline void c4_heap_set_context_class(uint64_t cls) { (void)cls; }
 static inline bool c4_heap_start(void) { return false; }
 static inline uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
 { (void)bytes; (void)lane; *init_addr = 0; return 0; }
-static inline void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
+static inline void c4_heap_publish_nil(uint64_t obj, uint32_t refs, uint32_t weak_start)
 { (void)obj; (void)refs; (void)weak_start; }
 static inline void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
 { (void)bytes; (void)wide; }

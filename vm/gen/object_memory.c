@@ -109,7 +109,7 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     if (cls == cls_context) {
         *(uint64_t *)(*addr + 16 + 16) = 1ULL;
     }
-    c4_heap_publish(o, refs, (uint32_t)first);
+    c4_heap_publish_nil(o, refs, (uint32_t)first);
     n_2 = stat_allocated + bytes;
     stat_allocated = n_2;
     if (alloc_sample_interval > 0) {
