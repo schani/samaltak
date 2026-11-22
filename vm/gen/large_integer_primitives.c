@@ -101,6 +101,7 @@ static void answer(uint64_t *r, int64_t n, bool neg)
     uint64_t o;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     k = n;
     while ((k > 0) && (r[k - 1] == 0)) {
         k = k - 1;
@@ -132,14 +133,18 @@ static void answer(uint64_t *r, int64_t n, bool neg)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }), r, (uint64_t)(k * 8));
     prim_result = o;
     prim_status = PS_OK;

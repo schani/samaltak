@@ -302,9 +302,10 @@ c4BecomeForward
 	self argCount = 1 ifFalse: [^self fail].
 	from := self receiver.
 	to := self arg0.
-	((self isPtr: from) and: [from ~= 0 and: [(self rawClass: from) = memory clsBytestring and: [
-		(self isPtr: to) and: [to ~= 0 and: [(self rawClass: to) = (memory special: SO_WIDESTRING)]]]]])
+	((self isPtr: from) and: [from ~= 0 and: [(self isPtr: to) and: [to ~= 0]]])
 		ifFalse: [^self fail].
+	((self rawClass: from) = memory clsBytestring and: [(self rawClass: to) ~= (memory special: SO_WIDESTRING)])
+		ifTrue: [^self fail].
 	jit c4ForwardingOutsideNative ifFalse: [self fatal: 'C4 forwarding entered with native frames live'].
 	(c4 becomeForward: from to: to) ifFalse: [^self fail].
 	jit c4ForwardingInstalled.

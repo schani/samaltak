@@ -111,8 +111,11 @@ bodyAddress: o
 	^(self objectAddress: o) + 16
 !
 pinnedBodyAddress: o
+	| owner |
 	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable object'].
-	^(self canonicalOop: o) + 16
+	owner := self canonicalOop: o.
+	(self unlikely: vmMain c4Enabled) ifTrue: [c4 notePinnedView: owner].
+	^owner + 16
 !
 slotsOf: o
 	^self cCoerce: (self pinnedBodyAddress: o) to: 'oop *'

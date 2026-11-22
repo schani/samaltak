@@ -71,6 +71,11 @@ void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start);
  * The classes are roots. Omit to disable forwarding. The target header
  * (including its identity hash) is unchanged. */
 void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide);
+/* Optional exact imported, audited two-slot classes; zero disables a class.
+ * As with the byte classes, registered classes are roots. */
+void c4_heap_set_pointer_forward_classes(uint64_t point, uint64_t message, uint64_t association);
+/* Notify before exposing a canonical pinned pointer owner's raw body. */
+void c4_heap_note_pinned_view(uint64_t obj);
 bool c4_heap_become_forward(uint64_t from, uint64_t to);
 /* Sticky fast guard. Canonicalization gives a logical oop, not a body view.
  * Trace a raw alias unless the actual root slot has been normalized. */
@@ -102,7 +107,7 @@ uint32_t c4_heap_weak_start(uint64_t obj);
  * remains off until finish; publish/root the result before calling it. */
 bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b);
 /* -2: pending, -1: failed, otherwise number of canonical IDs. Recheck
- * before publication: forwarding of ByteStrings can invalidate a view. */
+ * before publication: forwarding a source of the requested class invalidates the view. */
 int32_t c4_heap_enum_count(void);
 uint64_t c4_heap_enum_at(uint32_t index);
 void c4_heap_enum_finish(void);
@@ -162,6 +167,9 @@ static inline void c4_heap_publish_nil(uint64_t obj, uint32_t refs, uint32_t wea
 { (void)obj; (void)refs; (void)weak_start; }
 static inline void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
 { (void)bytes; (void)wide; }
+static inline void c4_heap_set_pointer_forward_classes(uint64_t point, uint64_t message, uint64_t association)
+{ (void)point; (void)message; (void)association; }
+static inline void c4_heap_note_pinned_view(uint64_t obj) { (void)obj; }
 static inline bool c4_heap_become_forward(uint64_t from, uint64_t to)
 { (void)from; (void)to; return false; }
 static inline bool c4_heap_has_forwarding(void) { return false; }

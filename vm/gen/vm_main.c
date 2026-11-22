@@ -90,6 +90,7 @@ int main(int n, char **v)
     bool r_c4_code_store_rejected;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t r_object_address_5;
     uint64_t r_object_address_6;
     defaults();
@@ -260,14 +261,18 @@ exit_load_ref_2:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(proc);
         goto exit_canonical_oop;
     }
     r_canonical_oop = proc;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[PROC_SUSPENDED] = nil_oop;
     if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {

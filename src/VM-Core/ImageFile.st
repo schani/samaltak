@@ -100,23 +100,37 @@ importC4
 				self fatal: 'bad C4 image Context stack pointer']].
 		(c4 import: p bytes: bytes refs: refs weakStart: first asUInt32) ifFalse: [self fatal: 'cannot import object into C4 heap'].
 		p := p + bytes].
-	vmMain c4Moving ifTrue: [c4 intervalClass: self auditedIntervalClass]
+	vmMain c4Moving ifTrue: [c4 intervalClass: self auditedIntervalClass].
+	c4 platformFiles ifFalse: [
+		c4 forwardPoint: (self auditedPinnedClass: memory clsPoint named: 'Point' length: 5 slots: 2)
+			message: (self auditedPinnedClass: memory clsMessage named: 'Message' length: 7 slots: 2)
+			association: (self auditedPinnedClass: (memory special: SO_ASSOCIATION) named: 'Association' length: 11 slots: 2)]
 !
-auditedIntervalClass
-	"Optional appended special. Check only imported starts before dereferencing
-	the candidate descriptor and its layout metadata. Older images pin it."
+auditedPinnedClass: cls named: name length: n slots: slots
+	"Exact special descriptor, not a subclass or a same-sized lookalike.
+	Check imported starts before dereferencing layout metadata."
 	<function>
-	| cls meta names |
-	cls := memory special: SO_INTERVAL.
+	<var: #name type: 'char *'>
+	<var: #n type: 'size_t'>
+	<var: #slots type: 'uint32_t'>
+	| meta |
 	(cls = memory nilOop or: [(c4 isImported: cls) not]) ifTrue: [^0].
 	((self formatOf: cls) = F_FIXED and: [(self numSlots: cls) > CLS_NAME])
 		ifFalse: [^0].
-	(memory c4FixedFieldsFor: cls spec: F_FIXED slots: 3) = 3 ifFalse: [^0].
+	(memory c4FixedFieldsFor: cls spec: F_FIXED slots: slots) = slots ifFalse: [^0].
 	meta := self rawClass: cls.
 	((c4 isImported: meta) and: [(self formatOf: meta) = F_FIXED and: [
 		(self numSlots: meta) > META_THISCLASS and: [(self loadRef: meta at: META_THISCLASS) = cls]]])
 		ifFalse: [^0].
-	(self classLayoutName: (self loadRef: cls at: CLS_NAME) is: 'Interval' length: 8) ifFalse: [^0].
+	(self classLayoutName: (self loadRef: cls at: CLS_NAME) is: name length: n) ifFalse: [^0].
+	^cls
+!
+auditedIntervalClass
+	"Optional appended special. Older images pin it."
+	<function>
+	| cls names |
+	cls := self auditedPinnedClass: (memory special: SO_INTERVAL) named: 'Interval' length: 8 slots: 3.
+	cls = 0 ifTrue: [^0].
 	names := self loadRef: cls at: CD_INSTVARS.
 	((c4 isImported: names) and: [(self formatOf: names) = F_VAR and: [(self numSlots: names) = 3]])
 		ifFalse: [^0].

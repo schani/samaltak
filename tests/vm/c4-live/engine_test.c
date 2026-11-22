@@ -1205,6 +1205,270 @@ static int32_t enum_count(void)
     return n;
 }
 
+static oop pointer_start(size_t extra, oop *pc, oop *mc, oop *ac, bool moving)
+{
+    oop nil;
+    if (moving) {
+        size_t size = (128 + 64) * 1024;
+        void *base = mmap(NULL, size, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        assert(base != MAP_FAILED && c4_heap_init_moving(base, size));
+        nil = import_nil(base);
+    } else {
+        nil = import_nil(arena(4 * extent(0) + extra));
+    }
+    *pc = nil + extent(0);
+    *mc = *pc + extent(0);
+    *ac = *mc + extent(0);
+    for (oop cls = *pc; cls <= *ac; cls += extent(0)) {
+        initialize(cls, nil, F_EMPTY, 0);
+        assert(c4_heap_import(cls, extent(0), 0, C4_NO_WEAK));
+    }
+    c4_heap_set_pointer_forward_classes(*pc, *mc, *ac);
+    if (moving) c4_heap_set_plain_classes(*pc, *mc, *ac);
+    assert(c4_heap_start());
+    return nil;
+}
+
+static void pointer_shape(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, true);
+    oop borrowed = alloc(pc, F_FIXED, 2);
+    c4_heap_note_pinned_view(borrowed);
+    oop fresh = alloc(pc, F_FIXED, 2), wrong = alloc(pc, F_FIXED, 3);
+    oop var = alloc(pc, F_VAR, 2), unrelated = alloc(nil, F_FIXED, 2);
+    oop weak = weak_owner(pc, 2);
+    uint64_t gen = c4_heap_cache_gen();
+    assert(!c4_heap_become_forward(fresh, borrowed));
+    assert(!c4_heap_become_forward(borrowed, fresh));
+    assert(!c4_heap_become_forward(fresh, wrong));
+    assert(!c4_heap_become_forward(var, fresh));
+    assert(!c4_heap_become_forward(fresh, weak));
+    assert(!c4_heap_become_forward(unrelated, fresh));
+    assert(!c4_heap_become_forward(fresh, pc));
+    assert(!c4_heap_become_forward(pc, fresh));
+    assert(!c4_heap_become_forward(nil, fresh));
+    assert(!c4_heap_become_forward(7, fresh));
+    assert(!c4_heap_become_forward(fresh, fresh));
+    assert(!c4_heap_become_forward(fresh, point(pc, true)));
+    assert(!c4_heap_become_forward(point(pc, true), fresh));
+    assert(!c4_heap_has_forwarding() && c4_heap_cache_gen() == gen);
+
+    for (oop cls = pc; cls <= ac; cls += extent(0)) {
+        oop from = alloc(cls, F_FIXED, 2), to = alloc(cls, F_FIXED, 2);
+        oop extra = alloc(cls, F_FIXED, 2), third = alloc(cls, F_FIXED, 2);
+        c4_heap_store_ref(to, 0, 91);
+        c4_heap_store_ref(from, 0, 25);
+        ((oop *)(uintptr_t)to)[0] |= UINT64_C(991) << H_HASH_SHIFT;
+        uint64_t header = body(to)[0];
+        assert(!c4_heap_become_forward(from, alloc(cls == pc ? mc : pc, F_FIXED, 2)));
+        gen = c4_heap_cache_gen();
+        assert(c4_heap_become_forward(from, to) && c4_heap_cache_gen() != gen);
+        assert(c4_heap_canonical(from) == to && c4_heap_address(from) == to);
+        assert(c4_heap_load_ref(from, 0) == 91 && body(to)[0] == header);
+        c4_heap_store_ref(from, 0, 99);
+        assert(c4_heap_load_ref(to, 0) == 99 && ((const oop *)(uintptr_t)from)[2] == 25);
+        gen = c4_heap_cache_gen();
+        assert(!c4_heap_become_forward(to, third));   /* target as source */
+        assert(!c4_heap_become_forward(extra, from)); /* raw alias as target */
+        assert(!c4_heap_become_forward(from, third)); /* raw alias as source */
+        assert(c4_heap_cache_gen() == gen);
+        assert(c4_heap_become_forward(extra, to));    /* fan-in, not a chain */
+        assert(c4_heap_canonical(extra) == to);
+        c4_heap_note_pinned_view(to);
+        assert(!c4_heap_become_forward(third, to));
+    }
+}
+
+static void pointer_satb(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(extent(4) + 4 * extent(2) + 2 * extent(1), &pc, &mc, &ac, false);
+    oop weak = weak_owner(nil, 4);
+    oop from = alloc(pc, F_FIXED, 2), to = alloc(pc, F_FIXED, 2);
+    oop white_from = alloc(pc, F_FIXED, 2), white_to = alloc(pc, F_FIXED, 2);
+    oop old_child = alloc(nil, F_VAR, 1), dead = alloc(nil, F_VAR, 1);
+    c4_heap_store_ref(from, 0, old_child);
+    c4_heap_store_ref(white_from, 0, dead);
+    c4_heap_store_ref(weak, 0, from);
+    c4_heap_store_ref(weak, 1, old_child);
+    c4_heap_store_ref(weak, 2, white_from);
+    c4_heap_store_ref(weak, 3, dead);
+    assert(c4_heap_begin());
+    /* Neither source has been claimed yet. Only the subsequently claimed
+     * source may retain the SATB edges, and only for this mark epoch. */
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_become_forward(white_from, white_to));
+    c4_heap_root(weak);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(weak, 0) == to);
+    assert(c4_heap_load_ref(weak, 1) == old_child);
+    assert(c4_heap_load_ref(weak, 2) == nil && c4_heap_load_ref(weak, 3) == nil);
+    assert(c4_heap_take_weak_clears() == 2);
+    assert(alloc(pc, F_FIXED, 2) == white_from);
+    assert(alloc(pc, F_FIXED, 2) == white_to);
+    assert(c4_heap_begin());
+    c4_heap_root(weak);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(weak, 0) == to);
+    assert(c4_heap_load_ref(weak, 1) == nil);
+}
+
+static void pointer_claimed(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(extent(1) + 2 * extent(2) + extent(3), &pc, &mc, &ac, false);
+    oop holder = alloc(nil, F_VAR, 1);
+    oop from = alloc(mc, F_FIXED, 2), to = alloc(mc, F_FIXED, 2);
+    oop child = alloc(nil, F_VAR, 3);
+    c4_heap_store_ref(holder, 0, from);
+    c4_heap_store_ref(to, 1, child);
+    c4_heap_store_ref(child, 1, 73);
+
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_load_ref(holder, 0) == to); /* heal but SATB holds donor */
+    for (unsigned i = 0; i < 1024; ++i) {
+        c4_heap_finish_poll();
+        assert(c4_heap_busy());
+        assert(!reserve_pinned(extent(2)));
+    }
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(atomic_load(&proposals) >= 2);
+    assert(c4_heap_load_ref(c4_heap_load_ref(holder, 0), 1) == child);
+    assert(c4_heap_load_ref(child, 1) == 73);
+    assert(!reserve_pinned(extent(2)));
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(mc, F_FIXED, 2) == from);
+    assert(!c4_heap_become_forward(to, from)); /* even after alias retirement */
+}
+
+static void pointer_after_ack(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(extent(2) + 4 * extent(2), &pc, &mc, &ac, false);
+    oop owner = weak_owner(nil, 2);
+    oop to = alloc(ac, F_FIXED, 2), white = alloc(ac, F_FIXED, 2);
+    oop from = alloc(ac, F_FIXED, 2), other = alloc(ac, F_FIXED, 2);
+    c4_heap_store_ref(owner, 0, from);
+    c4_heap_store_ref(owner, 1, white);
+    race_owner = owner;
+    race_slot = 1;
+    race_prev = white;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(from);
+    c4_heap_root(to);
+    c4_heap_root(other);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    /* CLEAR has seen slot 0 but not yet cleared slot 1. */
+    uint64_t gen = c4_heap_cache_gen();
+    assert(!c4_heap_become_forward(white, to));
+    assert(!c4_heap_become_forward(from, white));
+    assert(c4_heap_cache_gen() == gen);
+    c4_heap_store_ref(owner, 1, other); /* defeats worker's parked CAS */
+    assert(c4_heap_become_forward(from, to));
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+    assert(c4_heap_load_ref(owner, 1) == other);
+    assert(!c4_heap_take_weak_clears());
+    assert(alloc(ac, F_FIXED, 2) == white);
+
+    race_slot = 0;
+    race_prev = from;
+    atomic_store(&at_cas, false);
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(to);
+    c4_heap_root(other);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    finish_during_load = true;
+    assert(c4_heap_load_ref(owner, 0) == to); /* raw marker survives sweep */
+    finish_during_load = false;
+    assert(!c4_heap_busy());
+    assert(alloc(ac, F_FIXED, 2) == white);
+    assert(alloc(ac, F_FIXED, 2) == from);
+    assert(!c4_heap_become_forward(to, other)); /* source retired, guard stays */
+
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(white); /* prevent coalescing past target */
+    c4_heap_root(from);  /* keep reincarnated donor out of the free bin */
+    c4_heap_root(other);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(owner, 0) == nil);
+    assert(alloc(ac, F_FIXED, 2) == to);
+    assert(c4_heap_become_forward(to, other)); /* new incarnation */
+}
+
+static void pointer_enum(void)
+{
+    oop pc, mc, ac;
+    oop nil = pointer_start(4096, &pc, &mc, &ac, false);
+    oop root = alloc(nil, F_VAR, 4);
+    oop from = alloc(mc, F_FIXED, 2), to = alloc(mc, F_FIXED, 2);
+    oop from2 = alloc(mc, F_FIXED, 2), from3 = alloc(mc, F_FIXED, 2);
+    oop before = alloc(ac, F_FIXED, 2), after = alloc(ac, F_FIXED, 2);
+    c4_heap_store_ref(from, 0, before);
+    c4_heap_store_ref(to, 0, after);
+    c4_heap_store_ref(root, 0, from);
+    enum_begin(ac, root);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_load_ref(root, 0) == to); /* preserve raw edge before healing */
+    c4_heap_store_ref(from, 0, nil);         /* only target changes */
+    atomic_store(&stall_enum, false);
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == before);
+    c4_heap_enum_finish();
+
+    c4_heap_store_ref(root, 1, from2);
+    c4_heap_store_ref(root, 2, from3);
+    enum_begin(mc, root);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    assert(enum_count() == 3);
+    assert(c4_heap_become_forward(from2, to)); /* READY, before handoff */
+    assert(c4_heap_enum_count() == -1);
+    c4_heap_enum_finish();
+    enum_begin(mc, root);
+    c4_heap_root(from);
+    assert(c4_heap_become_forward(from3, to)); /* ENUM_ROOTS */
+    c4_heap_end_roots();
+    assert(enum_count() == -1);
+    c4_heap_enum_finish();
+    enum_begin(mc, root);
+    c4_heap_root(from);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == to);
+    c4_heap_enum_finish();
+}
+
 static void enumeration(void)
 {
     const size_t size = (128 + 64) * 1024;
@@ -2010,6 +2274,11 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "interval-oracle")) interval_oracle();
     else if (!strcmp(argv[1], "interval-saturated")) interval_saturated();
     else if (!strncmp(argv[1], "interval-reject-", 16)) interval_reject(argv[1] + 16);
+    else if (!strcmp(argv[1], "pointer-shape")) pointer_shape();
+    else if (!strcmp(argv[1], "pointer-satb")) pointer_satb();
+    else if (!strcmp(argv[1], "pointer-claimed")) pointer_claimed();
+    else if (!strcmp(argv[1], "pointer-after-ack")) pointer_after_ack();
+    else if (!strcmp(argv[1], "pointer-enum")) pointer_enum();
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
     else if (!strcmp(argv[1], "enumeration-log-limit")) enumeration_log_limit();

@@ -28,6 +28,8 @@ enum c4_phase {
 #define C4_RESERVED (UINT32_MAX - 1u)
 #define C4_FORBID 1u
 #define C4_CODE_BYTES 2u
+#define C4_FORWARD_TARGET 4u /* not an oop, not an odd lazy tag */
+#define C4_FORWARD_SATB UINT32_MAX
 
 #define relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
 #define acquire(p) atomic_load_explicit((p), memory_order_acquire)
@@ -40,7 +42,7 @@ enum c4_phase {
 typedef struct {
     _Atomic uint64_t layout;        /* words:31, start parity:1, refs:32 */
     _Atomic uint32_t seen;
-    _Atomic uint32_t context_limit; /* saved cycle-start prefix + 1, or 0 */
+    _Atomic uint32_t context_limit; /* Context prefix + 1, pointer alias SATB, or 0 */
     uint32_t weak_start;           /* immutable while live */
     uint32_t link;                 /* mark queue while live, bin while free */
 } c4_cell;
@@ -136,7 +138,7 @@ static struct {
     uint64_t cls, exclude_a, exclude_b;
     uint64_t *roots;                /* filled in interpreter root slices */
     uint32_t nroots, max_roots;
-    bool bytes_invalid;             /* mutator only */
+    bool identity_invalid;             /* mutator only */
     int32_t count;                  /* published with ENUM_READY; -1 on overflow */
     uint64_t ids[C4_ENUM_LIMIT];
 } view;
@@ -145,6 +147,7 @@ static struct {
     uintptr_t base;
     uint32_t capacity;              /* words */
     uint64_t context_class, method_class, nil, bytes_class, wide_class;
+    uint64_t pointer_forward_classes[PLAIN_INTERVAL]; /* two-slot classes only */
     c4_bins bins;
     c4_cell *cells;
     _Atomic uint64_t *shadow;
@@ -265,7 +268,7 @@ static uint32_t refs_at(uint64_t layout, uint32_t at)
 }
 
 /* Pinned shadow headers are zero, a forwarding target, a raw borrow marker,
- * or an odd lazy-shadow incarnation tag (> C4_FORBID).
+ * a non-root target protection marker, or an odd lazy-shadow tag (> C4_FORBID).
  * A weak reader may sample a slot just before CLEAR rewrites it, so keep
  * the marker and cell start through sweep. Only private reserve resets it. */
 static uint64_t forward_target(uint64_t marker)
@@ -445,7 +448,8 @@ void c4_heap_forbid_become(uint64_t obj)
         bad_contract("raw borrow without live unforwarded pinned owner");
     uint64_t marker = relaxed(&heap.shadow[at]);
     if (marker == C4_CODE_BYTES) return;
-    if (marker > C4_FORBID) bad_contract("raw borrow with lazy reference shadow");
+    if (marker > C4_FORBID && marker != C4_FORWARD_TARGET)
+        bad_contract("raw borrow with lazy reference shadow");
     put_relaxed(&heap.shadow[at], C4_FORBID);
 }
 
@@ -485,15 +489,40 @@ void c4_heap_use_cached_method(uint64_t method)
     if (marking(acquire(&heap.phase))) shade_mutator(method);
 }
 
+static bool pointer_forward_class(uint64_t cls)
+{
+    return cls && (cls == heap.pointer_forward_classes[PLAIN_POINT] ||
+        cls == heap.pointer_forward_classes[PLAIN_MESSAGE] ||
+        cls == heap.pointer_forward_classes[PLAIN_ASSOCIATION]);
+}
+
+void c4_heap_note_pinned_view(uint64_t obj)
+{
+    /* Called with a canonical owner at VM raw-view acquisition. Exclude
+     * this incarnation even if the caller keeps its pointer across sends.
+     * Bytecode storage keeps its separate, preexisting borrow protocol. */
+    if (!(heap.pointer_forward_classes[0] | heap.pointer_forward_classes[1] |
+          heap.pointer_forward_classes[2])) return;
+    uint32_t at;
+    c4_cell *cell = live_pinned(obj, &at);
+    if (cell && (uint32_t)relaxed(&cell->layout) == 2 &&
+            pointer_forward_class(relaxed(shadow_row(at))))
+        c4_heap_forbid_become(obj);
+}
+
+static bool reserved_forward_operand(uint64_t obj)
+{
+    return obj == heap.nil || obj == heap.context_class || obj == heap.method_class ||
+        obj == heap.bytes_class || obj == heap.wide_class || pointer_forward_class(obj) ||
+        c4_heap_plain_class(obj) || c4_heap_interval_class(obj);
+}
+
 bool c4_heap_become_forward(uint64_t from, uint64_t to)
 {
     require_raw_read_quiescence("forwarding during synchronous raw read");
     uint32_t src, dst;
-    if (!heap.started || !heap.bytes_class || from == to || from == heap.nil ||
-        from == heap.context_class || from == heap.bytes_class ||
-        from == heap.wide_class || to == heap.nil || to == heap.context_class ||
-        to == heap.bytes_class || to == heap.wide_class ||
-        c4_heap_plain_class(from) || c4_heap_plain_class(to))
+    if (!heap.started || from == to ||
+        reserved_forward_operand(from) || reserved_forward_operand(to))
         return false;
 
     unsigned phase = acquire(&heap.phase);
@@ -501,21 +530,36 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
      * the worker cannot reclaim before this call finishes. */
     if ((phase == C4_CLEAR || phase == C4_SWEEP) &&
             (!post_close_live(from) || !post_close_live(to))) return false;
-    c4_cell *source = live_pinned(from, &src);
-    if (!source || !live_pinned(to, &dst) ||
-        relaxed(&heap.shadow[src]) || forward_at(dst) ||
-        relaxed(shadow_row(src)) != heap.bytes_class ||
-        relaxed(shadow_row(dst)) != heap.wide_class) return false;
-
-    unsigned sf = (*(const uint64_t *)(uintptr_t)from >> H_FMT_SHIFT) & H_FMT_MASK;
-    unsigned tf = (*(const uint64_t *)(uintptr_t)to >> H_FMT_SHIFT) & H_FMT_MASK;
-    if (sf < F_BYTES || sf > F_BYTES + 7 || (tf != F_W32 && tf != F_W32 + 1))
+    c4_cell *source = live_pinned(from, &src), *target = live_pinned(to, &dst);
+    if (!source || !target || relaxed(&heap.shadow[src]) || forward_at(dst))
         return false;
+
+    uint64_t sc = relaxed(shadow_row(src)), tc = relaxed(shadow_row(dst));
+    bool pointers = sc == tc && pointer_forward_class(sc);
+    if (!pointers && (!heap.bytes_class || sc != heap.bytes_class || tc != heap.wide_class))
+        return false;
+    uint64_t sh = *(const uint64_t *)(uintptr_t)from, th = *(const uint64_t *)(uintptr_t)to;
+    unsigned sf = (sh >> H_FMT_SHIFT) & H_FMT_MASK, tf = (th >> H_FMT_SHIFT) & H_FMT_MASK;
+    if (pointers) {
+        uint64_t tm = relaxed(&heap.shadow[dst]);
+        if ((tm && tm != C4_FORWARD_TARGET) || sf != F_FIXED || tf != F_FIXED ||
+            (uint32_t)sh != 2 || (uint32_t)th != 2 ||
+            (uint32_t)relaxed(&source->layout) != 2 || (uint32_t)relaxed(&target->layout) != 2 ||
+            source->weak_start != C4_NO_WEAK || target->weak_start != C4_NO_WEAK)
+            return false;
+        /* Many incoming aliases are OK. The target can never become a
+         * source in this incarnation, even after the last alias dies.
+         * This marker neither roots the body nor delays address reuse. */
+        put_relaxed(&heap.shadow[dst], C4_FORWARD_TARGET);
+        if (marking(phase)) put_relaxed(&source->context_limit, C4_FORWARD_SATB);
+    } else if (sf < F_BYTES || sf > F_BYTES + 7 || (tf != F_W32 && tf != F_W32 + 1)) {
+        return false;
+    }
 
     c4_heap_invalidate_cache();
     if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
     if (viewing(phase)) preserve_word(src, view_row(src), &heap.shadow[src]);
-    if (view.cls == heap.bytes_class) view.bytes_invalid = true;
+    if (view.cls == sc) view.identity_invalid = true;
     release(&heap.shadow[src], to);
     if (marking(phase)) {
         /* RMW against claim(): if it already claimed the source, shade the
@@ -832,6 +876,16 @@ static void *worker(void *unused)
                 if (target) {
                     ++edges;
                     shade_worker(target, &local);
+                    /* If we did not already scan the original body, retain
+                     * its two outgoing strong edges for this SATB cycle.
+                     * The marker acquire orders the flag and the old row.
+                     * Sweep clears the flag before the next cycle. */
+                    if (relaxed(&cell->context_limit) == C4_FORWARD_SATB) {
+                        _Atomic uint64_t *row = shadow_row(at);
+                        edges += 2;
+                        shade_worker(acquire(&row[1]), &local);
+                        shade_worker(acquire(&row[2]), &local);
+                    }
                     continue;
                 }
                 uint32_t refs = (uint32_t)relaxed(&cell->layout);
@@ -1095,6 +1149,15 @@ void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
     heap.wide_class = wide;
 }
 
+void c4_heap_set_pointer_forward_classes(uint64_t point, uint64_t message, uint64_t association)
+{
+    if (heap.started || c4_heap_platform_files())
+        bad_contract("invalid pointer forwarding configuration");
+    heap.pointer_forward_classes[PLAIN_POINT] = point;
+    heap.pointer_forward_classes[PLAIN_MESSAGE] = message;
+    heap.pointer_forward_classes[PLAIN_ASSOCIATION] = association;
+}
+
 /* Real object access is mutator-only and occurs in private reserved blocks
  * or during import. weak_start comes from the validated class format. */
 static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
@@ -1197,6 +1260,12 @@ bool c4_heap_start(void)
         }
     }
     uint32_t at;
+    for (unsigned i = 0; i < PLAIN_INTERVAL; ++i) {
+        uint64_t cls = heap.pointer_forward_classes[i];
+        if (cls && (cls == heap.nil || cls == heap.context_class || cls == heap.method_class ||
+                cls == heap.bytes_class || cls == heap.wide_class || !live_pinned(cls, &at)))
+            return false;
+    }
     if (heap.bytes_class && (!live_pinned(heap.bytes_class, &at) ||
             !live_pinned(heap.wide_class, &at))) return false;
     pthread_attr_t attr;
@@ -1443,9 +1512,10 @@ void c4_heap_store_class(uint64_t obj, uint64_t value)
         bad_contract("invalid movable role in class store");
     if (cell->weak_start != C4_NO_WEAK && value != old)
         bad_contract("weak class reassignment");
-    if (heap.bytes_class && value != old &&
-        (old == heap.bytes_class || old == heap.wide_class ||
-         value == heap.bytes_class || value == heap.wide_class))
+    if (value != old &&
+        ((heap.bytes_class && (old == heap.bytes_class || old == heap.wide_class ||
+                              value == heap.bytes_class || value == heap.wide_class)) ||
+         pointer_forward_class(old) || pointer_forward_class(value)))
         bad_contract("forwarding class reassignment");
     if (heap.context_class && ((old == heap.context_class) != (value == heap.context_class)))
         bad_contract("Context class reassignment");
@@ -1626,8 +1696,12 @@ void c4_heap_move_poll(void)
 
 bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b)
 {
+    uint32_t internal = 4 + PLAIN_INTERVAL +
+        (unsigned)(heap.moving && heap.moving->plain_classes[PLAIN_INTERVAL]);
+    for (unsigned i = 0; i < PLAIN_INTERVAL; ++i)
+        internal += heap.pointer_forward_classes[i] != 0;
     if (!heap.started || !cls || view.cls || view.version == UINT32_MAX ||
-        max_roots < 4 + PLAIN_INTERVAL + (unsigned)(heap.moving && heap.moving->plain_classes[PLAIN_INTERVAL]) || (view.roots && max_roots != view.max_roots))
+        max_roots < internal || (view.roots && max_roots != view.max_roots))
         return false;
     if (!view.words) {
         size_t handles = !heap.moving ? 0 : heap.moving->bank_count == 2 ? MOVE_IDS : SMALL_IDS;
@@ -1657,7 +1731,7 @@ static void enum_root(uint64_t value)
 int32_t c4_heap_enum_count(void)
 {
     if (acquire(&heap.phase) != C4_ENUM_READY) return -2;
-    return (view.bytes_invalid || acquire(&view.overflow)) ? -1 : view.count;
+    return (view.identity_invalid || acquire(&view.overflow)) ? -1 : view.count;
 }
 
 uint64_t c4_heap_enum_at(uint32_t index)
@@ -1683,13 +1757,15 @@ bool c4_heap_begin(void)
     if (view.cls) {
         ++view.version;
         put_relaxed(&view.overflow, 0);
-        view.bytes_invalid = false;
+        view.identity_invalid = false;
         view.nroots = 0;
         enum_root(view.cls);
         enum_root(heap.nil);
         if (m)
             for (unsigned i = 0; i < PLAIN_KINDS; ++i)
                 if (m->plain_classes[i]) enum_root(m->plain_classes[i]);
+        for (unsigned i = 0; i < PLAIN_INTERVAL; ++i)
+            if (heap.pointer_forward_classes[i]) enum_root(heap.pointer_forward_classes[i]);
         if (heap.bytes_class) {
             enum_root(heap.bytes_class);
             enum_root(heap.wide_class);
@@ -1719,6 +1795,8 @@ bool c4_heap_begin(void)
     if (m)
         for (unsigned i = 0; i < PLAIN_KINDS; ++i)
             if (m->plain_classes[i]) shade_mutator(m->plain_classes[i]);
+    for (unsigned i = 0; i < PLAIN_INTERVAL; ++i)
+        if (heap.pointer_forward_classes[i]) shade_mutator(heap.pointer_forward_classes[i]);
     if (heap.bytes_class) {
         shade_mutator(heap.bytes_class);
         shade_mutator(heap.wide_class);

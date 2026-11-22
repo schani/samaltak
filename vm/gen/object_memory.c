@@ -430,8 +430,10 @@ bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v)
     uint64_t r_object_address;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     if (i == SO_COMPILEDMETHOD) {
         return (o == specials_oop) && (v != cls_compiledmethod);
     }
@@ -454,28 +456,36 @@ exit_object_address:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[i] != nil_oop) && (((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(o);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = o;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; }))[i] != v);
 }
 
@@ -558,6 +568,7 @@ oop c4_load_ref(oop o, uint32_t i)
     uint32_t slots;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     oop sp;
     uint64_t r_object_address_4;
     if ((int32_t)(((*(uint64_t *)({
@@ -596,14 +607,18 @@ exit_object_address_3:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[CTX_STACKP];
     if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
         r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
@@ -648,6 +663,7 @@ bool c4_try_store_context_stackp(oop o, oop v)
     uint32_t slots_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     oop sp;
     uint32_t old;
     int64_t i;
@@ -682,14 +698,18 @@ exit_object_address_2:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[CTX_STACKP];
     if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots_2 - CTX_FIXED))) {
         r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
@@ -748,6 +768,7 @@ void copy_c4_context(oop dst, oop src)
     uint32_t slots;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     oop sp;
     int64_t i;
     int64_t stop;
@@ -773,14 +794,18 @@ exit_object_address:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(src);
         goto exit_canonical_oop;
     }
     r_canonical_oop = src;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[CTX_STACKP];
     if (((sp & 1) != 0) && ((uint64_t)(((int64_t)sp) >> 1) <= (uint64_t)(slots - CTX_FIXED))) {
         r_context_prefix = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
@@ -833,6 +858,7 @@ void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_
     uint64_t r_object_address_6;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t r_object_address_7;
     int64_t j;
     size_t i_4;
@@ -849,11 +875,14 @@ void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_
     uint64_t r_object_address_13;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     uint64_t r_object_address_14;
     uint64_t r_pinned_body_address_3;
     uint64_t r_canonical_oop_3;
+    uint64_t owner_3;
     uint64_t r_pinned_body_address_4;
     uint64_t r_canonical_oop_4;
+    uint64_t owner_4;
     uint64_t r_object_address_15;
     if (c4_enabled) {
         if ((dst == src) && ((di > si) && (di - si < n))) {
@@ -945,14 +974,18 @@ exit_object_address_6:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(dst);
         goto exit_canonical_oop;
     }
     r_canonical_oop = dst;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[i_2] = v;
                 if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
@@ -1053,14 +1086,18 @@ exit_object_address_13:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(dst);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = dst;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; }))[i_4] = v_2;
                 if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
@@ -1083,28 +1120,36 @@ exit_object_address_14:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_3 = ({
+    owner_3 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_3 = c4_heap_canonical(dst);
         goto exit_canonical_oop_3;
     }
     r_canonical_oop_3 = dst;
 exit_canonical_oop_3:;
-    r_canonical_oop_3; }) + 16;
+    r_canonical_oop_3; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_3);
+    }
+    r_pinned_body_address_3 = owner_3 + 16;
     r_pinned_body_address_3; }) + di, (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(src), 0)) {
         fatal_begin();
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_4 = ({
+    owner_4 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_4 = c4_heap_canonical(src);
         goto exit_canonical_oop_4;
     }
     r_canonical_oop_4 = src;
 exit_canonical_oop_4:;
-    r_canonical_oop_4; }) + 16;
+    r_canonical_oop_4; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_4);
+    }
+    r_pinned_body_address_4 = owner_4 + 16;
     r_pinned_body_address_4; }) + si, n * 8);
     if (c4_enabled) {
         goto exit_remember_if_old;
@@ -1136,9 +1181,11 @@ void object_memory_copy_refs_at_from_buffer_count(oop dst, size_t di, oop *src, 
     uint64_t r_object_address_4;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t r_object_address_5;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     uint64_t r_object_address_6;
     if (c4_enabled) {
         for (i = 0; i <= (int64_t)n - 1; i++) {
@@ -1205,14 +1252,18 @@ exit_object_address_4:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(dst);
         goto exit_canonical_oop;
     }
     r_canonical_oop = dst;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[i_2] = v;
             if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
@@ -1234,14 +1285,18 @@ exit_object_address_5:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(dst);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = dst;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; }) + di, src, n * 8);
     if (c4_enabled) {
         goto exit_remember_if_old;
@@ -1349,6 +1404,7 @@ uint64_t float_oop(double d)
     uint64_t f;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     b = lt_bits_of_double(d);
     if ((b << 1) == 0) {
         return (b >> 63 << 3) | 4;
@@ -1364,14 +1420,18 @@ uint64_t float_oop(double d)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(f);
         goto exit_canonical_oop;
     }
     r_canonical_oop = f;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[0] = b;
     return f;
 }
@@ -1385,6 +1445,7 @@ double float_val(oop o)
     oop b;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     if ((o & 7) == 4) {
         r = o >> 3;
         b = ({
@@ -1402,14 +1463,18 @@ double float_val(oop o)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[0];
     }
     return lt_double_from_bits(b);
@@ -1647,6 +1712,7 @@ uint64_t large_int_from(oop v, bool negative)
     int64_t i;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     n = 0;
     t = v;
     while (t != 0) {
@@ -1664,14 +1730,18 @@ uint64_t large_int_from(oop v, bool negative)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[i] = (uint8_t)((v >> (8 * i)) & 255);
     }
     return o;
@@ -1686,6 +1756,7 @@ static bool large_magnitude(oop o, uint64_t *mag, bool *neg)
     size_t n;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint8_t *b;
     uint64_t m;
     int64_t i;
@@ -1722,14 +1793,18 @@ exit_object_address_2:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
     while ((n > 0) && (b[n - 1] == 0)) {
         n = n - 1;
@@ -1787,6 +1862,7 @@ void refresh_specials(void)
 {
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     oop *s;
     s = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(specials_oop), 0)) {
@@ -1794,14 +1870,18 @@ void refresh_specials(void)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(specials_oop);
         goto exit_canonical_oop;
     }
     r_canonical_oop = specials_oop;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
     nil_oop = s[SO_NIL];
     false_oop = s[SO_FALSE];
@@ -1887,8 +1967,10 @@ uint32_t string_char_at(oop s, uint64_t i)
     uint64_t r_object_address;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     if ((int32_t)(((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(s);
@@ -1903,14 +1985,18 @@ exit_object_address:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(s);
         goto exit_canonical_oop;
     }
     r_canonical_oop = s;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }))[i];
     }
     return ((uint32_t *)({
@@ -1919,14 +2005,18 @@ exit_canonical_oop:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(s);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = s;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; }))[i];
 }
 
@@ -1942,9 +2032,11 @@ uint64_t string_from_utf8(const char *str, size_t n)
     uint64_t r;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint8_t *b;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     uint32_t *w;
     s = (uint8_t *)str;
     count = 0ULL;
@@ -1967,14 +2059,18 @@ uint64_t string_from_utf8(const char *str, size_t n)
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(r);
         goto exit_canonical_oop;
     }
     r_canonical_oop = r;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
         *i = 0;
         while (*i < n) {
@@ -1990,14 +2086,18 @@ exit_canonical_oop:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(r);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = r;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; });
     *i = 0;
     while (*i < n) {
@@ -2017,6 +2117,7 @@ uint32_t string_hash(uint64_t s)
     uint64_t r_object_address;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t p;
     int64_t j;
     n = string_size(s);
@@ -2039,14 +2140,18 @@ exit_object_address:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(s);
         goto exit_canonical_oop;
     }
     r_canonical_oop = s;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
         while (i + 8 <= n) {
             h = (h ^ (*(uint64_t *)(p + i))) * 0x5851F42D4C957F2DLL;
@@ -2121,6 +2226,7 @@ char *utf8_bytes_of(oop s, size_t *size)
     uint8_t *r;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint8_t *p;
     int64_t i;
     uint32_t c;
@@ -2148,14 +2254,18 @@ exit_object_address:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(s);
         goto exit_canonical_oop;
     }
     r_canonical_oop = s;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; }), n);
         r[n] = 0;
         return (char *)r;

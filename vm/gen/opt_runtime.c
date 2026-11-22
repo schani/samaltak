@@ -1525,6 +1525,7 @@ oop opt_runtime_make_array(frame *f, uint64_t n)
     oop o_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
@@ -1559,14 +1560,18 @@ exit_load_ref:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o_2);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o_2;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
     return new_array((uint32_t)n, f->fp + ((int64_t)f->sp - (int64_t)n));
 }
@@ -2125,6 +2130,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop o_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    uint64_t owner;
     uint64_t moved;
     oop r_innermost_method_of;
     int32_t nacts;
@@ -2152,6 +2158,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop o_6;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
     oop o_7;
     oop r_load_ref_3;
     uint64_t r_object_address_6;
@@ -2159,6 +2166,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop o_8;
     uint64_t r_pinned_body_address_3;
     uint64_t r_canonical_oop_3;
+    uint64_t owner_3;
     oop local[3];
     oop *roots;
     uint64_t o_9;
@@ -2189,6 +2197,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop o_11;
     uint64_t r_pinned_body_address_4;
     uint64_t r_canonical_oop_4;
+    uint64_t owner_4;
     uint64_t r_perform;
     oop *base_3;
     oop sel_2;
@@ -2206,6 +2215,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop o_13;
     uint64_t r_pinned_body_address_5;
     uint64_t r_canonical_oop_5;
+    uint64_t owner_5;
     int32_t i_5;
     uint64_t r_resend_2;
     uint64_t r_4;
@@ -2269,14 +2279,18 @@ exit_load_ref:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address = ({
+    owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop = c4_heap_canonical(o_2);
         goto exit_canonical_oop;
     }
     r_canonical_oop = o_2;
 exit_canonical_oop:;
-    r_canonical_oop; }) + 16;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
             moved = frame_epoch;
             activate_block(n);
@@ -2359,14 +2373,18 @@ exit_load_ref_2:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_2 = ({
+    owner_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_2 = c4_heap_canonical(o_6);
         goto exit_canonical_oop_2;
     }
     r_canonical_oop_2 = o_6;
 exit_canonical_oop_2:;
-    r_canonical_oop_2; }) + 16;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
     r_pinned_body_address_2; });
     r_leave_before = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before; });
@@ -2406,14 +2424,18 @@ exit_load_ref_3:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_3 = ({
+    owner_3 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_3 = c4_heap_canonical(o_8);
         goto exit_canonical_oop_3;
     }
     r_canonical_oop_3 = o_8;
 exit_canonical_oop_3:;
-    r_canonical_oop_3; }) + 16;
+    r_canonical_oop_3; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_3);
+    }
+    r_pinned_body_address_3 = owner_3 + 16;
     r_pinned_body_address_3; });
     memset(&local, 0, sizeof local);
     roots = local;
@@ -2572,14 +2594,18 @@ exit_load_ref_4:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_4 = ({
+    owner_4 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_4 = c4_heap_canonical(o_11);
         goto exit_canonical_oop_4;
     }
     r_canonical_oop_4 = o_11;
 exit_canonical_oop_4:;
-    r_canonical_oop_4; }) + 16;
+    r_canonical_oop_4; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_4);
+    }
+    r_pinned_body_address_4 = owner_4 + 16;
     r_pinned_body_address_4; });
     if (((e->kind & K_PRIM) != 0) && ((e->prim == perform_fn) || (e->prim == perform_args_fn))) {
         return ({
@@ -2638,14 +2664,18 @@ exit_load_ref_5:;
         fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
-    r_pinned_body_address_5 = ({
+    owner_5 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
         r_canonical_oop_5 = c4_heap_canonical(o_13);
         goto exit_canonical_oop_5;
     }
     r_canonical_oop_5 = o_13;
 exit_canonical_oop_5:;
-    r_canonical_oop_5; }) + 16;
+    r_canonical_oop_5; });
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_5);
+    }
+    r_pinned_body_address_5 = owner_5 + 16;
     r_pinned_body_address_5; });
     r_leave_before_2 = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before_2; });

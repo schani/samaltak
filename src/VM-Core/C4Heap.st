@@ -57,6 +57,12 @@ threshold: bytes
 forwardByteClass: bytes wideClass: wide
 	<c: 'void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)'>
 !
+forwardPoint: point message: message association: association
+	<c: 'void c4_heap_set_pointer_forward_classes(uint64_t point, uint64_t message, uint64_t association)'>
+!
+notePinnedView: obj
+	<c: 'void c4_heap_note_pinned_view(uint64_t obj)'>
+!
 contextClass: cls
 	<c: 'void c4_heap_set_context_class(uint64_t cls)'>
 !
