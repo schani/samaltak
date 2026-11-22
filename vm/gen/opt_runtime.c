@@ -2183,7 +2183,7 @@ exit_load_ref_3:;
     r_2 = dispatch(g_2, f, 1);
     if (r_2 == 0) {
         r_resend = ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent = 0ULL;
         goto exit_sent;
     }
@@ -2205,7 +2205,7 @@ exit_does_not_understand:;
             base[0] = e->qconst;
         }
         return ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_2 = 0ULL;
         goto exit_sent_2;
     }
@@ -2218,7 +2218,7 @@ exit_sent_2:;
         i_3 = e->quick;
         base[0] = *(uint64_t *)(r + 16 + 8 * i_3);
         return ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_3 = 0ULL;
         goto exit_sent_3;
     }
@@ -2243,7 +2243,7 @@ exit_sent_3:;
                 }
             }
             return ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_4 = 0ULL;
         goto exit_sent_4;
     }
@@ -2264,7 +2264,7 @@ exit_sent_4:;
 exit_call_leaf:;
     r_call_leaf; })) {
         return ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_5 = 0ULL;
         goto exit_sent_5;
     }
@@ -2336,7 +2336,7 @@ exit_load_ref_5:;
     r_4 = dispatch(g_3, f, m_2);
     if (r_4 == 0) {
         r_resend_2 = ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_6 = 0ULL;
         goto exit_sent_6;
     }
@@ -2356,7 +2356,7 @@ exit_perform:;
     r = dispatch(e, f, n);
     if (r == 0) {
         return ({
-    if (state_block->interrupt == 0) {
+    if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) == 0) {
         r_sent_7 = 0ULL;
         goto exit_sent_7;
     }

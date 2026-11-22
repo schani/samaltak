@@ -1336,8 +1336,9 @@ functionPointer: aNode node: aMessageNode
 atomicVariable: aNode
 	| g |
 	(aNode isLiteral and: [aNode value isSymbol]) ifFalse: [^self error: 'an atomic variable is named by a symbol' node: aNode].
-	g := self globalNamed: aNode value asString node: aNode.
-	^self globalReference: g
+	g := self globalReference: (self globalNamed: aNode value asString node: aNode).
+	g type isArray ifTrue: [^CIndex base: g index: (CConst value: 0 type: (translator registry at: 'int')) type: g type target].
+	^g
 ! !
 
 !TCodeGenerator methodsFor: 'interpreter loop'!

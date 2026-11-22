@@ -16,7 +16,7 @@ static int64_t frame_next_us;
 static int64_t frame_origin_us;
 static int32_t frame_sema;
 static bool in_idle;
-atomic_int interrupt_pending;
+atomic_int interrupt_pending[1];
 oop last_preempted;
 bool last_preempted_at_entry;
 int32_t ledger_n;
@@ -263,7 +263,7 @@ void handle_interrupts(void)
     int32_t f;
     int32_t f_2;
     int32_t i;
-    atomic_store_explicit(&interrupt_pending, 0, memory_order_relaxed);
+    atomic_exchange(&interrupt_pending[0], 0);
     platform_interface_poll();
     now = now_us();
     if ((timer_ms >= 0) && (now / 1000 >= timer_ms)) {
@@ -1234,11 +1234,7 @@ exit_store_ref_5:;
 /* Scheduler>>requestInterruptCheck */
 void request_interrupt_check(void)
 {
-    atomic_store_explicit(&interrupt_pending, 1, memory_order_relaxed);
-    if (!c4_enabled) {
-        state_block->interrupt = 1;
-        state_block->stack_limit = 0;
-    }
+    atomic_exchange(&interrupt_pending[0], 1);
 }
 
 /* Scheduler>>requestPeriodicPoll: */

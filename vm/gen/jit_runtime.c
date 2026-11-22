@@ -2307,11 +2307,6 @@ exit_load_ref:;
     if (state_block->stress <= 0) {
         state_block->stress = 37;
     }
-    state_block->interrupt = 0;
-    state_block->stack_limit = state_block->stack_limit_normal;
-    if (state_block->interrupt != 0) {
-        state_block->stack_limit = 0;
-    }
     moved = frame_epoch;
     inv = invalidations;
     if (at_entry) {
@@ -2876,9 +2871,6 @@ static void refresh_state(void)
     state_block->array_class = cls_array;
     state_block->point_class = cls_point;
     state_block->stack_limit_normal = (uint64_t)(cstack + CSTACK_SLOTS) - 8216ULL;
-    if (state_block->interrupt == 0) {
-        state_block->stack_limit = state_block->stack_limit_normal;
-    }
     state_block->eden_box = (uint64_t)eden_box;
     state_block->hash_box = (uint64_t)hash_box;
     state_block->lcg_mul = 6364136223846793005LL;

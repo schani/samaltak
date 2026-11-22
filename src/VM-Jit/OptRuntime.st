@@ -654,7 +654,7 @@ resend: g frame: f argc: n
 !
 sent: f
 	"A send completed without a frame: a safepoint, as in the interpreter."
-	runtime state interrupt = 0 ifTrue: [^0 asUInt64].
+	scheduler interruptPendingRelaxed = 0 ifTrue: [^0 asUInt64].
 	f sp: ((self cCoerce: f code to: 'JitMethod *') slots + 1) asInt32.
 	^runtime interrupt: f
 !

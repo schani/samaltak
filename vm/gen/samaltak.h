@@ -974,15 +974,12 @@ struct jit_state {
     oop nil_oop;
     oop true_oop;
     oop false_oop;
-    int32_t interrupt;
-    int32_t pad;
     uint64_t frames;
     uint64_t exit_sp;
     uint64_t young_lo;
     uint64_t young_hi;
     oop array_class;
     oop point_class;
-    uint64_t stack_limit;
     uint64_t stack_limit_normal;
     uint64_t base_frame;
     uint64_t base_record;
@@ -1007,7 +1004,7 @@ struct jit_state {
     int64_t stress;
     uint64_t dump[64];
 };
-_Static_assert(sizeof(jit_state) == 832, "the simulator lays out JitState as C does");
+_Static_assert(sizeof(jit_state) == 816, "the simulator lays out JitState as C does");
 
 struct large_operand {
     uint64_t *limbs;
@@ -1520,7 +1517,7 @@ extern int64_t alloc_sample_interval;
 extern int32_t alloc_sample_sema;
 extern int64_t alloc_sample_size;
 extern bool alloc_sample_unread;
-extern atomic_int interrupt_pending;
+extern atomic_int interrupt_pending[1];
 extern oop last_preempted;
 extern bool last_preempted_at_entry;
 extern int32_t ledger_n;

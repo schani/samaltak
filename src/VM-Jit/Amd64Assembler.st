@@ -768,14 +768,9 @@ cmp: rn withStateWordAt: off
 	self op: 16r3B len: 1 pre: 0 w: 1 reg: (self gpr: rn) target: asmState + off asUInt64 imm: 0 isz: 0.
 	self setFlags: X64_FL_SUB
 !
-cmpStateWordAt: off imm: v
-	"cmp qword [JitState + off], v (a signed byte): the flags of the word - v."
-	self op: 16r83 len: 1 pre: 0 w: 1 reg: 7 target: asmState + off asUInt64 imm: v isz: 1.
-	self setFlags: X64_FL_SUB
-!
-cmpStateWord32At: off imm: v
-	"cmp dword [JitState + off], v (a signed byte)."
-	self op: 16r83 len: 1 pre: 0 w: 0 reg: 7 target: asmState + off asUInt64 imm: v isz: 1.
+cmpWord32At: address imm: v
+	"cmp dword [address], v (a signed byte, pc-relative)."
+	self op: 16r83 len: 1 pre: 0 w: 0 reg: 7 target: address imm: v isz: 1.
 	self setFlags: X64_FL_SUB
 !
 loadReturnAddress: r

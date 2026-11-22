@@ -8535,7 +8535,7 @@ op_push_one:;
                 if (c == (j == 0x91)) {
                     ip = ip + o_56;
                     if (o_56 < 0) {
-                        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                             if (fr != NULL) {
                                 nframes = (int32_t)(fr - frames) + 1;
                                 fr->ip = ip;
@@ -11511,7 +11511,7 @@ op_jump:;
     o_208 = *(int16_t *)(uint64_t)ip;
     ip = ip + 2 + o_208;
     if (o_208 < 0) {
-        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
                 fr->ip = ip;
@@ -11948,7 +11948,7 @@ op_conditional_jump_91:;
     if (v_165 == true_oop) {
         ip = ip + o_236;
         if (o_236 < 0) {
-            if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+            if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                 if (fr != NULL) {
                     nframes = (int32_t)(fr - frames) + 1;
                     fr->ip = ip;
@@ -12397,7 +12397,7 @@ op_conditional_jump_92:;
     if (v_172 == false_oop) {
         ip = ip + o_264;
         if (o_264 < 0) {
-            if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+            if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                 if (fr != NULL) {
                     nframes = (int32_t)(fr - frames) + 1;
                     fr->ip = ip;
@@ -12947,7 +12947,7 @@ op_push_integer:;
                 if (c_6 == (j_4 == 0x91)) {
                     ip = ip + o_292;
                     if (o_292 < 0) {
-                        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                             if (fr != NULL) {
                                 nframes = (int32_t)(fr - frames) + 1;
                                 fr->ip = ip;
@@ -13779,7 +13779,7 @@ op_fused_arithmetic_9c:;
             if (c_9 == (j_5 == 0x91)) {
                 ip = ip + o_333;
                 if (o_333 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -14260,7 +14260,7 @@ op_fused_arithmetic_9d:;
             if (c_10 == (j_6 == 0x91)) {
                 ip = ip + o_362;
                 if (o_362 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -14741,7 +14741,7 @@ op_fused_arithmetic_9e:;
             if (c_11 == (j_7 == 0x91)) {
                 ip = ip + o_391;
                 if (o_391 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -15222,7 +15222,7 @@ op_fused_arithmetic_9f:;
             if (c_12 == (j_8 == 0x91)) {
                 ip = ip + o_420;
                 if (o_420 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -15832,7 +15832,7 @@ op_fused_arithmetic_f2:;
             if (c_15 == (j_9 == 0x91)) {
                 ip = ip + o_451;
                 if (o_451 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -16313,7 +16313,7 @@ op_fused_arithmetic_f3:;
             if (c_16 == (j_10 == 0x91)) {
                 ip = ip + o_480;
                 if (o_480 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -16794,7 +16794,7 @@ op_fused_arithmetic_f4:;
             if (c_17 == (j_11 == 0x91)) {
                 ip = ip + o_509;
                 if (o_509 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -17275,7 +17275,7 @@ op_fused_arithmetic_f5:;
             if (c_18 == (j_12 == 0x91)) {
                 ip = ip + o_538;
                 if (o_538 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -17891,7 +17891,7 @@ op_fused_arithmetic_f8:;
             if (c_21 == (j_13 == 0x91)) {
                 ip = ip + o_569;
                 if (o_569 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -18374,7 +18374,7 @@ op_fused_arithmetic_f9:;
             if (c_22 == (j_14 == 0x91)) {
                 ip = ip + o_598;
                 if (o_598 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -18857,7 +18857,7 @@ op_fused_arithmetic_fa:;
             if (c_23 == (j_15 == 0x91)) {
                 ip = ip + o_627;
                 if (o_627 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -19340,7 +19340,7 @@ op_fused_arithmetic_fb:;
             if (c_24 == (j_16 == 0x91)) {
                 ip = ip + o_656;
                 if (o_656 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -20093,7 +20093,7 @@ op_less_than:;
             if (c_25 == (nx_7 == 0x91)) {
                 ip = ip + o_687;
                 if (o_687 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -20564,7 +20564,7 @@ exit_num_val_6:;
             if (c_25 == (nx_8 == 0x91)) {
                 ip = ip + o_715;
                 if (o_715 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -21029,7 +21029,7 @@ op_greater_than:;
             if (c_26 == (nx_9 == 0x91)) {
                 ip = ip + o_744;
                 if (o_744 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -21500,7 +21500,7 @@ exit_num_val_8:;
             if (c_26 == (nx_10 == 0x91)) {
                 ip = ip + o_772;
                 if (o_772 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -21965,7 +21965,7 @@ op_less_or_equal:;
             if (c_27 == (nx_11 == 0x91)) {
                 ip = ip + o_801;
                 if (o_801 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -22436,7 +22436,7 @@ exit_num_val_10:;
             if (c_27 == (nx_12 == 0x91)) {
                 ip = ip + o_829;
                 if (o_829 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -22901,7 +22901,7 @@ op_greater_or_equal:;
             if (c_28 == (nx_13 == 0x91)) {
                 ip = ip + o_858;
                 if (o_858 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -23372,7 +23372,7 @@ exit_num_val_12:;
             if (c_28 == (nx_14 == 0x91)) {
                 ip = ip + o_886;
                 if (o_886 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -23837,7 +23837,7 @@ op_equal:;
             if (c_29 == (nx_15 == 0x91)) {
                 ip = ip + o_915;
                 if (o_915 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -24308,7 +24308,7 @@ exit_num_val_14:;
             if (c_29 == (nx_16 == 0x91)) {
                 ip = ip + o_943;
                 if (o_943 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -24773,7 +24773,7 @@ op_not_equal:;
             if (c_30 == (nx_17 == 0x91)) {
                 ip = ip + o_972;
                 if (o_972 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -25244,7 +25244,7 @@ exit_num_val_16:;
             if (c_30 == (nx_18 == 0x91)) {
                 ip = ip + o_1000;
                 if (o_1000 < 0) {
-                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                         if (fr != NULL) {
                             nframes = (int32_t)(fr - frames) + 1;
                             fr->ip = ip;
@@ -26610,7 +26610,7 @@ op_identical:;
         if (c_34 == (nx_33 == 0x91)) {
             ip = ip + o_1036;
             if (o_1036 < 0) {
-                if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                     if (fr != NULL) {
                         nframes = (int32_t)(fr - frames) + 1;
                         fr->ip = ip;
@@ -27070,7 +27070,7 @@ op_not_identical:;
         if (c_35 == (nx_34 == 0x91)) {
             ip = ip + o_1064;
             if (o_1064 < 0) {
-                if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                     if (fr != NULL) {
                         nframes = (int32_t)(fr - frames) + 1;
                         fr->ip = ip;
@@ -27736,7 +27736,7 @@ exit_load_ref_399:;
     r_next_bytecode_238 = *(ip - 1);
     r_next_bytecode_238; })];
         }
-        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
                 fr->ip = ip;
@@ -28107,7 +28107,7 @@ exit_load_ref_407:;
     r_next_bytecode_240 = *(ip - 1);
     r_next_bytecode_240; })];
         }
-        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
                 fr->ip = ip;
@@ -28478,7 +28478,7 @@ exit_load_ref_415:;
     r_next_bytecode_242 = *(ip - 1);
     r_next_bytecode_242; })];
         }
-        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
                 fr->ip = ip;
@@ -29888,7 +29888,7 @@ exit_load_ref_447:;
     r_next_bytecode_249 = *(ip - 1);
     r_next_bytecode_249; })];
     }
-    if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+    if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
         if (fr != NULL) {
             nframes = (int32_t)(fr - frames) + 1;
             fr->ip = ip;
@@ -30139,7 +30139,7 @@ exit_load_ref_451:;
         } else {
             *sp = v_465;
         }
-        if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+        if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
             if (fr != NULL) {
                 nframes = (int32_t)(fr - frames) + 1;
                 fr->ip = ip;
@@ -30329,7 +30329,7 @@ exit_load_ref_454:;
                 } else {
                     *sp = r_39;
                 }
-                if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+                if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                     if (fr != NULL) {
                         nframes = (int32_t)(fr - frames) + 1;
                         fr->ip = ip;
@@ -30501,7 +30501,7 @@ exit_load_ref_458:;
             } else {
                 *sp = v_471;
             }
-            if (__builtin_expect(atomic_load_explicit(&interrupt_pending, memory_order_relaxed) != 0, 0)) {
+            if (__builtin_expect(atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0, 0)) {
                 if (fr != NULL) {
                     nframes = (int32_t)(fr - frames) + 1;
                     fr->ip = ip;

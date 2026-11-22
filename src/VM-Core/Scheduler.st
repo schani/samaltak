@@ -15,7 +15,7 @@ While a video is recorded (workClockStart:semaphore:) my clock is the work clock
 
 !Scheduler class methodsFor: 'declaring'!
 declarations
-	^#((interruptPending atomic_int) (lastPreempted oop) (lastPreemptedAtEntry bool) (allocSampleClass oop) (allocSampleSize int64_t)
+	^#((interruptPending 'atomic_int[1]') (lastPreempted oop) (lastPreemptedAtEntry bool) (allocSampleClass oop) (allocSampleSize int64_t)
 		(allocSampleInterval int64_t) (allocSampleCountdown int64_t) (allocSampleSema int32_t) (statProcessSwitches uint64_t)
 		(allocSamplePending bool) (inIdle bool) (preemptToFront bool) (allocSampleUnread bool) (samplerTickUnread bool)
 		(timerMs int64_t -1) (samplerIntervalUs int64_t) (samplerNextUs int64_t) (sliceStartNs int64_t) (windowStartNs int64_t) (windowCpuUs int64_t)
@@ -43,6 +43,10 @@ initialize
 !Scheduler methodsFor: 'accessing'!
 interruptPendingRelaxed
 	^self atomicLoad: #interruptPending
+!
+interruptPendingAddress
+	"The naturally aligned 32-bit request cell polled by machine code."
+	^self cCoerce: interruptPending to: 'uint64_t'
 !
 lastPreempted
 	^lastPreempted
@@ -203,10 +207,9 @@ charge: proc us: us
 
 !Scheduler methodsFor: 'interrupts'!
 requestInterruptCheck
-	"Any thread."
+	"Any thread. A sequentially consistent exchange publishes the request and any preceding ticker state."
 	<function>
-	self atomicStore: #interruptPending value: 1.
-	vmMain c4Enabled ifFalse: [jit requestInterrupt]
+	self atomicExchange: #interruptPending value: 1
 !
 signalExternalSemaphore: index
 	"1-based index into externalObjects; VM thread only, queued."
@@ -660,7 +663,9 @@ signalIndex: index
 handleInterrupts
 	<function>
 	| now s |
-	self atomicStore: #interruptPending value: 0.
+	"Take all requests published so far before polling any source. A request racing
+	 this exchange is either serviced here or left pending for the next safepoint."
+	self atomicExchange: #interruptPending value: 0.
 	platform poll.
 	now := self nowUs.
 	(timerMs >= 0 and: [(now quo: 1000) >= timerMs]) ifTrue: [

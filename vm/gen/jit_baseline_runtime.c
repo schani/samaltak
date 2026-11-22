@@ -663,11 +663,6 @@ exit_load_ref_5:;
     if (state_block->stress <= 0) {
         state_block->stress = 37;
     }
-    state_block->interrupt = 0;
-    state_block->stack_limit = state_block->stack_limit_normal;
-    if (state_block->interrupt != 0) {
-        state_block->stack_limit = 0;
-    }
     entry_safepoint();
     if ((frame_epoch != moved) || (inv != invalidations)) {
         return 1;

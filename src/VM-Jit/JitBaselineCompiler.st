@@ -5,7 +5,7 @@ JitCompiler subclass: #JitBaselineCompiler
 
 JitBaselineCompiler comment: 'The baseline compiler (--jit baseline), after Cog''s StackToRegisterMappingCogit: one pass over the bytecodes with a simulated operand stack (ssKind: in its slot, in a register, a constant, nil/true/false, self, a temp or a literal not loaded yet), so values go from producer to consumer in registers (x0-x8, x12-x15) and constants become immediates; the stack is written to its slots only at sends, calls into the runtime and merge points (jump targets, which start with everything in its slot). Before an instruction that may send or call the runtime everything below its operands is written back (as Cog), so its slow path only stores the operands.
 
-Sends: the receiver in x0, receiver and arguments in their slots, x20 advanced to the callee''s fp, x9 the inline cache''s class (a literal next to the code), bl to the site''s target: the miss stub while unlinked, a compiled method''s checked entry (its class check against x9, then its unchecked entry 20 bytes on) while monomorphic, a polymorphic inline cache (up to 6 classes) or the megamorphic stub (x9 then holds the selector). JitBaselineRuntime links and relinks. The callee pushes its frame in machine code (x19, the Frame''s method, code, closure, ctx, fp and a zero pc and sp, the native frame record x29/x30, nil temps, one compare against the stack limit that is also the interrupt check) and answers its result in x0; the caller restores x20 with one sub. Frames are canonical lazily: pc and sp of a frame suspended in a send are derived from its return address when the runtime needs them (JitBaselineRuntime>>canonicalizeBelow:, the return map). Quick methods (^ivar, ^constant, ^self, setters) run without a frame; primitives run before the frame is built, inline (basicNew, closure value, perform: through the megamorphic cache...) or through their C function.
+Sends: the receiver in x0, receiver and arguments in their slots, x20 advanced to the callee''s fp, x9 the inline cache''s class (a literal next to the code), bl to the site''s target: the miss stub while unlinked, a compiled method''s checked entry (its class check against x9, then its unchecked entry 20 bytes on) while monomorphic, a polymorphic inline cache (up to 6 classes) or the megamorphic stub (x9 then holds the selector). JitBaselineRuntime links and relinks. The callee pushes its frame in machine code (x19, the Frame''s method, code, closure, ctx, fp and a zero pc and sp, the native frame record x29/x30, nil temps, the stack limit and interrupt checks) and answers its result in x0; the caller restores x20 with one sub. Frames are canonical lazily: pc and sp of a frame suspended in a send are derived from its return address when the runtime needs them (JitBaselineRuntime>>canonicalizeBelow:, the return map). Quick methods (^ivar, ^constant, ^self, setters) run without a frame; primitives run before the frame is built, inline (basicNew, closure value, perform: through the megamorphic cache...) or through their C function.
 
 Inline: SmallInteger + - * // \\ bitAnd: bitOr: bitShift: and comparisons (tag checks, overflow branches, immediates, folding, compare and branch), Floats (SmallFloat64 and boxed operands, SmallFloat64 results; others are boxed by the runtime), == ~~ class, at: at:put: on Arrays, Strings, Symbols, ByteArrays (size is sent: user classes define it too), value value: value:value: of closures (class and argument count checked, then the block''s entry through a cache in the block stub). Closures are made in eden (and the frame''s Context with the first), Arrays (0x94) by the runtime, non-local returns by the interpreter. The ablation flags (JitRuntime) switch each off.
 
@@ -727,9 +727,6 @@ codeOffset
 headerModeOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitMethod *') fieldAddress: #mode) to: 'int64_t'
 !
-stackLimitOffset
-	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #stackLimit) to: 'int64_t'
-!
 stackLimitNormalOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #stackLimitNormal) to: 'int64_t'
 !
@@ -824,16 +821,18 @@ emitStackCheck: pc
 	| check s |
 	check := asm newLabel.
 	asm bind: check.
-	asm comment: 'stack check (the limit is 0 while an interrupt is pending)'.
-	asm isX64
-		ifTrue: [asm cmp: X20 withStateWordAt: self stackLimitOffset]
-		ifFalse: [
-			asm ldr: X16 base: X22 offset: self stackLimitOffset.
-			asm cmp: X20 with: X16].
 	s := self slow: SL_ENTRY_SLOW pc: pc depth: 0.
 	s < 0 ifTrue: [^false].
 	slCont at: s put: check.
+	asm comment: 'stack check'.
+	asm isX64
+		ifTrue: [asm cmp: X20 withStateWordAt: self stackLimitNormalOffset]
+		ifFalse: [
+			asm ldr: X16 base: X22 offset: self stackLimitNormalOffset.
+			asm cmp: X20 with: X16].
 	asm b: (slLabel at: s) if: COND_HS.
+	asm comment: 'entry: interrupt check'.
+	self emitInterruptTestTo: (slLabel at: s).
 	^true
 !
 emitFrameFor: isBlock args: na temps: nt
@@ -926,19 +925,13 @@ emitBlockEntry: pc
 	^true
 !
 emitQuickMethod
-	"^ivar, ^self, ^nil/true/false/0/1, ^literal, ^SmallInteger, setters: without a frame; anything else falls through. A pending interrupt (the stack limit is 0) takes the frame's path: sends are safepoints."
+	"^ivar, ^self, ^nil/true/false/0/1, ^literal, ^SmallInteger, setters: without a frame; anything else falls through. A pending interrupt takes the frame's path: sends are safepoints."
 	<function>
 	| b0 b1 n ok s framed |
 	(self isQuickMethod) ifFalse: [^self].
 	framed := asm newLabel.
-	asm comment: 'quick method: an interrupt pending (stack limit 0)? then with a frame'.
-	asm isX64
-		ifTrue: [
-			asm cmpStateWordAt: self stackLimitOffset imm: 0.
-			asm b: framed if: COND_EQ]
-		ifFalse: [
-			asm ldr: X16 base: X22 offset: self stackLimitOffset.
-			asm cbz: X16 to: framed].
+	asm comment: 'quick method: interrupt check (with a frame if pending)'.
+	self emitInterruptTestTo: framed.
 	self emitQuickBody.
 	asm bind: framed
 !
@@ -2188,11 +2181,7 @@ headCheck: h
 	s < 0 ifTrue: [^asm fail: ASM_ERR_LABEL].
 	slCont at: s put: (self labelFor: h).
 	asm comment: 'loop head: interrupt check'.
-	asm isX64
-		ifTrue: [self emitInterruptTestTo: (slLabel at: s)]
-		ifFalse: [
-			asm ldr: W16 base: X22 offset: self interruptOffset.
-			asm cbnz: W16 to: (slLabel at: s)]
+	self emitInterruptTestTo: (slLabel at: s)
 !
 backJump: t
 	"A backward jump to the loop head t (which checks for interrupts), counting down toward optimization first (--jit opt); answer its label."
