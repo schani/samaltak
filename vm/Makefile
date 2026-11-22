@@ -115,7 +115,10 @@ ifeq ($(OS)/$(ARCH),LINUX/X86_64)
 endif
 
 OBJDIR := $(BUILD)/obj-$(VARIANT)
-OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
+# Fixture callers of GNU ld --wrap need native, undefined references even with LTO enabled.
+# A separate object name prevents reuse of a previously built LTO caller.
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(filter-out $(NO_LTO_SRCS),$(SRCS))) \
+        $(patsubst %.c,$(OBJDIR)/%.no-lto.o,$(filter $(NO_LTO_SRCS),$(SRCS)))
 STAMP := $(BUILD)/.variant-$(VARIANT)
 
 $(BUILD)/samaltak: $(OBJS) $(EXTRA_OBJS) $(STAMP)
@@ -129,6 +132,10 @@ $(STAMP):
 $(OBJDIR)/%.o: %.c $(PGO_DEP)
 	@mkdir -p $(dir $@)
 	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/%.no-lto.o: %.c $(PGO_DEP)
+	@mkdir -p $(dir $@)
+	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CPPFLAGS) $(CFLAGS) -fno-lto -c -o $@ $<
 
 # Retrain the profile: an instrumented VM runs the benchmarks (also under the baseline JIT) and the kernel/compiler tests on IMAGE.
 pgo:

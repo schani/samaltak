@@ -132,10 +132,12 @@ test-c4-platform-sdl:
 	$(CC) -std=gnu11 -D_GNU_SOURCE -DSAMALTAK_C4_PLATFORM_SDL -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
 		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/fixture.o"
 	$(MAKE) -C vm BUILD=build/c4-sdl-fixture NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=1 \
+		NO_LTO_SRCS=gen/scheduler.c \
 		LDFLAGS='-Wl,--wrap=platform_interface_poll -Wl,--wrap=SDL_Init' EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/fixture.o)"
 	$(CC) -std=gnu11 -D_GNU_SOURCE -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
 		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/legacy.o"
 	$(MAKE) -C vm BUILD=build/c4-sdl-legacy NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=0 \
+		NO_LTO_SRCS=gen/scheduler.c \
 		LDFLAGS=-Wl,--wrap=platform_interface_poll EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/legacy.o)"
 	tests/vm/c4-platform-sdl/headless.sh "$(C4_SDL_OUT)/samaltak.image"
 
