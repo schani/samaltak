@@ -11,6 +11,9 @@ static void answer_word(uint64_t w);
 static oop array_of(int64_t *v, int n);
 static bool bool_arg(int i);
 static uint8_t *bytes_of(uint64_t o, size_t *n, bool writable);
+static void copy_file_read(uint8_t *buf, int64_t n);
+static int32_t file_int32_arg(int i);
+static void file_transfer(bool reading);
 static double float_arg(int i);
 static double float_slot(uint64_t a, int i);
 static void free_vector(char **v);
@@ -19,6 +22,7 @@ static bool is_text(oop o);
 static uint8_t *memory_arg(int i, int64_t offset, int64_t n, bool writable);
 static bool number_of(oop o, double *d);
 static uint8_t *pointer_slot(uint64_t a, int i);
+static uint8_t *prepare_file_transfer(bool reading, int64_t *h, int64_t *count);
 static uint8_t *range_args(bool writable, int64_t *h, int64_t *count);
 static bool rect(uint64_t r, int *out);
 static int64_t platform_primitives_slot(uint64_t a, int i);
@@ -304,6 +308,76 @@ exit_canonical_oop_2:;
     return (uint8_t *)NULL;
 }
 
+/* PlatformPrimitives>>copyFileRead:count: */
+static void copy_file_read(uint8_t *buf, int64_t n)
+{
+    int64_t local;
+    int64_t *h;
+    int64_t local_2;
+    int64_t *count;
+    uint8_t *p;
+    memset(&local, 0, sizeof local);
+    h = &local;
+    memset(&local_2, 0, sizeof local_2);
+    count = &local_2;
+    c4_heap_enter_raw_read();
+    p = range_args(true, h, count);
+    if ((p == NULL) || (n > *count)) {
+        fatal_begin();
+        fprintf(stderr, "C4 file read range changed");
+        fatal_end();
+    }
+    memcpy(p, buf, (uint64_t)n);
+    c4_heap_leave_raw_read();
+}
+
+/* PlatformPrimitives>>fileInt32Arg: */
+static int32_t file_int32_arg(int i)
+{
+    int64_t v;
+    v = int_arg(i);
+    if (c4_heap_platform_files() && ((v < 0) || (v > 0x7FFFFFFF))) {
+        bad = true;
+    }
+    return (int32_t)v;
+}
+
+/* PlatformPrimitives>>fileTransfer: */
+static void file_transfer(bool reading)
+{
+    int64_t local;
+    int64_t *h;
+    int64_t local_2;
+    int64_t *count;
+    uint8_t *buf;
+    ssize_t n;
+    uint64_t v;
+    memset(&local, 0, sizeof local);
+    h = &local;
+    memset(&local_2, 0, sizeof local_2);
+    count = &local_2;
+    buf = prepare_file_transfer(reading, h, count);
+    if (buf == NULL) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    n = reading ? platform_files_read((int32_t)*h, buf, (uint64_t)*count) : platform_files_write((int32_t)*h, buf, (uint64_t)*count);
+    if (reading && (n > 0)) {
+        copy_file_read(buf, n);
+    }
+    free(buf);
+    if (n < 0) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        goto exit_answer_size;
+    }
+    v = (uint64_t)((((int64_t)n) << 1) | 1);
+    prim_result = v;
+    prim_status = PS_OK;
+exit_answer_size:;
+}
+
 /* PlatformPrimitives>>floatArg: */
 static double float_arg(int i)
 {
@@ -400,6 +474,7 @@ static int64_t int_arg(int i)
 exit_canonical_oop:;
     r_canonical_oop; }), v)) {
         bad = true;
+        return 0;
     }
     return *v;
 }
@@ -504,6 +579,27 @@ exit_load_ref:;
         bad = true;
     }
     return (uint8_t *)*w;
+}
+
+/* PlatformPrimitives>>prepareFileTransfer:handle:count: */
+static uint8_t *prepare_file_transfer(bool reading, int64_t *h, int64_t *count)
+{
+    uint8_t *buf;
+    uint8_t *p;
+    buf = (uint8_t *)NULL;
+    c4_heap_enter_raw_read();
+    p = range_args(reading, h, count);
+    if ((p != NULL) && ((*h > 0) && (*h <= 0x7FFFFFFF))) {
+        buf = (uint8_t *)malloc(*count == 0 ? 1 : (uint64_t)*count);
+        if ((buf != NULL) && (!reading)) {
+            memcpy(buf, p, (uint64_t)*count);
+        }
+    }
+    c4_heap_leave_raw_read();
+    if (buf == NULL) {
+        set_error("invalid file transfer or no native buffer");
+    }
+    return buf;
 }
 
 /* PlatformPrimitives>>primClipboardData */
@@ -870,7 +966,7 @@ exit_canonical_oop:;
 void prim_file_close(void)
 {
     bool r_args;
-    int64_t f;
+    int32_t f;
     bool a_boolean;
     oop o;
     uint64_t r_canonical_oop;
@@ -883,13 +979,13 @@ void prim_file_close(void)
         prim_error_code = -1;
         return;
     }
-    f = int_arg(0);
+    f = file_int32_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    a_boolean = platform_files_close((int32_t)f);
+    a_boolean = platform_files_close(f);
     if (a_boolean) {
         o = prim_base[0];
         v = ({
@@ -951,7 +1047,7 @@ exit_path_op:;
 void prim_file_flush(void)
 {
     bool r_args;
-    int64_t f;
+    int32_t f;
     bool a_boolean;
     oop o;
     uint64_t r_canonical_oop;
@@ -964,13 +1060,13 @@ void prim_file_flush(void)
         prim_error_code = -1;
         return;
     }
-    f = int_arg(0);
+    f = file_int32_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    a_boolean = platform_files_flush((int32_t)f);
+    a_boolean = platform_files_flush(f);
     if (a_boolean) {
         o = prim_base[0];
         v = ({
@@ -994,7 +1090,7 @@ void prim_file_open(void)
 {
     bool r_args;
     char *p;
-    int64_t m;
+    int32_t m;
     int32_t h;
     uint64_t v;
     if (!({
@@ -1006,8 +1102,8 @@ void prim_file_open(void)
         return;
     }
     p = string_arg(0);
-    m = int_arg(1);
-    h = bad ? 0 : platform_files_open(p, (int32_t)m);
+    m = file_int32_arg(1);
+    h = bad ? 0 : platform_files_open(p, m);
     free(p);
     if (h > 0) {
         v = (uint64_t)((((int64_t)h) << 1) | 1);
@@ -1023,7 +1119,7 @@ void prim_file_open(void)
 void prim_file_position(void)
 {
     bool r_args;
-    int64_t f;
+    int32_t f;
     off_t r;
     uint64_t v;
     if (!({
@@ -1034,13 +1130,13 @@ void prim_file_position(void)
         prim_error_code = -1;
         return;
     }
-    f = int_arg(0);
+    f = file_int32_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    r = position((int32_t)f);
+    r = position(f);
     if (r < 0) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1061,6 +1157,10 @@ void prim_file_read(void)
     uint8_t *p;
     ssize_t r;
     uint64_t v;
+    if (c4_heap_platform_files()) {
+        file_transfer(true);
+        return;
+    }
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -1123,7 +1223,7 @@ exit_canonical_oop:;
 void prim_file_seek(void)
 {
     bool r_args;
-    int64_t f;
+    int32_t f;
     int64_t pos;
     bool a_boolean;
     oop o;
@@ -1137,14 +1237,14 @@ void prim_file_seek(void)
         prim_error_code = -1;
         return;
     }
-    f = int_arg(0);
+    f = file_int32_arg(0);
     pos = int_arg(1);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    a_boolean = (pos >= 0) && seek((int32_t)f, pos);
+    a_boolean = (pos >= 0) && seek(f, pos);
     if (a_boolean) {
         o = prim_base[0];
         v = ({
@@ -1167,7 +1267,7 @@ exit_canonical_oop:;
 void prim_file_size(void)
 {
     bool r_args;
-    int64_t f;
+    int32_t f;
     off_t r;
     uint64_t v;
     if (!({
@@ -1178,13 +1278,13 @@ void prim_file_size(void)
         prim_error_code = -1;
         return;
     }
-    f = int_arg(0);
+    f = file_int32_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    r = platform_files_size((int32_t)f);
+    r = platform_files_size(f);
     if (r < 0) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1476,6 +1576,10 @@ void prim_file_write(void)
     uint8_t *p;
     int64_t r;
     uint64_t v;
+    if (c4_heap_platform_files()) {
+        file_transfer(false);
+        return;
+    }
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -6797,7 +6901,7 @@ static uint8_t *range_args(bool writable, int64_t *h, int64_t *count)
     r_canonical_oop = o;
 exit_canonical_oop:;
     r_canonical_oop; }), len, writable);
-    if (bad || ((p == NULL) || ((start < 1) || ((*count < 0) || ((uint64_t)(start - 1 + *count) > *len))))) {
+    if (bad || ((p == NULL) || ((start < 1) || ((*count < 0) || ((uint64_t)(start - 1) + (uint64_t)*count > *len))))) {
         return (uint8_t *)NULL;
     }
     return p + (start - 1);
@@ -6913,7 +7017,13 @@ static char *string_arg(int i)
     r_canonical_oop = o_2;
 exit_canonical_oop:;
     r_canonical_oop; });
+    if (c4_heap_platform_files()) {
+        c4_heap_enter_raw_read();
+    }
     s = is_text(o) ? utf8_of(o) : (char *)NULL;
+    if (c4_heap_platform_files()) {
+        c4_heap_leave_raw_read();
+    }
     if (s == NULL) {
         bad = true;
     }

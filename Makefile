@@ -109,6 +109,16 @@ test-c4-live:
 	tests/vm/c4-live/run-stack-move.sh
 	OUT="$(OUT)" tests/vm/c4-live/run.sh
 
+# No display tests: build the isolated files VM and a variant with a blocked-read witness.
+test-c4-platform-files: image
+	$(MAKE) -C vm BUILD=build/c4-platform-files C4_PLATFORM_FILES=1
+	tests/vm/c4-platform-files/run.sh "$(OUT)/samaltak.image"
+	@mkdir -p "$(OUT)"
+	$(CC) -std=c11 -O2 -c -o "$(OUT)/c4-platform-blocked.o" tests/vm/c4-platform-files/blocked_read.c
+	$(MAKE) -C vm BUILD=build/c4-platform-blocked C4_PLATFORM_FILES=1 CPPFLAGS=-DSAMALTAK_C4_TEST \
+		LDFLAGS=-Wl,--wrap=read EXTRA_OBJS="$(abspath $(OUT)/c4-platform-blocked.o)"
+	tests/vm/c4-platform-files/run.sh "$(OUT)/samaltak.image" blocked
+
 test-tools: image
 	$(PLATFORM_CHECK)
 	$(MAKE) -C vm/platform test st-test
@@ -263,4 +273,4 @@ clean:
 	$(MAKE) -C vm clean
 	rm -rf build
 
-.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-c4-live test-tools test video mindblown-video jit-video clean
+.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-c4-live test-c4-platform-files test-tools test video mindblown-video jit-video clean

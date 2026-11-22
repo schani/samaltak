@@ -6,6 +6,7 @@
 # macOS: Homebrew sdl3 and openssl@3, clang. Linux: sdl3, shaderc (GLSL → SPIR-V for SDL_GPU on Vulkan) and OpenSSL 3, gcc
 # or clang.
 # Profile-guided: pgo.profdata (if present) steers optimization; `make pgo IMAGE=...` retrains it. NO_PGO=1 skips it.
+# C4_PLATFORM_FILES=1 builds an interpreter-only C4 VM with audited platform file primitives (Linux x86-64).
 # BRIEF=1 prints one line per file instead of the commands.
 VM_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S := $(shell uname -s)
@@ -75,22 +76,34 @@ ifneq ($(and $(PLATFORM_SRCS),$(SDL_LIBS),$(if $(NO_PLATFORM),,yes)),)
   SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
   CFLAGS += $(SDL_CFLAGS) $(SSL_CFLAGS)
   LDLIBS += $(SDL_LIBS) $(SSL_LIBS) $(OS_PLATFORM_LIBS)
+  ifeq ($(C4_PLATFORM_FILES),1)
+    VARIANT := c4-platform-files
+    CFLAGS += -DSAMALTAK_C4_PLATFORM_FILES
+  endif
 else
   VARIANT := headless
   SRCS := $(CORE_SRCS) $(HEADLESS_SRCS)
-  ifeq ($(OS)/$(ARCH),LINUX/X86_64)
+  CFLAGS += -DSAMALTAK_NO_PLATFORM
+endif
+
+ifeq ($(C4_PLATFORM_FILES),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT),LINUX/X86_64/c4-platform-files)
+    $(error C4_PLATFORM_FILES=1 requires Linux x86-64 and the platform build dependencies)
+  endif
+endif
+ifeq ($(OS)/$(ARCH),LINUX/X86_64)
+  ifneq ($(filter headless c4-platform-files,$(VARIANT)),)
     SRCS += c4_heap.c
     vpath c4_heap.c $(VM_DIR)
   endif
-  CFLAGS += -DSAMALTAK_NO_PLATFORM
 endif
 
 OBJDIR := $(BUILD)/obj-$(VARIANT)
 OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
 STAMP := $(BUILD)/.variant-$(VARIANT)
 
-$(BUILD)/samaltak: $(OBJS) $(STAMP)
-	$(if $(BRIEF),@echo "link $@";) $(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
+$(BUILD)/samaltak: $(OBJS) $(EXTRA_OBJS) $(STAMP)
+	$(if $(BRIEF),@echo "link $@";) $(CC) $(CFLAGS) -o $@ $(OBJS) $(EXTRA_OBJS) $(LDFLAGS) $(LDLIBS)
 
 $(STAMP):
 	@mkdir -p $(BUILD)
@@ -99,7 +112,7 @@ $(STAMP):
 
 $(OBJDIR)/%.o: %.c $(PGO_DEP)
 	@mkdir -p $(dir $@)
-	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CFLAGS) -c -o $@ $<
+	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 # Retrain the profile: an instrumented VM runs the benchmarks (also under the baseline JIT) and the kernel/compiler tests on IMAGE.
 pgo:

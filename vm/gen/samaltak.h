@@ -47,6 +47,7 @@
 #ifdef __APPLE__
 #define st_mtim st_mtimespec
 #endif
+#include "c4_platform_files.h"
 #include <spawn.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>

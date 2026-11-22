@@ -24,6 +24,7 @@ initialize
 init
 	"Idempotent."
 	<export>
+	c4 platformFiles ifTrue: [^self].
 	initDone ifTrue: [^self].
 	initDone := true.
 	"broken sockets and FIFOs report EPIPE instead"
@@ -38,6 +39,7 @@ init
 !
 poll
 	<export>
+	c4 platformFiles ifTrue: [^self].
 	"Pumping Cocoa costs tens of µs; at most once per ms is plenty for input."
 	(windows videoInited and: [sdl getTicksNS - events lastPumpNs >= 1000000]) ifTrue: [events pump].
 	sockets anyArmed ifTrue: [sockets poll: 0].
@@ -46,6 +48,10 @@ poll
 wait: timeoutUs
 	<export>
 	| ms socks p n watching |
+	c4 platformFiles ifTrue: [
+		timeoutUs < 0 ifTrue: [self fatal: 'deadlock: no runnable process and no pending timer'].
+		posix usleep: (timeoutUs > 1000000 ifTrue: [1000000] ifFalse: [timeoutUs]) asUInt32.
+		^self].
 	self init.
 	events pump.
 	(windows videoInited and: [(self atomicLoad: #wakeEvent) = 0]) ifTrue: [
@@ -74,6 +80,7 @@ wait: timeoutUs
 !
 shutdown
 	<export>
+	c4 platformFiles ifTrue: [^self].
 	gpu shutdown.
 	windows shutdown.
 	windows videoInited ifTrue: [sdl quit]
@@ -84,6 +91,7 @@ wake
 	"Any thread: end a platform_interface_wait in progress."
 	<export>
 	| t e |
+	c4 platformFiles ifTrue: [^self].
 	(self atomicLoad: #inWait) ifFalse: [^self].
 	t := self atomicLoad: #wakeEvent.
 	t ~= 0 ifTrue: [

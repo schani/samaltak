@@ -5,11 +5,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(__linux__) && defined(__x86_64__) && defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_UEFI)
+#if defined(__linux__) && defined(__x86_64__) && !defined(SAMALTAK_UEFI) && \
+    (defined(SAMALTAK_NO_PLATFORM) || defined(SAMALTAK_C4_PLATFORM_FILES))
 #define SAMALTAK_C4_SUPPORTED 1
 #else
 #define SAMALTAK_C4_SUPPORTED 0
 #endif
+
+static inline bool c4_heap_platform_files(void)
+{
+#ifdef SAMALTAK_C4_PLATFORM_FILES
+    return true;
+#else
+    return false;
+#endif
+}
 
 /* weak_start is the validated fixed count for F_WEAK, otherwise C4_NO_WEAK. */
 #define C4_NO_WEAK UINT32_MAX

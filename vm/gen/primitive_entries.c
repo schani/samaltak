@@ -155,205 +155,205 @@ primitive_entry vm_primitive_table[] = {
     {204, 3, "displayBits", prim_display_bits},
     {205, 3, "displayNextEvent", prim_display_next_event},
     {206, 3, "displayFlush", prim_display_flush},
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {400, 2, "windowOpen", prim_window_open},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {401, 2, "windowClose", prim_window_close},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {402, 2, "windowSize", prim_window_size},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {403, 2, "windowPixelSize", prim_window_pixel_size},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {404, 2, "windowDisplayScale", prim_window_display_scale},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {405, 2, "windowSetTitle", prim_window_set_title},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {406, 2, "windowShow", prim_window_show},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {407, 2, "windowHide", prim_window_hide},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {408, 2, "windowRefreshRate", prim_window_refresh_rate},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {409, 2, "setCursor", prim_set_cursor},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {410, 2, "clipboardGet", prim_clipboard_get},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {411, 2, "clipboardSet", prim_clipboard_set},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {412, 2, "nextEvent", prim_next_event},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {413, 2, "injectEvent", prim_inject_event},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {414, 2, "inputSemaphore", prim_input_semaphore},
 #endif
 #ifndef SAMALTAK_NO_PLATFORM
     {415, 2, "platformLastError", prim_platform_last_error},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {416, 2, "vsyncSemaphore", prim_vsync_semaphore},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {417, 2, "platformHandleCounts", prim_platform_handle_counts},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {418, 2, "droppedEvents", prim_dropped_events},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {419, 2, "windowSetTextInputArea", prim_window_set_text_input_area},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {420, 2, "clipboardData", prim_clipboard_data},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {421, 2, "windowSetSize", prim_window_set_size},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {430, 2, "gpuCreateDevice", prim_gpu_create_device},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {431, 2, "gpuClaimWindow", prim_gpu_claim_window},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {432, 2, "gpuSwapchainFormat", prim_gpu_swapchain_format},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {433, 2, "gpuCreateShader", prim_gpu_create_shader},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {434, 2, "gpuCreatePipeline", prim_gpu_create_pipeline},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {435, 2, "gpuCreateTexture", prim_gpu_create_texture},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {436, 2, "gpuCreateSampler", prim_gpu_create_sampler},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {437, 2, "gpuCreateBuffer", prim_gpu_create_buffer},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {438, 2, "gpuRelease", prim_gpu_release},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {439, 2, "gpuUploadBuffer", prim_gpu_upload_buffer},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {440, 2, "gpuUploadTexture", prim_gpu_upload_texture},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {441, 2, "gpuAcquireCommandBuffer", prim_gpu_acquire_command_buffer},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {442, 2, "gpuAcquireSwapchain", prim_gpu_acquire_swapchain},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {443, 2, "gpuBeginPass", prim_gpu_begin_pass},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {444, 2, "gpuSetViewport", prim_gpu_set_viewport},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {445, 2, "gpuSetScissor", prim_gpu_set_scissor},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {446, 2, "gpuBindPipeline", prim_gpu_bind_pipeline},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {447, 2, "gpuBindVertexBuffer", prim_gpu_bind_vertex_buffer},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {448, 2, "gpuBindTexture", prim_gpu_bind_texture},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {449, 2, "gpuPushUniforms", prim_gpu_push_uniforms},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {450, 2, "gpuDraw", prim_gpu_draw},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {451, 2, "gpuEndPass", prim_gpu_end_pass},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {452, 2, "gpuBlit", prim_gpu_blit},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {453, 2, "gpuSubmit", prim_gpu_submit},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {454, 2, "gpuWaitFence", prim_gpu_wait_fence},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {455, 2, "gpuFenceDone", prim_gpu_fence_done},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {456, 2, "gpuDownload", prim_gpu_download},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {457, 2, "gpuTextureSize", prim_gpu_texture_size},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {458, 2, "gpuWaitIdle", prim_gpu_wait_idle},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {459, 2, "gpuFenceElapsed", prim_gpu_fence_elapsed},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {460, 2, "gpuShaderLanguage", prim_gpu_shader_language},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {461, 2, "gpuCompileShader", prim_gpu_compile_shader},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {470, 2, "machineSystemTable", prim_machine_system_table},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {471, 2, "machineCall", prim_machine_call},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {472, 2, "machineRead", prim_machine_read},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {473, 2, "machineWrite", prim_machine_write},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {474, 2, "machineCopy", prim_machine_copy},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {475, 2, "machineAllocate", prim_machine_allocate},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {476, 2, "machineFree", prim_machine_free},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {477, 2, "machineBarrier", prim_machine_barrier},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {478, 2, "machineWatch", prim_machine_watch},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {480, 2, "rasterDraw", prim_raster_draw},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {481, 2, "rasterFill", prim_raster_fill},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {482, 2, "rasterBlit", prim_raster_blit},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {483, 2, "rasterCopy", prim_raster_copy},
 #endif
 #ifndef SAMALTAK_NO_PLATFORM
@@ -398,92 +398,92 @@ primitive_entry vm_primitive_table[] = {
 #ifndef SAMALTAK_NO_PLATFORM
     {513, 2, "cwd", prim_cwd},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {514, 2, "mkfifo", prim_mkfifo},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {515, 2, "spawnProcess", prim_spawn_process},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {516, 2, "processWait", prim_process_wait},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {518, 0, "execProcess", prim_exec_process},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {540, 2, "socketListen", prim_socket_listen},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {541, 2, "socketConnect", prim_socket_connect},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {542, 2, "socketAccept", prim_socket_accept},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {543, 2, "socketRecv", prim_socket_recv},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {544, 2, "socketSend", prim_socket_send},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {545, 2, "socketClose", prim_socket_close},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {546, 2, "socketSemaphore", prim_socket_semaphore},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {547, 2, "socketLocalPort", prim_socket_local_port},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {548, 2, "socketResolve", prim_socket_resolve},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {549, 2, "socketConnected", prim_socket_connected},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {550, 2, "tlsStart", prim_tls_start},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {551, 2, "tlsRecv", prim_tls_recv},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {552, 2, "tlsSend", prim_tls_send},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {553, 2, "tlsClose", prim_tls_close},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {554, 2, "tlsSemaphore", prim_tls_semaphore},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {555, 2, "tlsHandshake", prim_tls_handshake},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {560, 2, "ptySpawn", prim_pty_spawn},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {561, 2, "ptyRead", prim_pty_read},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {562, 2, "ptyWrite", prim_pty_write},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {563, 2, "ptyResize", prim_pty_resize},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {564, 2, "ptySemaphore", prim_pty_semaphore},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {565, 2, "ptyWait", prim_pty_wait},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {566, 2, "ptyClose", prim_pty_close},
 #endif
     {567, 2, "workClockStart", prim_work_clock_start},
     {568, 2, "workClockStop", prim_work_clock_stop},
     {569, 2, "workClockRunning", prim_work_clock_running},
     {570, 2, "workClockPaced", prim_work_clock_paced},
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {571, 2, "ptyForeground", prim_pty_foreground},
 #endif
     {572, 2, "workClockNextFrame", prim_work_clock_next_frame},
@@ -493,19 +493,19 @@ primitive_entry vm_primitive_table[] = {
     {576, 2, "workClockCharge", prim_work_clock_charge},
     {577, 2, "workClockQuerying", prim_work_clock_querying},
     {578, 2, "workClockSkipRealTime", prim_work_clock_skip_real_time},
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {580, 2, "nicOpen", prim_nic_open},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {581, 2, "nicSend", prim_nic_send},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {582, 2, "nicReceive", prim_nic_receive},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {583, 2, "nicSemaphore", prim_nic_semaphore},
 #endif
-#ifndef SAMALTAK_NO_PLATFORM
+#if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES)
     {584, 2, "nicStatus", prim_nic_status},
 #endif
 };

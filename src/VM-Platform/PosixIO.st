@@ -9,7 +9,7 @@ PosixIO comment: 'The file, directory, pipe and poll calls of the platform layer
 headers
 	"struct stat's modification time is st_mtim (POSIX.1-2008); macOS calls it st_mtimespec."
 	^#('<fcntl.h>' '<unistd.h>' '<sys/stat.h>' '<dirent.h>' '<errno.h>' '<string.h>' '<poll.h>' '<signal.h>'
-		'#ifdef __APPLE__' '#define st_mtim st_mtimespec' '#endif')
+		'#ifdef __APPLE__' '#define st_mtim st_mtimespec' '#endif' '"c4_platform_files.h"')
 !
 typedefs
 	^#((mode_t uint16_t) (DIR opaque) (nfds_t uint32_t) (sig_t 'void (*)(int)'))
@@ -38,6 +38,10 @@ charPointerTo: anAddress
 open: path flags: flags mode: mode
 	<c: 'int open(const char *path, int flags, ...)'>
 	^(File primOpen: (self memory stringAt: path) mode: (self fileModeFor: flags)) ifNil: [self fail: self ENOENT]
+!
+c4OpenRegular: path flags: flags mode: mode
+	<c: 'int c4_platform_open_regular(const char *path, int flags, uint16_t mode)'>
+	^self notSimulated
 !
 close: fd
 	<c: 'int close(int fd)'>

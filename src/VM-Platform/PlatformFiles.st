@@ -42,16 +42,24 @@ openFlags: mode
 open: path mode: mode
 	"mode: PF_FILE_READ, PF_FILE_READ_WRITE, PF_FILE_APPEND, PF_FILE_CREATE_TRUNCATE or PF_FILE_CREATE_PRIVATE (as PF_FILE_CREATE_TRUNCATE, but a file it creates only its owner may read and write: secrets)."
 	<export>
-	| fd h |
-	platform init.
+	| fd h flags permissions |
+	c4 platformFiles ifFalse: [platform init].
 	(mode < 0 or: [mode > 4]) ifTrue: [
 		common setError: 'bad file mode %d' with: mode.
 		^0].
-	fd := posixIO open: path flags: ((self openFlags: mode) bitOr: posixIO O_CLOEXEC) mode: (mode = PF_FILE_CREATE_PRIVATE ifTrue: [8r600] ifFalse: [8r644]).
+	flags := (self openFlags: mode) bitOr: posixIO O_CLOEXEC.
+	permissions := mode = PF_FILE_CREATE_PRIVATE ifTrue: [8r600] ifFalse: [8r644].
+	fd := c4 platformFiles
+		ifTrue: [posixIO c4OpenRegular: path flags: flags mode: permissions asUInt16]
+		ifFalse: [posixIO open: path flags: flags mode: permissions asUInt16].
 	fd < 0 ifTrue: [
 		self failOS: 'open' path: path.
 		^0].
 	h := common table: table add: K_FILE pointer: self null.
+	(c4 platformFiles and: [h = 0]) ifTrue: [
+		posixIO close: fd.
+		common setError: 'out of memory for file handle'.
+		^0].
 	(table v + h) i: fd.
 	^h
 !
@@ -94,7 +102,11 @@ write: f bytes: buf count: n
 				posixIO errno ~= posixIO EINTR ifTrue: [
 					self failOS: 'write'.
 					^-1]]
-			ifFalse: [done := done + r asUInt64]].
+			ifFalse: [
+				(c4 platformFiles and: [r = 0]) ifTrue: [
+					common setError: 'write made no progress'.
+					^-1].
+				done := done + r asUInt64]].
 	^done asInt64
 !
 size: f

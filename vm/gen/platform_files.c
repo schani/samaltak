@@ -183,9 +183,13 @@ bool platform_files_mkfifo(char *path)
 int32_t platform_files_open(char *path, int32_t mode)
 {
     int v;
+    int flags;
+    int permissions;
     int fd;
     int32_t h;
-    platform_interface_init();
+    if (!c4_heap_platform_files()) {
+        platform_interface_init();
+    }
     if ((mode < 0) || (mode > 4)) {
         snprintf(last_error, LAST_ERROR_SIZE, "bad file mode %d", mode);
         return 0;
@@ -204,12 +208,19 @@ int32_t platform_files_open(char *path, int32_t mode)
         v = O_RDWR | O_CREAT | O_TRUNC;
         break;
     }
-    fd = open(path, v | O_CLOEXEC, mode == PF_FILE_CREATE_PRIVATE ? 384 : 420);
+    flags = v | O_CLOEXEC;
+    permissions = mode == PF_FILE_CREATE_PRIVATE ? 384 : 420;
+    fd = c4_heap_platform_files() ? c4_platform_open_regular(path, flags, (uint16_t)permissions) : open(path, flags, (uint16_t)permissions);
     if (fd < 0) {
         platform_common_fail_os_path_code("open", path, errno);
         return 0;
     }
     h = platform_common_table_add_pointer(table, K_FILE, NULL);
+    if (c4_heap_platform_files() && (h == 0)) {
+        close(fd);
+        set_error("out of memory for file handle");
+        return 0;
+    }
     (table->v + h)->i = fd;
     return h;
 }
@@ -380,6 +391,10 @@ int64_t platform_files_write(int32_t f, const void *buf, uint64_t n)
                 return -1;
             }
         } else {
+            if (c4_heap_platform_files() && (r == 0)) {
+                set_error("write made no progress");
+                return -1;
+            }
             done = done + (uint64_t)r;
         }
     }

@@ -745,7 +745,8 @@ primitives
 	^(all asSortedCollection: [:a :b | (a primitive at: 1) <= (b primitive at: 1)]) asArray
 !
 primitiveTableFile
-	"The platform layer's rows are left out of a headless build (SAMALTAK_NO_PLATFORM)."
+	"One source of capability information for lookup, tryPrimitive, JIT and primitiveNames. C4 files
+	 includes only the audited platform rows; never infer capability from a numeric range."
 	| s |
 	s := WriteStream on: String new.
 	s nextPutAll: self banner; lf.
@@ -756,7 +757,10 @@ primitiveTableFile
 		p := f primitive.
 		platform := self isPlatformModule: f module.
 		fos := f module moduleClass targetOS.
-		platform ifTrue: [s nextPutAll: '#ifndef SAMALTAK_NO_PLATFORM'; lf].
+		platform ifTrue: [
+			(self isC4FilePrimitive: f)
+				ifTrue: [s nextPutAll: '#ifndef SAMALTAK_NO_PLATFORM'; lf]
+				ifFalse: [s nextPutAll: '#if !!defined(SAMALTAK_NO_PLATFORM) && !!defined(SAMALTAK_C4_PLATFORM_FILES)'; lf]].
 		fos notNil ifTrue: [s nextPutAll: '#ifdef '; nextPutAll: (self class guardFor: fos); lf].
 		s nextPutAll: '    {'; print: (p at: 1); nextPutAll: ', '; print: ((p at: 3) ifTrue: [1] ifFalse: [0]) + ((p at: 4) ifTrue: [2] ifFalse: [0]);
 			nextPutAll: ', '; nextPutAll: (CConst value: (p at: 2) type: nil) cString; nextPutAll: ', '; nextPutAll: f cName; nextPutAll: '},'; lf.
@@ -765,6 +769,12 @@ primitiveTableFile
 	s nextPutAll: '};'; lf; lf.
 	s nextPutAll: 'int vm_primitive_count = sizeof vm_primitive_table / sizeof vm_primitive_table[0];'; lf.
 	^s contents
+!
+isC4FilePrimitive: f
+	^(f module moduleClass == PlatformPrimitives) and: [
+		#('platformLastError' 'fileOpen' 'fileClose' 'fileRead' 'fileWrite' 'fileSize' 'filePosition'
+			'fileSeek' 'fileFlush' 'fileDelete' 'fileRename' 'fileStat' 'dirEntries' 'dirCreate' 'cwd')
+			includes: (f primitive at: 2)]
 !
 isPlatformModule: aTModule
 	^aTModule moduleClass packageName = 'VM-Platform'

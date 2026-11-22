@@ -43,8 +43,9 @@ usage
 	<noreturn>
 	libc fputs: 'usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
-  --c4              experimental headless heap (Linux x86-64, NO_PLATFORM=1)
-                    optional --jit baseline; otherwise interpreter only
+  --c4              experimental headless heap (Linux x86-64)
+                    NO_PLATFORM=1 supports optional --jit baseline
+                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only
   --c4-moving       --c4 with bounded relocation of exact two-slot instances
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
@@ -97,8 +98,11 @@ main: n argv: v
 	argv := v.
 	argsStart := (i + 1) asInt32.
 	i + 1 to: n - 1 do: [:k | (libc strcmp: (v at: k) with: '--headless') = 0 ifTrue: [headless := true]].
+	c4 platformFiles ifTrue: [
+		c4Requested ifFalse: [self fatal: 'C4_PLATFORM_FILES=1 requires --c4 or --c4-moving'].
+		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: 'C4 platform files require --jit none']].
 	c4Requested ifTrue: [
-		c4 supported ifFalse: [self fatal: '--c4 requires a Linux x86-64 NO_PLATFORM=1 build'].
+		c4 supported ifFalse: [self fatal: '--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1'].
 		headless ifFalse: [self fatal: '--c4 requires --headless'].
 		(explicitJit and: [jit mode = jit optMode]) ifTrue: [self fatal: '--c4 supports only --jit none or baseline'].
 		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].

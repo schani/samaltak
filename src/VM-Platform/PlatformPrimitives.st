@@ -40,7 +40,7 @@ intArg: i
 	<function>
 	| v |
 	v := self local: 'int64_t'.
-	(memory int64Of: (self arg: i) into: v) ifFalse: [bad := true].
+	(memory int64Of: (self arg: i) into: v) ifFalse: [bad := true. ^0].
 	^v value
 !
 floatArg: i
@@ -72,7 +72,9 @@ stringArg: i
 	<function>
 	| o s |
 	o := self arg: i.
+	c4 platformFiles ifTrue: [c4 enterRawRead].
 	s := (self isText: o) ifTrue: [memory utf8Of: o] ifFalse: [self null].
+	c4 platformFiles ifTrue: [c4 leaveRawRead].
 	s isNull ifTrue: [bad := true].
 	^s
 !
@@ -102,7 +104,7 @@ rangeArgs: writable handle: h count: count
 	count value: (self intArg: 3).
 	len := self local: 'size_t'.
 	p := self bytesOf: (self arg: 1) size: len writable: writable.
-	(bad or: [p isNull or: [start < 1 or: [count value < 0 or: [(start - 1 + count value) asUInt64 > len value]]]]) ifTrue: [^self null].
+	(bad or: [p isNull or: [start < 1 or: [count value < 0 or: [((start - 1) asUInt64 + count value asUInt64) > len value]]]]) ifTrue: [^self null].
 	^p + (start - 1)
 !
 numberOf: o into: d
@@ -926,6 +928,58 @@ primGpuFenceElapsed
 ! !
 
 !PlatformPrimitives methodsFor: 'files and processes'!
+fileInt32Arg: i
+	<function>
+	| v |
+	v := self intArg: i.
+	(c4 platformFiles and: [v < 0 or: [v > 16r7FFFFFFF]]) ifTrue: [bad := true].
+	^v asInt32
+!
+prepareFileTransfer: reading handle: h count: count
+	"Check the range and stage write input. Only the malloc'd buffer escapes the borrow."
+	<function>
+	<var: #h type: 'int64_t *'>
+	<var: #count type: 'int64_t *'>
+	<returns: 'uint8_t *'>
+	| p buf |
+	buf := self cCoerce: self null to: 'uint8_t *'.
+	c4 enterRawRead.
+	p := self rangeArgs: reading handle: h count: count.
+	(p notNull and: [h value > 0 and: [h value <= 16r7FFFFFFF]]) ifTrue: [
+		buf := self cCoerce: (libc malloc: (count value = 0 ifTrue: [1] ifFalse: [count value asUInt64])) to: 'uint8_t *'.
+		(buf notNull and: [reading not]) ifTrue: [libc memcpy: buf from: p size: count value asUInt64]].
+	c4 leaveRawRead.
+	buf isNull ifTrue: [common setError: 'invalid file transfer or no native buffer'].
+	^buf
+!
+copyFileRead: buf count: n
+	"The same rooted arguments, re-resolved after the syscall. No checkpoint or callback runs between the borrows."
+	<function>
+	<var: #buf type: 'uint8_t *'>
+	<var: #n type: 'int64_t'>
+	| h count p |
+	h := self local: 'int64_t'.
+	count := self local: 'int64_t'.
+	c4 enterRawRead.
+	p := self rangeArgs: true handle: h count: count.
+	(p isNull or: [n > count value]) ifTrue: [self fatal: 'C4 file read range changed'].
+	libc memcpy: p from: buf size: n asUInt64.
+	c4 leaveRawRead
+!
+fileTransfer: reading
+	<function>
+	| h count buf n |
+	h := self local: 'int64_t'.
+	count := self local: 'int64_t'.
+	buf := self prepareFileTransfer: reading handle: h count: count.
+	buf isNull ifTrue: [^self fail].
+	n := reading
+		ifTrue: [files read: h value asInt32 into: buf count: count value asUInt64]
+		ifFalse: [files write: h value asInt32 bytes: buf count: count value asUInt64].
+	(reading and: [n > 0]) ifTrue: [self copyFileRead: buf count: n].
+	libc free: buf.
+	self answerSize: n
+!
 pathOp: aBlock
 	"A primitive of one path argument: aBlock answers whether the operation on the path (a C string) succeeded."
 	| p ok |
@@ -941,8 +995,8 @@ primFileOpen
 	| p m h |
 	(self args: 2) ifFalse: [^self fail].
 	p := self stringArg: 0.
-	m := self intArg: 1.
-	h := bad ifTrue: [0] ifFalse: [files open: p mode: m asInt32].
+	m := self fileInt32Arg: 1.
+	h := bad ifTrue: [0] ifFalse: [files open: p mode: m].
 	libc free: p.
 	self answerHandle: h
 !
@@ -951,14 +1005,15 @@ primFileClose
 	<vmPrimitive: 501 name: 'fileClose'>
 	| f |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	self answerOk: (files close: f asInt32)
+	self answerOk: (files close: f)
 !
 primFileRead
 	"file bytes start count -> count (0 = EOF)"
 	<vmPrimitive: 502 name: 'fileRead'>
 	| h n p |
+	c4 platformFiles ifTrue: [^self fileTransfer: true].
 	h := self local: 'int64_t'.
 	n := self local: 'int64_t'.
 	p := self rangeArgs: true handle: h count: n.
@@ -968,6 +1023,7 @@ primFileWrite
 	"file bytes start count -> count"
 	<vmPrimitive: 503 name: 'fileWrite'>
 	| h n p |
+	c4 platformFiles ifTrue: [^self fileTransfer: false].
 	h := self local: 'int64_t'.
 	n := self local: 'int64_t'.
 	p := self rangeArgs: false handle: h count: n.
@@ -978,9 +1034,9 @@ primFileSize
 	<vmPrimitive: 504 name: 'fileSize'>
 	| f r |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	r := files size: f asInt32.
+	r := files size: f.
 	r < 0 ifTrue: [^self fail].
 	self answer: (memory int64Oop: r)
 !
@@ -989,9 +1045,9 @@ primFilePosition
 	<vmPrimitive: 505 name: 'filePosition'>
 	| f r |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	r := files position: f asInt32.
+	r := files position: f.
 	r < 0 ifTrue: [^self fail].
 	self answer: (memory int64Oop: r)
 !
@@ -1000,19 +1056,19 @@ primFileSeek
 	<vmPrimitive: 506 name: 'fileSeek'>
 	| f pos |
 	(self args: 2) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	pos := self intArg: 1.
 	bad ifTrue: [^self fail].
-	self answerOk: (pos >= 0 and: [files seek: f asInt32 to: pos])
+	self answerOk: (pos >= 0 and: [files seek: f to: pos])
 !
 primFileFlush
 	"file"
 	<vmPrimitive: 507 name: 'fileFlush'>
 	| f |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	self answerOk: (files flush: f asInt32)
+	self answerOk: (files flush: f)
 !
 primFileDelete
 	"path"

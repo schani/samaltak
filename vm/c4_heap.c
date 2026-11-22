@@ -736,6 +736,14 @@ static int32_t enumerate_view(void)
     return count;
 }
 
+#ifdef SAMALTAK_C4_TEST
+/* The blocked-file test must not wait for CLOSE before root slices seal. */
+bool c4_heap_test_roots_sealed(void)
+{
+    return acquire(&heap.phase) == C4_MARK;
+}
+#endif
+
 static void *worker(void *unused)
 {
     (void)unused;

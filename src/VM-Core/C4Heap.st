@@ -13,6 +13,10 @@ supported
 	<c: 'bool c4_heap_supported(void)'>
 	^false
 !
+platformFiles
+	<c: 'bool c4_heap_platform_files(void)'>
+	^false
+!
 init: base capacity: bytes
 	<c: 'bool c4_heap_init(void *base, size_t bytes)'>
 	^false

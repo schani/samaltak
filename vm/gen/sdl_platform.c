@@ -36,6 +36,9 @@ static void drain_pipe(void)
 /* SDLPlatform>>init */
 void platform_interface_init(void)
 {
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (init_done) {
         return;
     }
@@ -54,6 +57,9 @@ void platform_interface_init(void)
 /* SDLPlatform>>poll */
 void platform_interface_poll(void)
 {
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (video_inited() && (SDL_GetTicksNS() - last_pump_ns >= 1000000)) {
         pump();
     }
@@ -66,6 +72,9 @@ void platform_interface_poll(void)
 /* SDLPlatform>>shutdown */
 void platform_interface_shutdown(void)
 {
+    if (c4_heap_platform_files()) {
+        return;
+    }
     platform_gpu_shutdown();
     platform_windows_shutdown();
     if (video_inited()) {
@@ -82,6 +91,15 @@ void platform_interface_wait(int64_t timeout_us)
     struct pollfd local[129];
     struct pollfd *p;
     int n;
+    if (c4_heap_platform_files()) {
+        if (timeout_us < 0) {
+            fatal_begin();
+            fprintf(stderr, "deadlock: no runnable process and no pending timer");
+            fatal_end();
+        }
+        usleep((uint32_t)(timeout_us > 1000000 ? 1000000 : timeout_us));
+        return;
+    }
     platform_interface_init();
     pump();
     if (video_inited() && (atomic_load_explicit(&wake_event, memory_order_relaxed) == 0)) {
@@ -123,6 +141,9 @@ void wake(void)
     atomic_int t;
     SDL_Event local;
     SDL_Event *e;
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (!atomic_load_explicit(&in_wait, memory_order_relaxed)) {
         return;
     }
