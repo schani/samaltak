@@ -29,9 +29,9 @@ INTERNALS := $(addprefix $(GEN)/,$(filter-out platform_primitives.c,$(VM_PLATFOR
 test: $(BUILD)/gpu_test
 	$(BUILD)/gpu_test
 
-$(BUILD)/gpu_test: tests/gpu_test.c $(INTERNALS) $(GEN)/samaltak.h
+$(BUILD)/gpu_test: tests/gpu_test.c $(INTERNALS) $(GEN)/samaltak.h ../c4_heap.h
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) $(OS_CFLAGS) -I$(GEN) $(SDL_CFLAGS) $(SSL_CFLAGS) -o $@ tests/gpu_test.c $(INTERNALS) $(SDL_LIBS) $(SSL_LIBS) $(OS_LIBS) -lpthread
+	$(CC) $(CFLAGS) $(OS_CFLAGS) -I$(GEN) -I.. $(SDL_CFLAGS) $(SSL_CFLAGS) -o $@ tests/gpu_test.c $(INTERNALS) $(SDL_LIBS) $(SSL_LIBS) $(OS_LIBS) -lpthread
 
 # Through the real VM (built into its own directory so it never clobbers vm/build/samaltak).
 st-test:
