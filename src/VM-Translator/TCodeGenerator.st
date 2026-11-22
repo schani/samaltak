@@ -1495,9 +1495,13 @@ definitionPrototype
 
 !TCFunction methodsFor: 'printing'!
 printOn: aStream
+	self printOn: aStream prelude: nil
+!
+printOn: aStream prelude: aBlock
 	function isStatic ifTrue: [aStream nextPutAll: 'static '].
 	aStream nextPutAll: self definitionPrototype; lf; nextPut: ${.
 	locals do: [:d | aStream lf; nextPutAll: '    '. d printCOn: aStream indent: 1].
+	aBlock ifNotNil: [aBlock value].
 	body printStatementsOn: aStream indent: 1.
 	aStream lf; nextPut: $}; lf
 ! !

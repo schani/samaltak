@@ -10,6 +10,7 @@ primJitParameters
 	"Smalltalk vm jitParameters [: anArray]: {mode. flags. threshold. osr. cache MB. CPU}, mode, flags and CPU as Strings ('baseline', 'arith,fuse,barrier', 'arm64'). With anArray {mode. flags. threshold. osr} (nil keeps one; flags are changes, as --jit-flags) set them; answer the parameters before. A new mode or new flags drop all machine code."
 	<vmPrimitive: 180 name: 'jitParameters'>
 	| r old p m saved s |
+	c4 platformSDL ifTrue: [^self fail].
 	r := self local: 'oop'.
 	r value: (memory allocObj: memory clsArray format: F_VAR slots: 6).
 	memory pushRoot: r.

@@ -120,6 +120,25 @@ test-c4-platform-files: image
 		LDFLAGS=-Wl,--wrap=read EXTRA_OBJS="$(abspath $(OUT)/c4-platform-blocked.o)"
 	tests/vm/c4-platform-files/run.sh "$(OUT)/samaltak.image" blocked
 
+# SDL mode: never initialize a display here. The real presentation test is CI-only.
+.PHONY: test-c4-platform-sdl
+C4_SDL_OUT := $(OUT)/c4-sdl
+C4_SDL_BOOT := vm/build/c4-sdl-bootstrap/samaltak
+test-c4-platform-sdl:
+	$(MAKE) -C vm BUILD=build/c4-sdl-bootstrap NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=0
+	boot/build-image.sh src "$(C4_SDL_OUT)/seed.image" $(C4_SDL_BOOT)
+	$(C4_SDL_BOOT) "$(C4_SDL_OUT)/seed.image" --headless --stage2 "$(C4_SDL_OUT)/samaltak.image"
+	$(MAKE) -C vm BUILD=build/c4-sdl NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=1
+	$(CC) -std=gnu11 -D_GNU_SOURCE -DSAMALTAK_C4_PLATFORM_SDL -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
+		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/fixture.o"
+	$(MAKE) -C vm BUILD=build/c4-sdl-fixture NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=1 \
+		LDFLAGS='-Wl,--wrap=platform_interface_poll -Wl,--wrap=SDL_Init' EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/fixture.o)"
+	$(CC) -std=gnu11 -D_GNU_SOURCE -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
+		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/legacy.o"
+	$(MAKE) -C vm BUILD=build/c4-sdl-legacy NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=0 \
+		LDFLAGS=-Wl,--wrap=platform_interface_poll EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/legacy.o)"
+	tests/vm/c4-platform-sdl/headless.sh "$(C4_SDL_OUT)/samaltak.image"
+
 test-tools: image
 	$(PLATFORM_CHECK)
 	$(MAKE) -C vm/platform test st-test

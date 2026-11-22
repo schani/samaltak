@@ -208,6 +208,50 @@ answerPair: ok first: a second: b
 ! !
 
 !PlatformPrimitives methodsFor: 'window and input'!
+windowHandleArg: i
+	<function>
+	| v |
+	v := self intArg: i.
+	(c4 platformSDL and: [v <= 0 or: [v > 16r7FFFFFFF]]) ifTrue: [bad := true].
+	^v asInt32
+!
+stageRGBA: o size: n
+	"The argument remains rooted by the primitive. Only native memory leaves this borrow."
+	<export>
+	<var: #n type: 'size_t'>
+	<returns: 'uint8_t *'>
+	| pixels len src ok |
+	pixels := self cCoerce: (libc malloc: n) to: 'uint8_t *'.
+	pixels isNull ifTrue: [^self null].
+	len := self local: 'size_t'.
+	c4 enterRawRead.
+	src := self bytesOf: o size: len writable: false.
+	ok := src notNull and: [len value = n].
+	ok ifTrue: [libc memcpy: pixels from: src size: n].
+	c4 leaveRawRead.
+	ok ifFalse: [
+		libc free: pixels.
+		^self null].
+	^pixels
+!
+primWindowPresentRGBA
+	"win width height bytes: tightly packed RGBA8, one frame, presented synchronously."
+	<vmPrimitive: 421 name: 'windowPresentRGBA'>
+	| win w h pixels ok |
+	((self args: 4) and: [vmMain headless not]) ifFalse: [^self fail].
+	win := self windowHandleArg: 0.
+	w := self intArg: 1.
+	h := self intArg: 2.
+	(bad or: [w < 1 or: [h < 1 or: [w > PF_SDL_MAX_SIDE or: [h > PF_SDL_MAX_SIDE]]]]) ifTrue: [^self fail].
+	(windows isLive: win) ifFalse: [^self fail].
+	pixels := self stageRGBA: (self arg: 3) size: (w * h * 4) asUInt64.
+	pixels isNull ifTrue: [
+		common setError: 'bad RGBA byte count or no staging memory'.
+		^self fail].
+	ok := windows presentRGBA: win width: w asInt32 height: h asInt32 pixels: pixels.
+	libc free: pixels.
+	self answerOk: ok
+!
 primWindowOpen
 	"w h (points) title flags (1 hidden 2 resizable 4 highDensity) -> win"
 	<vmPrimitive: 400 name: 'windowOpen'>
@@ -216,7 +260,9 @@ primWindowOpen
 	w := self intArg: 0.
 	h := self intArg: 1.
 	flags := self intArg: 3.
-	t := self stringArg: 2.
+	c4 platformSDL ifTrue: [
+		(vmMain headless or: [bad or: [w < 1 or: [h < 1 or: [w > PF_SDL_MAX_SIDE or: [h > PF_SDL_MAX_SIDE or: [flags < 0 or: [flags > 7]]]]]]]) ifTrue: [^self fail]].
+	t := c4 platformSDL ifTrue: [self c4WindowTitle: (self arg: 2)] ifFalse: [self stringArg: 2].
 	bad ifTrue: [
 		libc free: t.
 		^self fail].
@@ -224,11 +270,22 @@ primWindowOpen
 	libc free: t.
 	self answerHandle: r
 !
+c4WindowTitle: title
+	"Validate and convert in one raw-read scope. utf8Of answers malloc'd native memory."
+	<function>
+	| copy |
+	c4 enterRawRead.
+	copy := ((memory isKindOfString: title) and: [(memory stringSize: title) <= 1024])
+		ifTrue: [memory utf8Of: title] ifFalse: [self null].
+	c4 leaveRawRead.
+	copy isNull ifTrue: [bad := true].
+	^copy
+!
 primWindowClose
 	<vmPrimitive: 401 name: 'windowClose'>
 	| w |
 	(self args: 1) ifFalse: [^self fail].
-	w := self intArg: 0.
+	w := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	self answerOk: (windows close: w asInt32)
 !
@@ -237,7 +294,7 @@ primWindowSize
 	<vmPrimitive: 402 name: 'windowSize'>
 	| win w h ok |
 	(self args: 1) ifFalse: [^self fail].
-	win := self intArg: 0.
+	win := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	w := self local: 'int'.
 	h := self local: 'int'.
@@ -249,7 +306,7 @@ primWindowPixelSize
 	<vmPrimitive: 403 name: 'windowPixelSize'>
 	| win w h ok |
 	(self args: 1) ifFalse: [^self fail].
-	win := self intArg: 0.
+	win := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	w := self local: 'int'.
 	h := self local: 'int'.
@@ -261,7 +318,7 @@ primWindowDisplayScale
 	<vmPrimitive: 404 name: 'windowDisplayScale'>
 	| w |
 	(self args: 1) ifFalse: [^self fail].
-	w := self intArg: 0.
+	w := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	self answerNonNegative: (windows displayScale: w asInt32)
 !
@@ -451,7 +508,7 @@ primInputSemaphore
 	| i |
 	(self args: 1) ifFalse: [^self fail].
 	i := self intArg: 0.
-	bad ifTrue: [^self fail].
+	(bad or: [c4 platformSDL and: [i < 0 or: [i > 16r7FFFFFFF]]]) ifTrue: [^self fail].
 	events setSemaphore: i asInt32.
 	self answerSelf
 !

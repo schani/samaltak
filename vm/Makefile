@@ -7,6 +7,7 @@
 # or clang.
 # Profile-guided: pgo.profdata (if present) steers optimization; `make pgo IMAGE=...` retrains it. NO_PGO=1 skips it.
 # C4_PLATFORM_FILES=1 builds an interpreter-only C4 VM with audited platform file primitives (Linux x86-64).
+# C4_PLATFORM_SDL=1 adds audited SDL windows, input and CPU presentation (Linux x86-64).
 # BRIEF=1 prints one line per file instead of the commands.
 VM_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S := $(shell uname -s)
@@ -34,7 +35,14 @@ else
 endif
 LDLIBS += -lm -lpthread
 
-BUILD := build
+ifeq ($(C4_PLATFORM_SDL),1)
+  BUILD := build/c4-sdl
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_PLATFORM_SDL=1 cannot use the default build directory)
+  endif
+else
+  BUILD := build
+endif
 PGO_PROFILE := pgo.profdata
 LLVM_PROFDATA := $(shell xcrun -f llvm-profdata 2>/dev/null || command -v llvm-profdata)
 ifneq ($(IS_CLANG),yes)
@@ -76,7 +84,10 @@ ifneq ($(and $(PLATFORM_SRCS),$(SDL_LIBS),$(if $(NO_PLATFORM),,yes)),)
   SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
   CFLAGS += $(SDL_CFLAGS) $(SSL_CFLAGS)
   LDLIBS += $(SDL_LIBS) $(SSL_LIBS) $(OS_PLATFORM_LIBS)
-  ifeq ($(C4_PLATFORM_FILES),1)
+  ifeq ($(C4_PLATFORM_SDL),1)
+    VARIANT := c4-platform-sdl
+    CFLAGS += -DSAMALTAK_C4_PLATFORM_SDL
+  else ifeq ($(C4_PLATFORM_FILES),1)
     VARIANT := c4-platform-files
     CFLAGS += -DSAMALTAK_C4_PLATFORM_FILES
   endif
@@ -91,8 +102,13 @@ ifeq ($(C4_PLATFORM_FILES),1)
     $(error C4_PLATFORM_FILES=1 requires Linux x86-64 and the platform build dependencies)
   endif
 endif
+ifeq ($(C4_PLATFORM_SDL),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT),LINUX/X86_64/c4-platform-sdl)
+    $(error C4_PLATFORM_SDL=1 requires Linux x86-64 and the platform build dependencies)
+  endif
+endif
 ifeq ($(OS)/$(ARCH),LINUX/X86_64)
-  ifneq ($(filter headless c4-platform-files,$(VARIANT)),)
+  ifneq ($(filter headless c4-platform-files c4-platform-sdl,$(VARIANT)),)
     SRCS += c4_heap.c
     vpath c4_heap.c $(VM_DIR)
   endif

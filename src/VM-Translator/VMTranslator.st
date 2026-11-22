@@ -717,7 +717,7 @@ cFileFor: aTModule functions: cFunctions
 	(cFunctions anySatisfy: [:f | f function isStatic]) ifTrue: [s lf].
 	cFunctions do: [:f |
 		s nextPutAll: '/* '; nextPutAll: f function printString; nextPutAll: ' */'; lf.
-		f printOn: s.
+		self printPrimitiveBody: f on: s.
 		s lf].
 	aTModule moduleClass targetOS notNil ifTrue: [s nextPutAll: '#endif'; lf].
 	^s contents
@@ -757,18 +757,50 @@ primitiveTableFile
 		p := f primitive.
 		platform := self isPlatformModule: f module.
 		fos := f module moduleClass targetOS.
+		"The image cannot write JIT parameters, even if it requests no change to the tier."
+		(p at: 2) = 'jitParameters' ifTrue: [s nextPutAll: '#ifndef SAMALTAK_C4_PLATFORM_SDL'; lf].
 		platform ifTrue: [
-			(self isC4FilePrimitive: f)
-				ifTrue: [s nextPutAll: '#ifndef SAMALTAK_NO_PLATFORM'; lf]
-				ifFalse: [s nextPutAll: '#if !!defined(SAMALTAK_NO_PLATFORM) && !!defined(SAMALTAK_C4_PLATFORM_FILES)'; lf]].
+			(self isC4SDLOnly: (p at: 2))
+				ifTrue: [s nextPutAll: '#if !!defined(SAMALTAK_NO_PLATFORM) && defined(SAMALTAK_C4_PLATFORM_SDL)'; lf]
+				ifFalse: [
+					(self isC4FilePrimitive: f)
+						ifTrue: [s nextPutAll: '#ifndef SAMALTAK_NO_PLATFORM'; lf]
+						ifFalse: [
+							s nextPutAll: '#if !!defined(SAMALTAK_NO_PLATFORM) && !!defined(SAMALTAK_C4_PLATFORM_FILES)'.
+							(self isC4SDLPrimitive: f) ifFalse: [s nextPutAll: ' && !!defined(SAMALTAK_C4_PLATFORM_SDL)'].
+							s lf]]].
 		fos notNil ifTrue: [s nextPutAll: '#ifdef '; nextPutAll: (self class guardFor: fos); lf].
 		s nextPutAll: '    {'; print: (p at: 1); nextPutAll: ', '; print: ((p at: 3) ifTrue: [1] ifFalse: [0]) + ((p at: 4) ifTrue: [2] ifFalse: [0]);
 			nextPutAll: ', '; nextPutAll: (CConst value: (p at: 2) type: nil) cString; nextPutAll: ', '; nextPutAll: f cName; nextPutAll: '},'; lf.
 		fos notNil ifTrue: [s nextPutAll: '#endif'; lf].
-		platform ifTrue: [s nextPutAll: '#endif'; lf]].
+		(platform or: [(p at: 2) = 'jitParameters']) ifTrue: [s nextPutAll: '#endif'; lf]].
 	s nextPutAll: '};'; lf; lf.
 	s nextPutAll: 'int vm_primitive_count = sizeof vm_primitive_table / sizeof vm_primitive_table[0];'; lf.
 	^s contents
+!
+printPrimitiveBody: cf on: s
+	"Direct native calls to omitted platform primitives fail as well. Use the registration classification."
+	| f guard |
+	f := cf function.
+	(f primitive isNil or: [(self isPlatformModule: f module) not]) ifTrue: [^cf printOn: s].
+	guard := (self isC4FilePrimitive: f)
+		ifTrue: [nil]
+		ifFalse: [(self isC4SDLOnly: (f primitive at: 2))
+			ifTrue: ['#ifndef SAMALTAK_C4_PLATFORM_SDL']
+			ifFalse: [(self isC4SDLPrimitive: f) ifTrue: [nil] ifFalse: ['#ifdef SAMALTAK_C4_PLATFORM_SDL']]].
+	guard isNil ifTrue: [^cf printOn: s].
+	cf printOn: s prelude: [
+		s lf; nextPutAll: guard; lf;
+			nextPutAll: '    prim_status = PS_FAIL; prim_error_code = -1; return;'; lf;
+			nextPutAll: '#endif']
+!
+isC4SDLOnly: name
+	^name = 'windowPresentRGBA'
+!
+isC4SDLPrimitive: f
+	^(f module moduleClass == PlatformPrimitives) and: [
+		#('windowOpen' 'windowClose' 'windowSize' 'windowPixelSize' 'windowDisplayScale'
+			'nextEvent' 'inputSemaphore' 'windowPresentRGBA') includes: (f primitive at: 2)]
 !
 isC4FilePrimitive: f
 	^(f module moduleClass == PlatformPrimitives) and: [

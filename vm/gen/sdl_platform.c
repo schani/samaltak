@@ -36,6 +36,16 @@ static void drain_pipe(void)
 /* SDLPlatform>>init */
 void platform_interface_init(void)
 {
+    char *a;
+    if (c4_heap_platform_sdl()) {
+        if (!video_init()) {
+            a = last_error_string();
+            fatal_begin();
+            fprintf(stderr, "C4 SDL display unavailable: %s", a);
+            fatal_end();
+        }
+        return;
+    }
     if (c4_heap_platform_files()) {
         return;
     }
@@ -57,6 +67,13 @@ void platform_interface_init(void)
 /* SDLPlatform>>poll */
 void platform_interface_poll(void)
 {
+    if (c4_heap_platform_sdl()) {
+        if (video_inited() && (SDL_GetTicksNS() - last_pump_ns >= 1000000)) {
+            pump();
+        }
+        signal_ready();
+        return;
+    }
     if (c4_heap_platform_files()) {
         return;
     }
@@ -72,6 +89,14 @@ void platform_interface_poll(void)
 /* SDLPlatform>>shutdown */
 void platform_interface_shutdown(void)
 {
+    if (c4_heap_platform_sdl()) {
+        platform_windows_shutdown();
+        if (video_inited()) {
+            SDL_Quit();
+        }
+        discard_all();
+        return;
+    }
     if (c4_heap_platform_files()) {
         return;
     }
@@ -91,6 +116,19 @@ void platform_interface_wait(int64_t timeout_us)
     struct pollfd local[129];
     struct pollfd *p;
     int n;
+    if (c4_heap_platform_sdl()) {
+        if (video_inited()) {
+            pump();
+            if ((!input_ready()) && (timeout_us != 0)) {
+                ms = (timeout_us < 0) || (timeout_us > 10000) ? 10 : (int32_t)((timeout_us + 999) / 1000);
+                SDL_WaitEventTimeout((SDL_Event *)NULL, ms);
+                pump();
+            }
+            signal_ready();
+            return;
+        }
+        signal_ready();
+    }
     if (c4_heap_platform_files()) {
         if (timeout_us < 0) {
             fatal_begin();

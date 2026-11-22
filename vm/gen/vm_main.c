@@ -8,7 +8,7 @@ char **argv;
 bool c4_enabled;
 bool c4_moving;
 bool c4_requested;
-static bool headless;
+bool headless;
 
 static bool jit_option(char **v, int32_t i, int n);
 static _Noreturn void vm_main_usage(void);
@@ -149,7 +149,26 @@ int main(int n, char **v)
             fatal_end();
         }
     }
-    if (c4_heap_platform_files()) {
+    if (c4_heap_platform_sdl()) {
+        if (!c4_requested) {
+            fatal_begin();
+            fprintf(stderr, "C4_PLATFORM_SDL=1 requires --c4 or --c4-moving");
+            fatal_end();
+        }
+        if ((!explicit_jit) || (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 SDL requires --jit none explicitly");
+            fatal_end();
+        }
+        if (!headless) {
+            if (!((n - i == 3) && ((strcmp(v[i + 1], "--eval") == 0) && ((v[i + 2][0] != 0) && (!((v[i + 2][0] == 45) && (v[i + 2][1] == 45))))))) {
+                fatal_begin();
+                fprintf(stderr, "C4 SDL requires image --eval <expression> (World is not supported)");
+                fatal_end();
+            }
+        }
+    }
+    if (c4_heap_platform_files() && (!c4_heap_platform_sdl())) {
         if (!c4_requested) {
             fatal_begin();
             fprintf(stderr, "C4_PLATFORM_FILES=1 requires --c4 or --c4-moving");
@@ -167,7 +186,7 @@ int main(int n, char **v)
             fprintf(stderr, "--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1");
             fatal_end();
         }
-        if (!headless) {
+        if (!(headless || c4_heap_platform_sdl())) {
             fatal_begin();
             fprintf(stderr, "--c4 requires --headless");
             fatal_end();
@@ -329,7 +348,7 @@ exit_object_address_6:;
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64)\n                    NO_PLATFORM=1 supports optional --jit baseline\n                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only\n  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances\n  --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64)\n                    NO_PLATFORM=1 supports optional --jit baseline\n                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only\n                    C4_PLATFORM_SDL=1 adds SDL software presentation for --eval clients; explicit --jit none\n  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances\n  --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

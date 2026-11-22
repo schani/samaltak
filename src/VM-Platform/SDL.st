@@ -7,7 +7,7 @@ SDL comment: 'The SDL3 functions of the platform layer: video, events, windows, 
 
 !SDL class methodsFor: 'declaring'!
 headers
-	^#('<SDL3/SDL.h>')
+	^#('<SDL3/SDL.h>' '"c4_sdl.h"')
 !
 typedefs
 	^#((Uint8 uint8_t) (Uint16 uint16_t) (Uint32 uint32_t) (Uint64 uint64_t) (Sint32 int32_t)
@@ -23,6 +23,10 @@ notSimulated
 ! !
 
 !SDL methodsFor: 'init'!
+initSoftwareVideo
+	<c: 'bool c4_sdl_init_video(void)'>
+	^self notSimulated
+!
 init: flags
 	<c: 'bool SDL_Init(SDL_InitFlags flags)'>
 	^self notSimulated
@@ -205,6 +209,10 @@ SDL_KMOD_GUI
 ! !
 
 !SDL methodsFor: 'windows'!
+presentRGBA: window width: w height: h pixels: pixels
+	<c: 'bool c4_sdl_present_rgba(SDL_Window *window, int w, int h, uint8_t *pixels)'>
+	^self notSimulated
+!
 createWindow: title width: w height: h flags: flags
 	<c: 'SDL_Window *SDL_CreateWindow(const char *title, int w, int h, SDL_WindowFlags flags)'>
 	^self notSimulated

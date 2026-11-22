@@ -17,6 +17,10 @@ platformFiles
 	<c: 'bool c4_heap_platform_files(void)'>
 	^false
 !
+platformSDL
+	<c: 'bool c4_heap_platform_sdl(void)'>
+	^false
+!
 init: base capacity: bytes
 	<c: 'bool c4_heap_init(void *base, size_t bytes)'>
 	^false

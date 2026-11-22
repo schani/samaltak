@@ -24,6 +24,9 @@ initialize
 init
 	"Idempotent."
 	<export>
+	c4 platformSDL ifTrue: [
+		(windows videoInit) ifFalse: [self fatal: 'C4 SDL display unavailable: %s' with: common lastErrorString].
+		^self].
 	c4 platformFiles ifTrue: [^self].
 	initDone ifTrue: [^self].
 	initDone := true.
@@ -39,6 +42,10 @@ init
 !
 poll
 	<export>
+	c4 platformSDL ifTrue: [
+		(windows videoInited and: [sdl getTicksNS - events lastPumpNs >= 1000000]) ifTrue: [events pump].
+		events signalReady.
+		^self].
 	c4 platformFiles ifTrue: [^self].
 	"Pumping Cocoa costs tens of µs; at most once per ms is plenty for input."
 	(windows videoInited and: [sdl getTicksNS - events lastPumpNs >= 1000000]) ifTrue: [events pump].
@@ -48,6 +55,17 @@ poll
 wait: timeoutUs
 	<export>
 	| ms socks p n watching |
+	c4 platformSDL ifTrue: [
+		windows videoInited ifTrue: [
+			events pump.
+			(events inputReady not and: [timeoutUs ~= 0]) ifTrue: [
+				"Bound idle latency without a pipe, watcher or SDL calls from the collector."
+				ms := (timeoutUs < 0 or: [timeoutUs > 10000]) ifTrue: [10] ifFalse: [((timeoutUs + 999) quo: 1000) asInt32].
+				sdl waitEvent: self null timeout: ms.
+				events pump].
+			events signalReady.
+			^self].
+		events signalReady].
 	c4 platformFiles ifTrue: [
 		timeoutUs < 0 ifTrue: [self fatal: 'deadlock: no runnable process and no pending timer'].
 		posix usleep: (timeoutUs > 1000000 ifTrue: [1000000] ifFalse: [timeoutUs]) asUInt32.
@@ -80,6 +98,11 @@ wait: timeoutUs
 !
 shutdown
 	<export>
+	c4 platformSDL ifTrue: [
+		windows shutdown.
+		windows videoInited ifTrue: [sdl quit].
+		events discardAll.
+		^self].
 	c4 platformFiles ifTrue: [^self].
 	gpu shutdown.
 	windows shutdown.

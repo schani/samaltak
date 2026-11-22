@@ -22,7 +22,7 @@ videoInit
 	sdl setHint: sdl SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH value: '1'.
 	"The image draws the input method's composition (PF_EV_TEXT_EDITING)."
 	sdl setHint: sdl SDL_HINT_IME_IMPLEMENTED_UI value: 'composition'.
-	(sdl init: sdl SDL_INIT_VIDEO) ifFalse: [
+	(c4 platformSDL ifTrue: [sdl initSoftwareVideo] ifFalse: [sdl init: sdl SDL_INIT_VIDEO]) ifFalse: [
 		common setError: 'SDL_Init: %s' with: sdl getError.
 		^false].
 	videoOk := true.
@@ -50,6 +50,9 @@ open: w height: h title: title flags: flags
 	<export>
 	<var: #f type: 'SDL_WindowFlags'>
 	| f sw handle |
+	(c4 platformSDL and: [table n > 4096 or: [self handleCount >= 32]]) ifTrue: [
+		common setError: 'C4 SDL window handle limit'.
+		^0].
 	self videoInit ifFalse: [^0].
 	f := 0.
 	(flags bitAnd: PF_WIN_HIDDEN) ~= 0 ifTrue: [f := f bitOr: sdl SDL_WINDOW_HIDDEN].
@@ -59,8 +62,12 @@ open: w height: h title: title flags: flags
 	sw isNull ifTrue: [
 		common setError: 'SDL_CreateWindow: %s' with: sdl getError.
 		^0].
-	sdl startTextInput: sw.
 	handle := common table: table add: K_WINDOW pointer: sw.
+	handle = 0 ifTrue: [
+		sdl destroyWindow: sw.
+		common setError: 'out of window handles'.
+		^0].
+	sdl startTextInput: sw.
 	(table v + handle) i: (sdl getWindowID: sw).
 	^handle
 !
@@ -69,11 +76,27 @@ close: win
 	| sw |
 	sw := self sdlWindow: win.
 	sw isNull ifTrue: [^false].
-	gpu windowClosing: win.
+	c4 platformSDL ifFalse: [gpu windowClosing: win].
 	sdl stopTextInput: sw.
 	sdl destroyWindow: sw.
 	common table: table remove: win.
+	"Interactive C4 never reissues a token within this process."
+	c4 platformSDL ifTrue: [table freeHead: 0].
 	^true
+!
+isLive: win
+	<function>
+	^((common table: table at: win kind: K_WINDOW) notNull)
+!
+presentRGBA: win width: w height: h pixels: pixels
+	<export>
+	<var: #pixels type: 'uint8_t *'>
+	| sw |
+	sw := self sdlWindow: win.
+	sw isNull ifTrue: [^false].
+	(sdl presentRGBA: sw width: w height: h pixels: pixels) ifTrue: [^true].
+	common setError: 'SDL software present: %s' with: sdl getError.
+	^false
 !
 fromSDLId: id
 	"The handle of the window with SDL window id, 0 if none."
@@ -162,7 +185,10 @@ shutdown
 	0 to: CURSOR_KINDS - 1 do: [:i |
 		(cursors at: i) notNull ifTrue: [
 			sdl destroyCursor: (cursors at: i).
-			cursors at: i put: self null]]
+			cursors at: i put: self null]].
+	c4 platformSDL ifTrue: [
+		libc free: table v.
+		libc memset: table value: 0 size: (self sizeof: 'pf_table')]
 !
 handleCount
 	<export>

@@ -11,6 +11,7 @@ static void answer_word(uint64_t w);
 static oop array_of(int64_t *v, int n);
 static bool bool_arg(int i);
 static uint8_t *bytes_of(uint64_t o, size_t *n, bool writable);
+static char *c4_window_title(uint64_t title);
 static void copy_file_read(uint8_t *buf, int64_t n);
 static int32_t file_int32_arg(int i);
 static void file_transfer(bool reading);
@@ -30,6 +31,7 @@ static char *string_arg(int i);
 static char **string_vector(uint64_t a, bool non_empty);
 static bool surface(uint64_t a, raster_state *s);
 static bool text_or_delta(oop o, pf_event *e);
+static int32_t window_handle_arg(int i);
 static bool word_of(uint64_t o, uint64_t *w);
 
 /* PlatformPrimitives>>addressArg: */
@@ -321,6 +323,19 @@ exit_canonical_oop_2:;
     r_pinned_body_address_2; });
     }
     return (uint8_t *)NULL;
+}
+
+/* PlatformPrimitives>>c4WindowTitle: */
+static char *c4_window_title(uint64_t title)
+{
+    char *copy;
+    c4_heap_enter_raw_read();
+    copy = is_kind_of_string(title) && (string_size(title) <= 1024) ? utf8_of(title) : (char *)NULL;
+    c4_heap_leave_raw_read();
+    if (copy == NULL) {
+        bad = true;
+    }
+    return copy;
 }
 
 /* PlatformPrimitives>>copyFileRead:count: */
@@ -629,6 +644,9 @@ void prim_clipboard_data(void)
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
     uint64_t owner;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -688,6 +706,9 @@ exit_canonical_oop:;
 void prim_clipboard_get(void)
 {
     bool r_args;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 0;
@@ -708,6 +729,9 @@ void prim_clipboard_set(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -939,6 +963,9 @@ void prim_dropped_events(void)
 {
     bool r_args;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 0;
@@ -959,6 +986,9 @@ void prim_exec_process(void)
     oop o;
     uint64_t r_canonical_oop;
     char **argv;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -1649,6 +1679,9 @@ void prim_gpu_acquire_command_buffer(void)
     int64_t d;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -1688,6 +1721,9 @@ void prim_gpu_acquire_swapchain(void)
     int64_t local_3[3];
     int64_t *v;
     oop v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -1749,6 +1785,9 @@ void prim_gpu_begin_pass(void)
     uint64_t r_object_address_4;
     int h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -1848,6 +1887,9 @@ void prim_gpu_bind_pipeline(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -1894,6 +1936,9 @@ void prim_gpu_bind_texture(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -1942,6 +1987,9 @@ void prim_gpu_bind_vertex_buffer(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -1998,6 +2046,9 @@ void prim_gpu_blit(void)
     oop o_3;
     uint64_t r_canonical_oop_3;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 6;
@@ -2066,6 +2117,9 @@ void prim_gpu_claim_window(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -2113,6 +2167,9 @@ void prim_gpu_compile_shader(void)
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
     uint64_t owner;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -2173,6 +2230,9 @@ void prim_gpu_create_buffer(void)
     int64_t n;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -2212,6 +2272,9 @@ void prim_gpu_create_device(void)
     bool d;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2271,6 +2334,9 @@ void prim_gpu_create_pipeline(void)
     oop off;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 8;
@@ -2411,6 +2477,9 @@ void prim_gpu_create_sampler(void)
     bool repeat;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -2458,6 +2527,9 @@ void prim_gpu_create_shader(void)
     char *entry;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 8;
@@ -2523,6 +2595,9 @@ void prim_gpu_create_texture(void)
     int64_t u;
     int32_t h_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -2567,6 +2642,9 @@ void prim_gpu_download(void)
     size_t local;
     size_t *len;
     uint8_t *p;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 6;
@@ -2617,6 +2695,9 @@ void prim_gpu_draw(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -2661,6 +2742,9 @@ void prim_gpu_end_pass(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2702,6 +2786,9 @@ void prim_gpu_fence_done(void)
     int r;
     bool a_boolean;
     oop v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2735,6 +2822,9 @@ void prim_gpu_fence_elapsed(void)
     int64_t f;
     int64_t r;
     oop v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2776,6 +2866,9 @@ void prim_gpu_push_uniforms(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -2836,6 +2929,9 @@ void prim_gpu_release(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2882,6 +2978,9 @@ void prim_gpu_set_scissor(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -2932,6 +3031,9 @@ void prim_gpu_set_viewport(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -2976,6 +3078,9 @@ void prim_gpu_shader_language(void)
     int64_t d;
     char *l;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3011,6 +3116,9 @@ void prim_gpu_submit(void)
     bool *ok;
     int f;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -3047,6 +3155,9 @@ void prim_gpu_swapchain_format(void)
     int64_t w;
     int h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -3087,6 +3198,9 @@ void prim_gpu_texture_size(void)
     int64_t local_4[3];
     int64_t *v;
     oop v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3138,6 +3252,9 @@ void prim_gpu_upload_buffer(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -3208,6 +3325,9 @@ void prim_gpu_upload_texture(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 7;
@@ -3271,6 +3391,9 @@ void prim_gpu_wait_fence(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3313,6 +3436,9 @@ void prim_gpu_wait_idle(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3384,6 +3510,9 @@ void prim_inject_event(void)
     oop o_3;
     uint64_t r_canonical_oop_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3631,7 +3760,7 @@ void prim_input_semaphore(void)
         return;
     }
     i = int_arg(0);
-    if (bad) {
+    if (bad || (c4_heap_platform_sdl() && ((i < 0) || (i > 0x7FFFFFFF)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -3656,6 +3785,9 @@ void prim_machine_allocate(void)
     bool r_args;
     int64_t n;
     void *p;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3685,6 +3817,9 @@ void prim_machine_barrier(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     __sync_synchronize();
     o = prim_base[0];
     v = ({
@@ -3715,6 +3850,9 @@ void prim_machine_call(void)
     bool local_3;
     bool *ok;
     uint64_t r;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     n = prim_nargs - 1;
     if ((n < 0) || (n > 10)) {
         prim_status = PS_FAIL;
@@ -3779,6 +3917,9 @@ void prim_machine_copy(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -3824,6 +3965,9 @@ void prim_machine_free(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -3858,6 +4002,9 @@ void prim_machine_read(void)
     bool r_args;
     uint8_t *a;
     int64_t n;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -3898,6 +4045,9 @@ void prim_machine_system_table(void)
 {
     bool r_args;
     uint64_t t;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 0;
@@ -3928,6 +4078,9 @@ void prim_machine_watch(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -3994,6 +4147,9 @@ void prim_machine_write(void)
     oop o_5;
     uint64_t r_canonical_oop_5;
     uint64_t v_4;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -4093,6 +4249,9 @@ void prim_mkfifo(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -4804,6 +4963,9 @@ void prim_nic_open(void)
     size_t local;
     size_t *len;
     uint8_t *p;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -4845,6 +5007,9 @@ void prim_nic_receive(void)
     uint8_t *p;
     int64_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -4896,6 +5061,9 @@ void prim_nic_semaphore(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -4941,6 +5109,9 @@ void prim_nic_send(void)
     size_t *len;
     uint8_t *p;
     oop v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -4979,6 +5150,9 @@ void prim_nic_status(void)
     int64_t local[4];
     int64_t *v;
     oop v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 0;
@@ -5005,6 +5179,9 @@ void prim_platform_handle_counts(void)
     int64_t local[11];
     int64_t *v;
     oop v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     v = local;
     platform_common_handle_counts(v);
@@ -5046,6 +5223,9 @@ void prim_process_wait(void)
     int v;
     uint64_t v_2;
     uint64_t v_3;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -5091,6 +5271,9 @@ void prim_pty_close(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -5132,6 +5315,9 @@ void prim_pty_foreground(void)
     pid_t group;
     int64_t v;
     uint64_t v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -5168,6 +5354,9 @@ void prim_pty_read(void)
     uint8_t *p;
     ssize_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -5201,6 +5390,9 @@ void prim_pty_resize(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -5246,6 +5438,9 @@ void prim_pty_semaphore(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     bad = false;
     if (!((prim_nargs == 2) || (prim_nargs == 3))) {
         prim_status = PS_FAIL;
@@ -5304,6 +5499,9 @@ void prim_pty_spawn(void)
     int64_t local_2[2];
     int64_t *v;
     oop v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -5400,6 +5598,9 @@ void prim_pty_wait(void)
     int v;
     uint64_t v_2;
     uint64_t v_3;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -5446,6 +5647,9 @@ void prim_pty_write(void)
     uint8_t *p;
     ssize_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -5498,6 +5702,9 @@ void prim_raster_blit(void)
     oop o_6;
     uint64_t r_canonical_oop_6;
     uint64_t v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 5;
@@ -5617,6 +5824,9 @@ void prim_raster_copy(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 8;
@@ -5657,7 +5867,7 @@ exit_canonical_oop:;
         prim_error_code = -1;
         return;
     }
-    copy(d, ds, s, ss, w, h, bpp, mode);
+    platform_raster_copy(d, ds, s, ss, w, h, bpp, mode);
     o_2 = prim_base[0];
     v_2 = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
@@ -5695,6 +5905,9 @@ void prim_raster_draw(void)
     oop o_2;
     uint64_t r_canonical_oop_2;
     uint64_t v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -5829,6 +6042,9 @@ void prim_raster_fill(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v_2;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -5869,6 +6085,9 @@ void prim_set_cursor(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -5911,6 +6130,9 @@ void prim_socket_accept(void)
     bool *wb;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -5952,6 +6174,9 @@ void prim_socket_close(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -5993,6 +6218,9 @@ void prim_socket_connect(void)
     int64_t port;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -6022,6 +6250,9 @@ void prim_socket_connected(void)
     int64_t s;
     int r;
     oop v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6056,6 +6287,9 @@ void prim_socket_listen(void)
     int64_t backlog;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -6086,6 +6320,9 @@ void prim_socket_local_port(void)
     int64_t s;
     int h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6121,6 +6358,9 @@ void prim_socket_recv(void)
     uint8_t *p;
     ssize_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -6150,6 +6390,9 @@ void prim_socket_resolve(void)
     char *name;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6181,6 +6424,9 @@ void prim_socket_semaphore(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     bad = false;
     if (!((prim_nargs == 2) || (prim_nargs == 3))) {
         prim_status = PS_FAIL;
@@ -6224,6 +6470,9 @@ void prim_socket_send(void)
     uint8_t *p;
     ssize_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -6255,6 +6504,9 @@ void prim_spawn_process(void)
     char **argv;
     int64_t pid;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6298,6 +6550,9 @@ void prim_tls_close(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6338,6 +6593,9 @@ void prim_tls_handshake(void)
     int64_t h;
     int r;
     oop v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6373,6 +6631,9 @@ void prim_tls_recv(void)
     uint8_t *p;
     int64_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -6405,6 +6666,9 @@ void prim_tls_semaphore(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     bad = false;
     if (!((prim_nargs == 2) || (prim_nargs == 3))) {
         prim_status = PS_FAIL;
@@ -6448,6 +6712,9 @@ void prim_tls_send(void)
     uint8_t *p;
     int64_t r;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     memset(&local, 0, sizeof local);
     h = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -6478,6 +6745,9 @@ void prim_tls_start(void)
     char *host;
     int32_t h;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -6509,6 +6779,9 @@ void prim_vsync_semaphore(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6546,7 +6819,7 @@ exit_canonical_oop:;
 void prim_window_close(void)
 {
     bool r_args;
-    int64_t w;
+    int32_t w;
     bool a_boolean;
     oop o;
     uint64_t r_canonical_oop;
@@ -6559,13 +6832,13 @@ void prim_window_close(void)
         prim_error_code = -1;
         return;
     }
-    w = int_arg(0);
+    w = window_handle_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    a_boolean = platform_windows_close((int32_t)w);
+    a_boolean = platform_windows_close(w);
     if (a_boolean) {
         o = prim_base[0];
         v = ({
@@ -6588,7 +6861,7 @@ exit_canonical_oop:;
 void prim_window_display_scale(void)
 {
     bool r_args;
-    int64_t w;
+    int32_t w;
     double d;
     uint64_t v;
     if (!({
@@ -6599,13 +6872,13 @@ void prim_window_display_scale(void)
         prim_error_code = -1;
         return;
     }
-    w = int_arg(0);
+    w = window_handle_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    d = display_scale((int32_t)w);
+    d = display_scale(w);
     if (d < 0.0) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -6625,6 +6898,9 @@ void prim_window_hide(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6665,9 +6941,12 @@ void prim_window_open(void)
     int64_t w;
     int64_t h;
     int64_t flags;
+    oop o;
+    uint64_t r_canonical_oop;
+    char *v;
     char *t;
     int32_t r;
-    uint64_t v;
+    uint64_t v_2;
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -6679,7 +6958,28 @@ void prim_window_open(void)
     w = int_arg(0);
     h = int_arg(1);
     flags = int_arg(3);
-    t = string_arg(2);
+    if (c4_heap_platform_sdl()) {
+        if (headless || (bad || ((w < 1) || ((h < 1) || ((w > PF_SDL_MAX_SIDE) || ((h > PF_SDL_MAX_SIDE) || ((flags < 0) || (flags > 7)))))))) {
+            prim_status = PS_FAIL;
+            prim_error_code = -1;
+            return;
+        }
+    }
+    t = ({
+    if (c4_heap_platform_sdl()) {
+        o = prim_base[3];
+        v = c4_window_title(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }));
+    } else {
+        v = string_arg(2);
+    }
+    v; });
     if (bad) {
         free(t);
         prim_status = PS_FAIL;
@@ -6689,8 +6989,8 @@ void prim_window_open(void)
     r = platform_windows_open((int32_t)w, (int32_t)h, t, (int32_t)flags);
     free(t);
     if (r > 0) {
-        v = (uint64_t)((((int64_t)r) << 1) | 1);
-        prim_result = v;
+        v_2 = (uint64_t)((((int64_t)r) << 1) | 1);
+        prim_result = v_2;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -6702,7 +7002,7 @@ void prim_window_open(void)
 void prim_window_pixel_size(void)
 {
     bool r_args;
-    int64_t win;
+    int32_t win;
     int local;
     int *w;
     int local_2;
@@ -6716,7 +7016,7 @@ void prim_window_pixel_size(void)
         prim_error_code = -1;
         return;
     }
-    win = int_arg(0);
+    win = window_handle_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -6726,8 +7026,81 @@ void prim_window_pixel_size(void)
     w = &local;
     memset(&local_2, 0, sizeof local_2);
     h = &local_2;
-    ok = pixel_size((int32_t)win, w, h);
+    ok = pixel_size(win, w, h);
     answer_pair(ok, *w, *h);
+}
+
+/* PlatformPrimitives>>primWindowPresentRGBA */
+void prim_window_present_rgba(void)
+{
+    bool r_args;
+    int32_t win;
+    int64_t w;
+    int64_t h;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint8_t *pixels;
+    bool ok;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+#ifndef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
+    if (!(({
+    bad = false;
+    r_args = prim_nargs == 4;
+    r_args; }) && (!headless))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    win = window_handle_arg(0);
+    w = int_arg(1);
+    h = int_arg(2);
+    if (bad || ((w < 1) || ((h < 1) || ((w > PF_SDL_MAX_SIDE) || (h > PF_SDL_MAX_SIDE))))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    if (!is_live(win)) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    o = prim_base[4];
+    pixels = stage_rgba(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), (uint64_t)(w * h * 4));
+    if (pixels == NULL) {
+        set_error("bad RGBA byte count or no staging memory");
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    ok = present_rgba(win, (int32_t)w, (int32_t)h, pixels);
+    free(pixels);
+    if (ok) {
+        o_2 = prim_base[0];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+        prim_result = v;
+        prim_status = PS_OK;
+    } else {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+    }
 }
 
 /* PlatformPrimitives>>primWindowRefreshRate */
@@ -6737,6 +7110,9 @@ void prim_window_refresh_rate(void)
     int64_t w;
     double d;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6773,6 +7149,9 @@ void prim_window_set_size(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -6822,6 +7201,9 @@ void prim_window_set_text_input_area(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 6;
@@ -6870,6 +7252,9 @@ void prim_window_set_title(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -6909,6 +7294,9 @@ void prim_window_show(void)
     oop o;
     uint64_t r_canonical_oop;
     uint64_t v;
+#ifdef SAMALTAK_C4_PLATFORM_SDL
+    prim_status = PS_FAIL; prim_error_code = -1; return;
+#endif
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -6946,7 +7334,7 @@ exit_canonical_oop:;
 void prim_window_size(void)
 {
     bool r_args;
-    int64_t win;
+    int32_t win;
     int local;
     int *w;
     int local_2;
@@ -6960,7 +7348,7 @@ void prim_window_size(void)
         prim_error_code = -1;
         return;
     }
-    win = int_arg(0);
+    win = window_handle_arg(0);
     if (bad) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -6970,7 +7358,7 @@ void prim_window_size(void)
     w = &local;
     memset(&local_2, 0, sizeof local_2);
     h = &local_2;
-    ok = platform_windows_size((int32_t)win, w, h);
+    ok = platform_windows_size(win, w, h);
     answer_pair(ok, *w, *h);
 }
 
@@ -7099,6 +7487,34 @@ exit_load_ref:;
         return 0;
     }
     return ((int64_t)o) >> 1;
+}
+
+/* PlatformPrimitives>>stageRGBA:size: */
+uint8_t *stage_rgba(uint64_t o, size_t n)
+{
+    uint8_t *pixels;
+    size_t local;
+    size_t *len;
+    uint8_t *src;
+    bool ok;
+    pixels = (uint8_t *)malloc(n);
+    if (pixels == NULL) {
+        return (uint8_t *)NULL;
+    }
+    memset(&local, 0, sizeof local);
+    len = &local;
+    c4_heap_enter_raw_read();
+    src = bytes_of(o, len, false);
+    ok = (src != NULL) && (*len == n);
+    if (ok) {
+        memcpy(pixels, src, n);
+    }
+    c4_heap_leave_raw_read();
+    if (!ok) {
+        free(pixels);
+        return (uint8_t *)NULL;
+    }
+    return pixels;
 }
 
 /* PlatformPrimitives>>stringArg: */
@@ -7346,6 +7762,17 @@ exit_load_ref_2:;
         return (e->text = utf8_of(o)) != NULL;
     }
     return false;
+}
+
+/* PlatformPrimitives>>windowHandleArg: */
+static int32_t window_handle_arg(int i)
+{
+    int64_t v;
+    v = int_arg(i);
+    if (c4_heap_platform_sdl() && ((v <= 0) || (v > 0x7FFFFFFF))) {
+        bad = true;
+    }
+    return (int32_t)v;
 }
 
 /* PlatformPrimitives>>wordOf:into: */

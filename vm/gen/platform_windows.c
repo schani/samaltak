@@ -55,10 +55,15 @@ bool platform_windows_close(int32_t win)
     if (sw == NULL) {
         return false;
     }
-    window_closing(win);
+    if (!c4_heap_platform_sdl()) {
+        window_closing(win);
+    }
     SDL_StopTextInput(sw);
     SDL_DestroyWindow(sw);
     platform_common_table_remove(table, win);
+    if (c4_heap_platform_sdl()) {
+        table->free_head = 0;
+    }
     return true;
 }
 
@@ -107,6 +112,12 @@ bool is_hidden(int32_t win)
     return (sw == NULL) || ((SDL_GetWindowFlags(sw) & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED)) != 0);
 }
 
+/* PlatformWindows>>isLive: */
+bool is_live(int32_t win)
+{
+    return platform_common_table_at_kind(table, win, K_WINDOW) != NULL;
+}
+
 /* PlatformWindows>>open:height:title:flags: */
 int32_t platform_windows_open(int32_t w, int32_t h, char *title, int32_t flags)
 {
@@ -114,6 +125,10 @@ int32_t platform_windows_open(int32_t w, int32_t h, char *title, int32_t flags)
     SDL_Window *sw;
     const char *a;
     int32_t handle;
+    if (c4_heap_platform_sdl() && ((table->n > 4096) || (platform_windows_handle_count() >= 32))) {
+        set_error("C4 SDL window handle limit");
+        return 0;
+    }
     if (!video_init()) {
         return 0;
     }
@@ -133,8 +148,13 @@ int32_t platform_windows_open(int32_t w, int32_t h, char *title, int32_t flags)
         snprintf(last_error, LAST_ERROR_SIZE, "SDL_CreateWindow: %s", a);
         return 0;
     }
-    SDL_StartTextInput(sw);
     handle = platform_common_table_add_pointer(table, K_WINDOW, sw);
+    if (handle == 0) {
+        SDL_DestroyWindow(sw);
+        set_error("out of window handles");
+        return 0;
+    }
+    SDL_StartTextInput(sw);
     (table->v + handle)->i = SDL_GetWindowID(sw);
     return handle;
 }
@@ -145,6 +165,23 @@ bool pixel_size(int32_t win, int *w, int *h)
     SDL_Window *sw;
     sw = sdl_window(win);
     return (sw != NULL) && SDL_GetWindowSizeInPixels(sw, w, h);
+}
+
+/* PlatformWindows>>presentRGBA:width:height:pixels: */
+bool present_rgba(int32_t win, int32_t w, int32_t h, uint8_t *pixels)
+{
+    SDL_Window *sw;
+    const char *a;
+    sw = sdl_window(win);
+    if (sw == NULL) {
+        return false;
+    }
+    if (c4_sdl_present_rgba(sw, w, h, pixels)) {
+        return true;
+    }
+    a = SDL_GetError();
+    snprintf(last_error, LAST_ERROR_SIZE, "SDL software present: %s", a);
+    return false;
 }
 
 /* PlatformWindows>>refreshRate: */
@@ -299,6 +336,10 @@ void platform_windows_shutdown(void)
             cursors[i] = (SDL_Cursor *)NULL;
         }
     }
+    if (c4_heap_platform_sdl()) {
+        free(table->v);
+        memset(table, 0, sizeof(pf_table));
+    }
 }
 
 /* PlatformWindows>>size:width:height: */
@@ -319,7 +360,7 @@ bool video_init(void)
     SDL_SetHint(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0");
     SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
     SDL_SetHint(SDL_HINT_IME_IMPLEMENTED_UI, "composition");
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if (!(c4_heap_platform_sdl() ? c4_sdl_init_video() : SDL_Init(SDL_INIT_VIDEO))) {
         a = SDL_GetError();
         snprintf(last_error, LAST_ERROR_SIZE, "SDL_Init: %s", a);
         return false;

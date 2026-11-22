@@ -59,11 +59,22 @@ next: out
 	"The caller frees out text."
 	<export>
 	inputArmed := true.
-	qLen = 0 ifTrue: [^false].
-	out copyStructFrom: q + qHead.
-	qHead := (qHead + 1) rem: qCap.
-	qLen := qLen - 1.
-	^true
+	[qLen ~= 0] whileTrue: [
+		out copyStructFrom: q + qHead.
+		qHead := (qHead + 1) rem: qCap.
+		qLen := qLen - 1.
+		(c4 platformSDL not or: [out window = 0 or: [windows isLive: out window]]) ifTrue: [^true].
+		libc free: out text].
+	^false
+!
+discardAll
+	<function>
+	| e |
+	e := self local: 'pf_event'.
+	[self next: e] whileTrue: [libc free: e text].
+	libc free: q.
+	q := self null.
+	qHead := qCap := 0
 !
 setSemaphore: index
 	"0 = none."
@@ -74,10 +85,14 @@ setSemaphore: index
 signalReady
 	"Signal the vsync semaphore if a refresh is due, and the input semaphore if events are pending."
 	<function>
-	vsync poll.
-	(qLen ~= 0 and: [inputSem ~= 0 and: [inputArmed]]) ifTrue: [
+	c4 platformSDL ifFalse: [vsync poll].
+	self inputReady ifTrue: [
 		inputArmed := false.
 		scheduler signalExternalSemaphore: inputSem]
+!
+inputReady
+	<function>
+	^qLen ~= 0 and: [inputSem ~= 0 and: [inputArmed]]
 !
 updatePollInterval
 	"After video init or socket semaphore changes."
@@ -95,7 +110,7 @@ modsOf: m
 !
 translate: e
 	"Queue the pf_event of an SDL event (others, the wake event among them, are ignored)."
-	<function>
+	<export>
 	| ev now age t |
 	ev := self local: 'pf_event'.
 	now := sdl getTicksNS.
@@ -113,6 +128,7 @@ translate: e
 		ev y: mouseY.
 		ev key: e motion state.
 		ev window: (windows fromSDLId: e motion windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	(t = sdl SDL_EVENT_MOUSE_BUTTON_DOWN or: [t = sdl SDL_EVENT_MOUSE_BUTTON_UP]) ifTrue: [
 		ev type: (t = sdl SDL_EVENT_MOUSE_BUTTON_DOWN ifTrue: [PF_EV_MOUSE_DOWN] ifFalse: [PF_EV_MOUSE_UP]).
@@ -124,6 +140,7 @@ translate: e
 		ev xkind: PF_X_INT.
 		ev ival: e button clicks.
 		ev window: (windows fromSDLId: e button windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	t = sdl SDL_EVENT_MOUSE_WHEEL ifTrue: [
 		ev type: PF_EV_WHEEL.
@@ -135,6 +152,7 @@ translate: e
 		ev dx: e wheel x.
 		ev dy: e wheel y.
 		ev window: (windows fromSDLId: e wheel windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	(t = sdl SDL_EVENT_KEY_DOWN or: [t = sdl SDL_EVENT_KEY_UP]) ifTrue: [
 		ev type: (t = sdl SDL_EVENT_KEY_DOWN ifTrue: [PF_EV_KEY_DOWN] ifFalse: [PF_EV_KEY_UP]).
@@ -144,6 +162,7 @@ translate: e
 		ev xkind: PF_X_BOOL.
 		ev ival: (e key isRepeat ifTrue: [1] ifFalse: [0]).
 		ev window: (windows fromSDLId: e key windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	t = sdl SDL_EVENT_TEXT_INPUT ifTrue: [
 		"A key pressed with cmd is a command, not text (as on macOS, where it produces none): on Linux cmd is alt, whose keys do type."
@@ -153,6 +172,7 @@ translate: e
 		"platform_events_push copies it"
 		ev text: (self cCoerce: e text text to: 'char *').
 		ev window: (windows fromSDLId: e text windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	t = sdl SDL_EVENT_TEXT_EDITING ifTrue: [
 		"The input method's composition; x and y carry the cursor and the length of its selected part."
@@ -162,6 +182,7 @@ translate: e
 		ev x: e edit start asFloat.
 		ev y: e edit length asFloat.
 		ev window: (windows fromSDLId: e edit windowID).
+		(c4 platformSDL and: [ev window = 0]) ifTrue: [^self].
 		^self push: ev].
 	t = sdl SDL_EVENT_QUIT ifTrue: [
 		ev type: PF_EV_QUIT.

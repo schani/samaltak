@@ -1119,6 +1119,11 @@ void prim_jit_parameters(void)
     oop o_11;
     int64_t n_2;
     oop v_5;
+    if (c4_heap_platform_sdl()) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     memset(&local, 0, sizeof local);
     r = &local;
     *r = alloc_obj(cls_array, F_VAR, 6);
@@ -1943,6 +1948,11 @@ void prim_jit_parameters(void)
     oop o_11;
     int64_t n_2;
     oop v_5;
+    if (c4_heap_platform_sdl()) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
     memset(&local, 0, sizeof local);
     r = &local;
     *r = alloc_obj(cls_array, F_VAR, 6);

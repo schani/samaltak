@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #if defined(__linux__) && defined(__x86_64__) && !defined(SAMALTAK_UEFI) && \
-    (defined(SAMALTAK_NO_PLATFORM) || defined(SAMALTAK_C4_PLATFORM_FILES))
+    (defined(SAMALTAK_NO_PLATFORM) || defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL))
 #define SAMALTAK_C4_SUPPORTED 1
 #else
 #define SAMALTAK_C4_SUPPORTED 0
@@ -14,7 +14,16 @@
 
 static inline bool c4_heap_platform_files(void)
 {
-#ifdef SAMALTAK_C4_PLATFORM_FILES
+#if defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL)
+    return true;
+#else
+    return false;
+#endif
+}
+
+static inline bool c4_heap_platform_sdl(void)
+{
+#ifdef SAMALTAK_C4_PLATFORM_SDL
     return true;
 #else
     return false;

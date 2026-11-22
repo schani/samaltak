@@ -66,6 +66,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <SDL3/SDL.h>
+#include "c4_sdl.h"
 #ifdef __APPLE__
 #include <CoreVideo/CoreVideo.h>
 #include <crt_externs.h>
@@ -539,6 +540,7 @@ typedef void (*prim_fn)(void);
 #define PF_PRIM_POINTS 4
 #define PF_PRIM_TRIANGLES 0
 #define PF_PRIM_TRIANGLE_STRIP 1
+#define PF_SDL_MAX_SIDE 4096
 #define PF_STAGE_FRAGMENT 1
 #define PF_STAGE_VERTEX 0
 #define PF_TEXUSE_COLOR_TARGET 2
@@ -1541,6 +1543,7 @@ extern char **argv;
 extern bool c4_enabled;
 extern bool c4_moving;
 extern bool c4_requested;
+extern bool headless;
 #ifdef __APPLE__
 #endif
 #ifdef __linux__
@@ -2149,12 +2152,15 @@ int32_t platform_common_table_add_pointer(pf_table *t, int kind, void *ptr);
 pf_obj *platform_common_table_at_kind(pf_table *t, int32_t h, int kind);
 int32_t platform_common_table_count(pf_table *t, int kind);
 void platform_common_table_remove(pf_table *t, int32_t h);
+void discard_all(void);
 int64_t dropped(void);
+bool input_ready(void);
 bool platform_events_next(pf_event *out);
 void pump(void);
 void platform_events_push(pf_event *e);
 void set_semaphore(int32_t index);
 void signal_ready(void);
+void translate(SDL_Event *e);
 void update_poll_interval(void);
 bool platform_files_close(int32_t f);
 char *platform_files_cwd(void);
@@ -2329,19 +2335,21 @@ void prim_window_display_scale(void);
 void prim_window_hide(void);
 void prim_window_open(void);
 void prim_window_pixel_size(void);
+void prim_window_present_rgba(void);
 void prim_window_refresh_rate(void);
 void prim_window_set_size(void);
 void prim_window_set_text_input_area(void);
 void prim_window_set_title(void);
 void prim_window_show(void);
 void prim_window_size(void);
+uint8_t *stage_rgba(uint64_t o, size_t n);
 bool platform_ptys_close(int32_t p);
 pid_t foreground(int32_t p);
 bool resize(int32_t p, int32_t rows, int32_t cols);
 int32_t platform_ptys_spawn(char **argv, char **envp, char *cwd, int32_t rows, int32_t cols, int64_t *pid_out);
 bool platform_ptys_wait(int32_t p, bool block, int *status, bool *done);
 void blit_pixels(uint8_t *src, int64_t src_w, int64_t src_h, int32_t src_fmt, int64_t *sr, uint8_t *dst, int64_t dst_w, int64_t dst_h, int32_t dst_fmt, int64_t *dr, bool linear);
-void copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode);
+void platform_raster_copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode);
 void platform_raster_fill(uint8_t *pixels, int64_t n, int bpp, uint32_t v);
 void rasterize(raster_state *st, uint8_t *base, int64_t first, int64_t count);
 int32_t platform_sockets_accept(int32_t s, bool *would_block);
@@ -2387,8 +2395,10 @@ void free_clipboard_data(void *data);
 int32_t from_sdl_id(SDL_WindowID id);
 int32_t platform_windows_handle_count(void);
 bool is_hidden(int32_t win);
+bool is_live(int32_t win);
 int32_t platform_windows_open(int32_t w, int32_t h, char *title, int32_t flags);
 bool pixel_size(int32_t win, int *w, int *h);
+bool present_rgba(int32_t win, int32_t w, int32_t h, uint8_t *pixels);
 double refresh_rate(int32_t win);
 SDL_Window *sdl_window(int32_t win);
 bool set_cursor(int32_t kind);

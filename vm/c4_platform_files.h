@@ -3,7 +3,7 @@
 
 #include <errno.h>
 #include <stdint.h>
-#ifdef SAMALTAK_C4_PLATFORM_FILES
+#if defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL)
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -15,7 +15,7 @@
  * creating, O_EXCL cannot open an existing inode. A racing create may fail. */
 static inline int c4_platform_open_regular(const char *path, int flags, uint16_t mode)
 {
-#ifdef SAMALTAK_C4_PLATFORM_FILES
+#if defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL)
     int ref = open(path, O_PATH | O_CLOEXEC);
     if (ref < 0) {
         if (errno == ENOENT && (flags & O_CREAT))

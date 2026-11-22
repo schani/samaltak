@@ -15,12 +15,32 @@ static int32_t q_head;
 int32_t q_len;
 
 static int mods_of(SDL_Keymod m);
-static void translate(SDL_Event *e);
+
+/* PlatformEvents>>discardAll */
+void discard_all(void)
+{
+    pf_event local;
+    pf_event *e;
+    memset(&local, 0, sizeof local);
+    e = &local;
+    while (platform_events_next(e)) {
+        free(e->text);
+    }
+    free(q);
+    q = (pf_event *)NULL;
+    q_head = q_cap = 0;
+}
 
 /* PlatformEvents>>dropped */
 int64_t dropped(void)
 {
     return q_dropped;
+}
+
+/* PlatformEvents>>inputReady */
+bool input_ready(void)
+{
+    return (q_len != 0) && ((input_sem != 0) && input_armed);
 }
 
 /* PlatformEvents>>modsOf: */
@@ -33,13 +53,16 @@ static int mods_of(SDL_Keymod m)
 bool platform_events_next(pf_event *out)
 {
     input_armed = true;
-    if (q_len == 0) {
-        return false;
+    while (q_len != 0) {
+        *out = *(q + q_head);
+        q_head = (q_head + 1) % q_cap;
+        q_len = q_len - 1;
+        if ((!c4_heap_platform_sdl()) || ((out->window == 0) || is_live(out->window))) {
+            return true;
+        }
+        free(out->text);
     }
-    *out = *(q + q_head);
-    q_head = (q_head + 1) % q_cap;
-    q_len = q_len - 1;
-    return true;
+    return false;
 }
 
 /* PlatformEvents>>pump */
@@ -110,15 +133,17 @@ void set_semaphore(int32_t index)
 /* PlatformEvents>>signalReady */
 void signal_ready(void)
 {
-    platform_vsync_poll();
-    if ((q_len != 0) && ((input_sem != 0) && input_armed)) {
+    if (!c4_heap_platform_sdl()) {
+        platform_vsync_poll();
+    }
+    if (input_ready()) {
         input_armed = false;
         signal_external_semaphore(input_sem);
     }
 }
 
 /* PlatformEvents>>translate: */
-static void translate(SDL_Event *e)
+void translate(SDL_Event *e)
 {
     pf_event local;
     pf_event *ev;
@@ -142,6 +167,9 @@ static void translate(SDL_Event *e)
         ev->y = mouse_y;
         ev->key = e->motion.state;
         ev->window = from_sdl_id(e->motion.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }
@@ -155,6 +183,9 @@ static void translate(SDL_Event *e)
         ev->xkind = PF_X_INT;
         ev->ival = e->button.clicks;
         ev->window = from_sdl_id(e->button.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }
@@ -168,6 +199,9 @@ static void translate(SDL_Event *e)
         ev->dx = e->wheel.x;
         ev->dy = e->wheel.y;
         ev->window = from_sdl_id(e->wheel.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }
@@ -181,6 +215,9 @@ static void translate(SDL_Event *e)
         ev->xkind = PF_X_BOOL;
         ev->ival = e->key.repeat ? 1 : 0;
         ev->window = from_sdl_id(e->key.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }
@@ -192,6 +229,9 @@ static void translate(SDL_Event *e)
         ev->xkind = PF_X_TEXT;
         ev->text = (char *)e->text.text;
         ev->window = from_sdl_id(e->text.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }
@@ -202,6 +242,9 @@ static void translate(SDL_Event *e)
         ev->x = (double)e->edit.start;
         ev->y = (double)e->edit.length;
         ev->window = from_sdl_id(e->edit.windowID);
+        if (c4_heap_platform_sdl() && (ev->window == 0)) {
+            return;
+        }
         platform_events_push(ev);
         return;
     }

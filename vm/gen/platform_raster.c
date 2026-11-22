@@ -248,7 +248,7 @@ static void convert(uint8_t *d, int32_t df, uint8_t *s, int32_t sf, int64_t n)
 }
 
 /* PlatformRaster>>copy:stride:from:stride:width:height:bytesPerPixel:mode: */
-void copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode)
+void platform_raster_copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode)
 {
     int64_t y;
     bool swap;

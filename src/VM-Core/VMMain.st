@@ -46,6 +46,7 @@ usage
   --c4              experimental headless heap (Linux x86-64)
                     NO_PLATFORM=1 supports optional --jit baseline
                     C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only
+                    C4_PLATFORM_SDL=1 adds SDL software presentation for --eval clients; explicit --jit none
   --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances
   --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only
   --jit-threshold N  activations before a method is compiled (0: the first one)
@@ -105,12 +106,20 @@ main: n argv: v
 	movingForward ifTrue: [
 		(c4 supported and: [c4 platformFiles not]) ifFalse: [self fatal: '--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1'].
 		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: '--c4-moving-forward requires --jit none']].
-	c4 platformFiles ifTrue: [
+	c4 platformSDL ifTrue: [
+		c4Requested ifFalse: [self fatal: 'C4_PLATFORM_SDL=1 requires --c4 or --c4-moving'].
+		(explicitJit not or: [jit mode ~= 0]) ifTrue: [self fatal: 'C4 SDL requires --jit none explicitly'].
+		"Require the exact interactive command, not an --eval token in another action or its operands."
+		headless ifFalse: [
+			(n - i = 3 and: [(libc strcmp: (v at: i + 1) with: '--eval') = 0 and: [
+				((v at: i + 2) at: 0) ~= 0 and: [(((v at: i + 2) at: 0) = $- value and: [((v at: i + 2) at: 1) = $- value]) not]]])
+				ifFalse: [self fatal: 'C4 SDL requires image --eval <expression> (World is not supported)']]].
+	(c4 platformFiles and: [c4 platformSDL not]) ifTrue: [
 		c4Requested ifFalse: [self fatal: 'C4_PLATFORM_FILES=1 requires --c4 or --c4-moving'].
 		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: 'C4 platform files require --jit none']].
 	c4Requested ifTrue: [
 		c4 supported ifFalse: [self fatal: '--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1'].
-		headless ifFalse: [self fatal: '--c4 requires --headless'].
+		(headless or: [c4 platformSDL]) ifFalse: [self fatal: '--c4 requires --headless'].
 		(explicitJit and: [jit mode = jit optMode]) ifTrue: [self fatal: '--c4 supports only --jit none or baseline'].
 		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].
 		explicitJit ifFalse: [jit mode: 0]].

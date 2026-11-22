@@ -5234,6 +5234,9 @@ void set_flags(uint32_t f)
 /* JitRuntime>>setMode: */
 bool set_mode(int32_t m)
 {
+    if (c4_heap_platform_sdl() && (m != JIT_NONE)) {
+        return false;
+    }
     if (c4_enabled && ((m != JIT_NONE) && (c4_heap_platform_files() || (c4_heap_moving_forward_enabled() || (m != JIT_BASELINE))))) {
         return false;
     }
