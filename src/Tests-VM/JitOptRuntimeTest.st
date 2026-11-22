@@ -313,6 +313,33 @@ testSmallIntegersWhereLargeIntegersWere
 		self assert: (o sum: small) equals: expectedSmall].
 	self stressed ifFalse: [self assert: (self statistics - before) optDeoptimizations < 4]
 !
+testFloatMultiplyByTwo
+	"Both literal positions use an add on arm64 and a multiply on x86-64."
+	| o listing |
+	self define: 'doubleLeft: x ^2.0 * x'.
+	self define: 'doubleRight: x ^x * 2.0'.
+	o := JitRuntimeTestSubject new.
+	3 timesRepeat: [
+		self assert: (o doubleLeft: -1.25) equals: -2.5.
+		self assert: (o doubleRight: -1.25) equals: -2.5].
+	#(#doubleLeft: #doubleRight:) do: [:selector |
+		listing := (JitRuntimeTestSubject >> selector) machineCodeFor: #opt.
+		self isX64
+			ifTrue: [
+				self assert: (listing includesSubstring: 'mulsd').
+				self deny: (listing includesSubstring: self floatAdd)]
+			ifFalse: [
+				self assert: (listing includesSubstring: self floatAdd).
+				self deny: (listing includesSubstring: 'fmul')]].
+	self assert: (o doubleLeft: 0.0) asIEEEBits equals: 0.
+	self assert: (o doubleRight: 0.0) asIEEEBits equals: 0.
+	self assert: (o doubleLeft: -0.0) asIEEEBits equals: 16r8000000000000000.
+	self assert: (o doubleRight: -0.0) asIEEEBits equals: 16r8000000000000000.
+	self assert: (o doubleLeft: 1.0e308) equals: Float infinity.
+	self assert: (o doubleRight: 1.0e308) equals: Float infinity.
+	self assert: (o doubleLeft: -1.0e308) equals: Float negativeInfinity.
+	self assert: (o doubleRight: -1.0e308) equals: Float negativeInfinity
+!
 testBoxedFloatsInFloatArithmetic
 	"BoxedFloat64s (the infinities, NaN) are decoded as SmallFloat64s are: comparing them does not deoptimize (unless --jit-flags deopt makes it); NaN compares false."
 	| o a before |
