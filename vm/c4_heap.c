@@ -112,13 +112,17 @@ typedef struct {
 /* One versioned view at a time. First writes preserve the old shadow
  * value. The version release precedes the corresponding shadow release. */
 typedef struct {
-    _Atomic uint64_t version, old;
+    _Atomic uint64_t tag, old;     /* view version, then shadow word index */
 } c4_view_word;
 
+enum { VIEW_LOG_ENTRIES = 1 << 16, VIEW_LOG_PROBES = 8 };
+
 static struct {
-    c4_view_word *words;            /* pinned shadow + 4 words per movable handle */
-    uint64_t *visited;              /* one stamp per pinned cell / movable handle */
-    uint64_t version, cls, exclude_a, exclude_b;
+    c4_view_word *words;            /* fixed bounded first-write log */
+    _Atomic uint64_t *visited;      /* epoch with seen/born low bit */
+    _Atomic uint32_t overflow;
+    uint32_t version;
+    uint64_t cls, exclude_a, exclude_b;
     uint64_t *roots;                /* filled in interpreter root slices */
     uint32_t nroots, max_roots;
     bool bytes_invalid;             /* mutator only */
@@ -289,25 +293,64 @@ static bool viewing(unsigned phase)
     return phase == C4_ENUM_ROOTS || phase == C4_ENUM_TRACE;
 }
 
-static c4_view_word *view_row(uint32_t at)
+static uint32_t view_row(uint32_t at)
 {
-    return view.words + (at < heap.capacity ? at :
-        (size_t)heap.capacity + 4 * (at - heap.capacity));
+    return at < heap.capacity ? at : heap.capacity + 4 * (at - heap.capacity);
 }
 
-static void preserve_word(c4_view_word *word, _Atomic uint64_t *slot)
+static _Atomic uint64_t *view_stamp(uint32_t at)
 {
-    if (relaxed(&word->version) == view.version) return;
+    size_t i = at < heap.capacity ? at / 2 :
+        ((size_t)heap.capacity + 1) / 2 + at - heap.capacity;
+    return &view.visited[i];
+}
+
+static uint64_t view_seen(void) { return (uint64_t)view.version << 1; }
+static uint64_t view_born(void) { return view_seen() | 1; }
+
+static c4_view_word *view_word(uint32_t key, bool insert)
+{
+    uint32_t hash = key;
+    hash ^= hash >> 16;
+    hash *= UINT32_C(0x7feb352d);
+    hash ^= hash >> 15;
+    hash *= UINT32_C(0x846ca68b);
+    hash ^= hash >> 16;
+    for (unsigned n = 0; n < VIEW_LOG_PROBES; ++n) {
+        c4_view_word *word = &view.words[(hash + n) & (VIEW_LOG_ENTRIES - 1)];
+        uint64_t tag = acquire(&word->tag);
+        if ((uint32_t)(tag >> 32) != view.version)
+            return insert ? word : NULL;
+        if ((uint32_t)tag == key) return word;
+    }
+    return NULL;
+}
+
+static void preserve_word(uint32_t at, uint32_t key, _Atomic uint64_t *slot)
+{
+    /* New births cannot appear in the cut. Do not spend version budget
+     * on the initialization or later stores to such an owner. */
+    if (relaxed(&view.overflow) || relaxed(view_stamp(at)) == view_born()) return;
+    c4_view_word *word = view_word(key, true);
+    if (!word) {
+        release(&view.overflow, 1);
+        return;
+    }
+    uint64_t tag = ((uint64_t)view.version << 32) | key;
+    if (relaxed(&word->tag) == tag) return;
     put_relaxed(&word->old, relaxed(slot));
-    release(&word->version, view.version);
+    release(&word->tag, tag);
 }
 
-static uint64_t read_view(c4_view_word *word, _Atomic uint64_t *slot)
+static uint64_t read_view(uint32_t key, _Atomic uint64_t *slot)
 {
-    if (acquire(&word->version) == view.version) return relaxed(&word->old);
+    const c4_view_word *word = view_word(key, false);
+    if (word) return relaxed(&word->old);
     uint64_t value = acquire(slot);
-    /* If we read a new store, its release carries publication of old. */
-    return acquire(&word->version) == view.version ? relaxed(&word->old) : value;
+    /* An acquired new store orders its preceding version publication.
+     * Exhaustion poisons the whole result before the corresponding store. */
+    word = view_word(key, false);
+    return word ? relaxed(&word->old) : value;
 }
 
 static bool marking(unsigned phase)
@@ -460,7 +503,7 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
 
     c4_heap_invalidate_cache();
     if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
-    if (viewing(phase)) preserve_word(view_row(src), &heap.shadow[src]);
+    if (viewing(phase)) preserve_word(src, view_row(src), &heap.shadow[src]);
     if (view.cls == heap.bytes_class) view.bytes_invalid = true;
     release(&heap.shadow[src], to);
     if (marking(phase)) {
@@ -667,16 +710,16 @@ static void view_push(uint64_t value, uint32_t *work)
     if (!key_of(value, &at)) return;
     c4_cell *cell = cell_at(at);
     if (refs_at(acquire(&cell->layout), at) >= C4_RESERVED) return;
-    size_t i = at < heap.capacity ? at / 2 :
-        ((size_t)heap.capacity + 1) / 2 + at - heap.capacity;
-    if (view.visited[i] == view.version) return;
-    view.visited[i] = view.version;
+    _Atomic uint64_t *stamp = view_stamp(at);
+    uint64_t version = relaxed(stamp);
+    if (version == view_born() || version == view_seen()) return;
+    put_relaxed(stamp, view_seen());
     /* GC is idle and working cells are live, never allocator bin links. */
     cell->link = *work;
     *work = at + 1;
 }
 
-static uint64_t view_ref(uint32_t at, uint32_t i, uint32_t refs, c4_view_word *word)
+static uint64_t view_ref(uint32_t at, uint32_t i, uint32_t refs, uint32_t word)
 {
     _Atomic uint64_t *slot = shadow_field(at, i, refs, false);
 #ifdef SAMALTAK_C4_TEST
@@ -697,10 +740,11 @@ static int32_t enumerate_view(void)
     for (uint32_t i = 0; i < view.nroots; ++i)
         view_push(view.roots[i], &work);
     while (work) {
+        if (acquire(&view.overflow)) return -1;
         uint32_t at = work - 1;
         c4_cell *cell = cell_at(at);
         work = cell->link;
-        c4_view_word *row = view_row(at);
+        uint32_t row = view_row(at);
         bool pinned = at < heap.capacity;
         if (pinned) {
             uint64_t target = forward_target(read_view(row, &heap.shadow[at]));
@@ -730,8 +774,10 @@ static int32_t enumerate_view(void)
             if (!(sp & 1) || n > refs - CTX_FIXED) return -1;
             limit = CTX_FIXED + (uint32_t)n;
         }
-        for (uint32_t i = 0; i < limit; ++i)
+        for (uint32_t i = 0; i < limit; ++i) {
+            if ((i & 63) == 0 && acquire(&view.overflow)) return -1;
             view_push(view_ref(at, i, refs, row + 2 + i), &work);
+        }
     }
     return count;
 }
@@ -1288,6 +1334,7 @@ static void publish(uint64_t obj, uint32_t refs, uint32_t weak_start, bool nil_f
     uint64_t addr = point ? heap.moving->points[at - heap.capacity].addr : obj;
     if (!mirror(at, addr, heap.unpublished_words, refs, weak_start, phase, nil_filled))
         bad_contract("unsupported format, extent or weak layout");
+    if (viewing(phase)) put_relaxed(view_stamp(at), view_born());
     publish_layout(cell, refs, weak_start);
     heap.unpublished = 0;
 }
@@ -1326,7 +1373,7 @@ void c4_heap_store_class(uint64_t obj, uint64_t value)
         shade_mutator(old);
         shade_mutator(value);
     }
-    if (value != old && viewing(phase)) preserve_word(view_row(at) + 1, slot);
+    if (value != old && viewing(phase)) preserve_word(at, view_row(at) + 1, slot);
     release(slot, value);
     ((uint64_t *)(uintptr_t)c4_heap_address(obj))[1] = value;
 }
@@ -1397,7 +1444,7 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
         shade_mutator(value);
     }
     if (index < cell->weak_start && viewing(phase))
-        preserve_word(view_row(at) + 2 + index, field);
+        preserve_word(at, view_row(at) + 2 + index, field);
     release(field, value);
     if (index >= CM_LITERALS && index <= CM_PRIMITIVE &&
             relaxed(shadow_row(at)) == heap.method_class)
@@ -1475,12 +1522,12 @@ void c4_heap_move_poll(void)
 
 bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b)
 {
-    if (!heap.started || !cls || view.cls || view.version == UINT64_MAX ||
+    if (!heap.started || !cls || view.cls || view.version == UINT32_MAX ||
         max_roots < 4 + PLAIN_KINDS || (view.roots && max_roots != view.max_roots))
         return false;
     if (!view.words) {
         size_t points = heap.moving ? POINT_IDS : 0;
-        size_t words = (heap.capacity + 4 * points) * sizeof *view.words;
+        size_t words = VIEW_LOG_ENTRIES * sizeof *view.words;
         size_t visited = (((size_t)heap.capacity + 1) / 2 + points) * sizeof *view.visited;
         size_t roots = (size_t)max_roots * sizeof *view.roots;
         void *mem = mmap(NULL, words + visited + roots, PROT_READ | PROT_WRITE,
@@ -1506,7 +1553,7 @@ static void enum_root(uint64_t value)
 int32_t c4_heap_enum_count(void)
 {
     if (acquire(&heap.phase) != C4_ENUM_READY) return -2;
-    return view.bytes_invalid ? -1 : view.count;
+    return (view.bytes_invalid || acquire(&view.overflow)) ? -1 : view.count;
 }
 
 uint64_t c4_heap_enum_at(uint32_t index)
@@ -1531,6 +1578,7 @@ bool c4_heap_begin(void)
     c4_move_lane *m = heap.moving;
     if (view.cls) {
         ++view.version;
+        put_relaxed(&view.overflow, 0);
         view.bytes_invalid = false;
         view.nroots = 0;
         enum_root(view.cls);

@@ -1358,6 +1358,46 @@ static oop alloc_nil(oop cls, unsigned fmt, uint32_t slots, uint32_t weak_start,
     return obj;
 }
 
+static void enumeration_log_limit(void)
+{
+    enum { LENGTH = 70000 };
+    size_t room = 2 * extent(LENGTH) + 4 * extent(0);
+    oop nil = (oop)(uintptr_t)arena(room);
+    initialize(nil, nil, F_EMPTY, 0);
+    c4_heap_set_nil(nil);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    assert(c4_heap_start());
+    oop cls = alloc(nil, F_EMPTY, 0);
+    oop old = alloc_nil(cls, F_VAR, LENGTH, C4_NO_WEAK, nil);
+
+    enum_begin(cls, old);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    oop born = alloc_nil(cls, F_VAR, LENGTH, C4_NO_WEAK, nil);
+    for (uint32_t i = 0; i < LENGTH; ++i) c4_heap_store_ref(born, i, 3);
+    c4_heap_store_ref(old, 0, born);
+    atomic_store(&stall_enum, false);
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == old);
+    c4_heap_enum_finish();
+
+    atomic_store(&at_enum, false);
+    enum_begin(cls, old);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    for (uint32_t i = 0; i < LENGTH; ++i) c4_heap_store_ref(old, i, 5);
+    assert(c4_heap_load_ref(old, LENGTH - 1) == 5);
+    atomic_store(&stall_enum, false);
+    assert(enum_count() == -1);
+    c4_heap_enum_finish();
+
+    enum_begin(cls, old);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == old);
+    c4_heap_enum_finish();
+}
+
 static void moving_oracle(void)
 {
     enum { COUNT = 130, GROUP = 13, LAST_SLOT = 129 };
@@ -1748,6 +1788,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
+    else if (!strcmp(argv[1], "enumeration-log-limit")) enumeration_log_limit();
     else if (!strcmp(argv[1], "cache-enumeration")) cache_enumeration();
     else return 2;
     return 0;
