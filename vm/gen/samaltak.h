@@ -1916,6 +1916,7 @@ bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v);
 uint32_t c4_fixed_fields_for(oop cls, int expected, uint32_t n);
 oop c4_load_ref(oop o, uint32_t i);
 void c4_store_context_stackp(oop o, oop v);
+bool c4_try_store_context_stackp(oop o, oop v);
 oop class_of(oop o);
 void copy_c4_context(oop dst, oop src);
 void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_t si, size_t n);

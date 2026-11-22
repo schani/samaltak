@@ -150,7 +150,8 @@ storeRef: o at: i put: v
 		ifTrue: [gc remember: o]
 !
 c4CodeStoreRejected: o at: i put: v
-	(vmMain c4Moving and: [i = CTX_METHOD and: [o = interpreter activeCtx]])
+	"Even with frames above it, the heap base owns the code used to resume it."
+	(i = CTX_METHOD and: [o = interpreter activeCtx and: [(self rawClass: o) = memory clsContext]])
 		ifTrue: [^v ~= (self loadRef: o at: i)].
 	^(i = CM_LITERALS or: [i = CM_BYTECODES or: [i = SO_COMPILEDMETHOD]]) and: [
 		memory c4CannotReplaceCodeSlot: o at: i asUInt32 put: v]

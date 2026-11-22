@@ -140,17 +140,19 @@ primInstVarAtPut
 	k := self indexOf: (self arg: 0) limit: (self numSlots: r).
 	k < 0 ifTrue: [^self fail].
 	v := self arg: 1.
-	(vmMain c4Enabled and: [
-		(k = CTX_STACKP and: [(self rawClass: r) = memory clsContext]) or: [
-			self c4CodeStoreRejected: r at: k put: v]]) ifTrue: [^self fail].
+	(vmMain c4Enabled and: [k = CTX_STACKP and: [(self rawClass: r) = memory clsContext]]) ifTrue: [
+		(r = interpreter activeCtx or: [interpreter isMarried: r]) ifTrue: [^self fail].
+		(memory c4TryStoreContextStackp: r value: v) ifFalse: [^self fail].
+		^self answer: v].
 	"a married Context: a slot goes to its frame; a fixed field may change how it continues, its frames are flushed first"
 	(interpreter isMarried: r) ifTrue: [
 		k >= CTX_FIXED
 			ifTrue: [(interpreter context: r slot: k asInt64 - CTX_FIXED put: v) ifTrue: [^self answer: v]]
 			ifFalse: [interpreter materializeAll].
 		r := self receiver.
-		v := self arg: 1.
-		(vmMain c4Moving and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail]].
+		v := self arg: 1].
+	"The receiver can become the heap base during materialization."
+	(vmMain c4Enabled and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail].
 	(self c4InactiveContext: r at: k) ifTrue: [
 		^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
 	self storeRef: r at: k put: v.

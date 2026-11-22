@@ -270,15 +270,25 @@ c4StoreContextStackp: o value: v
 	<function>
 	<var: #o type: 'oop'>
 	<var: #v type: 'oop'>
+	(self c4TryStoreContextStackp: o value: v)
+		ifFalse: [self fatal: 'invalid or unsupported C4 Context stack pointer'].
+!
+c4TryStoreContextStackp: o value: v
+	"Initialize newly live slots before publishing stackp; a shrink does not
+	read or clear the tail. Bound the work of a single reflective store."
+	<function>
+	<var: #o type: 'oop'>
+	<var: #v type: 'oop'>
 	| old end slots |
 	slots := self numSlots: o.
 	(slots >= CTX_FIXED and: [(self isInt: v) and: [(self intVal: v) asUInt64 <= (slots - CTX_FIXED) asUInt64]])
-		ifFalse: [self fatal: 'invalid C4 Context stack pointer'].
+		ifFalse: [^false].
 	end := CTX_FIXED + (self intVal: v).
 	old := self contextPrefix: o.
-	end - old asInt64 > 256 ifTrue: [self fatal: 'unsupported C4 Context stack pointer growth'].
+	end - old asInt64 > 256 ifTrue: [^false].
 	old asInt64 to: end - 1 do: [:i | c4 storeRef: o at: i asUInt32 put: nilOop].
-	c4 storeRef: o at: CTX_STACKP put: v
+	c4 storeRef: o at: CTX_STACKP put: v.
+	^true
 ! !
 
 !ObjectMemory methodsFor: 'bulk reference stores'!
