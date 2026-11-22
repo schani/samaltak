@@ -36,7 +36,7 @@ StringTest compile: 'c4BecomeStack
 StringTest compile: 'c4BecomeChurn
 	36 timesRepeat: [
 		ByteArray new: 1048579.
-		(Delay forMilliseconds: 25) wait.
+		(Delay forMilliseconds: 80) wait.
 		512 timesRepeat: [1 + 2]]'.
 StringTest compile: 'c4BecomeHeap: check
 	| strong weak live dead anchor target hash fresh |

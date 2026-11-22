@@ -128,9 +128,9 @@ static void hostile_close(void)
     atomic_store(&stall_close, false);
     finish_cycle();
     assert(atomic_load(&proposals) >= 2);
+    assert(alloc(cls, F_VAR, 4) == dead);
     assert(alloc(cls, F_VAR, 2) != branch);
     assert(alloc(cls, F_VAR, 3) != child);
-    assert(alloc(cls, F_VAR, 4) == dead);
 }
 
 static void shadow_snapshot(void)
@@ -173,21 +173,22 @@ static void shadow_snapshot(void)
     c4_heap_end_roots();
     finish_cycle();
     assert(mprotect(base, size, PROT_READ | PROT_WRITE) == 0);
-    assert(alloc(cls, F_VAR, 1) != live_stack);
-    assert(alloc(cls, F_VAR, 2) == stale_tail);
-    assert(alloc(cls, F_VAR, 3) != old_edge);
+    oop recycled = alloc(cls, F_VAR, 2);
+    assert(recycled == stale_tail);
+    oop stack_probe = alloc(cls, F_VAR, 1);
+    oop edge_probe = alloc(cls, F_VAR, 3);
+    assert(stack_probe != live_stack && edge_probe != old_edge);
 
     assert(c4_heap_begin());
     c4_heap_root(ctx);
     c4_heap_root(root);
+    c4_heap_root(recycled);
+    c4_heap_root(stack_probe);
+    c4_heap_root(edge_probe);
     c4_heap_end_roots();
     finish_cycle();
-    oop a = alloc(cls, F_VAR, 1);
-    oop b = alloc(cls, F_VAR, 1);
-    assert(a == live_stack || b == live_stack);
-    a = alloc(cls, F_VAR, 3);
-    b = alloc(cls, F_VAR, 3);
-    assert(a == old_edge || b == old_edge);
+    assert(alloc(cls, F_VAR, 3) == old_edge);
+    assert(alloc(cls, F_VAR, 1) == live_stack);
 }
 
 static oop import_nil(void *base)
@@ -279,11 +280,10 @@ static void weak_close(void)
 
     assert(c4_heap_take_weak_clears() == 1);
     assert(c4_heap_take_weak_clears() == 0);
-    assert(reserve_pinned(extent(1)) == 0);
-    assert(reserve_pinned(extent(2)) == 0);
-    assert(reserve_pinned(extent(6)) == 0);
+    assert(reserve_pinned(extent(3) + extent(4) + 8) == 0);
     assert(alloc(nil, F_VAR, 3) == dying);
     assert(alloc(nil, F_VAR, 4) == raced);
+    assert(reserve_pinned(extent(0)) == 0);
     assert(((const oop *)(uintptr_t)owner)[2 + 2] == dying); /* Raw stays stale. */
     assert(c4_heap_load_ref(owner, 2) == nil); /* No address ABA in IDLE. */
     assert(c4_heap_load_ref(owner, 3) == prefix);
@@ -404,14 +404,19 @@ static uint32_t slots_for(unsigned i)
 
 static void oracle(void)
 {
-    oop nodes[NODES];
+    oop nodes[NODES], guards[NODES];
     unsigned edges[NODES][LINKS];
-    size_t size = extent(0);
+    size_t size = (NODES + 1) * extent(0);
     for (unsigned i = 0; i < NODES; ++i) size += extent(slots_for(i));
     arena(size);
     assert(c4_heap_start());
     oop cls = alloc(1, F_EMPTY, 0);
-    for (unsigned i = 0; i < NODES; ++i) nodes[i] = alloc(cls, F_VAR, slots_for(i));
+    for (unsigned i = 0; i < NODES; ++i) {
+        nodes[i] = alloc(cls, F_VAR, slots_for(i));
+        /* Isolate individual extents so this graph oracle can recover each
+         * white object exactly. The pinned tests exercise merged runs. */
+        guards[i] = alloc(cls, F_EMPTY, 0);
+    }
 
     for (unsigned round = 0; round < 32; ++round) {
         bool live[NODES] = {false}, recovered[NODES] = {false};
@@ -428,6 +433,7 @@ static void oracle(void)
             }
         }
         assert(c4_heap_begin());
+        for (unsigned i = 0; i < NODES; ++i) c4_heap_root(guards[i]);
         unsigned roots = 1 + rand32() % 12;
         for (unsigned r = 0; r < roots; ++r) {
             unsigned i = rand32() % NODES;
@@ -453,8 +459,8 @@ static void oracle(void)
         finish_cycle();
 
         /* Arena has no bump room. Every alloc is a nonmoving sweep result. */
-        for (unsigned shape = 0; shape < SHAPES; ++shape) {
-            uint32_t slots = slots_for(shape);
+        for (unsigned shape = SHAPES; shape > 0; --shape) {
+            uint32_t slots = slots_for(shape - 1);
             oop result;
             while ((result = reserve_pinned(extent(slots)))) {
                 unsigned i = 0;
@@ -466,6 +472,88 @@ static void oracle(void)
         }
         for (unsigned i = 0; i < NODES; ++i) assert(recovered[i] != live[i]);
     }
+}
+
+static void pinned_fit(void)
+{
+    /* Fill the arena with unlike extents. Reclaim two adjacent objects
+     * across a bin boundary, split to different sizes, and retain the
+     * odd-word tail of another run as padding, not as logical body. */
+    size_t full = extent(0) + extent(19) + extent(13) + extent(1) + extent(6) + extent(1);
+    oop nil = import_nil(arena(full));
+    assert(c4_heap_start());
+    oop left = alloc(nil, F_VAR, 19);
+    alloc(nil, F_VAR, 13);
+    oop guard = alloc(nil, F_VAR, 1);
+    oop tail = alloc(nil, F_VAR, 6);
+    oop end = alloc(nil, F_VAR, 1);
+    assert(c4_heap_top() == nil + full && reserve_pinned(extent(0)) == 0);
+    c4_heap_store_ref(guard, 0, end);
+    c4_heap_store_ref(end, 0, 17);
+
+    for (unsigned round = 0; round < 3; ++round) {
+        assert(c4_heap_begin());
+        c4_heap_root(guard);
+        c4_heap_end_roots();
+        finish_cycle();
+        /* No fit across the live guard; then consume both free runs. */
+        assert(reserve_pinned(extent(35)) == 0);
+        assert(alloc(nil, F_VAR, 27) == left);
+        assert(alloc(nil, F_VAR, 5) == left + extent(27));
+        assert(alloc(nil, F_VAR, 5) == tail); /* one trailing word */
+        assert(reserve_pinned(extent(0)) == 0);
+        assert(c4_heap_top() == nil + full);
+        assert(c4_heap_load_ref(guard, 0) == end && c4_heap_load_ref(end, 0) == 17);
+    }
+}
+
+static void pinned_clear_split(void)
+{
+    /* A prior free run borders a current white run. Split the former at
+     * different parity while CLEAR is stalled on a weak reference into the
+     * latter. The worker must see safe old or new boundaries, never ABA. */
+    size_t full = extent(0) + extent(1) + extent(2) + extent(6) + extent(4) + extent(1);
+    oop nil = import_nil(arena(full));
+    assert(c4_heap_start());
+    oop owner = reserve_pinned(extent(1));
+    initialize(owner, nil, F_WEAK, 1);
+    c4_heap_publish(owner, 1, 0);
+    oop prior = alloc(nil, F_VAR, 2);
+    oop old_start = alloc(nil, F_VAR, 6);
+    oop white = alloc(nil, F_VAR, 4);
+    oop guard = alloc(nil, F_VAR, 1);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(white);
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    c4_heap_store_ref(owner, 0, white);
+    race_owner = owner;
+    race_slot = 0;
+    race_prev = white;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    assert(alloc(nil, F_VAR, 1) == prior);
+    /* The new start is one word before the old start, at another parity. */
+    oop replacement = alloc(nil, F_VAR, 7);
+    assert(replacement + 8 == old_start);
+    c4_heap_store_ref(replacement, 6, guard);
+    assert(c4_heap_load_ref(owner, 0) == nil && reserve_pinned(extent(0)) == 0);
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(alloc(nil, F_VAR, 4) == white);
+    assert(c4_heap_load_ref(owner, 0) == nil);
+    assert(c4_heap_load_ref(replacement, 6) == guard);
 }
 
 static oop init_moving(size_t pinned_bytes)
@@ -693,6 +781,10 @@ static void forward_strong(void)
     c4_heap_root(other_wide);
     c4_heap_end_roots();
     finish_cycle();
+    /* Only these two ranges are white. Consume them to verify the alias
+     * and target were retained, now that smaller fits can split them. */
+    assert(alloc(bc, F_BYTES, 4) == forbidden);
+    assert(alloc(nil, F_VAR, 6) == new_holder);
     assert(!reserve_pinned(extent(2)));
     assert(!reserve_pinned(extent(3)));
     assert(((oop *)(uintptr_t)holder)[2] == from);
@@ -843,6 +935,7 @@ static void forward_after_ack(void)
     assert(c4_heap_become_forward(from, to));
     atomic_store(&stall_cas, false);
     finish_cycle();
+    assert(alloc(nil, F_VAR, 5) == white);
     assert(!reserve_pinned(extent(3)));
 
     assert(c4_heap_begin());
@@ -852,6 +945,51 @@ static void forward_after_ack(void)
     finish_cycle();
     assert(alloc(nil, F_VAR, 3) == from);
     assert(c4_heap_load_ref(owner, 0) == to);
+}
+
+static void forward_pinned_overlap(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(1) + extent(5) + extent(2) + extent(3), &bc, &wc);
+    oop owner = weak_owner(nil, 1);
+    oop prefix = alloc(nil, F_VAR, 5);
+    oop from = alloc(bc, F_BYTES, 2);
+    oop to = alloc(wc, F_W32, 3);
+    c4_heap_store_ref(prefix, 1, to); /* Old shadow at the future split boundary. */
+    c4_heap_store_ref(owner, 0, from);
+    assert(c4_heap_become_forward(from, to));
+
+    race_owner = owner;
+    race_slot = 0;
+    race_prev = from;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(to);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    assert(!reserve_pinned(extent(0)));
+    /* A weak reader can hold the pre-CAS alias in its local through
+     * sweep. Its forwarding marker survives inside a merged free run. */
+    finish_during_load = true;
+    assert(c4_heap_load_ref(owner, 0) == to);
+    finish_during_load = false;
+    assert(!c4_heap_busy());
+    assert(c4_heap_take_weak_clears() == 0);
+
+    assert(alloc(nil, F_VAR, 1) == prefix);
+    oop remainder = prefix + extent(1);
+    /* Creating a boundary must not turn the old shadow ref into a
+     * forwarding marker, even before the remainder is reserved. */
+    assert(c4_heap_canonical(remainder) == remainder);
+    assert(alloc(bc, F_BYTES, 6) == remainder);
+    assert(c4_heap_canonical(remainder) == remainder);
+    assert(c4_heap_become_forward(remainder, to));
+    assert(c4_heap_load_ref(owner, 0) == to);
+    assert(!reserve_pinned(extent(0)));
 }
 
 int main(int argc, char **argv)
@@ -868,6 +1006,9 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "forward-weak")) forward_weak();
     else if (!strcmp(argv[1], "forward-weak-read")) forward_weak_read();
     else if (!strcmp(argv[1], "forward-after-ack")) forward_after_ack();
+    else if (!strcmp(argv[1], "forward-pinned-overlap")) forward_pinned_overlap();
+    else if (!strcmp(argv[1], "pinned-fit")) pinned_fit();
+    else if (!strcmp(argv[1], "pinned-clear-split")) pinned_clear_split();
     else if (!strcmp(argv[1], "moving")) moving();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else return 2;

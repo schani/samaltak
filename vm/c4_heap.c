@@ -30,18 +30,40 @@ enum c4_phase { C4_IDLE, C4_ROOTS, C4_MARK, C4_CLOSE, C4_CLEAR, C4_SWEEP };
 #define put_relaxed(p, v) atomic_store_explicit((p), (v), memory_order_relaxed)
 #define release(p, v) atomic_store_explicit((p), (v), memory_order_release)
 
-/* Index by floor(word_offset / 2): object starts are >=2 words apart. The
- * low span bit distinguishes two candidate offsets in the same cell. A
- * published span never changes. Mark links are logical keys + 1 (0 is null). */
+/* Starts are >=2 words apart, so each pair of words shares one cell.
+ * Publish extent, start parity and ref count together: splitting a free
+ * run may reuse a cell at the opposite parity. Links encode keys + 1. */
 typedef struct {
-    _Atomic uint32_t span;           /* (words << 1) | (offset & 1) */
-    _Atomic uint32_t refs;           /* pointer slot count or FREE/RESERVED */
+    _Atomic uint64_t layout;        /* words:31, start parity:1, refs:32 */
     _Atomic uint32_t seen;
-    _Atomic uint32_t context_limit;  /* saved cycle-start prefix + 1, or 0 */
-    uint32_t weak_start;            /* immutable while refs is published */
-    uint32_t mark_link;
-    uint32_t bin_link;
+    _Atomic uint32_t context_limit; /* saved cycle-start prefix + 1, or 0 */
+    uint32_t weak_start;           /* immutable while live */
+    uint32_t link;                 /* mark queue while live, bin while free */
 } c4_cell;
+
+static uint64_t layout_for(uint32_t at, uint32_t words, uint32_t refs)
+{
+    return ((uint64_t)words << 33) | ((uint64_t)(at & 1) << 32) | refs;
+}
+
+static uint32_t layout_words(uint64_t layout)
+{
+    return (uint32_t)(layout >> 33);
+}
+
+static bool layout_at(uint64_t layout, uint32_t at)
+{
+    return layout_words(layout) && ((layout >> 32) & 1) == (at & 1);
+}
+
+enum { BIN_GROUPS = 4, BINS = BIN_GROUPS * 64 };
+
+typedef struct {
+    _Atomic uint32_t swept[BINS]; /* single worker pushes; mutator pops */
+    _Atomic uint64_t swept_mask[BIN_GROUPS];
+    uint32_t split[BINS];         /* mutator-only split remainders */
+    uint64_t split_mask[BIN_GROUPS];
+} c4_bins;
 
 enum {
     POINT_BYTES = 32, REGION_BYTES = 16 * 1024, REGION_COUNT = 4,
@@ -83,7 +105,7 @@ static struct {
     uintptr_t base;
     uint32_t capacity;              /* words */
     uint64_t context_class, nil, bytes_class, wide_class;
-    _Atomic uint32_t *bins;         /* exact size in words */
+    c4_bins bins;
     c4_cell *cells;
     _Atomic uint64_t *shadow;
     c4_move_lane *moving;
@@ -98,6 +120,7 @@ static struct {
     size_t threshold, since_begin;  /* bytes */
     bool started, pressure;
     uint64_t unpublished;         /* sole private reserve; cannot cross a poll */
+    uint32_t unpublished_words;   /* exact body size, excluding extent padding */
     uint64_t imports, cycles_started, closed, close_retries, allocated, reused, failed;
 
     /* Worker-owned; reports are cumulative as of the last completed sweep. */
@@ -146,7 +169,7 @@ uint64_t c4_heap_address(uint64_t obj)
     uint32_t id;
     if (!token_id(obj, &id)) return obj;
     c4_point *point = &heap.moving->points[id];
-    if (relaxed(&point->trace.refs) >= C4_RESERVED || !point->addr)
+    if ((uint32_t)relaxed(&point->trace.layout) >= C4_RESERVED || !point->addr)
         bad_contract("resolve without live Point");
     return point->addr;
 }
@@ -171,9 +194,12 @@ static _Atomic uint64_t *shadow_row(uint32_t at)
 static c4_cell *cell_at(uint32_t at)
 {
     if (at >= heap.capacity) return &heap.moving->points[at - heap.capacity].trace;
-    c4_cell *cell = heap.cells + at / 2;
-    uint32_t span = relaxed(&cell->span);
-    return span && (span & 1) == (at & 1) ? cell : NULL;
+    return heap.cells + at / 2;
+}
+
+static uint32_t refs_at(uint64_t layout, uint32_t at)
+{
+    return at >= heap.capacity || layout_at(layout, at) ? (uint32_t)layout : C4_FREE;
 }
 
 /* The unused pinned shadow header is zero, C4_FORBID, or a target oop.
@@ -193,7 +219,8 @@ bool c4_heap_has_forwarding(void)
 static uint64_t canonical(uint64_t obj)
 {
     uint32_t at;
-    if (offset(obj, &at) && at < acquire(&heap.top) && cell_at(at)) {
+    if (offset(obj, &at) && at < acquire(&heap.top) &&
+            layout_at(acquire(&cell_at(at)->layout), at)) {
         uint64_t target = forward_at(at);
         if (target) return target;
     }
@@ -219,7 +246,7 @@ static bool post_close_live(uint64_t value)
     uint32_t at;
     if (!key_of(value, &at)) return false;
     c4_cell *cell = cell_at(at);
-    return cell && acquire(&cell->refs) < C4_RESERVED &&
+    return refs_at(acquire(&cell->layout), at) < C4_RESERVED &&
         relaxed(&cell->seen) == relaxed(&heap.epoch);
 }
 
@@ -228,7 +255,7 @@ static c4_cell *body_owner(uint64_t obj, uint32_t *at, uint32_t *refs)
     if (!key_of(obj, at))
         bad_contract("body access outside heap");
     c4_cell *cell = cell_at(*at);
-    *refs = cell ? relaxed(&cell->refs) : C4_FREE;
+    *refs = refs_at(relaxed(&cell->layout), *at);
     if (*refs >= C4_RESERVED) bad_contract("body access without live owner");
     return cell;
 }
@@ -240,12 +267,12 @@ static void wake_worker(void)
 }
 
 /* Atomic claim permits at most one queue entry per object per cycle.
- * Successful caller owns its mark_link for the rest of this cycle. */
+ * Successful caller owns its link for the rest of this cycle. */
 static c4_cell *claim(uint64_t value, uint32_t *at)
 {
     if (!key_of(value, at)) return NULL;
     c4_cell *cell = cell_at(*at);
-    if (!cell || acquire(&cell->refs) >= C4_RESERVED) return NULL;
+    if (refs_at(acquire(&cell->layout), *at) >= C4_RESERVED) return NULL;
     uint32_t epoch = relaxed(&heap.epoch);
     if (relaxed(&cell->seen) == epoch ||
         atomic_exchange_explicit(&cell->seen, epoch, memory_order_acq_rel) == epoch)
@@ -259,12 +286,12 @@ static void shade_mutator(uint64_t value)
     c4_cell *cell = claim(value, &at);
     if (!cell) return;
     uint32_t head = relaxed(&heap.inbox);
-    cell->mark_link = head;
+    cell->link = head;
     if (!atomic_compare_exchange_strong_explicit(&heap.inbox, &head, at + 1,
             memory_order_release, memory_order_relaxed)) {
         /* No other producer. The worker can only exchange head for zero,
          * so the second attempt cannot lose, even if worker is descheduled. */
-        cell->mark_link = 0;
+        cell->link = 0;
         if (head || !atomic_compare_exchange_strong_explicit(&heap.inbox,
                 &head, at + 1, memory_order_release, memory_order_relaxed))
             bad_contract("inbox has multiple producers");
@@ -276,7 +303,7 @@ static c4_cell *live_pinned(uint64_t obj, uint32_t *at)
 {
     if (!offset(obj, at) || *at >= acquire(&heap.top)) return NULL;
     c4_cell *cell = cell_at(*at);
-    return cell && acquire(&cell->refs) < C4_RESERVED ? cell : NULL;
+    return refs_at(acquire(&cell->layout), *at) < C4_RESERVED ? cell : NULL;
 }
 
 void c4_heap_forbid_become(uint64_t obj)
@@ -330,7 +357,7 @@ static void shade_worker(uint64_t value, uint32_t *work)
     uint32_t at;
     c4_cell *cell = claim(value, &at);
     if (!cell) return;
-    cell->mark_link = *work;
+    cell->link = *work;
     *work = at + 1;
 }
 
@@ -361,8 +388,9 @@ static uint64_t clear_weak(uint32_t limit)
     uint64_t cleared = 0;
     for (uint32_t at = 0; at < limit; ) {
         c4_cell *cell = cell_at(at);
-        if (!cell) bad_contract("missing clear cell");
-        uint32_t refs = acquire(&cell->refs);
+        uint64_t layout = acquire(&cell->layout);
+        if (!layout_at(layout, at)) bad_contract("missing clear cell");
+        uint32_t refs = (uint32_t)layout;
         if (refs < C4_RESERVED && relaxed(&cell->seen) == epoch) {
             for (uint32_t i = cell->weak_start; i < refs; ++i) {
                 _Atomic uint64_t *slot = &heap.shadow[at + 2 + i];
@@ -380,33 +408,62 @@ static uint64_t clear_weak(uint32_t limit)
                 /* A racing overwrite cannot have installed another white oop. */
             }
         }
-        at += relaxed(&cell->span) >> 1;
+        at += layout_words(layout);
     }
     return cleared;
 }
 
-static uint32_t sweep_one(uint32_t at, uint64_t *reclaimed, uint64_t *bytes)
+/* Exact for small blocks, then eight buckets per power of two. */
+static unsigned bin_for(uint32_t words)
 {
+    if (words < 8) return words;
+    unsigned shift = (31 - __builtin_clz(words)) - 3;
+    return shift * 8 + (words >> shift);
+}
+
+static void offer_swept(uint32_t at, uint32_t words)
+{
+    unsigned bin = bin_for(words);
     c4_cell *cell = cell_at(at);
-    if (!cell) bad_contract("missing sweep cell");
-    uint32_t words = relaxed(&cell->span) >> 1;
-    uint32_t refs = acquire(&cell->refs);
-    /* Do not modify cells that might already be available for allocation. */
-    if (refs < C4_RESERVED) {
-        put_relaxed(&cell->context_limit, 0);
-        if (relaxed(&cell->seen) != relaxed(&heap.epoch)) {
-            put_relaxed(&cell->refs, C4_FREE);
-            atomic_fetch_sub_explicit(&heap.occupied, words, memory_order_relaxed);
-            uint32_t head = relaxed(&heap.bins[words]);
-            do {
-                cell->bin_link = head;
-            } while (!atomic_compare_exchange_weak_explicit(&heap.bins[words],
-                &head, at + 1, memory_order_release, memory_order_relaxed));
+    put_relaxed(&cell->layout, layout_for(at, words, C4_FREE));
+    atomic_fetch_sub_explicit(&heap.occupied, words, memory_order_relaxed);
+    uint32_t head = relaxed(&heap.bins.swept[bin]);
+    do {
+        cell->link = head;
+    } while (!atomic_compare_exchange_weak_explicit(&heap.bins.swept[bin],
+        &head, at + 1, memory_order_release, memory_order_relaxed));
+    atomic_fetch_or_explicit(&heap.bins.swept_mask[bin / 64],
+        UINT64_C(1) << (bin % 64), memory_order_release);
+}
+
+static void sweep_pinned(uint32_t limit, uint64_t *reclaimed, uint64_t *bytes)
+{
+    uint32_t epoch = relaxed(&heap.epoch);
+    uint32_t start = 0, run = 0;
+    for (uint32_t at = 0; at < limit; ) {
+        c4_cell *cell = cell_at(at);
+        uint64_t layout = acquire(&cell->layout);
+        uint32_t words = layout_words(layout);
+        if (!layout_at(layout, at)) bad_contract("missing sweep cell");
+        bool live = (uint32_t)layout < C4_RESERVED;
+        if (live) put_relaxed(&cell->context_limit, 0);
+        if (live && relaxed(&cell->seen) != epoch) {
+            /* CLEAR is complete. Retire every old start before offering a
+             * combined extent. We never withdraw runs already in bins. */
+            put_relaxed(&cell->layout, layout_for(at, words, C4_FREE));
+            if (!run) start = at;
+            run += words;
             ++*reclaimed;
             *bytes += (uint64_t)words * 8;
+        } else if (run) {
+            offer_swept(start, run);
+            run = 0;
         }
+        /* One layout snapshot. If it precedes a concurrent split we skip
+         * only free space and current-epoch (black) allocations. */
+        at += words;
     }
-    return words;
+    if (run) offer_swept(start, run);
 }
 
 static void sweep_points(uint64_t *reclaimed, uint64_t *bytes)
@@ -416,8 +473,8 @@ static void sweep_points(uint64_t *reclaimed, uint64_t *bytes)
     uint32_t epoch = relaxed(&heap.epoch);
     for (uint32_t id = 0; id < POINT_IDS; ++id) {
         c4_cell *cell = &m->points[id].trace;
-        if (acquire(&cell->refs) < C4_RESERVED && relaxed(&cell->seen) != epoch) {
-            put_relaxed(&cell->refs, C4_FREE);
+        if ((uint32_t)acquire(&cell->layout) < C4_RESERVED && relaxed(&cell->seen) != epoch) {
+            put_relaxed(&cell->layout, C4_FREE);
             atomic_fetch_sub_explicit(&m->occupied, 1, memory_order_relaxed);
             ++*reclaimed;
             *bytes += POINT_BYTES;
@@ -429,7 +486,7 @@ static void sweep_points(uint64_t *reclaimed, uint64_t *bytes)
         c4_region *src = &m->region[m->source];
         uint32_t live = 0;
         for (uint32_t i = 0; i < src->used; ++i)
-            live += relaxed(&m->points[src->ids[i]].trace.refs) != C4_FREE;
+            live += (uint32_t)relaxed(&m->points[src->ids[i]].trace.layout) != C4_FREE;
         m->source_live = live;
     }
 }
@@ -452,7 +509,7 @@ static void *worker(void *unused)
                 uint32_t *source = local ? &local : &inbound;
                 uint32_t at = *source - 1;
                 c4_cell *cell = cell_at(at);
-                *source = cell->mark_link;
+                *source = cell->link;
                 ++marked;
                 uint64_t target = at < heap.capacity && c4_heap_has_forwarding()
                     ? forward_at(at) : 0;
@@ -461,7 +518,7 @@ static void *worker(void *unused)
                     shade_worker(target, &local);
                     continue;
                 }
-                uint32_t refs = relaxed(&cell->refs);
+                uint32_t refs = (uint32_t)relaxed(&cell->layout);
                 uint32_t limit = cell->weak_start != C4_NO_WEAK ? cell->weak_start :
                     is_context(at, refs) ? context_snapshot_limit(at, cell, refs) : refs;
                 edges += (uint64_t)limit + 1;
@@ -491,8 +548,7 @@ static void *worker(void *unused)
             continue;
         } else if (phase == C4_SWEEP) {
             uint32_t limit = acquire(&heap.top);
-            for (uint32_t at = 0; at < limit; )
-                at += sweep_one(at, &reclaimed, &bytes);
+            sweep_pinned(limit, &reclaimed, &bytes);
             sweep_points(&reclaimed, &bytes);
             put_relaxed(&heap.marked, marked);
             put_relaxed(&heap.traced_edges, edges);
@@ -521,14 +577,11 @@ bool c4_heap_init(void *base, size_t capacity)
         return false;
 
     size_t words = capacity / 8;
-    heap.bins = calloc(words + 1, sizeof *heap.bins);
     heap.cells = calloc((words + 1) / 2, sizeof *heap.cells);
     heap.shadow = calloc(words, sizeof *heap.shadow);
-    if (!heap.bins || !heap.cells || !heap.shadow) {
-        free(heap.bins);
+    if (!heap.cells || !heap.shadow) {
         free(heap.cells);
         free(heap.shadow);
-        heap.bins = NULL;
         heap.cells = NULL;
         heap.shadow = NULL;
         return false;
@@ -561,7 +614,7 @@ bool c4_heap_init_moving(void *base, size_t capacity)
     m->source = NO_REGION;
     m->reserve = REGION_COUNT - 1;
     for (uint32_t id = 0; id < POINT_IDS; ++id) {
-        put_relaxed(&m->points[id].trace.refs, C4_FREE);
+        put_relaxed(&m->points[id].trace.layout, C4_FREE);
         m->points[id].next_free = id + 1 < POINT_IDS ? id + 2 : 0;
     }
     m->free_ids = 1;
@@ -647,7 +700,7 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
 static void publish_layout(c4_cell *cell, uint32_t refs, uint32_t weak_start)
 {
     cell->weak_start = weak_start;
-    release(&cell->refs, refs);
+    release(&cell->layout, (relaxed(&cell->layout) & ~UINT64_C(0xffffffff)) | refs);
     if (weak_start < refs && !relaxed(&heap.has_weak))
         release(&heap.has_weak, 1);
 }
@@ -661,7 +714,7 @@ bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_sta
         return false;
 
     c4_cell *cell = heap.cells + at / 2;
-    put_relaxed(&cell->span, (words << 1) | (at & 1));
+    put_relaxed(&cell->layout, layout_for(at, words, C4_RESERVED));
     publish_layout(cell, refs, weak_start);
     put_relaxed(&heap.top, at + words);
     atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
@@ -676,13 +729,13 @@ bool c4_heap_start(void)
         uint32_t at;
         if (!offset(heap.nil, &at) || at >= relaxed(&heap.top)) return false;
         c4_cell *cell = cell_at(at);
-        if (!cell || relaxed(&cell->refs) >= C4_RESERVED) return false;
+        if (refs_at(relaxed(&cell->layout), at) >= C4_RESERVED) return false;
     }
     if (heap.moving) {
         uint32_t at;
         if (!offset(heap.moving->point_class, &at) || at >= relaxed(&heap.top)) return false;
         c4_cell *cell = cell_at(at);
-        if (!cell || relaxed(&cell->refs) >= C4_RESERVED) return false;
+        if (refs_at(relaxed(&cell->layout), at) >= C4_RESERVED) return false;
     }
     uint32_t at;
     if (heap.bytes_class && (!live_pinned(heap.bytes_class, &at) ||
@@ -701,21 +754,90 @@ bool c4_heap_start(void)
     return true;
 }
 
-/* Worker can only push; sole mutator pops. The worker never re-pushes a
- * popped object in the same sweep, so the head cannot ABA mid-pop. */
-static uint32_t try_bin(uint32_t words)
+static uint32_t bin_words(uint32_t key, unsigned bin)
 {
-    uint32_t head = acquire(&heap.bins[words]);
+    uint32_t at = key - 1;
+    uint64_t layout = relaxed(&cell_at(at)->layout);
+    uint32_t words = layout_words(layout);
+    if (!layout_at(layout, at) || (uint32_t)layout != C4_FREE || bin_for(words) != bin)
+        bad_contract("invalid pinned bin");
+    return words;
+}
+
+/* The worker only pushes. In one pop it cannot re-push any popped run.
+ * Leave stale availability bits alone except when their head is empty;
+ * repair a concurrent push with a head recheck after clearing the bit. */
+static uint32_t take_swept(unsigned bin, uint32_t words, uint32_t *available)
+{
+    _Atomic uint32_t *list = &heap.bins.swept[bin];
+    uint32_t head = acquire(list);
+    uint32_t taken = 0;
     for (unsigned retry = 0; head && retry < 2; ++retry) {
-        c4_cell *cell = cell_at(head - 1);
-        if (!cell || relaxed(&cell->refs) != C4_FREE || relaxed(&cell->span) >> 1 != words)
-            bad_contract("bad exact-size bin");
-        uint32_t next = cell->bin_link;
-        if (atomic_compare_exchange_strong_explicit(&heap.bins[words], &head, next,
-                memory_order_acquire, memory_order_acquire))
-            return head;
+        uint32_t span = bin_words(head, bin);
+        if (span < words) return 0;
+        uint32_t next = cell_at(head - 1)->link;
+        if (atomic_compare_exchange_strong_explicit(list, &head, next,
+                memory_order_acquire, memory_order_acquire)) {
+            *available = span;
+            if (next) return head;
+            taken = head;
+            break;
+        }
+    }
+    if (!head || taken) {
+        _Atomic uint64_t *mask = &heap.bins.swept_mask[bin / 64];
+        uint64_t bit = UINT64_C(1) << (bin % 64);
+        atomic_fetch_and_explicit(mask, ~bit, memory_order_acq_rel);
+        if (acquire(list)) atomic_fetch_or_explicit(mask, bit, memory_order_release);
+    }
+    return taken;
+}
+
+static uint32_t take_run(uint32_t words, uint32_t *available)
+{
+    unsigned bin = bin_for(words);
+    for (unsigned group = bin / 64; group < BIN_GROUPS; ++group) {
+        uint64_t swept = acquire(&heap.bins.swept_mask[group]);
+        uint64_t split = heap.bins.split_mask[group];
+        uint64_t candidates = (swept | split) & (UINT64_MAX << (bin % 64));
+        for (; candidates; candidates &= candidates - 1) {
+            unsigned i = __builtin_ctzll(candidates);
+            uint64_t bit = UINT64_C(1) << i;
+            unsigned trial = group * 64 + i;
+            if (split & bit) {
+                uint32_t head = heap.bins.split[trial];
+                uint32_t span = bin_words(head, trial);
+                if (span >= words) {
+                    uint32_t next = cell_at(head - 1)->link;
+                    heap.bins.split[trial] = next;
+                    if (!next) heap.bins.split_mask[group] &= ~bit;
+                    *available = span;
+                    return head;
+                }
+            }
+            /* Only a head in the request's coarse bucket can be too small.
+             * Do not walk a free list on the mutator. */
+            if (swept & bit) {
+                uint32_t head = take_swept(trial, words, available);
+                if (head) return head;
+            }
+        }
+        bin = 0; /* all later groups are above the request */
     }
     return 0;
+}
+
+static void offer_split(uint32_t at, uint32_t words)
+{
+    unsigned bin = bin_for(words);
+    c4_cell *cell = cell_at(at);
+    /* Interior shadow words need not be zero; this new boundary has
+     * never forwarded. Prior-cycle aliases are no longer in weak slots. */
+    put_relaxed(&heap.shadow[at], 0);
+    release(&cell->layout, layout_for(at, words, C4_FREE));
+    cell->link = heap.bins.split[bin];
+    heap.bins.split[bin] = at + 1;
+    heap.bins.split_mask[bin / 64] |= UINT64_C(1) << (bin % 64);
 }
 
 static uintptr_t region_address(c4_move_lane *m, uint32_t region, uint32_t slot)
@@ -747,12 +869,12 @@ static uint64_t reserve_point(void)
             continue;
         uint32_t id = m->free_ids - 1;
         c4_point *point = &m->points[id];
-        if (point->addr || relaxed(&point->trace.refs) != C4_FREE)
+        if (point->addr || (uint32_t)relaxed(&point->trace.layout) != C4_FREE)
             bad_contract("recycling live Point");
         m->free_ids = point->next_free;
         point->addr = take_slot(m, i, id);
         put_relaxed(&point->trace.seen, relaxed(&heap.epoch));
-        put_relaxed(&point->trace.refs, C4_RESERVED);
+        put_relaxed(&point->trace.layout, C4_RESERVED);
         uint32_t occupied = atomic_fetch_add_explicit(&m->occupied, 1, memory_order_relaxed) + 1;
         if (occupied > m->peak) m->peak = occupied;
         return m->tokens + (size_t)id * 8;
@@ -763,27 +885,29 @@ static uint64_t reserve_point(void)
 static uint64_t reserve_pinned(size_t bytes)
 {
     uint32_t words;
-    if (object_size(bytes, &words)) {
-        uint32_t top = relaxed(&heap.top);
-        uint32_t head = try_bin(words);
-        if (head || words <= heap.capacity - top) {
-            uint32_t at = head ? head - 1 : top;
-            c4_cell *cell = heap.cells + at / 2;
-            uint32_t epoch = relaxed(&heap.epoch);
-            put_relaxed(&cell->seen, epoch);
-            put_relaxed(&cell->refs, C4_RESERVED);
-            put_relaxed(&heap.shadow[at], 0);
-            if (head) {
-                ++heap.reused;
-            } else {
-                put_relaxed(&cell->span, (words << 1) | (at & 1));
-                release(&heap.top, at + words);
-            }
-            atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
-            return heap.base + (size_t)at * 8;
+    if (!object_size(bytes, &words)) return 0;
+    uint32_t top = relaxed(&heap.top);
+    uint32_t available = 0;
+    uint32_t head = take_run(words, &available);
+    if (!head && words > heap.capacity - top) return 0;
+    uint32_t at = head ? head - 1 : top;
+    c4_cell *cell = cell_at(at);
+    if (head) {
+        ++heap.reused;
+        if (available - words >= 2) {
+            /* Publish a new boundary before shortening the old span.
+             * Sweep/clear can safely walk either layout. */
+            offer_split(at + words, available - words);
+        } else {
+            words = available; /* cannot index a one-word remainder */
         }
     }
-    return 0;
+    put_relaxed(&heap.shadow[at], 0);
+    put_relaxed(&cell->seen, relaxed(&heap.epoch));
+    release(&cell->layout, layout_for(at, words, C4_RESERVED));
+    if (!head) release(&heap.top, at + words);
+    atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
+    return heap.base + (size_t)at * 8;
 }
 
 uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
@@ -809,6 +933,7 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
     uint32_t id;
     *init_addr = token_id(obj, &id) ? heap.moving->points[id].addr : obj;
     heap.unpublished = obj;
+    heap.unpublished_words = (uint32_t)(bytes / 8);
     heap.since_begin = bytes <= SIZE_MAX - heap.since_begin
         ? heap.since_begin + bytes : SIZE_MAX;
     ++heap.allocated;
@@ -821,15 +946,14 @@ void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
     if (!obj || obj != heap.unpublished || !key_of(obj, &at))
         bad_contract("publish outside private reserve");
     c4_cell *cell = cell_at(at);
-    if (!cell || relaxed(&cell->refs) != C4_RESERVED) bad_contract("publish without reserve");
+    if (refs_at(relaxed(&cell->layout), at) != C4_RESERVED) bad_contract("publish without reserve");
     /* New objects are black. During marking publish their initial edges,
      * not the object: allocating garbage must not keep reopening closure.
      * Only this mutator can ACK at a later checkpoint. */
     unsigned phase = acquire(&heap.phase);
     bool point = at >= heap.capacity;
     uint64_t addr = point ? heap.moving->points[at - heap.capacity].addr : obj;
-    uint32_t words = point ? POINT_BYTES / 8 : relaxed(&cell->span) >> 1;
-    if (!mirror(at, addr, words, refs, weak_start, phase))
+    if (!mirror(at, addr, heap.unpublished_words, refs, weak_start, phase))
         bad_contract("unsupported format, extent or weak layout");
     publish_layout(cell, refs, weak_start);
     heap.unpublished = 0;
@@ -950,7 +1074,7 @@ void c4_heap_move_poll(void)
         uintptr_t old = region_address(m, source, m->cursor);
         if (point->addr != old)
             bad_contract("Point source ownership changed");
-        uint32_t refs = relaxed(&point->trace.refs);
+        uint32_t refs = (uint32_t)relaxed(&point->trace.layout);
         if (refs == C4_FREE) {
             point->addr = 0;
             if (!m->retired_head) m->retired_tail = id + 1;
