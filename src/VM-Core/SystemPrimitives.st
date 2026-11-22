@@ -95,7 +95,7 @@ primQuit
 	libc fflush: libc stdout.
 	libc fflush: libc stderr.
 	platform shutdown.
-	(vmMain c4Enabled and: [(libc getenv: 'SAMALTAK_C4_STATS') notNull]) ifTrue: [c4 report].
+	(vmMain c4Enabled and: [(libc getenv: 'SAMALTAK_C4_STATS') notNull]) ifTrue: [c4 report. jit reportC4].
 	libc exit: ((self isInt: c) ifTrue: [(self intVal: c) asInt32] ifFalse: [0])
 !
 primSnapshot

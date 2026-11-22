@@ -273,6 +273,7 @@ exit_canonical_oop:;
     platform_interface_shutdown();
     if (c4_enabled && (getenv("SAMALTAK_C4_STATS") != NULL)) {
         c4_heap_stats();
+        report_c4();
     }
     exit((c & 1) != 0 ? (int32_t)(((int64_t)c) >> 1) : 0);
 }

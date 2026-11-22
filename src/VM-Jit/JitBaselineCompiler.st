@@ -200,6 +200,7 @@ emitAt: pc
 	ssTop = d ifFalse: [^false].
 	asm bytecode: pc.
 	runtime regs ifFalse: [self ssFlushAll].
+	(runtime c4Baseline and: [self c4HeapBytecode: op]) ifTrue: [^self exitAt: pc].
 	op < 16r10 ifTrue: [^self pushTemp: op].
 	op < 16r20 ifTrue: [^self pushInstVar: op - 16r10].
 	op < 16r40 ifTrue: [^self pushLiteral: op - 16r20].
@@ -246,6 +247,12 @@ emitAt: pc
 	((op >= 16r97 and: [op < 16rA0]) or: [op >= 16rF0 and: [op < 16rFC]]) ifTrue: [^self superinstruction: pc].
 	(op >= 16rA0 and: [op < 16rC0]) ifTrue: [^self special: op - 16rA0 pc: pc pushes: 0].
 	^false
+!
+c4HeapBytecode: op
+	"Checked interpreter bytecodes: ivars, associations, and outer slots."
+	^(op >= 16r10 and: [op < 16r20]) or: [(op >= 16r40 and: [op < 16r60]) or: [
+		op = 16r81 or: [op = 16r83 or: [op = 16r85 or: [op = 16r86 or: [
+		op >= 16r88 and: [op <= 16r8C]]]]]]]
 !
 labelFor: pc
 	(pcLabels at: pc) < 0 ifTrue: [pcLabels at: pc put: asm newLabel].
@@ -697,6 +704,14 @@ literalLabel: i
 loadLiteral: i into: r
 	<function>
 	(i < 0 or: [i >= analysis numLiterals or: [i > 255]]) ifTrue: [^asm fail: ASM_ERR_RANGE].
+	runtime c4Baseline ifTrue: [
+		"CM_LITERALS is a validated pinned strong array; load its current oop,
+		not a copied literal or resolved body address. A forwarded raw alias
+		can be copied as an oop, but native code must not inspect its identity."
+		asm adr: r label: headerLabel.
+		asm ldr: r base: r offset: 0.
+		asm ldr: r base: r offset: (self fieldOffset: CM_LITERALS).
+		^asm ldr: r base: r offset: (self fieldOffset: i)].
 	asm comment: 'literal %d (pool)' with: i.
 	asm ldr: r label: (self literalLabel: i asInt32)
 !
@@ -774,7 +789,35 @@ intOop: v
 emitMethodEntry
 	"Checked entry, unchecked entry, the quick method or primitive, the stack check, the frame; then the bytecodes from pc 0. Resumption at pc 0 (a frame the interpreter pushed) checks for interrupts out of line."
 	<function>
-	| imm s uentry p |
+	| s p |
+	runtime c4Baseline
+		ifTrue: [
+			"Unused by C4 sends: the miss helper resolves the receiver's class."
+			asm b: missLabel.
+			uentryOffset := (asm pc - codeStart) asInt32]
+		ifFalse: [self emitCheckedEntry].
+	asm failed ifTrue: [^false].
+	asm comment: 'unchecked entry (polymorphic caches, the megamorphic stub, super sends)'.
+	p := asm pc.
+	(runtime quick and: [analysis primitive = 0]) ifTrue: [self emitQuickMethod].
+	(runtime c4Baseline not and: [analysis primitive ~= 0]) ifTrue: [(self emitPrimitive) ifFalse: [^false]].
+	plainEntry := asm pc = p.
+	(self emitStackCheck: 0) ifFalse: [^false].
+	self emitFrameFor: false args: curArgs temps: curTemps.
+	(runtime c4Baseline not and: [analysis primitiveHasErrorCode]) ifTrue: [
+		asm comment: 'the primitive''s error code (or nil) into the first temp'.
+		asm ldr: X16 base: X22 offset: self ecodeOffset.
+		asm str: X16 base: X20 offset: (self slot: curArgs)].
+	(self emitTierUp: 0 depth: curArgs + curTemps loop: 0) ifFalse: [^false].
+	self ssReset: curArgs + curTemps.
+	selfValid := true.
+	s := self slow: SL_START pc: 0 depth: curArgs + curTemps.
+	s < 0 ifTrue: [^false].
+	slCont at: s put: (self labelFor: 0).
+	^true
+!
+emitCheckedEntry
+	| imm s uentry |
 	asm comment: 'checked entry: x0 the receiver, x9 the class the inline cache expects, x20 our fp, x30 back to the send'.
 	imm := asm newLabel.
 	uentry := asm newLabel.
@@ -787,33 +830,15 @@ emitMethodEntry
 			asm ldr: X16 base: X0 offset: 8.
 			asm cmp: X16 with: X9].
 	s := self slow: SL_ENTRY_IMM pc: 0 depth: 0.
-	s < 0 ifTrue: [^false].
+	s < 0 ifTrue: [^asm fail: ASM_ERR_LABEL].
 	slLabel at: s put: imm.
 	slCont at: s put: uentry.
 	slTarget at: s put: asm newLabel.
 	asm comment: 'not the cached class: the miss handler relinks'.
 	asm b: (slTarget at: s) if: COND_NE.
-	asm isX64 ifFalse: [asm pc - codeStart = BL_UENTRY ifFalse: [^false]].
+	asm isX64 ifFalse: [asm pc - codeStart = BL_UENTRY ifFalse: [^asm fail: ASM_ERR_RANGE]].
 	uentryOffset := (asm pc - codeStart) asInt32.
 	asm bind: uentry.
-	asm comment: 'unchecked entry (polymorphic caches, the megamorphic stub, super sends)'.
-	p := asm pc.
-	(runtime quick and: [analysis primitive = 0]) ifTrue: [self emitQuickMethod].
-	analysis primitive ~= 0 ifTrue: [(self emitPrimitive) ifFalse: [^false]].
-	plainEntry := asm pc = p.
-	(self emitStackCheck: 0) ifFalse: [^false].
-	self emitFrameFor: false args: curArgs temps: curTemps.
-	analysis primitiveHasErrorCode ifTrue: [
-		asm comment: 'the primitive''s error code (or nil) into the first temp'.
-		asm ldr: X16 base: X22 offset: self ecodeOffset.
-		asm str: X16 base: X20 offset: (self slot: curArgs)].
-	(self emitTierUp: 0 depth: curArgs + curTemps loop: 0) ifFalse: [^false].
-	self ssReset: curArgs + curTemps.
-	selfValid := true.
-	s := self slow: SL_START pc: 0 depth: curArgs + curTemps.
-	s < 0 ifTrue: [^false].
-	slCont at: s put: (self labelFor: 0).
-	^true
 !
 emitStackCheck: pc
 	"x20 is the callee's fp: at or above the limit (or with an interrupt pending) the entry's slow path runs and then retries."
@@ -832,8 +857,22 @@ emitStackCheck: pc
 			asm cmp: X20 with: X16].
 	asm b: (slLabel at: s) if: COND_HS.
 	asm comment: 'entry: interrupt check'.
-	self emitInterruptTestTo: (slLabel at: s).
+	self emitBaselinePollTo: (slLabel at: s).
+	runtime c4Baseline ifTrue: [
+		check := asm newLabel.
+		asm bind: check.
+		slCont at: s put: check].
 	^true
+!
+emitBaselinePollTo: aLabel
+	"The ticker word is still consumed only by Scheduler. The C4 countdown
+	is mutator-owned and also reaches the slow path with no ticker armed."
+	runtime c4Baseline ifTrue: [
+		asm ldr: X16 base: X22 offset: (self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #c4Budget) to: 'int64_t').
+		asm subs: X16 with: X16 imm: 1.
+		asm str: X16 base: X22 offset: (self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #c4Budget) to: 'int64_t').
+		asm b: aLabel if: COND_EQ].
+	self emitInterruptTestTo: aLabel
 !
 emitFrameFor: isBlock args: na temps: nt
 	"Push the Frame and the native frame record: x0 the receiver (a block: the closure), x20 the fp."
@@ -1868,6 +1907,7 @@ pushLiteral: i
 	"A SmallInteger or Character literal is an immediate; anything else is loaded from the pool when used."
 	| v |
 	i >= analysis numLiterals ifTrue: [^false].
+	runtime c4Baseline ifTrue: [^self ssPush: SS_LIT val: i reg: -1].
 	v := analysis literalAt: i.
 	(v bitAnd: 7) ~= 0 ifTrue: [^self ssPush: SS_CONST val: v asInt64 reg: -1].
 	^self ssPush: SS_LIT val: i reg: -1
@@ -2181,7 +2221,7 @@ headCheck: h
 	s < 0 ifTrue: [^asm fail: ASM_ERR_LABEL].
 	slCont at: s put: (self labelFor: h).
 	asm comment: 'loop head: interrupt check'.
-	self emitInterruptTestTo: (slLabel at: s)
+	self emitBaselinePollTo: (slLabel at: s)
 !
 backJump: t
 	"A backward jump to the loop head t (which checks for interrupts), counting down toward optimization first (--jit opt); answer its label."
@@ -2315,11 +2355,12 @@ closure: pc
 	| after slow |
 	after := pc + 6 + (((analysis byteAt: pc + 4) asInt64 << 8) bitOr: (analysis byteAt: pc + 5)).
 	self ssFlushAll.
-	slow := asm newLabel.
-	self emitInlineClosure: pc fail: slow.
-	asm str: X9 base: X20 offset: (self slot: ssTop).
-	asm b: (self labelFor: after asInt32).
-	asm bind: slow.
+	runtime c4Baseline ifFalse: [
+		slow := asm newLabel.
+		self emitInlineClosure: pc fail: slow.
+		asm str: X9 base: X20 offset: (self slot: ssTop).
+		asm b: (self labelFor: after asInt32).
+		asm bind: slow].
 	asm comment: 'eden is full: the runtime makes it (and collects)'.
 	self emitRuntimeCall: closureLabel pc: pc depth: ssTop.
 	self ssPush: SS_SLOT val: 0 reg: -1.
@@ -2389,7 +2430,7 @@ makeArray: pc
 	n := (analysis byteAt: pc + 1) asInt32.
 	self ssFlushAll.
 	done := asm newLabel.
-	n <= 64 ifTrue: [
+	(runtime c4Baseline not and: [n <= 64]) ifTrue: [
 		slow := asm newLabel.
 		asm comment: 'make an Array in eden, the entries its elements'.
 		self emitAlloc: n format: F_VAR classOffset: self arrayClassOffset fail: slow.
@@ -2480,9 +2521,12 @@ superinstruction: pc
 special: k pc: pc pushes: pushes
 	"Special selector k (operands on the simulated stack): inline where it applies, else a send through an inline cache."
 	<function>
-	(k = 19 or: [k = 20]) ifTrue: [^self identical: k pc: pc].
-	k = 29 ifTrue: [^self classOf: pc].
-	((k = 23 or: [k = 24]) and: [runtime prims and: [brt nilTestsInlinable]]) ifTrue: [^self nilTest: k - 22 pc: pc].
+	(k = 19 or: [k = 20]) ifTrue: [
+		"Forwarding can make two different oop bit patterns identical."
+		runtime c4Baseline ifTrue: [^self sendSpecial: k pc: pc pushes: pushes].
+		^self identical: k pc: pc].
+	(runtime c4Baseline not and: [k = 29]) ifTrue: [^self classOf: pc].
+	((k = 23 or: [k = 24]) and: [runtime c4Baseline not and: [runtime prims and: [brt nilTestsInlinable]]]) ifTrue: [^self nilTest: k - 22 pc: pc].
 	(self inlinesIntegers: k) ifTrue: [^self arith: k pc: pc pushes: pushes].
 	(runtime float and: [k = 9]) ifTrue: [^self arith: k pc: pc pushes: pushes].
 	(runtime access and: [k = 16 or: [k = 17]]) ifTrue: [^self access: k pc: pc pushes: pushes].
@@ -3286,7 +3330,7 @@ emitStart: i
 		asm str: XZR base: X19 offset: self pcOffset].
 	intr := asm newLabel.
 	asm comment: 'resumption at the start: interrupt check'.
-	self emitInterruptTestTo: intr.
+	self emitBaselinePollTo: intr.
 	(self emitTierUp: (slPc at: i) depth: (slDepth at: i) loop: 0) ifFalse: [^asm fail: ASM_ERR_LABEL].
 	asm b: (slCont at: i).
 	asm bind: intr.
@@ -3661,7 +3705,7 @@ writeTables: h at: p
 		site depth: (siteDepth at: i).
 		site target: 0.
 		site pic: 0.
-		brt registerSlot: (asm addressOf: (siteLit at: i))].
+		runtime c4Baseline ifFalse: [brt registerSlot: (asm addressOf: (siteLit at: i))]].
 	q := q + (32 * siteCount).
 	h rets: (self cCoerce: q to: 'uint32_t *').
 	h retCount: retCount asUInt32.

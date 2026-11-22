@@ -1,5 +1,5 @@
 VMCoreModule subclass: #Interpreter
-	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
+	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
 	classVariableNames: 'C4_FRAME_ROOTS CACHE_SIZE CSTACK_SLOTS ICACHE_SIZE MAX_FRAMES'
 	package: 'VM-Core'!
 
@@ -22,7 +22,7 @@ declarations
 		(statMaterialized uint64_t) (statFlushes uint64_t) (frameEpoch uint64_t)
 		(cache 'CacheEntry[CACHE_SIZE]') (icache 'CacheEntry[ICACHE_SIZE]')
 		(c4Entry 'CacheEntry[1]') (c4Countdown int32_t)
-		(c4FrameNext size_t) (c4FrameLimit size_t) (c4StackNext size_t) (c4StackLimit size_t)
+		(c4FrameNext size_t) (c4FrameLimit size_t) (c4StackNext size_t) (c4StackLimit size_t) (c4CodeNext int64_t) (c4CodeLimit int64_t)
 		(c4SavedFrames 'oop[C4_FRAME_ROOTS]') (c4SavedStack 'oop[CSTACK_SLOTS]')
 		(c4SavedFrameBits 'bool[MAX_FRAMES]') (c4SavedStackBits 'bool[CSTACK_SLOTS]')
 		(specialArgc 'int32_t[32]')
@@ -138,6 +138,17 @@ safepointAtEntry: aBoolean
 ! !
 
 !Interpreter methodsFor: 'C4 roots'!
+c4Publishing
+	"Native frame and stack stores do not preserve undiscovered snapshot roots."
+	^c4FrameNext < c4FrameLimit or: [c4StackNext < c4StackLimit or: [c4CodeNext < c4CodeLimit]]
+!
+c4CanonicalCheckpoint
+	"No borrowed movable address or unreported native root may cross this call."
+	vmMain c4Moving ifTrue: [
+		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 relocation checkpoint'].
+		c4 movePoll].
+	self c4Poll
+!
 c4CheckpointAt: pcPointer stack: stackTop base: stackBase frame: frame
 	<function>
 	<var: #pcPointer type: 'uint8_t *'>
@@ -147,14 +158,12 @@ c4CheckpointAt: pcPointer stack: stackTop base: stackBase frame: frame
 	frame isNull
 		ifTrue: [self saveCtxAt: pcPointer stack: stackTop base: stackBase]
 		ifFalse: [self saveFrame: frame at: pcPointer stack: stackTop base: stackBase].
-	vmMain c4Moving ifTrue: [
-		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 relocation checkpoint'].
-		c4 movePoll].
-	self c4Poll
+	self c4CanonicalCheckpoint
 !
 c4EnumRequest: cls excluding: sem and: carrier
-	"Scalar roots, internal C4 roots and the maximum frame/stack extents."
-	^c4 enumRequest: cls maxRoots: C4_FRAME_ROOTS + CSTACK_SLOTS + 40 + scheduler ledgerCapacity excluding: sem and: carrier
+	"The mapping is reused across requests, including tier switches."
+	^c4 enumRequest: cls maxRoots: C4_FRAME_ROOTS + CSTACK_SLOTS + jit c4MaxCodeRoots + 40 + scheduler ledgerCapacity
+		excluding: sem and: carrier
 !
 c4Poll
 	"Only between bytecodes, after externalize. Native calls that borrow oops or
@@ -164,8 +173,9 @@ c4Poll
 	c4 finishPoll.
 	scheduler c4CollectWeakClears.
 	scheduler c4EnumPoll.
+	jit c4PrepareOutsideNative.
 	budget := 64.
-	(c4FrameNext = c4FrameLimit and: [c4StackNext = c4StackLimit]) ifTrue: [
+	self c4Publishing ifFalse: [
 		c4 shouldCollect ifFalse: [^self].
 		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 dispatch poll'].
 		(nframes < 0 or: [nframes > MAX_FRAMES or: [cstackUsed > CSTACK_SLOTS]])
@@ -177,6 +187,10 @@ c4Poll
 		c4StackLimit := cstackUsed.
 		"Publish the raw slots, including saved SATB roots. A raw alias
 		still resident in a slot needs its own cell to survive."
+		"Both cuts freeze the dense code slots until sealing. The
+		collector routes each cut to its own trace."
+		c4CodeNext := 0.
+		c4CodeLimit := jit c4CodeRootCount.
 		c4 root: memory specialsOop.
 		c4 root: activeCtx.
 		c4 root: scheduler lastPreempted.
@@ -228,7 +242,11 @@ c4Poll
 			ifFalse: [c4 root: (cstack at: w)].
 		c4StackNext := w + 1.
 		budget := budget - 1].
-	(c4FrameNext = c4FrameLimit and: [c4StackNext = c4StackLimit]) ifTrue: [c4 endRoots]
+	[c4CodeNext < c4CodeLimit and: [budget > 0]] whileTrue: [
+		c4 root: (jit c4CodeRootAt: c4CodeNext).
+		c4CodeNext := c4CodeNext + 1.
+		budget := budget - 1].
+	self c4Publishing ifFalse: [c4 endRoots]
 !
 preserveFrameRoots: f
 	"Save the three arm-time values once, before overwriting an undiscovered
@@ -1098,8 +1116,11 @@ thawFor: code
 	f ip: (self methodBcs: m) + (self intVal: (s at: CTX_PC)).
 	f lits: (self methodLits: m).
 	f sp: n asInt32.
-	s at: CTX_SENDER put: (self intOop: 0).
-	s at: CTX_STACKP put: (self intOop: 0).
+	"Keep C4's shadow of the marriage and the retired heap prefix in
+	step with the real Context. Its closure can read these through a
+	checked load after destructive forwarding."
+	self heapSlot: c at: CTX_SENDER put: (self intOop: 0).
+	self heapSlot: c at: CTX_STACKP put: (self intOop: 0).
 	activeCtx := sender.
 	nframes := 1.
 	cstackUsed := (n + 1) asUInt64.
@@ -1125,6 +1146,7 @@ entryFor: aClass selector: aSelector
 	"The global method cache's entry for aClass and aSelector, filled if need be; null if aClass does not understand it."
 	<function>
 	| g |
+	vmMain c4Enabled ifTrue: [^self fillCache: aClass selector: aSelector].
 	g := cache + (self cacheIndexOf: aClass selector: aSelector).
 	(g cls = aClass and: [g sel = aSelector]) ifTrue: [^g].
 	^self fillCache: aClass selector: aSelector

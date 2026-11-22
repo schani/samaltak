@@ -3,6 +3,8 @@
 #include "samaltak.h"
 
 bool bottom_returned;
+static uint64_t c4_native_polls;
+static uint64_t c4_native_yields;
 static bool cache_opened;
 bool copying;
 bool flush_pending;
@@ -44,9 +46,7 @@ static uint64_t activate(oop m, frame *f, int32_t n, int32_t ecode, uint64_t hin
 static uint64_t context_entry(bool looping);
 static jit_method *failed_header_for(oop m);
 static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md);
-static void flush_code(void);
 static uint64_t interrupt_frame(frame *f, bool at_entry);
-static bool no_opt_frames(void);
 static void open_perf_map(void);
 static void perf_map_code(jit_method *h, int32_t md);
 static void refresh_state(void);
@@ -134,9 +134,19 @@ void activated(frame *f)
     oop o_3;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        if (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0) {
+            entry_safepoint();
+        }
+        return;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        goto exit_prepare;
+    }
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
+exit_prepare:;
     c = f->code;
     h = ({
     if (c > JIT_MAX_COUNT) {
@@ -160,12 +170,18 @@ exit_best:;
     v; });
     if (h == NULL) {
         f->code = jit_mode == JIT_NONE ? 0 : 1;
+        if (c4_enabled && (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0)) {
+            entry_safepoint();
+        }
         return;
     }
     f->code = (uint64_t)h;
     address = h->start;
     f_2 = f;
     a = address;
+    if (c4_enabled) {
+        state_block->c4_budget = 64;
+    }
     for (;;) {
         stat_entries = stat_entries + 1;
         if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && ({
@@ -178,15 +194,25 @@ exit_best:;
             f_2->sp = 0;
         }
         r = ((int64_t (*)(frame *, uint64_t))bl_enter)(f_2, a);
+        if (c4_enabled) {
+            state_block->base_record = 0;
+        }
         if (r == 0) {
             stat_exits = stat_exits + 1;
             if (!bottom_returned) {
                 goto exit_run;
             }
             bottom_returned = false;
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_run;
+            }
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_prepare_2;
+            }
             if (flush_pending && no_opt_frames()) {
                 flush_code();
             }
+        exit_prepare_2:;
             a = context_entry(false);
             g = frames;
         } else {
@@ -302,7 +328,7 @@ exit_canonical_oop:;
             sync_frame(g);
             a = address_for(g);
         }
-        if (a == 0) {
+        if ((a == 0) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit))))) {
             goto exit_run;
         }
         stat_resumes = stat_resumes + 1;
@@ -518,9 +544,16 @@ void jit_runtime_back_jump(frame *f)
     oop o_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        return;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        goto exit_prepare;
+    }
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
+exit_prepare:;
     if (f->code == 0) {
         return;
     }
@@ -550,6 +583,9 @@ void jit_runtime_back_jump(frame *f)
     stat_osr = stat_osr + 1;
     f_2 = f;
     a_2 = a;
+    if (c4_enabled) {
+        state_block->c4_budget = 64;
+    }
     for (;;) {
         stat_entries = stat_entries + 1;
         if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && ({
@@ -562,15 +598,25 @@ void jit_runtime_back_jump(frame *f)
             f_2->sp = 0;
         }
         r = ((int64_t (*)(frame *, uint64_t))bl_enter)(f_2, a_2);
+        if (c4_enabled) {
+            state_block->base_record = 0;
+        }
         if (r == 0) {
             stat_exits = stat_exits + 1;
             if (!bottom_returned) {
                 goto exit_run;
             }
             bottom_returned = false;
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_run;
+            }
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_prepare_2;
+            }
             if (flush_pending && no_opt_frames()) {
                 flush_code();
             }
+        exit_prepare_2:;
             a_2 = context_entry(false);
             g = frames;
         } else {
@@ -686,7 +732,7 @@ exit_canonical_oop:;
             sync_frame(g);
             a_2 = address_for(g);
         }
-        if (a_2 == 0) {
+        if ((a_2 == 0) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit))))) {
             goto exit_run;
         }
         stat_resumes = stat_resumes + 1;
@@ -729,6 +775,11 @@ uint64_t baseline_stat(int32_t i)
 void become_method(uint64_t from)
 {
     jit_method *h;
+    if (c4_enabled) {
+        flush_pending = true;
+        invalidations = invalidations + 1;
+        return;
+    }
     if (jit_mode == JIT_NONE) {
         return;
     }
@@ -753,6 +804,41 @@ uint64_t jit_runtime_block_code_for(oop m)
         return (uint64_t)h;
     }
     return 1;
+}
+
+/* JitRuntime>>c4ForwardingInstalled */
+void c4_forwarding_installed(void)
+{
+    if (jit_mode == JIT_BASELINE) {
+        flush_pending = true;
+        invalidations = invalidations + 1;
+        if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+            goto exit_prepare;
+        }
+        if (flush_pending && no_opt_frames()) {
+            flush_code();
+        }
+    exit_prepare:;
+    }
+}
+
+/* JitRuntime>>c4NativeCheckpoint */
+void c4_native_checkpoint(void)
+{
+    state_block->c4_budget = 64;
+    c4_native_polls = c4_native_polls + 1;
+    if (c4_moving) {
+        if (root_count != 0) {
+            fatal_begin();
+            fprintf(stderr, "native roots escaped to a C4 relocation checkpoint");
+            fatal_end();
+        }
+        c4_heap_move_poll();
+    }
+    c4_poll();
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        c4_native_yields = c4_native_yields + 1;
+    }
 }
 
 /* JitRuntime>>cacheCodeFor: */
@@ -813,10 +899,40 @@ uint64_t jit_runtime_closure(frame *f)
     oop o_3;
     int64_t isize;
     uint64_t b;
+    oop v;
+    bool r_c4_code_store_rejected;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_2;
-    oop *s;
     uint64_t r_object_address_5;
+    uint64_t v_2;
+    bool r_c4_code_store_rejected_2;
+    uint64_t r_pinned_body_address_3;
+    uint64_t r_canonical_oop_3;
+    uint64_t r_object_address_6;
+    uint64_t v_3;
+    bool r_c4_code_store_rejected_3;
+    uint64_t r_object_address_7;
+    uint64_t r_pinned_body_address_4;
+    uint64_t r_canonical_oop_4;
+    uint64_t r_object_address_8;
+    uint64_t v_4;
+    bool r_c4_code_store_rejected_4;
+    uint64_t r_object_address_9;
+    oop r_load_ref_3;
+    uint64_t r_object_address_10;
+    uint64_t r_object_address_11;
+    uint64_t r_pinned_body_address_5;
+    uint64_t r_canonical_oop_5;
+    uint64_t r_object_address_12;
+    uint64_t v_5;
+    bool r_c4_code_store_rejected_5;
+    uint64_t r_pinned_body_address_6;
+    uint64_t r_canonical_oop_6;
+    uint64_t r_object_address_13;
+    uint64_t r_pinned_body_address_7;
+    uint64_t r_canonical_oop_7;
+    oop *s;
+    uint64_t r_object_address_14;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
@@ -891,7 +1007,20 @@ exit_load_ref_2:;
     r_load_ref_2; });
     isize = (((int64_t)o_3) >> 1) & CLS_INSTSIZE_MASK;
     b = alloc_obj(bc, F_FIXED, (uint32_t)(isize < 5 ? 5 : isize));
-    s = (oop *)({
+    if (c4_enabled) {
+        v = f->ctx;
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    r_c4_code_store_rejected = false;
+    r_c4_code_store_rejected; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            c4_heap_store_ref(b, 0U, v);
+            goto exit_store_ref;
+        }
+        ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
         fatal_begin();
         fprintf(stderr, "raw body view of a movable object");
@@ -905,26 +1034,250 @@ exit_load_ref_2:;
     r_canonical_oop_2 = b;
 exit_canonical_oop_2:;
     r_canonical_oop_2; }) + 16;
-    r_pinned_body_address_2; });
-    s[BC_OUTER] = f->ctx;
-    s[BC_STARTPC] = (uint64_t)((((int64_t)startpc) << 1) | 1);
-    s[BC_NUMARGS] = (uint64_t)((((int64_t)na) << 1) | 1);
-    s[BC_NUMTEMPS] = (uint64_t)((((int64_t)nt) << 1) | 1);
-    s[BC_FRAMESIZE] = (uint64_t)((((int64_t)fs) << 1) | 1);
-    if (c4_enabled) {
-        goto exit_remember_if_old;
-    }
-    if (((b & 7) == 0) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    r_pinned_body_address_2; }))[BC_OUTER] = v;
+        if (((v & 7) == 0) && (((uint64_t)(v - young_lo) < young_hi - young_lo) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address_5 = c4_heap_address(b);
         goto exit_object_address_5;
     }
     r_object_address_5 = b;
 exit_object_address_5:;
-    r_object_address_5; })) & H_REMEMBERED) == 0))) {
-        remember(b);
+    r_object_address_5; })) & H_REMEMBERED) == 0)))) {
+            remember(b);
+        }
+    exit_store_ref:;
+        v_2 = (uint64_t)((((int64_t)startpc) << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    r_c4_code_store_rejected_2 = false;
+    r_c4_code_store_rejected_2; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            c4_heap_store_ref(b, 1U, v_2);
+            goto exit_store_ref_2;
+        }
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
     }
-exit_remember_if_old:;
+    r_pinned_body_address_3 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_3 = c4_heap_canonical(b);
+        goto exit_canonical_oop_3;
+    }
+    r_canonical_oop_3 = b;
+exit_canonical_oop_3:;
+    r_canonical_oop_3; }) + 16;
+    r_pinned_body_address_3; }))[BC_STARTPC] = v_2;
+        if (((v_2 & 7) == 0) && ((v_2 - young_lo < young_hi - young_lo) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(b);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = b;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0)))) {
+            remember(b);
+        }
+    exit_store_ref_2:;
+        v_3 = (uint64_t)((((int64_t)na) << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    r_c4_code_store_rejected_3 = c4_cannot_replace_code_slot(b, 2U, v_3);
+    r_c4_code_store_rejected_3; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            if (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_7 = c4_heap_address(b);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = b;
+exit_object_address_7:;
+    r_object_address_7; }) + 8) == cls_context) {
+                c4_store_context_stackp(b, v_3);
+            } else {
+                c4_heap_store_ref(b, 2U, v_3);
+            }
+            goto exit_store_ref_3;
+        }
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_4 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_4 = c4_heap_canonical(b);
+        goto exit_canonical_oop_4;
+    }
+    r_canonical_oop_4 = b;
+exit_canonical_oop_4:;
+    r_canonical_oop_4; }) + 16;
+    r_pinned_body_address_4; }))[BC_NUMARGS] = v_3;
+        if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_8 = c4_heap_address(b);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = b;
+exit_object_address_8:;
+    r_object_address_8; })) & H_REMEMBERED) == 0)))) {
+            remember(b);
+        }
+    exit_store_ref_3:;
+        v_4 = (uint64_t)((((int64_t)nt) << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    if ((b == active_ctx) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_9 = c4_heap_address(b);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = b;
+exit_object_address_9:;
+    r_object_address_9; }) + 8) == cls_context)) {
+        r_c4_code_store_rejected_4 = v_4 != ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_10 = c4_heap_address(b);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = b;
+exit_object_address_10:;
+    r_object_address_10; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_3 = c4_load_ref(b, 3U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_11 = c4_heap_address(b);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = b;
+exit_object_address_11:;
+    r_object_address_11; }) + 16 + 24);
+exit_load_ref_3:;
+    r_load_ref_3; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected_4 = c4_cannot_replace_code_slot(b, 3U, v_4);
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected_4; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            c4_heap_store_ref(b, 3U, v_4);
+            goto exit_store_ref_4;
+        }
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_5 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_5 = c4_heap_canonical(b);
+        goto exit_canonical_oop_5;
+    }
+    r_canonical_oop_5 = b;
+exit_canonical_oop_5:;
+    r_canonical_oop_5; }) + 16;
+    r_pinned_body_address_5; }))[BC_NUMTEMPS] = v_4;
+        if (((v_4 & 7) == 0) && ((v_4 - young_lo < young_hi - young_lo) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_12 = c4_heap_address(b);
+        goto exit_object_address_12;
+    }
+    r_object_address_12 = b;
+exit_object_address_12:;
+    r_object_address_12; })) & H_REMEMBERED) == 0)))) {
+            remember(b);
+        }
+    exit_store_ref_4:;
+        v_5 = (uint64_t)((((int64_t)fs) << 1) | 1);
+        if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    r_c4_code_store_rejected_5 = false;
+    r_c4_code_store_rejected_5; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
+            c4_heap_store_ref(b, 4U, v_5);
+            goto exit_store_ref_5;
+        }
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_6 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_6 = c4_heap_canonical(b);
+        goto exit_canonical_oop_6;
+    }
+    r_canonical_oop_6 = b;
+exit_canonical_oop_6:;
+    r_canonical_oop_6; }) + 16;
+    r_pinned_body_address_6; }))[BC_FRAMESIZE] = v_5;
+        if (((v_5 & 7) == 0) && ((v_5 - young_lo < young_hi - young_lo) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_13 = c4_heap_address(b);
+        goto exit_object_address_13;
+    }
+    r_object_address_13 = b;
+exit_object_address_13:;
+    r_object_address_13; })) & H_REMEMBERED) == 0)))) {
+            remember(b);
+        }
+    exit_store_ref_5:;
+    } else {
+        s = (oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(b), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_7 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_7 = c4_heap_canonical(b);
+        goto exit_canonical_oop_7;
+    }
+    r_canonical_oop_7 = b;
+exit_canonical_oop_7:;
+    r_canonical_oop_7; }) + 16;
+    r_pinned_body_address_7; });
+        s[BC_OUTER] = f->ctx;
+        s[BC_STARTPC] = (uint64_t)((((int64_t)startpc) << 1) | 1);
+        s[BC_NUMARGS] = (uint64_t)((((int64_t)na) << 1) | 1);
+        s[BC_NUMTEMPS] = (uint64_t)((((int64_t)nt) << 1) | 1);
+        s[BC_FRAMESIZE] = (uint64_t)((((int64_t)fs) << 1) | 1);
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
+        if (((b & 7) == 0) && ((!(b - young_lo < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_14 = c4_heap_address(b);
+        goto exit_object_address_14;
+    }
+    r_object_address_14 = b;
+exit_object_address_14:;
+    r_object_address_14; })) & H_REMEMBERED) == 0))) {
+            remember(b);
+        }
+    exit_remember_if_old:;
+    }
     f->fp[f->sp] = b;
     return 0;
 }
@@ -1169,6 +1522,9 @@ jit_method *compile_and_install(oop m)
     uint32_t i;
     oop o_2;
     uint64_t r_object_address_2;
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        return (jit_method *)NULL;
+    }
     h = jit_runtime_compile(m, jit_mode == JIT_OPT ? JIT_BASELINE : jit_mode, (jit_flags & JIT_FLAG_NOTES) != 0);
     if (h == NULL) {
         return (jit_method *)NULL;
@@ -2862,6 +3218,12 @@ static jit_method *failed_header_for(oop m)
     memset(h, 0, sizeof(jit_method));
     h->method = m;
     h->flags = JM_FAILED;
+    if (c4_enabled) {
+        if (!(oop_slot_count + 1 <= BL_MAX_OOP_SLOTS)) {
+            return (jit_method *)NULL;
+        }
+        register_slot((uint64_t)&h->method);
+    }
     code_cache_allocate(hdr + sizeof(jit_method) - cache_top);
     return h;
 }
@@ -2910,7 +3272,7 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     }
     if (md == JIT_BASELINE) {
         size = size + (uint64_t)(32 * site_count + 12 * ret_count + 8 * block_count + 8);
-        n_3 = ({
+        n_3 = c4_enabled ? 1 : ({
     n_2 = site_count;
     for (i = 0; i <= 255; i++) {
         if (pool_labels[i] >= 0) {
@@ -2933,6 +3295,9 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->code_start = start;
     h->code_size = (uint32_t)(asm_pc - start);
     h->bytecodes = (uint32_t)bc_size;
+    if (c4_enabled) {
+        register_slot((uint64_t)&h->method);
+    }
     p = hdr + sizeof(jit_method);
     h->map = (uint32_t *)p;
     h->map_count = (uint32_t)map_count;
@@ -3090,7 +3455,7 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     }
     if (md == JIT_BASELINE) {
         size = size + (uint64_t)(32 * site_count + 12 * ret_count + 8 * block_count + 8);
-        n_3 = ({
+        n_3 = c4_enabled ? 1 : ({
     n_2 = site_count;
     for (i = 0; i <= 255; i++) {
         if (pool_labels[i] >= 0) {
@@ -3113,6 +3478,9 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->code_start = start;
     h->code_size = (uint32_t)(asm_pc - start);
     h->bytecodes = (uint32_t)bc_size;
+    if (c4_enabled) {
+        register_slot((uint64_t)&h->method);
+    }
     p = hdr + sizeof(jit_method);
     h->map = (uint32_t *)p;
     h->map_count = (uint32_t)map_count;
@@ -3297,7 +3665,7 @@ char *flag_name(uint32_t bit)
 }
 
 /* JitRuntime>>flushCode */
-static void flush_code(void)
+void flush_code(void)
 {
     uint64_t used;
     int32_t i;
@@ -3418,12 +3786,17 @@ exit_canonical_oop:;
     }
     moved = frame_epoch;
     inv = invalidations;
-    if (at_entry) {
-        entry_safepoint();
-    } else {
-        interrupt_safepoint();
+    if (c4_enabled) {
+        c4_native_checkpoint();
     }
-    if ((frame_epoch != moved) || (inv != invalidations)) {
+    if ((!c4_enabled) || (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0)) {
+        if (at_entry) {
+            entry_safepoint();
+        } else {
+            interrupt_safepoint();
+        }
+    }
+    if ((frame_epoch != moved) || ((inv != invalidations) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))))) {
         return 1;
     }
     return 0;
@@ -3585,7 +3958,7 @@ void materialize_opt(frame *f)
 /* JitRuntime>>methodsChanged */
 void methods_changed(void)
 {
-    if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && cache_opened) {
+    if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && (cache_opened && (!c4_enabled))) {
         unlink_all();
         nil_tests_changed(0);
     }
@@ -3594,7 +3967,7 @@ void methods_changed(void)
 /* JitRuntime>>methodsChangedFor: */
 void methods_changed_for(uint64_t sel)
 {
-    if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && cache_opened) {
+    if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && (cache_opened && (!c4_enabled))) {
         unlink_selector(sel);
         nil_tests_changed(sel);
     }
@@ -3643,7 +4016,7 @@ oop new_array(uint32_t n, oop *p)
 }
 
 /* JitRuntime>>noOptFrames */
-static bool no_opt_frames(void)
+bool no_opt_frames(void)
 {
     int32_t i;
     frame *f;
@@ -4117,6 +4490,12 @@ void release_memory(void)
     invalidations = invalidations + 1;
 }
 
+/* JitRuntime>>reportC4 */
+void report_c4(void)
+{
+    fprintf(stderr, "c4-jit: checkpoints=%llu publishing_exits=%llu\n", (unsigned long long)c4_native_polls, (unsigned long long)c4_native_yields);
+}
+
 /* JitRuntime>>resume: */
 void jit_runtime_resume(frame *f)
 {
@@ -4142,9 +4521,16 @@ void jit_runtime_resume(frame *f)
     oop o_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        return;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        goto exit_prepare;
+    }
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
+exit_prepare:;
     a = address_for(f);
     if (a == 0) {
         return;
@@ -4152,6 +4538,9 @@ void jit_runtime_resume(frame *f)
     stat_resumes = stat_resumes + 1;
     f_2 = f;
     a_2 = a;
+    if (c4_enabled) {
+        state_block->c4_budget = 64;
+    }
     for (;;) {
         stat_entries = stat_entries + 1;
         if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && ({
@@ -4164,15 +4553,25 @@ void jit_runtime_resume(frame *f)
             f_2->sp = 0;
         }
         r = ((int64_t (*)(frame *, uint64_t))bl_enter)(f_2, a_2);
+        if (c4_enabled) {
+            state_block->base_record = 0;
+        }
         if (r == 0) {
             stat_exits = stat_exits + 1;
             if (!bottom_returned) {
                 goto exit_run;
             }
             bottom_returned = false;
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_run;
+            }
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_prepare_2;
+            }
             if (flush_pending && no_opt_frames()) {
                 flush_code();
             }
+        exit_prepare_2:;
             a_2 = context_entry(false);
             g = frames;
         } else {
@@ -4288,7 +4687,7 @@ exit_canonical_oop:;
             sync_frame(g);
             a_2 = address_for(g);
         }
-        if (a_2 == 0) {
+        if ((a_2 == 0) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit))))) {
             goto exit_run;
         }
         stat_resumes = stat_resumes + 1;
@@ -4322,9 +4721,16 @@ void resume_context(bool looping)
     oop o_2;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        return;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        goto exit_prepare;
+    }
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
+exit_prepare:;
     a = context_entry(looping);
     if (a == 0) {
         return;
@@ -4336,6 +4742,9 @@ void resume_context(bool looping)
     }
     f = frames;
     a_2 = a;
+    if (c4_enabled) {
+        state_block->c4_budget = 64;
+    }
     for (;;) {
         stat_entries = stat_entries + 1;
         if (((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) && ({
@@ -4348,15 +4757,25 @@ void resume_context(bool looping)
             f->sp = 0;
         }
         r = ((int64_t (*)(frame *, uint64_t))bl_enter)(f, a_2);
+        if (c4_enabled) {
+            state_block->base_record = 0;
+        }
         if (r == 0) {
             stat_exits = stat_exits + 1;
             if (!bottom_returned) {
                 goto exit_run;
             }
             bottom_returned = false;
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_run;
+            }
+            if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+                goto exit_prepare_2;
+            }
             if (flush_pending && no_opt_frames()) {
                 flush_code();
             }
+        exit_prepare_2:;
             a_2 = context_entry(false);
             g = frames;
         } else {
@@ -4472,7 +4891,7 @@ exit_canonical_oop:;
             sync_frame(g);
             a_2 = address_for(g);
         }
-        if (a_2 == 0) {
+        if ((a_2 == 0) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit))))) {
             goto exit_run;
         }
         stat_resumes = stat_resumes + 1;
@@ -4495,7 +4914,7 @@ void set_flags(uint32_t f)
 /* JitRuntime>>setMode: */
 bool set_mode(int32_t m)
 {
-    if (c4_enabled && (m != JIT_NONE)) {
+    if (c4_enabled && ((m != JIT_NONE) && (m != JIT_BASELINE))) {
         return false;
     }
     if ((m != JIT_NONE) && (!ensure_open())) {

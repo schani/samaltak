@@ -98,6 +98,9 @@ ifeq ($(shell uname -s -m),Linux x86_64)
 	OUT="$(OUT)" tests/vm/c4-live/run-publish.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-become.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-enumeration.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-jit-live/run.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-jit-live/run-forward.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-jit-live/run-enumeration.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
 endif
 
 test-c4-live:

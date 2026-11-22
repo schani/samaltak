@@ -864,7 +864,7 @@ bool c4_enum_request(uint64_t cls, uint64_t sem, uint64_t carrier)
     if (c4_enum_semaphore != 0) {
         return false;
     }
-    if (!c4_heap_enum_request(cls, 262200, sem, carrier)) {
+    if (!c4_heap_enum_request(cls, 524344, sem, carrier)) {
         return false;
     }
     c4_enum_semaphore = sem;

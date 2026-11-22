@@ -8,7 +8,7 @@ static int32_t nil_found;
 static bool nil_inline;
 static bool nil_scanned;
 int64_t oop_slot_count;
-static uint64_t oop_slots[262144];
+uint64_t oop_slots[262144];
 static uint8_t prim_kinds[1024];
 static bool prim_kinds_ready;
 static uint8_t prim_ops[1024];
@@ -327,7 +327,7 @@ exit_entry_of_block:;
         activate_block(n);
         return 1;
     }
-    if ((jit_flags & JIT_FLAG_BLOCKS) != 0) {
+    if ((!c4_enabled) && ((jit_flags & JIT_FLAG_BLOCKS) != 0)) {
         o_4 = ({
     if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
@@ -1141,8 +1141,13 @@ exit_load_ref_5:;
     if (state_block->stress <= 0) {
         state_block->stress = 37;
     }
-    entry_safepoint();
-    if ((frame_epoch != moved) || (inv != invalidations)) {
+    if (c4_enabled) {
+        c4_native_checkpoint();
+    }
+    if ((!c4_enabled) || (atomic_load_explicit(&interrupt_pending[0], memory_order_relaxed) != 0)) {
+        entry_safepoint();
+    }
+    if ((frame_epoch != moved) || ((inv != invalidations) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))))) {
         return 1;
     }
     if (c == 1) {
@@ -1583,6 +1588,9 @@ exit_site_of:;
     }
     opt = h->mode == JIT_OPT;
     kind = (s->info >> 24) & 3;
+    if (c4_enabled && (kind == 2)) {
+        return 1;
+    }
     if (opt && (kind == 1)) {
         return send_from(f, ret);
     }
@@ -1775,7 +1783,7 @@ exit_flags_of:;
     if (t == NULL) {
         return opt ? send_from(f, ret) : 1;
     }
-    if ((jit_flags & JIT_FLAG_IC) != 0) {
+    if ((!c4_enabled) && ((jit_flags & JIT_FLAG_IC) != 0)) {
         is_super = kind == 1;
         site = h->code_start + s->bl;
         lit = h->code_start + s->lit;
@@ -2056,6 +2064,9 @@ exit_site_of:;
     }
     opt = h->mode == JIT_OPT;
     kind = (s->info >> 24) & 3;
+    if (c4_enabled && (kind == 2)) {
+        return 1;
+    }
     if (opt && (kind == 1)) {
         return send_from(f, ret);
     }
@@ -2248,7 +2259,7 @@ exit_flags_of:;
     if (t == NULL) {
         return opt ? send_from(f, ret) : 1;
     }
-    if ((jit_flags & JIT_FLAG_IC) != 0) {
+    if ((!c4_enabled) && ((jit_flags & JIT_FLAG_IC) != 0)) {
         is_super = kind == 1;
         site = h->code_start + s->bl;
         lit = h->code_start + s->lit;
@@ -2977,7 +2988,7 @@ exit_object_address_7:;
         c_3 = f->code;
         return (c_3 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) ? send_from(f, ret) : 1;
     }
-    if ((jit_flags & JIT_FLAG_IC) != 0) {
+    if ((!c4_enabled) && ((jit_flags & JIT_FLAG_IC) != 0)) {
         i_2 = (int64_t)((((cls ^ sel) >> 3) & 2047) * 8);
         if (!(mega_table[i_2] == 0)) {
             for (k_2 = 0; k_2 <= 3; k_2++) {
@@ -3839,12 +3850,36 @@ static jit_method *target_for(oop cls, oop sel)
 {
     cache_entry *e;
     oop m;
+    int64_t r_method_prim;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    oop p;
     jit_method *t;
     e = entry_for(cls, sel);
     if (e == NULL) {
         return (jit_method *)NULL;
     }
     m = e->method;
+    if (c4_enabled && ((e->kind != K_JIT) || (({
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref = c4_load_ref(m, 7U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; }) + 16 + 56);
+exit_load_ref:;
+    r_load_ref; });
+    r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
+    r_method_prim; }) != 0))) {
+        return (jit_method *)NULL;
+    }
     t = code_of(m, true);
     if (!((t != NULL) && ((t->flags & JM_FAILED) == 0))) {
         return (jit_method *)NULL;

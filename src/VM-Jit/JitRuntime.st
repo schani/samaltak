@@ -1,5 +1,5 @@
 VMCoreModule subclass: #JitRuntime
-	instanceVariableNames: 'stubs baseline brt cache asm analysis jitMode jitFlags jitThreshold jitOsrThreshold jitCacheMB cacheOpened flushPending releasePending invalidations stateBlock methodTable tableCount methodCounts youngMethods youngCount youngOverflow mapPcs mapOffsets mapCount sendPushed performFn performArgsFn statCompiled statFailed statBytecodes statCompileUs statCodeBytes statCacheFlushes statEntries statExits statResumes statOsr feedback optimizer jitOptThreshold optCounts copying bottomReturned perfMap'
+	instanceVariableNames: 'stubs baseline brt cache asm analysis jitMode jitFlags jitThreshold jitOsrThreshold jitCacheMB cacheOpened flushPending releasePending invalidations stateBlock methodTable tableCount methodCounts youngMethods youngCount youngOverflow mapPcs mapOffsets mapCount sendPushed performFn performArgsFn statCompiled statFailed statBytecodes statCompileUs statCodeBytes statCacheFlushes statEntries statExits statResumes statOsr feedback optimizer jitOptThreshold optCounts copying bottomReturned perfMap c4NativePolls c4NativeYields'
 	classVariableNames: 'JIT_BASELINE JIT_FLAG_ACCESS JIT_FLAG_ALLOC JIT_FLAG_ARITH JIT_FLAG_BARRIER JIT_FLAG_BLOCKS JIT_FLAG_CALLS JIT_FLAG_DEOPT JIT_FLAG_EAGER JIT_FLAG_FLOAT JIT_FLAG_FUSE JIT_FLAG_GVN JIT_FLAG_HOIST JIT_FLAG_IC JIT_FLAG_INLINE JIT_FLAG_LAST JIT_FLAG_LIVE JIT_FLAG_MEGA JIT_FLAG_NOTES JIT_FLAG_PIC JIT_FLAG_PRIMS JIT_FLAG_QUICK JIT_FLAG_REGS JIT_FLAG_UNBOX JIT_MAX_COUNT JIT_MAX_MAP JIT_MAX_YOUNG JIT_NONE JIT_OPT JIT_PROLOGUE_BYTES JIT_PROLOGUE_BYTES_X64 JIT_TABLE_SIZE JM_DEAD JM_ENTRY JM_FAILED JM_NOTES JM_OSR'
 	package: 'VM-Jit'!
 
@@ -20,7 +20,8 @@ declarations
 		(sendPushed int32_t)
 		(performFn prim_fn) (performArgsFn prim_fn)
 		(statCompiled uint64_t) (statFailed uint64_t) (statBytecodes uint64_t) (statCompileUs uint64_t) (statCodeBytes uint64_t) (statCacheFlushes uint64_t)
-		(statEntries uint64_t) (statExits uint64_t) (statResumes uint64_t) (statOsr uint64_t) (copying bool) (bottomReturned bool) (perfMap 'FILE *'))
+		(statEntries uint64_t) (statExits uint64_t) (statResumes uint64_t) (statOsr uint64_t) (copying bool) (bottomReturned bool) (perfMap 'FILE *')
+		(c4NativePolls uint64_t) (c4NativeYields uint64_t))
 !
 initialize
 	JIT_NONE := 0.
@@ -167,7 +168,7 @@ lowerMode
 !
 ic
 	"Baseline: machine-code inline caches (else every send looks up in the runtime)."
-	^(jitFlags bitAnd: JIT_FLAG_IC) ~= 0
+	^vmMain c4Enabled not and: [(jitFlags bitAnd: JIT_FLAG_IC) ~= 0]
 !
 pic
 	"Baseline: polymorphic inline caches (else a monomorphic miss goes megamorphic)."
@@ -187,19 +188,19 @@ prims
 !
 access
 	"Baseline: at: at:put: size class x y inline at send sites."
-	^(jitFlags bitAnd: JIT_FLAG_ACCESS) ~= 0
+	^vmMain c4Enabled not and: [(jitFlags bitAnd: JIT_FLAG_ACCESS) ~= 0]
 !
 float
 	"Baseline: Float arithmetic and comparisons inline."
-	^(jitFlags bitAnd: JIT_FLAG_FLOAT) ~= 0
+	^vmMain c4Enabled not and: [(jitFlags bitAnd: JIT_FLAG_FLOAT) ~= 0]
 !
 blocks
 	"Baseline: value sends enter the block's code directly (a cache in machine code)."
-	^(jitFlags bitAnd: JIT_FLAG_BLOCKS) ~= 0
+	^vmMain c4Enabled not and: [(jitFlags bitAnd: JIT_FLAG_BLOCKS) ~= 0]
 !
 quick
 	"Baseline: methods that only answer an instance variable, a constant or self, or set instance variables, run without a frame."
-	^(jitFlags bitAnd: JIT_FLAG_QUICK) ~= 0
+	^vmMain c4Enabled not and: [(jitFlags bitAnd: JIT_FLAG_QUICK) ~= 0]
 !
 baselineMode
 	^JIT_BASELINE
@@ -314,7 +315,7 @@ parseFlags: s
 setMode: m
 	"Switch compilers: all code is dropped at the next point without machine code on the native stack."
 	<function>
-	(vmMain c4Enabled and: [m ~= JIT_NONE]) ifTrue: [^false].
+	(vmMain c4Enabled and: [m ~= JIT_NONE and: [m ~= JIT_BASELINE]]) ifTrue: [^false].
 	(m ~= JIT_NONE and: [self ensureOpen not]) ifTrue: [^false].
 	"optimized frames keep the cache from being flushed: they become Contexts"
 	self noOptFrames ifFalse: [interpreter materializeAll].
@@ -688,6 +689,7 @@ blockCodeFor: m
 compileAndInstall: m
 	<function>
 	| h |
+	self c4NativeBlocked ifTrue: [^self null].
 	h := self compile: m mode: self lowerMode notes: self notes.
 	h isNull ifTrue: [^self null].
 	(self insert: h) ifFalse: [^self null].
@@ -763,7 +765,7 @@ finish: m code: start mode: md
 		(brt canRegister: optimizer siteCount) ifFalse: [^self null]].
 	md = JIT_BASELINE ifTrue: [
 		size := size + baseline tablesBytes asUInt64.
-		(brt canRegister: baseline oopSlotCount) ifFalse: [^self null]].
+		(brt canRegister: (vmMain c4Enabled ifTrue: [1] ifFalse: [baseline oopSlotCount])) ifFalse: [^self null]].
 	cache limit - start < size ifTrue: [^self null].
 	h := self cCoerce: hdr to: 'JitMethod *'.
 	libc memset: h value: 0 size: (self sizeof: 'JitMethod').
@@ -772,6 +774,7 @@ finish: m code: start mode: md
 	h codeStart: start.
 	h codeSize: (asm pc - start) asUInt32.
 	h bytecodes: analysis size asUInt32.
+	vmMain c4Enabled ifTrue: [brt registerSlot: (self cCoerce: (h fieldAddress: #method) to: 'uint64_t')].
 	p := hdr + (self sizeof: 'JitMethod').
 	h map: (self cCoerce: p to: 'uint32_t *').
 	h mapCount: mapCount asUInt32.
@@ -823,6 +826,9 @@ failedHeaderFor: m
 	libc memset: h value: 0 size: (self sizeof: 'JitMethod').
 	h method: m.
 	h flags: JM_FAILED.
+	vmMain c4Enabled ifTrue: [
+		(brt canRegister: 1) ifFalse: [^self null].
+		brt registerSlot: (self cCoerce: (h fieldAddress: #method) to: 'uint64_t')].
 	cache allocate: hdr + (self sizeof: 'JitMethod') - cache top.
 	^h
 !
@@ -884,13 +890,13 @@ kill: h
 methodsChanged
 	"Smalltalk changed method dictionaries (flushMethodCache): inline caches relink."
 	<function>
-	(self baselineCode and: [cacheOpened]) ifTrue: [
+	(self baselineCode and: [cacheOpened and: [vmMain c4Enabled not]]) ifTrue: [
 		brt unlinkAll.
 		brt nilTestsChanged: 0]
 !
 methodsChangedFor: sel
 	<function>
-	(self baselineCode and: [cacheOpened]) ifTrue: [
+	(self baselineCode and: [cacheOpened and: [vmMain c4Enabled not]]) ifTrue: [
 		brt unlinkSelector: sel.
 		brt nilTestsChanged: sel]
 !
@@ -932,12 +938,62 @@ flushCode
 !
 prepare
 	"Interpreter side, no machine code on the native stack: apply a pending flush (not while optimized frames wait for callees: their metadata is in the cache)."
+	self c4NativeBlocked ifTrue: [^self].
 	(flushPending and: [self noOptFrames]) ifTrue: [self flushCode]
 !
 noOptFrames
 	<function>
 	0 to: interpreter nframes - 1 do: [:i | (self isOptFrame: interpreter frames + i) ifTrue: [^false]].
 	^true
+! !
+
+!JitRuntime methodsFor: 'C4 baseline'!
+c4Baseline
+	^vmMain c4Enabled
+!
+c4NativeBlocked
+	^vmMain c4Enabled and: [interpreter c4Publishing]
+!
+c4PrepareOutsideNative
+	"Pending flushes must also retire roots with the tier switched off.
+	Do not free code at a checkpoint taken from native code."
+	(flushPending and: [stateBlock baseRecord = 0]) ifTrue: [self prepare]
+!
+c4ForwardingOutsideNative
+	"The native entry stubs publish their base record before any machine
+	bytecode executes. The wrapper clears it on every native return."
+	^stateBlock baseRecord = 0
+!
+c4ForwardingInstalled
+	"Do not resume any old compiled body after destructive forwarding.
+	prepare defers cache release while an arm-time code root is unread;
+	every native entry is gated during that interval."
+	<function>
+	jitMode = JIT_BASELINE ifTrue: [
+		self dropAllCode.
+		self prepare]
+!
+c4MaxCodeRoots
+	^brt c4MaxCodeRoots
+!
+c4CodeRootCount
+	^brt c4CodeRootCount
+!
+c4CodeRootAt: i
+	^brt c4CodeRootAt: i
+!
+c4NativeCheckpoint
+	"Called only after sync: all frames and live oop slots are now canonical."
+	<function>
+	stateBlock c4Budget: 64.
+	c4NativePolls := c4NativePolls + 1.
+	interpreter c4CanonicalCheckpoint.
+	self c4NativeBlocked ifTrue: [c4NativeYields := c4NativeYields + 1]
+!
+reportC4
+	<function>
+	libc fprintf: libc stderr format: 'c4-jit: checkpoints=%llu publishing_exits=%llu
+' with: c4NativePolls with: c4NativeYields
 ! !
 
 !JitRuntime methodsFor: 'garbage collection'!
@@ -1022,6 +1078,8 @@ becomeMethod: from
 	"from is about to be replaced: if it is a compiled method, its code must not run for its successor."
 	<function>
 	| h |
+	"C4 keeps header oops frozen during root publication."
+	vmMain c4Enabled ifTrue: [^self dropAllCode].
 	jitMode = JIT_NONE ifTrue: [^self].
 	"optimized code embeds classes and methods it speculated on"
 	jitMode = JIT_OPT ifTrue: [optimizer invalidateAll].
@@ -1044,12 +1102,16 @@ activated: f
 	"The interpreter pushed f (top frame) for a method whose cache entry has code or counts activations."
 	<function>
 	| h |
+	self c4NativeBlocked ifTrue: [
+		scheduler interruptPendingRelaxed ~= 0 ifTrue: [interpreter entrySafepoint].
+		^self].
 	self prepare.
 	h := (self isCode: f code)
 		ifTrue: [self best: (self cCoerce: f code to: 'JitMethod *')]
 		ifFalse: [self codeOf: f method counting: true].
 	h isNull ifTrue: [
 		f code: (jitMode = JIT_NONE ifTrue: [0] ifFalse: [1]).
+		(vmMain c4Enabled and: [scheduler interruptPendingRelaxed ~= 0]) ifTrue: [interpreter entrySafepoint].
 		^self].
 	f code: (self cCoerce: h to: 'uint64_t').
 	self run: f at: h start
@@ -1058,6 +1120,7 @@ resume: f
 	"The interpreter is about to continue f (top frame, f code a header) at f's ip."
 	<function>
 	| a |
+	self c4NativeBlocked ifTrue: [^self].
 	self prepare.
 	a := self addressFor: f.
 	a = 0 ifTrue: [^self].
@@ -1068,6 +1131,7 @@ backJump: f
 	"The interpreter jumped back in f (top frame, f code not 0): on-stack replacement."
 	<function>
 	| n h a |
+	self c4NativeBlocked ifTrue: [^self].
 	self prepare.
 	f code = 0 ifTrue: [^self].
 	(self isCode: f code) ifFalse: [
@@ -1090,6 +1154,7 @@ resumeContext: looping
 	"The interpreter runs activeCtx without frames, returned into it or (looping) jumping back in it: it may continue in machine code (contextEntry:)."
 	<function>
 	| a |
+	self c4NativeBlocked ifTrue: [^self].
 	self prepare.
 	a := self contextEntry: looping.
 	a = 0 ifTrue: [^self].
@@ -1122,6 +1187,7 @@ run: frame at: address
 	| r f a g |
 	f := frame.
 	a := address.
+	vmMain c4Enabled ifTrue: [stateBlock c4Budget: 64].
 	[statEntries := statEntries + 1.
 	 (self baselineCode and: [(self isOptFrame: f) not]) ifTrue: [
 		"baseline returns from frame 0 (into a Context) take the married frame's slow path; machine code keeps pc and sp"
@@ -1129,11 +1195,13 @@ run: frame at: address
 		f pc: 0.
 		f sp: 0].
 	 r := (self cCoerce: stubs blEnterAddress to: 'int64_t (*)(Frame *, uint64_t)') call: f with: a.
+	 vmMain c4Enabled ifTrue: [stateBlock baseRecord: 0].
 	 r = 0
 		ifTrue: [
 			statExits := statExits + 1.
 			bottomReturned ifFalse: [^self].
 			bottomReturned := false.
+			self c4NativeBlocked ifTrue: [^self].
 			self prepare.
 			a := self contextEntry: false.
 			g := interpreter frames]
@@ -1146,7 +1214,7 @@ run: frame at: address
 			(self isOptFrame: g) ifFalse: [g pc: (g ip - (interpreter methodBcs: g method)) asInt32].
 			interpreter syncFrame: g.
 			a := self addressFor: g].
-	 a = 0 ifTrue: [^self].
+	 (a = 0 or: [self c4NativeBlocked]) ifTrue: [^self].
 	 statResumes := statResumes + 1.
 	 f := g] repeat
 ! !
@@ -1392,8 +1460,10 @@ interruptFrame: f atEntry: atEntry
 	self resetStress.
 	moved := interpreter frameEpoch.
 	inv := invalidations.
-	atEntry ifTrue: [interpreter entrySafepoint] ifFalse: [interpreter interruptSafepoint].
-	(interpreter frameEpoch ~= moved or: [inv ~= invalidations]) ifTrue: [^1].
+	vmMain c4Enabled ifTrue: [self c4NativeCheckpoint].
+	(vmMain c4Enabled not or: [scheduler interruptPendingRelaxed ~= 0]) ifTrue: [
+		atEntry ifTrue: [interpreter entrySafepoint] ifFalse: [interpreter interruptSafepoint]].
+	(interpreter frameEpoch ~= moved or: [inv ~= invalidations or: [self c4NativeBlocked]]) ifTrue: [^1].
 	^0
 !
 closure: f
@@ -1412,13 +1482,21 @@ closure: f
 	bc := memory clsBlock.
 	isize := (self intVal: (self loadRef: bc at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK.
 	b := memory allocObj: bc format: F_FIXED slots: (isize < 5 ifTrue: [5] ifFalse: [isize]) asUInt32.
-	s := self slotsOf: b.
-	s at: BC_OUTER put: f ctx.
-	s at: BC_STARTPC put: (self intOop: startpc).
-	s at: BC_NUMARGS put: (self intOop: na).
-	s at: BC_NUMTEMPS put: (self intOop: nt).
-	s at: BC_FRAMESIZE put: (self intOop: fs).
-	gc rememberIfOld: b.
+	vmMain c4Enabled
+		ifTrue: [
+			self storeRef: b at: BC_OUTER put: f ctx.
+			self storeRef: b at: BC_STARTPC put: (self intOop: startpc).
+			self storeRef: b at: BC_NUMARGS put: (self intOop: na).
+			self storeRef: b at: BC_NUMTEMPS put: (self intOop: nt).
+			self storeRef: b at: BC_FRAMESIZE put: (self intOop: fs)]
+		ifFalse: [
+			s := self slotsOf: b.
+			s at: BC_OUTER put: f ctx.
+			s at: BC_STARTPC put: (self intOop: startpc).
+			s at: BC_NUMARGS put: (self intOop: na).
+			s at: BC_NUMTEMPS put: (self intOop: nt).
+			s at: BC_FRAMESIZE put: (self intOop: fs).
+			gc rememberIfOld: b].
 	f fp at: f sp put: b.
 	^0
 !
@@ -1599,7 +1677,7 @@ fields
 		(edenBox uint64_t) (hashBox uint64_t) (lcgMul uint64_t) (lcgAdd uint64_t)
 		(tagClasses 'oop[8]') (blockClass oop) (byteStringClass oop) (byteArrayClass oop) (boxedFloatClass oop) (wordArrayClass oop) (byteSymbolClass oop) (contextClass oop)
 		(megaCache uint64_t) (blockCache uint64_t) (result oop) (ecode int64_t) (primRet uint64_t)
-		(cstackLimit uint64_t) (stress int64_t) (dump 'uint64_t[64]'))
+		(cstackLimit uint64_t) (stress int64_t) (dump 'uint64_t[64]') (c4Budget uint64_t))
 ! !
 
 VMStruct subclass: #JitMethod

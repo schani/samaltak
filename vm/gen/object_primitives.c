@@ -1081,11 +1081,17 @@ exit_object_address_2:;
             prim_error_code = -1;
             goto exit_c4_become_forward;
         }
+        if (!(state_block->base_record == 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 forwarding entered with native frames live");
+            fatal_end();
+        }
         if (!c4_heap_become_forward(from, to)) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             goto exit_c4_become_forward;
         }
+        c4_forwarding_installed();
         prim_result = to;
         prim_status = PS_OK;
     exit_c4_become_forward:;

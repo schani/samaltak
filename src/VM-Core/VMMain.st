@@ -43,8 +43,9 @@ usage
 	<noreturn>
 	libc fputs: 'usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
-  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)
-  --c4-moving       --c4 with bounded relocation of newly allocated exact Points
+  --c4              experimental headless heap (Linux x86-64, NO_PLATFORM=1)
+                    optional --jit baseline; otherwise interpreter only
+  --c4-moving       --c4 with bounded relocation of exact two-slot instances
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
   --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized
@@ -99,9 +100,9 @@ main: n argv: v
 	c4Requested ifTrue: [
 		c4 supported ifFalse: [self fatal: '--c4 requires a Linux x86-64 NO_PLATFORM=1 build'].
 		headless ifFalse: [self fatal: '--c4 requires --headless'].
-		(explicitJit and: [jit enabled]) ifTrue: [self fatal: '--c4 does not support JIT execution'].
+		(explicitJit and: [jit mode = jit optMode]) ifTrue: [self fatal: '--c4 supports only --jit none or baseline'].
 		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].
-		jit mode: 0].
+		explicitJit ifFalse: [jit mode: 0]].
 	memory memoryInit: eden maxHeap: maxHeap.
 	c4Requested ifTrue: [
 		(c4Moving

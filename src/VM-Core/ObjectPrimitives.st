@@ -304,7 +304,9 @@ c4BecomeForward
 	((self isPtr: from) and: [from ~= 0 and: [(self rawClass: from) = memory clsBytestring and: [
 		(self isPtr: to) and: [to ~= 0 and: [(self rawClass: to) = (memory special: SO_WIDESTRING)]]]]])
 		ifFalse: [^self fail].
+	jit c4ForwardingOutsideNative ifFalse: [self fatal: 'C4 forwarding entered with native frames live'].
 	(c4 becomeForward: from to: to) ifFalse: [^self fail].
+	jit c4ForwardingInstalled.
 	self answer: to
 !
 primSpecialObjectsArray

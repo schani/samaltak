@@ -143,9 +143,9 @@ int main(int n, char **v)
             fprintf(stderr, "--c4 requires --headless");
             fatal_end();
         }
-        if (explicit_jit && (jit_mode != JIT_NONE)) {
+        if (explicit_jit && (jit_mode == JIT_OPT)) {
             fatal_begin();
-            fprintf(stderr, "--c4 does not support JIT execution");
+            fprintf(stderr, "--c4 supports only --jit none or baseline");
             fatal_end();
         }
         if (eden == 0) {
@@ -153,7 +153,9 @@ int main(int n, char **v)
             fprintf(stderr, "--c4 requires a positive --eden threshold");
             fatal_end();
         }
-        jit_mode = 0;
+        if (!explicit_jit) {
+            jit_mode = 0;
+        }
     }
     memory_init(eden, max_heap);
     if (c4_requested) {
@@ -289,7 +291,7 @@ exit_object_address_6:;
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)\n  --c4-moving       --c4 with bounded relocation of newly allocated exact Points\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64, NO_PLATFORM=1)\n                    optional --jit baseline; otherwise interpreter only\n  --c4-moving       --c4 with bounded relocation of exact two-slot instances\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

@@ -99,8 +99,8 @@ expect_fatal() { # log-name diagnostic vm-args...
     fi
 }
 
-expect_fatal c4-jit-rejected '--c4 does not support JIT execution' \
-    --c4 --jit baseline "$image" --headless C4Pressure
+expect_fatal c4-jit-rejected '--c4 supports only --jit none or baseline' \
+    --c4 --jit opt "$image" --headless C4Pressure
 expect_fatal c4-nonheadless-rejected '--c4 requires --headless' --c4 "$image"
 
 run_vm "$C4_VM" c4-oom C4OOM --c4

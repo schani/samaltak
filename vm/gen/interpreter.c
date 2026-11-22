@@ -3,16 +3,18 @@
 #include "samaltak.h"
 
 oop active_ctx;
+int64_t c4_code_limit;
+int64_t c4_code_next;
 static int32_t c4_countdown;
 static cache_entry c4_entry[1];
-static size_t c4_frame_limit;
-static size_t c4_frame_next;
+size_t c4_frame_limit;
+size_t c4_frame_next;
 static bool c4_saved_frame_bits[65536];
 static oop c4_saved_frames[196608];
 static oop c4_saved_stack[65536];
 static bool c4_saved_stack_bits[65536];
-static size_t c4_stack_limit;
-static size_t c4_stack_next;
+size_t c4_stack_limit;
+size_t c4_stack_next;
 static cache_entry cache[4096];
 oop cstack[65536];
 size_t cstack_used;
@@ -1432,8 +1434,17 @@ void c4_poll(void)
     c4_heap_finish_poll();
     c4_collect_weak_clears();
     c4_enum_poll();
+    if (flush_pending && (state_block->base_record == 0)) {
+        if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+            goto exit_prepare;
+        }
+        if (flush_pending && no_opt_frames()) {
+            flush_code();
+        }
+    exit_prepare:;
+    }
     budget = 64;
-    if ((c4_frame_next == c4_frame_limit) && (c4_stack_next == c4_stack_limit)) {
+    if (!((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
         if (!c4_heap_should_collect()) {
             return;
         }
@@ -1454,6 +1465,8 @@ void c4_poll(void)
         c4_frame_limit = (uint64_t)nframes;
         c4_stack_next = 0;
         c4_stack_limit = cstack_used;
+        c4_code_next = 0;
+        c4_code_limit = oop_slot_count;
         c4_heap_root(specials_oop);
         c4_heap_root(active_ctx);
         c4_heap_root(last_preempted);
@@ -1511,7 +1524,12 @@ void c4_poll(void)
         c4_stack_next = w + 1;
         budget = budget - 1;
     }
-    if ((c4_frame_next == c4_frame_limit) && (c4_stack_next == c4_stack_limit)) {
+    while ((c4_code_next < c4_code_limit) && (budget > 0)) {
+        c4_heap_root(*(uint64_t *)oop_slots[c4_code_next]);
+        c4_code_next = c4_code_next + 1;
+        budget = budget - 1;
+    }
+    if (!((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
         c4_heap_end_roots();
     }
 }
@@ -1998,6 +2016,9 @@ exit_load_ref:;
 cache_entry *entry_for(oop a_class, oop a_selector)
 {
     cache_entry *g;
+    if (c4_enabled) {
+        return fill_cache(a_class, a_selector);
+    }
     g = cache + (((a_class >> 3) ^ (a_selector >> 3) ^ (a_selector >> 12)) & 4095);
     if ((g->cls == a_class) && (g->sel == a_selector)) {
         return g;
@@ -73607,6 +73628,10 @@ frame *thaw_for(uint64_t code)
     oop o_7;
     uint64_t r_pinned_body_address_3;
     uint64_t r_canonical_oop_3;
+    uint64_t r_pinned_body_address_4;
+    uint64_t r_canonical_oop_4;
+    uint64_t r_pinned_body_address_5;
+    uint64_t r_canonical_oop_5;
     c = active_ctx;
     s = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(c), 0)) {
@@ -73856,8 +73881,44 @@ exit_canonical_oop_3:;
     r_canonical_oop_3; }) + 16;
     r_pinned_body_address_3; });
     f->sp = (int32_t)n;
-    s[CTX_SENDER] = 1ULL;
-    s[CTX_STACKP] = 1ULL;
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(c, 0U, 1ULL);
+    } else {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(c), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_4 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_4 = c4_heap_canonical(c);
+        goto exit_canonical_oop_4;
+    }
+    r_canonical_oop_4 = c;
+exit_canonical_oop_4:;
+    r_canonical_oop_4; }) + 16;
+    r_pinned_body_address_4; }))[CTX_SENDER] = 1ULL;
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_store_ref(c, 2U, 1ULL);
+    } else {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(c), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_5 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_5 = c4_heap_canonical(c);
+        goto exit_canonical_oop_5;
+    }
+    r_canonical_oop_5 = c;
+exit_canonical_oop_5:;
+    r_canonical_oop_5; }) + 16;
+    r_pinned_body_address_5; }))[CTX_STACKP] = 1ULL;
+    }
     active_ctx = sender;
     nframes = 1;
     cstack_used = (uint64_t)(n + 1);
