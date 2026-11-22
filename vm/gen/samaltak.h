@@ -1529,6 +1529,7 @@ extern int32_t argc;
 extern int32_t args_start;
 extern char **argv;
 extern bool c4_enabled;
+extern bool c4_moving;
 extern bool c4_requested;
 #ifdef __APPLE__
 #endif

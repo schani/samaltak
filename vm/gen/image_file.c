@@ -10,26 +10,69 @@ static void import_c4(void);
 static void import_c4(void)
 {
     uint64_t p;
+    uint64_t r_object_address;
     int32_t fmt;
+    uint64_t r_object_address_2;
     uint64_t cls;
+    uint64_t r_object_address_3;
     uint32_t slots;
+    uint64_t r_object_address_4;
     uint64_t bytes;
     uint32_t refs;
     int64_t first;
+    uint64_t r_object_address_5;
     oop r_load_ref;
+    uint64_t r_object_address_6;
+    uint64_t r_object_address_7;
     oop sp;
     c4_heap_set_context_class(cls_context);
+    c4_heap_set_point_class(cls_point);
     c4_heap_set_nil(nil_oop);
     p = old_lo;
     while (p < old_top) {
-        fmt = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
-        cls = *(uint64_t *)(p + 8);
-        slots = (uint32_t)*(uint64_t *)p;
-        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p;
+        fmt = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(p);
+        goto exit_object_address;
+    }
+    r_object_address = p;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK);
+        cls = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(p);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = p;
+exit_object_address_2:;
+    r_object_address_2; }) + 8);
+        slots = (uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(p);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = p;
+exit_object_address_3:;
+    r_object_address_3; });
+        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(p);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = p;
+exit_object_address_4:;
+    r_object_address_4; });
         refs = (fmt >= 1) && (fmt <= 4) ? slots : 0;
         first = 4294967295LL;
         if ((fmt == F_WEAK) || (cls == cls_context)) {
-            if (!((cls >= old_lo) && ((cls < old_top) && ((old_top - cls >= 16) && (((cls & 7) == 0) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)cls <= old_top - cls)))))) {
+            if (!((cls >= old_lo) && ((cls < old_top) && ((old_top - cls >= 16) && (((cls & 7) == 0) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(cls);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = cls;
+exit_object_address_5:;
+    r_object_address_5; }) <= old_top - cls)))))) {
                 fatal_begin();
                 fprintf(stderr, "bad C4 image layout class");
                 fatal_end();
@@ -50,11 +93,25 @@ static void import_c4(void)
                 fatal_end();
             }
             sp = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(p);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = p;
+exit_object_address_6:;
+    r_object_address_6; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(p, 2U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(p + 16 + 16);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(p);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = p;
+exit_object_address_7:;
+    r_object_address_7; }) + 16 + 16);
 exit_load_ref:;
     r_load_ref; });
             if (!(((sp & 1) != 0) && ((sp >> 1) <= slots - CTX_FIXED))) {
@@ -82,13 +139,24 @@ void load_image(char *path)
     uint64_t a;
     uint64_t p;
     uint64_t o;
+    uint64_t r_object_address;
     uint64_t bytes;
+    uint64_t r_object_address_2;
     uint64_t h_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
     uint64_t c;
+    uint64_t r_object_address_5;
     int32_t f_2;
+    uint64_t r_pinned_body_address;
     oop *s;
+    uint64_t r_object_address_6;
     int64_t i;
+    int64_t stop;
     oop o_2;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
+    uint64_t r_object_address_9;
     uint64_t an_integer;
     bool a_boolean;
     uint64_t budget;
@@ -111,6 +179,11 @@ void load_image(char *path)
         fprintf(stderr, "image too large for heap limit");
         fatal_end();
     }
+    if (c4_moving && (h->heap_bytes > c4_heap_pinned_capacity())) {
+        fatal_begin();
+        fprintf(stderr, "image and C4 moving region pool exceed heap limit");
+        fatal_end();
+    }
     fseek(f, (int64_t)h->header_size, SEEK_SET);
     if (fread((void *)old_lo, 1, h->heap_bytes, f) != h->heap_bytes) {
         fatal_begin();
@@ -129,25 +202,75 @@ void load_image(char *path)
             fprintf(stderr, "truncated C4 image object header");
             fatal_end();
         }
-        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
+        bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; });
         if (c4_requested && (bytes > old_top - p)) {
             fatal_begin();
             fprintf(stderr, "bad C4 image object extent");
             fatal_end();
         }
-        h_2 = (*(uint64_t *)o) & 1152921504606846975ULL;
-        *(uint64_t *)o = h_2;
-        c = *(uint64_t *)(o + 8) + delta;
+        h_2 = (*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; })) & 1152921504606846975ULL;
+        *(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(o);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = o;
+exit_object_address_3:;
+    r_object_address_3; }) = h_2;
+        c = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(o);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = o;
+exit_object_address_4:;
+    r_object_address_4; }) + 8) + delta;
         if (c4_enabled) {
-            c4_heap_store((uint64_t *)(o + 8), c);
+            c4_heap_store_class(o, c);
             goto exit_raw_class;
         }
         *(uint64_t *)(o + 8) = c;
     exit_raw_class:;
-        f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        f_2 = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(o);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = o;
+exit_object_address_5:;
+    r_object_address_5; })) >> H_FMT_SHIFT) & H_FMT_MASK);
         if ((f_2 >= 1) && (f_2 <= 4)) {
-            s = (oop *)(o + 16);
-            for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)o - 1; i++) {
+            s = (oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; });
+            stop = (int64_t)(uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(o);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o;
+exit_object_address_6:;
+    r_object_address_6; }) - 1;
+            for (i = 0; i <= stop; i++) {
                 o_2 = s[i];
                 if (((o_2 & 7) == 0) && (s[i] != 0)) {
                     s[i] = (uint64_t)(s[i] + delta);
@@ -158,7 +281,28 @@ void load_image(char *path)
     }
     p = h->specials + delta;
     if (c4_requested) {
-        if (!((p >= old_lo) && ((p < old_top) && ((old_top - p >= 16) && (((p & 7) == 0) && (((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)p > SO_COMPILEDMETHOD) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p <= old_top - p)))))))) {
+        if (!((p >= old_lo) && ((p < old_top) && ((old_top - p >= 16) && (((p & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(p);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = p;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(p);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = p;
+exit_object_address_8:;
+    r_object_address_8; }) > SO_COMPILEDMETHOD) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_9 = c4_heap_address(p);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = p;
+exit_object_address_9:;
+    r_object_address_9; }) <= old_top - p)))))))) {
             fatal_begin();
             fprintf(stderr, "bad C4 image special objects array");
             fatal_end();

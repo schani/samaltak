@@ -149,7 +149,8 @@ primInstVarAtPut
 			ifTrue: [(interpreter context: r slot: k asInt64 - CTX_FIXED put: v) ifTrue: [^self answer: v]]
 			ifFalse: [interpreter materializeAll].
 		r := self receiver.
-		v := self arg: 1].
+		v := self arg: 1.
+		(vmMain c4Moving and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail]].
 	(self c4InactiveContext: r at: k) ifTrue: [
 		^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
 	self storeRef: r at: k put: v.
@@ -502,7 +503,7 @@ byteAt: width put: isPut
 	n := self rawByteSize: r.
 	i := self arg0.
 	((self isInt: i) and: [(self intVal: i) >= 1 and: [((self intVal: i) - 1) asUInt64 + width <= n]]) ifFalse: [^0 asUInt64].
-	^r + 16 + ((self intVal: i) - 1) asUInt64
+	^(self pinnedBodyAddress: r) + ((self intVal: i) - 1) asUInt64
 !
 storedFloat: v
 	"The Float or SmallInteger v as a double; the caller checked it."

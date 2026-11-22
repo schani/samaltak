@@ -17,6 +17,17 @@ init: base capacity: bytes
 	<c: 'bool c4_heap_init(void *base, size_t bytes)'>
 	^false
 !
+initMoving: base capacity: bytes
+	<c: 'bool c4_heap_init_moving(void *base, size_t bytes)'>
+	^false
+!
+pinnedCapacity
+	<c: 'size_t c4_heap_pinned_capacity(void)'>
+	^0
+!
+pointClass: cls
+	<c: 'void c4_heap_set_point_class(uint64_t cls)'>
+!
 threshold: bytes
 	<c: 'void c4_heap_set_threshold(size_t bytes)'>
 !
@@ -39,9 +50,17 @@ report
 ! !
 
 !C4Heap methodsFor: 'allocation and stores'!
-alloc: bytes
-	<c: 'uint64_t c4_heap_alloc(size_t bytes)'>
+reserve: bytes plain: lane into: address
+	<c: 'uint64_t c4_heap_reserve(size_t bytes, int lane, uint64_t *address)'>
 	^0
+!
+address: obj
+	<c: 'uint64_t c4_heap_address(uint64_t obj)'>
+	^0
+!
+movable: obj
+	<c: 'bool c4_heap_movable(uint64_t obj)'>
+	^false
 !
 publish: obj refs: refs weakStart: first
 	<c: 'void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t first)'>
@@ -54,8 +73,8 @@ weakStart: obj
 	<c: 'uint32_t c4_heap_weak_start(uint64_t obj)'>
 	^0
 !
-store: slot value: o
-	<c: 'void c4_heap_store(uint64_t *slot, uint64_t o)'>
+storeClass: obj value: o
+	<c: 'void c4_heap_store_class(uint64_t obj, uint64_t o)'>
 !
 storeRef: obj at: i put: o
 	<c: 'void c4_heap_store_ref(uint64_t obj, uint32_t i, uint64_t o)'>
@@ -80,6 +99,9 @@ endRoots
 takeWeakClears
 	<c: 'uint64_t c4_heap_take_weak_clears(void)'>
 	^0
+!
+movePoll
+	<c: 'void c4_heap_move_poll(void)'>
 !
 finishPoll
 	<c: 'void c4_heap_finish_poll(void)'>

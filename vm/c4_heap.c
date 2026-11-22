@@ -8,6 +8,8 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <linux/futex.h>
 #include <unistd.h>
@@ -29,7 +31,7 @@ enum c4_phase { C4_IDLE, C4_ROOTS, C4_MARK, C4_CLOSE, C4_CLEAR, C4_SWEEP };
 
 /* Index by floor(word_offset / 2): object starts are >=2 words apart. The
  * low span bit distinguishes two candidate offsets in the same cell. A
- * published span never changes. Links are word offsets + 1 (0 is null). */
+ * published span never changes. Mark links are logical keys + 1 (0 is null). */
 typedef struct {
     _Atomic uint32_t span;           /* (words << 1) | (offset & 1) */
     _Atomic uint32_t refs;           /* pointer slot count or FREE/RESERVED */
@@ -40,6 +42,42 @@ typedef struct {
     uint32_t bin_link;
 } c4_cell;
 
+enum {
+    POINT_BYTES = 32, REGION_BYTES = 16 * 1024, REGION_COUNT = 4,
+    REGION_SLOTS = REGION_BYTES / POINT_BYTES,
+    POINT_IDS = (REGION_COUNT - 1) * REGION_SLOTS,
+    MOVE_INSPECTIONS = 64, MOVE_BYTES = 4096,
+    NO_REGION = REGION_COUNT
+};
+
+typedef struct {
+    c4_cell trace;
+    _Atomic uint64_t shadow[3];   /* class, x, y: no physical addresses */
+    uintptr_t addr;               /* mutator only */
+    uint32_t next_free;
+} c4_point;
+
+typedef struct {
+    uint32_t used, high_water;
+    uint32_t ids[REGION_SLOTS];    /* initialized prefix; immutable while sealed */
+} c4_region;
+
+typedef struct {
+    uintptr_t tokens, pool;
+    uint64_t point_class;
+    c4_point points[POINT_IDS];
+    c4_region region[REGION_COUNT];
+    _Atomic uint32_t occupied;    /* logical bodies; excludes evacuation aliases */
+
+    /* Source selection published by ROOTS; the worker only reads this
+     * descriptor during SWEEP and writes source_live before publishing IDLE.
+     * All remaining plan fields (including the address table) are mutator-only. */
+    uint32_t source, source_live, reserve, next_source, cursor;
+    uint32_t free_ids, retired_head, retired_tail;
+    uint32_t peak, body_slots, body_peak, max_inspected, max_copied;
+    uint64_t moved, inspected, released, dense, source_reused, fallback;
+} c4_move_lane;
+
 static struct {
     uintptr_t base;
     uint32_t capacity;              /* words */
@@ -47,6 +85,7 @@ static struct {
     _Atomic uint32_t *bins;         /* exact size in words */
     c4_cell *cells;
     _Atomic uint64_t *shadow;
+    c4_move_lane *moving;
 
     _Atomic uint32_t phase, epoch;
     _Atomic uint32_t inbox;         /* mutator push / worker exchange */
@@ -57,13 +96,14 @@ static struct {
     /* Mutator-owned, apart from explicitly atomic publication above. */
     size_t threshold, since_begin;  /* bytes */
     bool started, pressure;
+    uint64_t unpublished;         /* sole private reserve; cannot cross a poll */
     uint64_t imports, cycles_started, closed, close_retries, allocated, reused, failed;
 
     /* Worker-owned; reports are cumulative as of the last completed sweep. */
     _Atomic uint64_t cycles_completed, marked, traced_edges, reclaimed, reclaimed_bytes;
 } heap;
 
-static void bad_contract(const char *what)
+static _Noreturn void bad_contract(const char *what)
 {
     fprintf(stderr, "C4 heap invariant: %s\n", what);
     abort();
@@ -84,8 +124,51 @@ static bool offset(uint64_t oop_value, uint32_t *at)
     return true;
 }
 
+static bool token_id(uint64_t value, uint32_t *id)
+{
+    if (!heap.moving) return false;
+    uint64_t delta = value - heap.moving->tokens;
+    if ((delta & 7) || delta / 8 >= POINT_IDS) return false;
+    *id = (uint32_t)(delta / 8);
+    return true;
+}
+
+bool c4_heap_movable(uint64_t obj)
+{
+    uint32_t id;
+    return token_id(obj, &id);
+}
+
+uint64_t c4_heap_address(uint64_t obj)
+{
+    uint32_t id;
+    if (!token_id(obj, &id)) return obj;
+    c4_point *point = &heap.moving->points[id];
+    if (relaxed(&point->trace.refs) >= C4_RESERVED || !point->addr)
+        bad_contract("resolve without live Point");
+    return point->addr;
+}
+
+/* Pinned keys are word offsets. Point keys occupy a disjoint dense tail. */
+static bool key_of(uint64_t value, uint32_t *at)
+{
+    uint32_t id;
+    if (token_id(value, &id)) {
+        *at = heap.capacity + id;
+        return true;
+    }
+    return offset(value, at) && *at < acquire(&heap.top);
+}
+
+static _Atomic uint64_t *shadow_row(uint32_t at)
+{
+    return at < heap.capacity ? &heap.shadow[at + 1] :
+        heap.moving->points[at - heap.capacity].shadow;
+}
+
 static c4_cell *cell_at(uint32_t at)
 {
+    if (at >= heap.capacity) return &heap.moving->points[at - heap.capacity].trace;
     c4_cell *cell = heap.cells + at / 2;
     uint32_t span = relaxed(&cell->span);
     return span && (span & 1) == (at & 1) ? cell : NULL;
@@ -103,7 +186,7 @@ static bool post_close_live(uint64_t value)
 {
     if ((value & 7) || value == heap.nil) return true;
     uint32_t at;
-    if (!offset(value, &at) || at >= acquire(&heap.top)) return false;
+    if (!key_of(value, &at)) return false;
     c4_cell *cell = cell_at(at);
     return cell && acquire(&cell->refs) < C4_RESERVED &&
         relaxed(&cell->seen) == relaxed(&heap.epoch);
@@ -111,7 +194,7 @@ static bool post_close_live(uint64_t value)
 
 static c4_cell *body_owner(uint64_t obj, uint32_t *at, uint32_t *refs)
 {
-    if (!offset(obj, at) || *at >= relaxed(&heap.top))
+    if (!key_of(obj, at))
         bad_contract("body access outside heap");
     c4_cell *cell = cell_at(*at);
     *refs = cell ? relaxed(&cell->refs) : C4_FREE;
@@ -129,7 +212,7 @@ static void wake_worker(void)
  * Successful caller owns its mark_link for the rest of this cycle. */
 static c4_cell *claim(uint64_t value, uint32_t *at)
 {
-    if (!offset(value, at) || *at >= acquire(&heap.top)) return NULL;
+    if (!key_of(value, at)) return NULL;
     c4_cell *cell = cell_at(*at);
     if (!cell || acquire(&cell->refs) >= C4_RESERVED) return NULL;
     uint32_t epoch = relaxed(&heap.epoch);
@@ -169,7 +252,7 @@ static void shade_worker(uint64_t value, uint32_t *work)
 
 static bool is_context(uint32_t at, uint32_t refs)
 {
-    return refs >= CTX_FIXED && heap.context_class &&
+    return at < heap.capacity && refs >= CTX_FIXED && heap.context_class &&
         relaxed(&heap.shadow[at + 1]) == heap.context_class;
 }
 
@@ -240,6 +323,31 @@ static uint32_t sweep_one(uint32_t at, uint64_t *reclaimed, uint64_t *bytes)
     return words;
 }
 
+static void sweep_points(uint64_t *reclaimed, uint64_t *bytes)
+{
+    c4_move_lane *m = heap.moving;
+    if (!m) return;
+    uint32_t epoch = relaxed(&heap.epoch);
+    for (uint32_t id = 0; id < POINT_IDS; ++id) {
+        c4_cell *cell = &m->points[id].trace;
+        if (acquire(&cell->refs) < C4_RESERVED && relaxed(&cell->seen) != epoch) {
+            put_relaxed(&cell->refs, C4_FREE);
+            atomic_fetch_sub_explicit(&m->occupied, 1, memory_order_relaxed);
+            ++*reclaimed;
+            *bytes += POINT_BYTES;
+        }
+    }
+    /* IDs are not available for reuse. Entries in a sealed region remain
+     * immutable from the cycle's root publication through this pass. */
+    if (m->source != NO_REGION) {
+        c4_region *src = &m->region[m->source];
+        uint32_t live = 0;
+        for (uint32_t i = 0; i < src->used; ++i)
+            live += relaxed(&m->points[src->ids[i]].trace.refs) != C4_FREE;
+        m->source_live = live;
+    }
+}
+
 static void *worker(void *unused)
 {
     (void)unused;
@@ -265,7 +373,7 @@ static void *worker(void *unused)
                 ++marked;
                 edges += (uint64_t)limit + 1;
                 for (uint32_t f = 0; f <= limit; ++f)
-                    shade_worker(acquire(&heap.shadow[at + 1 + f]), &local);
+                    shade_worker(acquire(&shadow_row(at)[f]), &local);
                 continue;
             }
             if (phase == C4_MARK) {
@@ -292,6 +400,7 @@ static void *worker(void *unused)
             uint32_t limit = acquire(&heap.top);
             for (uint32_t at = 0; at < limit; )
                 at += sweep_one(at, &reclaimed, &bytes);
+            sweep_points(&reclaimed, &bytes);
             put_relaxed(&heap.marked, marked);
             put_relaxed(&heap.traced_edges, edges);
             put_relaxed(&heap.reclaimed, reclaimed);
@@ -337,6 +446,47 @@ bool c4_heap_init(void *base, size_t capacity)
     return true;
 }
 
+bool c4_heap_init_moving(void *base, size_t capacity)
+{
+    size_t pool_bytes = REGION_COUNT * REGION_BYTES;
+    if (capacity < pool_bytes + 16 || (capacity & 7) ||
+        capacity > UINTPTR_MAX - (uintptr_t)base ||
+        (capacity - pool_bytes) / 8 > UINT32_MAX - POINT_IDS)
+        return false;
+    c4_move_lane *m = calloc(1, sizeof *m);
+    if (!m) return false;
+    /* Reserve, not commit: accidental token-as-address reads must fault. */
+    size_t token_bytes = (size_t)POINT_IDS * 8;
+    void *tokens = mmap(NULL, token_bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (tokens == MAP_FAILED || !c4_heap_init(base, capacity - pool_bytes)) {
+        if (tokens != MAP_FAILED) munmap(tokens, token_bytes);
+        free(m);
+        return false;
+    }
+    m->tokens = (uintptr_t)tokens;
+    m->pool = (uintptr_t)base + capacity - pool_bytes;
+    m->source = NO_REGION;
+    m->reserve = REGION_COUNT - 1;
+    for (uint32_t id = 0; id < POINT_IDS; ++id) {
+        put_relaxed(&m->points[id].trace.refs, C4_FREE);
+        m->points[id].next_free = id + 1 < POINT_IDS ? id + 2 : 0;
+    }
+    m->free_ids = 1;
+    heap.moving = m;
+    return true;
+}
+
+size_t c4_heap_pinned_capacity(void)
+{
+    return (size_t)heap.capacity * 8;
+}
+
+void c4_heap_set_point_class(uint64_t cls)
+{
+    if (heap.started) bad_contract("Point class after start");
+    if (heap.moving) heap.moving->point_class = cls;
+}
+
 void c4_heap_set_threshold(size_t bytes)
 {
     if (heap.started) bad_contract("threshold after start");
@@ -358,13 +508,16 @@ void c4_heap_set_nil(uint64_t nil)
 
 /* Real object access is mutator-only and occurs in private reserved blocks
  * or during import. weak_start comes from the validated class format. */
-static bool mirror(uint32_t at, uint32_t words, uint32_t refs, uint32_t weak_start,
-    unsigned phase)
+static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
+    uint32_t weak_start, unsigned phase)
 {
-    const uint64_t *obj = (const uint64_t *)(heap.base + (size_t)at * 8);
+    const uint64_t *obj = (const uint64_t *)(uintptr_t)addr;
     uint64_t header = obj[0];
     unsigned format = (header >> H_FMT_SHIFT) & H_FMT_MASK;
-    if ((uint32_t)header != words - 2 ||
+    if (c4_heap_movable(obj[1]) ||
+        (at >= heap.capacity && (format != F_FIXED || refs != 2 ||
+            obj[1] != heap.moving->point_class)) ||
+        (uint32_t)header != words - 2 ||
         refs != (format >= F_FIXED && format <= F_WEAK ? words - 2 : 0) ||
         ((format == F_WEAK) != (weak_start != C4_NO_WEAK)) ||
         (format == F_WEAK && (!heap.nil || weak_start > refs ||
@@ -380,7 +533,7 @@ static bool mirror(uint32_t at, uint32_t words, uint32_t refs, uint32_t weak_sta
         } else if (closed && !post_close_live(value)) {
             value = heap.nil;
         }
-        put_relaxed(&heap.shadow[at + 1 + i], value);
+        put_relaxed(&shadow_row(at)[i], value);
     }
     return true;
 }
@@ -398,7 +551,7 @@ bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_sta
     uint32_t at, words;
     if (heap.started || !offset(obj, &at) || at != relaxed(&heap.top) ||
         !object_size(bytes, &words) || words > heap.capacity - at ||
-        !mirror(at, words, refs, weak_start, C4_IDLE))
+        !mirror(at, obj, words, refs, weak_start, C4_IDLE))
         return false;
 
     c4_cell *cell = heap.cells + at / 2;
@@ -416,6 +569,12 @@ bool c4_heap_start(void)
     if (heap.nil) {
         uint32_t at;
         if (!offset(heap.nil, &at) || at >= relaxed(&heap.top)) return false;
+        c4_cell *cell = cell_at(at);
+        if (!cell || relaxed(&cell->refs) >= C4_RESERVED) return false;
+    }
+    if (heap.moving) {
+        uint32_t at;
+        if (!offset(heap.moving->point_class, &at) || at >= relaxed(&heap.top)) return false;
         c4_cell *cell = cell_at(at);
         if (!cell || relaxed(&cell->refs) >= C4_RESERVED) return false;
     }
@@ -450,10 +609,51 @@ static uint32_t try_bin(uint32_t words)
     return 0;
 }
 
-uint64_t c4_heap_alloc(size_t bytes)
+static uintptr_t region_address(c4_move_lane *m, uint32_t region, uint32_t slot)
+{
+    return m->pool + (size_t)region * REGION_BYTES + (size_t)slot * POINT_BYTES;
+}
+
+static uintptr_t take_slot(c4_move_lane *m, uint32_t region, uint32_t id)
+{
+    c4_region *r = &m->region[region];
+    if (r->used >= REGION_SLOTS) bad_contract("Point region overflow");
+    uint32_t slot = r->used++;
+    if (r->used <= r->high_water) {
+        if (r->ids[slot] != id) ++m->source_reused;
+    } else {
+        r->high_water = r->used;
+    }
+    r->ids[slot] = id;
+    if (++m->body_slots > m->body_peak) m->body_peak = m->body_slots;
+    return region_address(m, region, slot);
+}
+
+static uint64_t reserve_point(void)
+{
+    c4_move_lane *m = heap.moving;
+    if (!m->free_ids) return 0;
+    for (uint32_t i = 0; i < REGION_COUNT; ++i) {
+        if (i == m->source || i == m->reserve || m->region[i].used == REGION_SLOTS)
+            continue;
+        uint32_t id = m->free_ids - 1;
+        c4_point *point = &m->points[id];
+        if (point->addr || relaxed(&point->trace.refs) != C4_FREE)
+            bad_contract("recycling live Point");
+        m->free_ids = point->next_free;
+        point->addr = take_slot(m, i, id);
+        put_relaxed(&point->trace.seen, relaxed(&heap.epoch));
+        put_relaxed(&point->trace.refs, C4_RESERVED);
+        uint32_t occupied = atomic_fetch_add_explicit(&m->occupied, 1, memory_order_relaxed) + 1;
+        if (occupied > m->peak) m->peak = occupied;
+        return m->tokens + (size_t)id * 8;
+    }
+    return 0;
+}
+
+static uint64_t reserve_pinned(size_t bytes)
 {
     uint32_t words;
-    if (!heap.started) return 0;
     if (object_size(bytes, &words)) {
         uint32_t top = relaxed(&heap.top);
         uint32_t head = try_bin(words);
@@ -470,41 +670,69 @@ uint64_t c4_heap_alloc(size_t bytes)
                 release(&heap.top, at + words);
             }
             atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
-            heap.since_begin = bytes <= SIZE_MAX - heap.since_begin
-                ? heap.since_begin + bytes : SIZE_MAX;
-            ++heap.allocated;
             return heap.base + (size_t)at * 8;
         }
     }
-    heap.pressure = true;
-    ++heap.failed;
     return 0;
+}
+
+uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
+{
+    *init_addr = 0;
+    if (!heap.started) return 0;
+    if (heap.unpublished) bad_contract("nested private reserve");
+    uint64_t obj = 0;
+    if (lane == C4_PLAIN && heap.moving) {
+        if (bytes != POINT_BYTES) bad_contract("non-Point extent in Point lane");
+        obj = reserve_point();
+        if (!obj) {
+            ++heap.moving->fallback;
+            heap.pressure = true;
+        }
+    }
+    if (!obj) obj = reserve_pinned(bytes);
+    if (!obj) {
+        heap.pressure = true;
+        ++heap.failed;
+        return 0;
+    }
+    uint32_t id;
+    *init_addr = token_id(obj, &id) ? heap.moving->points[id].addr : obj;
+    heap.unpublished = obj;
+    heap.since_begin = bytes <= SIZE_MAX - heap.since_begin
+        ? heap.since_begin + bytes : SIZE_MAX;
+    ++heap.allocated;
+    return obj;
 }
 
 void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
 {
     uint32_t at;
-    if (!offset(obj, &at) || at >= relaxed(&heap.top)) bad_contract("publish outside heap");
+    if (!obj || obj != heap.unpublished || !key_of(obj, &at))
+        bad_contract("publish outside private reserve");
     c4_cell *cell = cell_at(at);
     if (!cell || relaxed(&cell->refs) != C4_RESERVED) bad_contract("publish without reserve");
     /* New objects are black. During marking publish their initial edges,
      * not the object: allocating garbage must not keep reopening closure.
      * Only this mutator can ACK at a later checkpoint. */
     unsigned phase = acquire(&heap.phase);
-    if (!mirror(at, relaxed(&cell->span) >> 1, refs, weak_start, phase))
+    bool point = at >= heap.capacity;
+    uint64_t addr = point ? heap.moving->points[at - heap.capacity].addr : obj;
+    uint32_t words = point ? POINT_BYTES / 8 : relaxed(&cell->span) >> 1;
+    if (!mirror(at, addr, words, refs, weak_start, phase))
         bad_contract("unsupported format, extent or weak layout");
     publish_layout(cell, refs, weak_start);
+    heap.unpublished = 0;
 }
 
-void c4_heap_store(uint64_t *slot, uint64_t value)
+void c4_heap_store_class(uint64_t obj, uint64_t value)
 {
-    uint32_t at;
-    if (!offset((uintptr_t)slot, &at) || !at || at >= relaxed(&heap.top))
-        bad_contract("class store outside heap");
-    c4_cell *cell = cell_at(at - 1);
-    if (!cell || relaxed(&cell->refs) >= C4_RESERVED)
-        bad_contract("class store without live owner");
-    uint64_t old = relaxed(&heap.shadow[at]);
+    uint32_t at, refs;
+    c4_cell *cell = body_owner(obj, &at, &refs);
+    _Atomic uint64_t *slot = shadow_row(at);
+    uint64_t old = relaxed(slot);
+    if (c4_heap_movable(value) || (at >= heap.capacity && value != old))
+        bad_contract("invalid movable role in class store");
     if (cell->weak_start != C4_NO_WEAK && value != old)
         bad_contract("weak class reassignment");
     if (heap.context_class && ((old == heap.context_class) != (value == heap.context_class)))
@@ -513,8 +741,8 @@ void c4_heap_store(uint64_t *slot, uint64_t value)
         shade_mutator(old);
         shade_mutator(value);
     }
-    release(&heap.shadow[at], value);
-    *slot = value;
+    release(slot, value);
+    ((uint64_t *)(uintptr_t)c4_heap_address(obj))[1] = value;
 }
 
 uint32_t c4_heap_weak_start(uint64_t obj)
@@ -528,12 +756,12 @@ uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
     uint32_t at, refs;
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body load outside reference slots");
-    if (index < cell->weak_start) return acquire(&heap.shadow[at + 2 + index]);
+    if (index < cell->weak_start) return acquire(&shadow_row(at)[1 + index]);
 
     /* Observe the phase first: an IDLE load must be ordered after CLEAR,
      * not sample stale shadow just before the worker publishes IDLE. */
     unsigned phase = acquire(&heap.phase);
-    uint64_t value = acquire(&heap.shadow[at + 2 + index]);
+    uint64_t value = acquire(&shadow_row(at)[1 + index]);
 #ifdef SAMALTAK_C4_TEST
     extern void c4_heap_test_after_weak_load(uint64_t obj, uint32_t i, uint64_t value);
     c4_heap_test_after_weak_load(obj, index, value);
@@ -549,7 +777,7 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
     uint32_t at, refs;
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body store outside reference slots");
-    uint32_t field = at + 2 + index;
+    _Atomic uint64_t *field = &shadow_row(at)[1 + index];
     unsigned phase = acquire(&heap.phase);
     if (index >= cell->weak_start) {
         /* No SATB or insertion barrier for weak edges. After ACK even a
@@ -558,27 +786,105 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
             value = heap.nil;
     } else if (marking(phase)) {
         if (!is_context(at, refs)) {
-            shade_mutator(relaxed(&heap.shadow[field]));
+            shade_mutator(relaxed(field));
         } else {
             uint32_t limit = context_snapshot_limit(at, cell, refs);
             if (index == CTX_STACKP) release(&cell->context_limit, limit + 1);
-            if (index < limit) shade_mutator(relaxed(&heap.shadow[field]));
+            if (index < limit) shade_mutator(relaxed(field));
         }
         shade_mutator(value);
     }
-    release(&heap.shadow[field], value);
-    ((uint64_t *)(uintptr_t)obj)[2 + (size_t)index] = value;
+    release(field, value);
+    ((uint64_t *)(uintptr_t)c4_heap_address(obj))[2 + (size_t)index] = value;
+}
+
+void c4_heap_move_poll(void)
+{
+    c4_move_lane *m = heap.moving;
+    if (!m || m->source == NO_REGION || acquire(&heap.phase) != C4_IDLE) return;
+    if (heap.unpublished) bad_contract("private reserve at move poll");
+    uint32_t source = m->source;
+    c4_region *src = &m->region[source];
+    /* Don't copy a densely occupied log. Its dead IDs remain tombstones
+     * until a future profitable cycle selects this region again. */
+    if (m->source_live * 8 > src->used * 7) {
+        ++m->dense;
+        m->source = NO_REGION;
+        return;
+    }
+
+    uint32_t copied = 0, inspected = 0;
+    for (; m->cursor < src->used && inspected < MOVE_INSPECTIONS &&
+            copied + POINT_BYTES <= MOVE_BYTES; ++m->cursor, ++inspected) {
+        uint32_t id = src->ids[m->cursor];
+        c4_point *point = &m->points[id];
+        uintptr_t old = region_address(m, source, m->cursor);
+        if (point->addr != old)
+            bad_contract("Point source ownership changed");
+        uint32_t refs = relaxed(&point->trace.refs);
+        if (refs == C4_FREE) {
+            point->addr = 0;
+            if (!m->retired_head) m->retired_tail = id + 1;
+            point->next_free = m->retired_head;
+            m->retired_head = id + 1;
+        } else {
+            if (refs != 2 || relaxed(&point->trace.seen) != relaxed(&heap.epoch))
+                bad_contract("unmarked or unpublished Point in source");
+            uintptr_t dest = take_slot(m, m->reserve, id);
+            memcpy((void *)dest, (const void *)old, POINT_BYTES);
+            point->addr = dest;
+            copied += POINT_BYTES;
+            ++m->moved;
+        }
+#ifdef SAMALTAK_C4_TEST
+        memset((void *)old, 0xdd, POINT_BYTES);
+#endif
+    }
+    m->inspected += inspected;
+    if (inspected > m->max_inspected) m->max_inspected = inspected;
+    if (copied > m->max_copied) m->max_copied = copied;
+    if (m->cursor != src->used) return;
+
+    if (m->region[m->reserve].used != m->source_live)
+        bad_contract("incomplete Point evacuation");
+    if (m->retired_head) {
+        m->points[m->retired_tail - 1].next_free = m->free_ids;
+        m->free_ids = m->retired_head;
+        m->retired_head = m->retired_tail = 0;
+    }
+    m->body_slots -= src->used;
+    src->used = 0;
+    /* An empty source needs no destination. Otherwise the empty source is
+     * the next exclusive reserve, and the old destination joins the bank. */
+    if (m->source_live) m->reserve = source;
+    m->cursor = 0;
+    m->source = NO_REGION;
+    ++m->released;
 }
 
 bool c4_heap_begin(void)
 {
     if (!heap.started || acquire(&heap.phase) != C4_IDLE) return false;
+    if (heap.unpublished) bad_contract("private reserve at cycle start");
+    c4_move_lane *m = heap.moving;
+    if (m) {
+        if (m->source != NO_REGION) return false;
+        if (m->region[m->reserve].used) bad_contract("occupied Point reserve");
+        for (uint32_t n = 0; n < REGION_COUNT; ++n) {
+            uint32_t i = (m->next_source + n) % REGION_COUNT;
+            if (i == m->reserve || !m->region[i].used) continue;
+            m->source = i;
+            m->next_source = (i + 1) % REGION_COUNT;
+            break;
+        }
+    }
     put_relaxed(&heap.epoch, !relaxed(&heap.epoch));
     heap.since_begin = 0;
     heap.pressure = false;
     ++heap.cycles_started;
     release(&heap.phase, C4_ROOTS);
     if (heap.nil) shade_mutator(heap.nil);
+    if (m) shade_mutator(m->point_class);
     wake_worker();
     return true;
 }
@@ -624,7 +930,8 @@ bool c4_heap_busy(void)
 
 bool c4_heap_should_collect(void)
 {
-    if (!heap.started || c4_heap_busy()) return false;
+    if (!heap.started || c4_heap_busy() ||
+        (heap.moving && heap.moving->source != NO_REGION)) return false;
     size_t headroom = (size_t)(heap.capacity - relaxed(&heap.occupied)) * 8;
     size_t budget = headroom / 4;
     if (budget < 4096) budget = 4096;
@@ -653,6 +960,18 @@ void c4_heap_stats(void)
         relaxed(&heap.reclaimed_bytes), relaxed(&heap.weak_cleared),
         heap.allocated, heap.reused, heap.failed,
         (uint64_t)relaxed(&heap.top) * 8, (uint64_t)relaxed(&heap.occupied) * 8);
+    c4_move_lane *m = heap.moving;
+    if (m) fprintf(stderr,
+        "c4-moving: pool_bytes=%u reserve_bytes=%u ids=%u metadata_bytes=%zu"
+        " live_bytes=%u peak_live_bytes=%u body_bytes=%u peak_body_bytes=%u pinned_fallback=%" PRIu64
+        " moved=%" PRIu64 " inspected=%" PRIu64 " released=%" PRIu64
+        " dense=%" PRIu64 " source_reused=%" PRIu64
+        " max_inspected=%u max_copied=%u\n",
+        REGION_COUNT * REGION_BYTES, REGION_BYTES, POINT_IDS, sizeof *m,
+        relaxed(&m->occupied) * POINT_BYTES, m->peak * POINT_BYTES,
+        m->body_slots * POINT_BYTES, m->body_peak * POINT_BYTES, m->fallback,
+        m->moved, m->inspected, m->released, m->dense, m->source_reused,
+        m->max_inspected, m->max_copied);
 }
 
 #endif

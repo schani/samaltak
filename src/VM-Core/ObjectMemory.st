@@ -252,7 +252,7 @@ c4LoadRef: o at: i
 	<var: #i type: 'uint32_t'>
 	(self formatOf: o) = F_WEAK ifTrue: [^c4 loadRef: o at: i].
 	(i >= CTX_FIXED and: [(self rawClass: o) = clsContext and: [i >= (self contextPrefix: o)]]) ifTrue: [^nilOop].
-	^self uint64At: o + 16 + (8 * i asUInt64)
+	^self uint64At: (self bodyAddress: o) + (8 * i asUInt64)
 !
 c4CannotReplaceCodeSlot: o at: i put: v
 	"Interpreter activations borrow interior pointers into method storage."
@@ -262,6 +262,7 @@ c4CannotReplaceCodeSlot: o at: i put: v
 	<var: #v type: 'oop'>
 	i = SO_COMPILEDMETHOD ifTrue: [^o = specialsOop and: [v ~= clsCompiledmethod]].
 	(self rawClass: o) = clsCompiledmethod ifFalse: [^false].
+	(c4 movable: v) ifTrue: [^true].
 	^((self slotsOf: o) at: i) ~= nilOop and: [((self slotsOf: o) at: i) ~= v]
 !
 c4StoreContextStackp: o value: v
@@ -383,7 +384,7 @@ allocC4Try: cls format: fmt slots: n
 	"No cycle start, root enumeration or wait on allocation pressure."
 	<function>
 	<var: #n type: 'uint32_t'>
-	| p bytes refs first |
+	| o addr bytes refs first plain |
 	refs := (self fmtHasPointers: fmt) ifTrue: [n] ifFalse: [0].
 	first := 16rFFFFFFFF asUInt32. "C4_NO_WEAK"
 	cls = clsContext ifTrue: [
@@ -393,12 +394,14 @@ allocC4Try: cls format: fmt slots: n
 		first := self c4FixedFieldsFor: cls spec: F_WEAK slots: n.
 		first = 16rFFFFFFFF ifTrue: [^0]].
 	bytes := 16 + (8 * n asUInt64).
-	p := c4 alloc: bytes.
-	p = 0 ifTrue: [^0].
-	self initObjectAt: p class: cls format: fmt slots: n.
+	addr := self local: 'uint64_t'.
+	plain := (vmMain c4Moving and: [cls = clsPoint and: [fmt = F_FIXED and: [n = 2]]]) ifTrue: [1] ifFalse: [0].
+	o := c4 reserve: bytes plain: plain into: addr.
+	o = 0 ifTrue: [^0].
+	self initObjectAt: addr value class: cls format: fmt slots: n.
 	cls = clsContext ifTrue: [
-		(self slotsOf: p) at: CTX_STACKP put: (self intOop: 0)].
-	c4 publish: p refs: refs weakStart: first asUInt32.
+		self uint64At: addr value + 16 + (8 * CTX_STACKP) put: (self intOop: 0)].
+	c4 publish: o refs: refs weakStart: first asUInt32.
 	gc statAllocated: gc statAllocated + bytes.
 	scheduler allocSampleInterval > 0 ifTrue: [
 		bytes > largeObjectBytes
@@ -409,7 +412,7 @@ allocC4Try: cls format: fmt slots: n
 						scheduler allocSampleCountdown: scheduler allocSampleInterval.
 						scheduler allocSampleHit: cls bytes: bytes]
 					ifFalse: [scheduler allocSampleCountdown: scheduler allocSampleCountdown - bytes asInt64]]].
-	^p
+	^o
 !
 allocC4: cls format: fmt slots: n
 	<function>
@@ -661,15 +664,16 @@ stringHash: s
 	<var: #i type: 'uint64_t'>
 	<var: #h type: 'uint64_t'>
 	<var: #w type: 'uint64_t'>
-	| n i h w |
+	| n i h w p |
 	n := self stringSize: s.
 	(wordHash not or: [n <= 8]) ifTrue: [^self fnvHash: s].
 	i := 0.
 	h := n.
 	(self formatOf: s) >= F_BYTES
 		ifTrue: [
+			p := self pinnedBodyAddress: s.
 			[i + 8 <= n] whileTrue: [
-				h := ((h bitXor: (self uint64At: s + 16 + i)) * 16r5851F42D4C957F2D) asUInt64.
+				h := ((h bitXor: (self uint64At: p + i)) * 16r5851F42D4C957F2D) asUInt64.
 				i := i + 8]]
 		ifFalse: [
 			0 to: n asInt64 - 1 do: [:j |

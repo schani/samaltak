@@ -26,6 +26,8 @@ loadImage: path
 		or: [(libc memcmp: h magic with: 'SAMALTK1' size: 8) ~= 0 or: [h version ~= 1]])
 		ifTrue: [self fatal: '%s is not a Samaltak image' with: path].
 	h heapBytes > gc maxHeapBytes ifTrue: [self fatal: 'image too large for heap limit'].
+	(vmMain c4Moving and: [h heapBytes > c4 pinnedCapacity])
+		ifTrue: [self fatal: 'image and C4 moving region pool exceed heap limit'].
 	libc fseek: f offset: h headerSize asInt64 whence: libc SEEK_SET.
 	(libc fread: (self ptr: gc oldLo) size: 1 count: h heapBytes file: f) ~= h heapBytes ifTrue: [
 		self fatal: 'truncated image %s' with: path].
@@ -67,6 +69,7 @@ importC4
 	<function>
 	| p fmt bytes slots refs sp cls first |
 	c4 contextClass: memory clsContext.
+	c4 pointClass: memory clsPoint.
 	c4 nilOop: memory nilOop.
 	p := gc oldLo.
 	[p < gc oldTop] whileTrue: [

@@ -12,7 +12,7 @@ trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 ${CC:-cc} ${CFLAGS:--O2} -std=gnu11 -Wall -Wextra -Werror -pthread \
     -UNDEBUG -DSAMALTAK_NO_PLATFORM -DSAMALTAK_C4_TEST -Ivm -I"${SAMALTAK_VM_GEN:-vm/gen}" \
     vm/c4_heap.c tests/vm/c4-live/engine_test.c -o "$tmp/engine-test"
-for test in close shadow oracle weak-close weak-shadow weak-idle; do
+for test in close shadow oracle weak-close weak-shadow weak-idle moving moving-saturated; do
     timeout -k 1 15 "$tmp/engine-test" "$test"
     echo "c4-engine: $test passed"
 done

@@ -13497,6 +13497,7 @@ bool jit_baseline_compiler_compile(oop m)
     int32_t n;
     int32_t i;
     int i_2;
+    uint64_t r_object_address;
     int64_t pc;
     uint8_t op_2;
     int64_t r_length_of;
@@ -13547,7 +13548,14 @@ bool jit_baseline_compiler_compile(oop m)
     return_slow_label = label_at(bl_return_slow);
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
-    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
+    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
     cur_method = m;
     saved_count = 0;
     loop_active = false;
@@ -13745,6 +13753,7 @@ bool jit_baseline_compiler_compile(oop m)
     int32_t n;
     int32_t i;
     int i_2;
+    uint64_t r_object_address;
     int64_t pc;
     uint8_t op_2;
     int64_t r_length_of;
@@ -13791,7 +13800,14 @@ bool jit_baseline_compiler_compile(oop m)
     return_slow_label = label_at(bl_return_slow);
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
-    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
+    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
     cur_method = m;
     saved_count = 0;
     loop_active = false;
@@ -48434,6 +48450,8 @@ static void emit_inline_closure(int32_t pc, int32_t fail)
     uint64_t v_100;
     int64_t n_93;
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     oop o;
     int64_t cls_off_2;
     int64_t value_3;
@@ -50901,11 +50919,25 @@ exit_str_11:;
     amd64_assembler_move_any_from(X13, X9);
     amd64_assembler_bind(have);
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cls_block) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(cls_block);
+        goto exit_object_address;
+    }
+    r_object_address = cls_block;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(cls_block, 2U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(cls_block + 16 + 16);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(cls_block);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = cls_block;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 16);
 exit_load_ref:;
     r_load_ref; });
     n = (int32_t)((((int64_t)o) >> 1) & CLS_INSTSIZE_MASK) > 5 ? (int32_t)((((int64_t)o) >> 1) & CLS_INSTSIZE_MASK) : 5;
@@ -52438,6 +52470,8 @@ static void emit_inline_closure(int32_t pc, int32_t fail)
     uint64_t a_word_24;
     uint64_t a_word_25;
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     oop o_4;
     int64_t cls_off_2;
     int64_t value_3;
@@ -53082,11 +53116,25 @@ exit_adr:;
     }
     arm64_assembler_bind(have);
     o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cls_block) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(cls_block);
+        goto exit_object_address;
+    }
+    r_object_address = cls_block;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(cls_block, 2U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(cls_block + 16 + 16);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(cls_block);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = cls_block;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 16);
 exit_load_ref:;
     r_load_ref; });
     n = (int32_t)((((int64_t)o_4) >> 1) & CLS_INSTSIZE_MASK) > 5 ? (int32_t)((((int64_t)o_4) >> 1) & CLS_INSTSIZE_MASK) : 5;
@@ -100360,6 +100408,7 @@ static void emit_slow_send(int32_t i)
     int64_t n_91;
     int64_t k;
     int32_t pc;
+    uint64_t r_object_address;
     uint64_t a_9;
     uint64_t v_68;
     int64_t n_92;
@@ -104024,7 +104073,14 @@ exit_source_3:;
         k = (sl_info[i] >> 16) & 255;
         if (counter_addr != 0) {
             pc = sl_pc[i];
-            a_9 = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)cur_method) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575));
+            a_9 = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(cur_method);
+        goto exit_object_address;
+    }
+    r_object_address = cur_method;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575));
             if (!copying) {
                 *(uint8_t *)a_9 = 0;
             }
@@ -117667,6 +117723,7 @@ static void emit_slow_send(int32_t i)
     uint64_t a_word_12;
     int64_t k;
     int32_t pc;
+    uint64_t r_object_address;
     uint64_t a;
     int32_t a_label;
     int64_t off_7;
@@ -118584,7 +118641,14 @@ exit_offset_to_6:;
         k = (sl_info[i] >> 16) & 255;
         if (counter_addr != 0) {
             pc = sl_pc[i];
-            a = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)cur_method) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575));
+            a = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(cur_method);
+        goto exit_object_address;
+    }
+    r_object_address = cur_method;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575));
             if (!copying) {
                 *(uint8_t *)a = 0;
             }

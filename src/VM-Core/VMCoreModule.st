@@ -62,11 +62,17 @@ bool: aBoolean
 ! !
 
 !VMCoreModule methodsFor: 'objects'!
+objectAddress: o
+	"Import/bootstrap and the legacy heap use address-as-oop."
+	(self unlikely: (vmMain c4Enabled and: [vmMain c4Moving]))
+		ifTrue: [^c4 address: o].
+	^o
+!
 header: o
-	^self uint64At: o
+	^self uint64At: (self objectAddress: o)
 !
 header: o put: h
-	self uint64At: o put: h
+	self uint64At: (self objectAddress: o) put: h
 !
 numSlots: o
 	^(self header: o) asUInt32
@@ -81,11 +87,11 @@ isImmutable: o
 	^((self header: o) bitAnd: H_IMMUTABLE) ~= 0
 !
 rawClass: o
-	^self uint64At: o + 8
+	^self uint64At: (self objectAddress: o) + 8
 !
 rawClass: o put: c
 	vmMain c4Enabled ifTrue: [
-		c4 store: (self cCoerce: o + 8 to: 'uint64_t *') value: c.
+		c4 storeClass: o value: c.
 		^self].
 	self uint64At: o + 8 put: c
 !
@@ -95,15 +101,22 @@ objBytes: o
 fmtHasPointers: f
 	^f >= 1 and: [f <= 4]
 !
+bodyAddress: o
+	"Physical payload address, not an oop. A raw view of a movable object must not cross dispatch."
+	^(self objectAddress: o) + 16
+!
+pinnedBodyAddress: o
+	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable Point'].
+	^o + 16
+!
 slotsOf: o
-	"The body of o as oops."
-	^self cCoerce: o + 16 to: 'oop *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'oop *'
 !
 bytesOf: o
-	^self cCoerce: o + 16 to: 'uint8_t *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'uint8_t *'
 !
 words32Of: o
-	^self cCoerce: o + 16 to: 'uint32_t *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'uint32_t *'
 !
 isYoung: o
 	^(o - gc youngLo) asUInt64 < (gc youngHi - gc youngLo)
@@ -113,7 +126,7 @@ contextPrefix: o
 	| sp slots |
 	slots := self numSlots: o.
 	slots < CTX_FIXED ifTrue: [^slots].
-	sp := self uint64At: o + 16 + (8 * CTX_STACKP).
+	sp := (self slotsOf: o) at: CTX_STACKP.
 	((self isInt: sp) and: [(self intVal: sp) asUInt64 <= (slots - CTX_FIXED) asUInt64])
 		ifTrue: [^(CTX_FIXED + (self intVal: sp)) asUInt32].
 	^CTX_FIXED asUInt32
@@ -122,7 +135,7 @@ loadRef: o at: i
 	"The scalar heap body reference load."
 	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED or: [(self formatOf: o) = F_WEAK]])
 		ifTrue: [^memory c4LoadRef: o at: i asUInt32].
-	^self uint64At: o + 16 + (8 * i)
+	^self uint64At: (self bodyAddress: o) + (8 * i)
 !
 storeRef: o at: i put: v
 	"The scalar heap write barrier. For bulk copies see ObjectMemory's copyRefs: methods."
@@ -132,11 +145,13 @@ storeRef: o at: i put: v
 			ifTrue: [memory c4StoreContextStackp: o value: v]
 			ifFalse: [c4 storeRef: o at: i asUInt32 put: v].
 		^self].
-	self uint64At: o + 16 + (8 * i) put: v.
+	(self slotsOf: o) at: i put: v.
 	((self isPtr: v) and: [(self isYoung: v) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]])
 		ifTrue: [gc remember: o]
 !
 c4CodeStoreRejected: o at: i put: v
+	(vmMain c4Moving and: [i = CTX_METHOD and: [o = interpreter activeCtx]])
+		ifTrue: [^v ~= (self loadRef: o at: i)].
 	^(i = CM_LITERALS or: [i = CM_BYTECODES or: [i = SO_COMPILEDMETHOD]]) and: [
 		memory c4CannotReplaceCodeSlot: o at: i asUInt32 put: v]
 !

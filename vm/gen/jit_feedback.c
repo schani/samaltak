@@ -45,10 +45,18 @@ uint32_t flags_at(oop m, int64_t pc)
 {
     feedback_site *s;
     uint32_t f;
+    uint64_t r_object_address;
     jit_method *h;
     s = site_at(m, pc);
     f = s == NULL ? 0U : s->flags;
-    if ((*(uint8_t *)(uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575)) != 0) && ({
+    if ((*(uint8_t *)(uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 1048575)) != 0) && ({
     h = jit_runtime_lookup(m);
     (h != NULL) && ((h->flags & JM_FAILED) == 0); })) {
         f = f | FB_FLOAT;
@@ -100,9 +108,17 @@ void jit_feedback_release(void)
 /* JitFeedback>>siteAt:pc: */
 feedback_site *site_at(oop m, int64_t pc)
 {
+    uint64_t r_object_address;
     uint64_t i;
     feedback_site *s;
-    i = ((uint64_t)(uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 65535;
+    i = ((uint64_t)(uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 65535;
     while ((s = fb_sites + i)->method != 0) {
         if ((s->method == m) && (s->pc == (int32_t)pc)) {
             return s;
@@ -115,9 +131,17 @@ feedback_site *site_at(oop m, int64_t pc)
 /* JitFeedback>>siteFor:pc: */
 static feedback_site *site_for(oop m, int64_t pc)
 {
+    uint64_t r_object_address;
     uint64_t i;
     feedback_site *s;
-    i = ((uint64_t)(uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 65535;
+    i = ((uint64_t)(uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK) * 31 + (uint64_t)pc) & 65535;
     while ((s = fb_sites + i)->method != 0) {
         if ((s->method == m) && (s->pc == (int32_t)pc)) {
             return s;

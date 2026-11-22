@@ -6,6 +6,7 @@ int32_t argc;
 int32_t args_start;
 char **argv;
 bool c4_enabled;
+bool c4_moving;
 bool c4_requested;
 static bool headless;
 
@@ -79,9 +80,20 @@ int main(int n, char **v)
     int64_t k;
     oop o;
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     oop proc;
     oop r_load_ref_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
     oop ctx;
+    bool r_c4_code_store_rejected;
+    oop r_load_ref_3;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
+    oop r_pinned_body_address;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
     defaults();
     explicit_jit = false;
     max_heap = 4294967296ULL;
@@ -93,6 +105,8 @@ int main(int n, char **v)
             max_heap = ((uint64_t)atol(v[i])) << 20;
         } else if (strcmp(v[i], "--c4") == 0) {
             c4_requested = true;
+        } else if (strcmp(v[i], "--c4-moving") == 0) {
+            c4_requested = c4_moving = true;
         } else if ((strcmp(v[i], "--eden") == 0) && (i + 1 < n)) {
             i = i + 1;
             eden = ((uint64_t)atol(v[i])) << 20;
@@ -145,7 +159,7 @@ int main(int n, char **v)
     }
     memory_init(eden, max_heap);
     if (c4_requested) {
-        if (!c4_heap_init((void *)old_lo, max_heap)) {
+        if (!(c4_moving ? c4_heap_init_moving((void *)old_lo, max_heap) : c4_heap_init((void *)old_lo, max_heap))) {
             fatal_begin();
             fprintf(stderr, "cannot initialize C4 heap");
             fatal_end();
@@ -168,19 +182,47 @@ int main(int n, char **v)
     }
     o = object_memory_special(SO_PROCESSOR);
     proc = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 1U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(o + 16 + 8);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8);
 exit_load_ref:;
     r_load_ref; });
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)proc) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(proc);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = proc;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(proc, 1U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(proc + 16 + 8);
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(proc);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = proc;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 8);
 exit_load_ref_2:;
     r_load_ref_2; });
     if ((!((ctx & 7) == 0)) || (ctx == nil_oop)) {
@@ -190,11 +232,58 @@ exit_load_ref_2:;
     }
     active_ctx = ctx;
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected = nil_oop != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(proc);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = proc;
+exit_object_address_5:;
+    r_object_address_5; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_3 = c4_load_ref(proc, 1U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(proc);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = proc;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 8);
+exit_load_ref_3:;
+    r_load_ref_3; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = false;
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(proc, 1U, nil_oop);
         goto exit_store_ref;
     }
-    *(uint64_t *)(proc + 16 + 8) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)proc) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(proc), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = proc + 16;
+    r_pinned_body_address; }))[PROC_SUSPENDED] = nil_oop;
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(proc);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = proc;
+exit_object_address_7:;
+    r_object_address_7; })) & H_REMEMBERED) == 0)))) {
         remember(proc);
     }
 exit_store_ref:;
@@ -202,7 +291,14 @@ exit_store_ref:;
         if (c4_enabled) {
             goto exit_remember_if_old;
         }
-        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
+        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(ctx);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = ctx;
+exit_object_address_8:;
+    r_object_address_8; })) & H_REMEMBERED) == 0))) {
             remember(ctx);
         }
     exit_remember_if_old:;
@@ -214,7 +310,7 @@ exit_store_ref:;
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)\n  --c4-moving       --c4 with bounded relocation of newly allocated exact Points\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

@@ -1,13 +1,13 @@
 VMCoreModule subclass: #VMMain
-	instanceVariableNames: 'headless argc argv argsStart c4Requested c4Enabled'
+	instanceVariableNames: 'headless argc argv argsStart c4Requested c4Enabled c4Moving'
 	classVariableNames: ''
 	package: 'VM-Core'!
 
-VMMain comment: 'The entry point: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
+VMMain comment: 'The entry point: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit MODE] [--jit-threshold N] [--jit-osr N] [--jit-opt N] [--jit-flags a,b,-c] [--jit-cache MB] image [--headless] [image arguments...].'!
 
 !VMMain class methodsFor: 'declaring'!
 declarations
-	^#((headless bool) (argc int32_t) (argv 'char **') (argsStart int32_t) (c4Requested bool) (c4Enabled bool))
+	^#((headless bool) (argc int32_t) (argv 'char **') (argsStart int32_t) (c4Requested bool) (c4Enabled bool) (c4Moving bool))
 ! !
 
 !VMMain methodsFor: 'accessing'!
@@ -16,6 +16,9 @@ c4Requested
 !
 c4Enabled
 	^c4Enabled
+!
+c4Moving
+	^c4Moving
 !
 headless
 	^headless
@@ -38,9 +41,10 @@ banner
 !
 usage
 	<noreturn>
-	libc fputs: 'usage: samaltak [--c4] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
+	libc fputs: 'usage: samaltak [--c4|--c4-moving] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
   --c4              experimental headless interpreter heap (Linux x86-64, NO_PLATFORM=1)
+  --c4-moving       --c4 with bounded relocation of newly allocated exact Points
   --jit-threshold N  activations before a method is compiled (0: the first one)
   --jit-osr N        backward jumps before a running method is compiled and entered
   --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized
@@ -69,19 +73,22 @@ main: n argv: v
 				(libc strcmp: (v at: i) with: '--c4') = 0
 					ifTrue: [c4Requested := true]
 					ifFalse: [
-						((libc strcmp: (v at: i) with: '--eden') = 0 and: [i + 1 < n])
-							ifTrue: [
-								i := i + 1.
-								eden := (libc atol: (v at: i)) asUInt64 << 20]
+						(libc strcmp: (v at: i) with: '--c4-moving') = 0
+							ifTrue: [c4Requested := c4Moving := true]
 							ifFalse: [
-								(libc strcmp: (v at: i) with: '--headless') = 0
-									ifTrue: [headless := true]
+								((libc strcmp: (v at: i) with: '--eden') = 0 and: [i + 1 < n])
+									ifTrue: [
+										i := i + 1.
+										eden := (libc atol: (v at: i)) asUInt64 << 20]
 									ifFalse: [
-										(self jitOption: v at: i asInt32 count: n)
-											ifTrue: [
-												(libc strcmp: (v at: i) with: '--jit') = 0 ifTrue: [explicitJit := true].
-												i := i + 1]
-											ifFalse: [self usage]]]]].
+										(libc strcmp: (v at: i) with: '--headless') = 0
+											ifTrue: [headless := true]
+											ifFalse: [
+												(self jitOption: v at: i asInt32 count: n)
+													ifTrue: [
+														(libc strcmp: (v at: i) with: '--jit') = 0 ifTrue: [explicitJit := true].
+														i := i + 1]
+													ifFalse: [self usage]]]]]].
 		i := i + 1].
 	i >= n ifTrue: [self usage].
 	image := v at: i.
@@ -97,7 +104,10 @@ main: n argv: v
 		jit mode: 0].
 	memory memoryInit: eden maxHeap: maxHeap.
 	c4Requested ifTrue: [
-		(c4 init: (self ptr: gc oldLo) capacity: maxHeap) ifFalse: [self fatal: 'cannot initialize C4 heap'].
+		(c4Moving
+			ifTrue: [c4 initMoving: (self ptr: gc oldLo) capacity: maxHeap]
+			ifFalse: [c4 init: (self ptr: gc oldLo) capacity: maxHeap])
+				ifFalse: [self fatal: 'cannot initialize C4 heap'].
 		c4 threshold: eden].
 	imageFile loadImage: image.
 	c4Requested ifTrue: [

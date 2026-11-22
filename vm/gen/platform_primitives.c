@@ -102,25 +102,81 @@ static oop array_of(int64_t *v, int n)
     int i;
     int64_t v_2;
     uint64_t v_3;
+    bool r_c4_code_store_rejected;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    oop r_pinned_body_address;
+    uint64_t r_object_address_4;
     a = alloc_slots(cls_array, (uint32_t)n);
     for (i = 0; i <= n - 1; i++) {
         v_2 = v[i];
         v_3 = (uint64_t)((v_2 << 1) | 1);
         if (__builtin_expect(c4_enabled, 0)) {
-            if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(a, (uint32_t)i, v_3)) {
+            if (({
+    if (c4_moving && ((i == CTX_METHOD) && (a == active_ctx))) {
+        r_c4_code_store_rejected = v_3 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(a, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = ((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(a, (uint32_t)i, v_3);
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
                 fatal_begin();
                 fprintf(stderr, "C4 cannot replace compiled method storage");
                 fatal_end();
             }
-            if ((i == CTX_STACKP) && (*(uint64_t *)(a + 8) == cls_context)) {
+            if ((i == CTX_STACKP) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(a);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = a;
+exit_object_address_3:;
+    r_object_address_3; }) + 8) == cls_context)) {
                 c4_store_context_stackp(a, v_3);
             } else {
                 c4_heap_store_ref(a, (uint32_t)i, v_3);
             }
             goto exit_store_ref;
         }
-        *(uint64_t *)(a + 16 + 8 * i) = v_3;
-        if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!((uint64_t)(a - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)a) & H_REMEMBERED) == 0)))) {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(a), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = a + 16;
+    r_pinned_body_address; }))[i] = v_3;
+        if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!((uint64_t)(a - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(a);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = a;
+exit_object_address_4:;
+    r_object_address_4; })) & H_REMEMBERED) == 0)))) {
             remember(a);
         }
     exit_store_ref:;
@@ -145,21 +201,53 @@ static bool bool_arg(int i)
 /* PlatformPrimitives>>bytesOf:size:writable: */
 static uint8_t *bytes_of(oop o, size_t *n, bool writable)
 {
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     int32_t f;
+    oop r_pinned_body_address;
+    oop r_pinned_body_address_2;
     if (!((o & 7) == 0)) {
         return (uint8_t *)NULL;
     }
-    if (writable && (((*(uint64_t *)o) & H_IMMUTABLE) != 0)) {
+    if (writable && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) & H_IMMUTABLE) != 0)) {
         return (uint8_t *)NULL;
     }
-    f = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+    f = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK);
     if (f >= F_BYTES) {
         *n = byte_size(o);
-        return (uint8_t *)(o + 16);
+        return (uint8_t *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; });
     }
     if ((f == 10) || (f == 11)) {
         *n = word32_size(o) * 4;
-        return (uint8_t *)(uint32_t *)(o + 16);
+        return (uint8_t *)(uint32_t *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_2 = o + 16;
+    r_pinned_body_address_2; });
     }
     return (uint8_t *)NULL;
 }
@@ -185,14 +273,30 @@ static double float_slot(oop a, int i)
     double local;
     double *d;
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     memset(&local, 0, sizeof local);
     d = &local;
     if (!number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; }), d)) {
         bad = true;
@@ -231,11 +335,19 @@ static int64_t int_arg(int i)
 /* PlatformPrimitives>>isText: */
 static bool is_text(oop o)
 {
+    uint64_t r_object_address;
     int32_t f;
     if (!((o & 7) == 0)) {
         return false;
     }
-    f = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+    f = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK);
     return (f >= F_BYTES) || ((f == 10) || (f == 11));
 }
 
@@ -281,14 +393,30 @@ static uint8_t *pointer_slot(oop a, int i)
     uint64_t local;
     uint64_t *w;
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     memset(&local, 0, sizeof local);
     w = &local;
     if (!u64_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; }), w)) {
         bad = true;
@@ -305,6 +433,7 @@ void prim_clipboard_data(void)
     size_t *size;
     void *data;
     uint64_t result;
+    uint64_t r_pinned_body_address;
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -336,7 +465,14 @@ void prim_clipboard_data(void)
         return;
     }
     result = alloc_bytes(cls_bytearray, *size);
-    memcpy((uint8_t *)(result + 16), data, *size);
+    memcpy((uint8_t *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(result), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = result + 16;
+    r_pinned_body_address; }), data, *size);
     free_clipboard_data(data);
     prim_result = result;
     prim_status = PS_OK;
@@ -442,6 +578,13 @@ void prim_dir_entries(void)
     int i;
     uint64_t s;
     oop o;
+    bool r_c4_code_store_rejected;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    oop r_pinned_body_address;
+    uint64_t r_object_address_4;
     oop v_2;
     if (!({
     bad = false;
@@ -469,20 +612,69 @@ void prim_dir_entries(void)
         s = string_from_utf8(v[i], strlen(v[i]));
         o = *a;
         if (__builtin_expect(c4_enabled, 0)) {
-            if (((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(o, (uint32_t)i, s)) {
+            if (({
+    if (c4_moving && ((i == CTX_METHOD) && (o == active_ctx))) {
+        r_c4_code_store_rejected = s != ({
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(o, (uint32_t)i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = ((i == CM_LITERALS) || ((i == CM_BYTECODES) || (i == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(o, (uint32_t)i, s);
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
                 fatal_begin();
                 fprintf(stderr, "C4 cannot replace compiled method storage");
                 fatal_end();
             }
-            if ((i == CTX_STACKP) && (*(uint64_t *)(o + 8) == cls_context)) {
+            if ((i == CTX_STACKP) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(o);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = o;
+exit_object_address_3:;
+    r_object_address_3; }) + 8) == cls_context)) {
                 c4_store_context_stackp(o, s);
             } else {
                 c4_heap_store_ref(o, (uint32_t)i, s);
             }
             goto exit_store_ref;
         }
-        *(uint64_t *)(o + 16 + 8 * i) = s;
-        if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; }))[i] = s;
+        if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(o);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = o;
+exit_object_address_4:;
+    r_object_address_4; })) & H_REMEMBERED) == 0)))) {
             remember(o);
         }
     exit_store_ref:;
@@ -830,12 +1022,37 @@ void prim_file_stat(void)
     oop o;
     bool a_boolean;
     oop v_2;
+    bool r_c4_code_store_rejected;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop r_pinned_body_address;
+    uint64_t r_object_address_3;
     oop o_2;
     bool a_boolean_2;
     oop v_3;
+    bool r_c4_code_store_rejected_2;
+    oop r_load_ref_2;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
+    oop r_pinned_body_address_2;
+    uint64_t r_object_address_6;
     uint64_t v;
     oop o_3;
+    bool r_c4_code_store_rejected_3;
+    oop r_load_ref_3;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
+    uint64_t r_object_address_9;
+    oop r_pinned_body_address_3;
+    uint64_t r_object_address_10;
     oop o_4;
+    bool r_c4_code_store_rejected_4;
+    oop r_load_ref_4;
+    uint64_t r_object_address_11;
+    uint64_t r_object_address_12;
+    oop r_pinned_body_address_4;
+    uint64_t r_object_address_13;
     oop v_4;
     if (!({
     bad = false;
@@ -863,11 +1080,58 @@ void prim_file_stat(void)
     a_boolean = st->exists;
     v_2 = a_boolean ? true_oop : false_oop;
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected = v_2 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = false;
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o, 0U, v_2);
         goto exit_store_ref;
     }
-    *(uint64_t *)(o + 16 + 0) = v_2;
-    if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; }))[0] = v_2;
+    if (((v_2 & 7) == 0) && (((uint64_t)(v_2 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(o);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = o;
+exit_object_address_3:;
+    r_object_address_3; })) & H_REMEMBERED) == 0)))) {
         remember(o);
     }
 exit_store_ref:;
@@ -875,38 +1139,162 @@ exit_store_ref:;
     a_boolean_2 = st->is_dir;
     v_3 = a_boolean_2 ? true_oop : false_oop;
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_2 = v_3 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(o_2);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = o_2;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_2 = c4_load_ref(o_2, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(o_2);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = o_2;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
+        goto exit_c4_code_store_rejected_2;
+    }
+    r_c4_code_store_rejected_2 = false;
+exit_c4_code_store_rejected_2:;
+    r_c4_code_store_rejected_2; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_2, 1U, v_3);
         goto exit_store_ref_2;
     }
-    *(uint64_t *)(o_2 + 16 + 8) = v_3;
-    if (((v_3 & 7) == 0) && (((uint64_t)(v_3 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_2) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_2), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_2 = o_2 + 16;
+    r_pinned_body_address_2; }))[1] = v_3;
+    if (((v_3 & 7) == 0) && (((uint64_t)(v_3 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(o_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(o_2);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o_2;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0)))) {
         remember(o_2);
     }
 exit_store_ref_2:;
     v = int64_oop(st->file_size);
     o_3 = *a;
     if (__builtin_expect(c4_enabled, 0)) {
-        if (c4_cannot_replace_code_slot(o_3, 2U, v)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_3 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(o_3);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = o_3;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_3 = c4_load_ref(o_3, 2U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(o_3);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = o_3;
+exit_object_address_8:;
+    r_object_address_8; }) + 16 + 16);
+exit_load_ref_3:;
+    r_load_ref_3; });
+        goto exit_c4_code_store_rejected_3;
+    }
+    r_c4_code_store_rejected_3 = c4_cannot_replace_code_slot(o_3, 2U, v);
+exit_c4_code_store_rejected_3:;
+    r_c4_code_store_rejected_3; })) {
             fatal_begin();
             fprintf(stderr, "C4 cannot replace compiled method storage");
             fatal_end();
         }
-        if (*(uint64_t *)(o_3 + 8) == cls_context) {
+        if (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_9 = c4_heap_address(o_3);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = o_3;
+exit_object_address_9:;
+    r_object_address_9; }) + 8) == cls_context) {
             c4_store_context_stackp(o_3, v);
         } else {
             c4_heap_store_ref(o_3, 2U, v);
         }
         goto exit_store_ref_3;
     }
-    *(uint64_t *)(o_3 + 16 + 16) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_3) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_3), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_3 = o_3 + 16;
+    r_pinned_body_address_3; }))[2] = v;
+    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_10 = c4_heap_address(o_3);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = o_3;
+exit_object_address_10:;
+    r_object_address_10; })) & H_REMEMBERED) == 0)))) {
         remember(o_3);
     }
 exit_store_ref_3:;
     v = int64_oop(st->mtime_us);
     o_4 = *a;
     if (__builtin_expect(c4_enabled, 0)) {
-        if (c4_cannot_replace_code_slot(o_4, 3U, v)) {
+        if (({
+    if (c4_moving && (o_4 == active_ctx)) {
+        r_c4_code_store_rejected_4 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_11 = c4_heap_address(o_4);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = o_4;
+exit_object_address_11:;
+    r_object_address_11; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_4 = c4_load_ref(o_4, 3U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_12 = c4_heap_address(o_4);
+        goto exit_object_address_12;
+    }
+    r_object_address_12 = o_4;
+exit_object_address_12:;
+    r_object_address_12; }) + 16 + 24);
+exit_load_ref_4:;
+    r_load_ref_4; });
+        goto exit_c4_code_store_rejected_4;
+    }
+    r_c4_code_store_rejected_4 = c4_cannot_replace_code_slot(o_4, 3U, v);
+exit_c4_code_store_rejected_4:;
+    r_c4_code_store_rejected_4; })) {
             fatal_begin();
             fprintf(stderr, "C4 cannot replace compiled method storage");
             fatal_end();
@@ -914,8 +1302,22 @@ exit_store_ref_3:;
         c4_heap_store_ref(o_4, 3U, v);
         goto exit_store_ref_4;
     }
-    *(uint64_t *)(o_4 + 16 + 24) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_4 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_4) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_4), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_4 = o_4 + 16;
+    r_pinned_body_address_4; }))[3] = v;
+    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_4 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_13 = c4_heap_address(o_4);
+        goto exit_object_address_13;
+    }
+    r_object_address_13 = o_4;
+exit_object_address_13:;
+    r_object_address_13; })) & H_REMEMBERED) == 0)))) {
         remember(o_4);
     }
 exit_store_ref_4:;
@@ -1049,8 +1451,12 @@ void prim_gpu_begin_pass(void)
     float *rgba;
     double local_2;
     double *d;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     int i;
     oop r_load_ref;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
     int h;
     uint64_t v;
     if (!({
@@ -1074,18 +1480,46 @@ void prim_gpu_begin_pass(void)
     memset(&local_2, 0, sizeof local_2);
     d = &local_2;
     if (cl != nil_oop) {
-        if (!(((cl & 7) == 0) && (((int32_t)(((*(uint64_t *)cl) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)cl == 4)))) {
+        if (!(((cl & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(cl);
+        goto exit_object_address;
+    }
+    r_object_address = cl;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(cl);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = cl;
+exit_object_address_2:;
+    r_object_address_2; }) == 4)))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             return;
         }
         for (i = 0; i <= 3; i++) {
             if (!number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)cl) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(cl);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = cl;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(cl, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(cl + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(cl);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = cl;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; }), d)) {
                 prim_status = PS_FAIL;
@@ -1306,6 +1740,7 @@ void prim_gpu_compile_shader(void)
     size_t *size;
     void *spirv;
     uint64_t result;
+    uint64_t r_pinned_body_address;
     if (!({
     bad = false;
     r_args = prim_nargs == 2;
@@ -1333,7 +1768,14 @@ void prim_gpu_compile_shader(void)
         return;
     }
     result = alloc_bytes(cls_bytearray, *size);
-    memcpy((uint8_t *)(result + 16), spirv, *size);
+    memcpy((uint8_t *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(result), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = result + 16;
+    r_pinned_body_address; }), spirv, *size);
     free(spirv);
     prim_result = result;
     prim_status = PS_OK;
@@ -1424,15 +1866,23 @@ void prim_gpu_create_pipeline(void)
     int64_t blend;
     int64_t fmt;
     oop attrs;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
     pf_vattr local[16];
     pf_vattr *va;
+    uint64_t r_object_address_4;
     int32_t n;
     int32_t i;
     int32_t i_2;
     oop r_load_ref;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
     oop f;
     int32_t i_3;
     oop r_load_ref_2;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
     oop off;
     int32_t h;
     uint64_t v;
@@ -1457,31 +1907,87 @@ void prim_gpu_create_pipeline(void)
         prim_error_code = -1;
         return;
     }
-    if (!(((attrs & 7) == 0) && (((int32_t)(((*(uint64_t *)attrs) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((((uint32_t)*(uint64_t *)attrs) & 1) == 0) && ((uint32_t)*(uint64_t *)attrs <= 32))))) {
+    if (!(((attrs & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(attrs);
+        goto exit_object_address;
+    }
+    r_object_address = attrs;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(attrs);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = attrs;
+exit_object_address_2:;
+    r_object_address_2; })) & 1) == 0) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(attrs);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = attrs;
+exit_object_address_3:;
+    r_object_address_3; }) <= 32))))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
     memset(&local, 0, sizeof local);
     va = local;
-    n = (int32_t)((uint32_t)*(uint64_t *)attrs / 2);
+    n = (int32_t)((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(attrs);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = attrs;
+exit_object_address_4:;
+    r_object_address_4; }) / 2);
     for (i = 0; i <= n - 1; i++) {
         i_2 = 2 * i;
         f = ({
-    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)attrs) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(attrs);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = attrs;
+exit_object_address_5:;
+    r_object_address_5; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(attrs, (uint32_t)i_2);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(attrs + 16 + 8 * i_2);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(attrs);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = attrs;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 8 * i_2);
 exit_load_ref:;
     r_load_ref; });
         i_3 = 2 * i + 1;
         off = ({
-    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)attrs) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(attrs);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = attrs;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(attrs, (uint32_t)i_3);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(attrs + 16 + 8 * i_3);
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(attrs);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = attrs;
+exit_object_address_8:;
+    r_object_address_8; }) + 16 + 8 * i_3);
 exit_load_ref_2:;
     r_load_ref_2; });
         if (!(((f & 1) != 0) && ((off & 1) != 0))) {
@@ -2302,18 +2808,34 @@ void prim_inject_event(void)
 {
     bool r_args;
     oop a;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     pf_event local;
     pf_event *e;
     oop r_load_ref;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
     oop o;
     bool ok;
     oop r_load_ref_2;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
     oop r_load_ref_3;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
     oop r_load_ref_4;
+    uint64_t r_object_address_9;
+    uint64_t r_object_address_10;
     oop r_load_ref_5;
+    uint64_t r_object_address_11;
+    uint64_t r_object_address_12;
     oop r_load_ref_6;
+    uint64_t r_object_address_13;
+    uint64_t r_object_address_14;
     oop r_load_ref_7;
+    uint64_t r_object_address_15;
     oop r_load_ref_8;
+    uint64_t r_object_address_16;
     oop v;
     if (!({
     bad = false;
@@ -2324,7 +2846,21 @@ void prim_inject_event(void)
         return;
     }
     a = prim_base[1];
-    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)a >= 8)))) {
+    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) >= 8)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -2332,11 +2868,25 @@ void prim_inject_event(void)
     memset(&local, 0, sizeof local);
     e = &local;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(a);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = a;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(a, 0U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 0);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(a);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = a;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 0);
 exit_load_ref:;
     r_load_ref; });
     ok = ((o & 1) != 0) && ((((int64_t)o) >> 1) > 0);
@@ -2344,44 +2894,114 @@ exit_load_ref:;
         e->type = (int32_t)(((int64_t)o) >> 1);
     }
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(a);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = a;
+exit_object_address_5:;
+    r_object_address_5; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(a, 1U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(a + 16 + 8);
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(a);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = a;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 8);
 exit_load_ref_2:;
     r_load_ref_2; });
     e->time_ms = (o & 1) != 0 ? ((int64_t)o) >> 1 : platform_common_now_ms();
     ok = ok && (number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(a);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = a;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(a, 2U);
         goto exit_load_ref_3;
     }
-    r_load_ref_3 = *(uint64_t *)(a + 16 + 16);
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(a);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = a;
+exit_object_address_8:;
+    r_object_address_8; }) + 16 + 16);
 exit_load_ref_3:;
     r_load_ref_3; }), &e->x) && number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_9 = c4_heap_address(a);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = a;
+exit_object_address_9:;
+    r_object_address_9; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(a, 3U);
         goto exit_load_ref_4;
     }
-    r_load_ref_4 = *(uint64_t *)(a + 16 + 24);
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_10 = c4_heap_address(a);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = a;
+exit_object_address_10:;
+    r_object_address_10; }) + 16 + 24);
 exit_load_ref_4:;
     r_load_ref_4; }), &e->y));
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_11 = c4_heap_address(a);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = a;
+exit_object_address_11:;
+    r_object_address_11; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(a, 4U);
         goto exit_load_ref_5;
     }
-    r_load_ref_5 = *(uint64_t *)(a + 16 + 32);
+    r_load_ref_5 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_12 = c4_heap_address(a);
+        goto exit_object_address_12;
+    }
+    r_object_address_12 = a;
+exit_object_address_12:;
+    r_object_address_12; }) + 16 + 32);
 exit_load_ref_5:;
     r_load_ref_5; });
     e->key = (o & 1) != 0 ? ((int64_t)o) >> 1 : 0;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_13 = c4_heap_address(a);
+        goto exit_object_address_13;
+    }
+    r_object_address_13 = a;
+exit_object_address_13:;
+    r_object_address_13; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(a, 5U);
         goto exit_load_ref_6;
     }
-    r_load_ref_6 = *(uint64_t *)(a + 16 + 40);
+    r_load_ref_6 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_14 = c4_heap_address(a);
+        goto exit_object_address_14;
+    }
+    r_object_address_14 = a;
+exit_object_address_14:;
+    r_object_address_14; }) + 16 + 40);
 exit_load_ref_6:;
     r_load_ref_6; });
     e->mods = (o & 1) != 0 ? (int32_t)(((int64_t)o) >> 1) : 0;
@@ -2390,7 +3010,14 @@ exit_load_ref_6:;
         r_load_ref_7 = c4_load_ref(a, 7U);
         goto exit_load_ref_7;
     }
-    r_load_ref_7 = *(uint64_t *)(a + 16 + 56);
+    r_load_ref_7 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_15 = c4_heap_address(a);
+        goto exit_object_address_15;
+    }
+    r_object_address_15 = a;
+exit_object_address_15:;
+    r_object_address_15; }) + 16 + 56);
 exit_load_ref_7:;
     r_load_ref_7; });
     e->window = (o & 1) != 0 ? (int32_t)(((int64_t)o) >> 1) : 0;
@@ -2399,7 +3026,14 @@ exit_load_ref_7:;
         r_load_ref_8 = c4_load_ref(a, 6U);
         goto exit_load_ref_8;
     }
-    r_load_ref_8 = *(uint64_t *)(a + 16 + 48);
+    r_load_ref_8 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_16 = c4_heap_address(a);
+        goto exit_object_address_16;
+    }
+    r_object_address_16 = a;
+exit_object_address_16:;
+    r_object_address_16; }) + 16 + 48);
 exit_load_ref_8:;
     r_load_ref_8; }), e);
     if (ok) {
@@ -2789,6 +3423,9 @@ void prim_next_event(void)
 {
     bool r_args;
     oop a_2;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
     pf_event local;
     pf_event *e;
     oop local_2;
@@ -2796,29 +3433,88 @@ void prim_next_event(void)
     oop o;
     int32_t v_2;
     uint64_t v_3;
+    bool r_c4_code_store_rejected;
+    oop r_load_ref;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
+    oop r_pinned_body_address;
+    uint64_t r_object_address_6;
     oop o_2;
     int64_t v_4;
     uint64_t v_5;
+    bool r_c4_code_store_rejected_2;
+    oop r_load_ref_2;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
+    oop r_pinned_body_address_2;
+    uint64_t r_object_address_9;
     uint64_t v;
     oop o_3;
+    bool r_c4_code_store_rejected_3;
+    oop r_load_ref_3;
+    uint64_t r_object_address_10;
+    uint64_t r_object_address_11;
+    uint64_t r_object_address_12;
+    oop r_pinned_body_address_3;
+    uint64_t r_object_address_13;
     oop o_4;
+    bool r_c4_code_store_rejected_4;
+    oop r_load_ref_4;
+    uint64_t r_object_address_14;
+    uint64_t r_object_address_15;
+    oop r_pinned_body_address_4;
+    uint64_t r_object_address_16;
     oop o_5;
     int64_t v_6;
     uint64_t v_7;
+    bool r_c4_code_store_rejected_5;
+    oop r_load_ref_5;
+    uint64_t r_object_address_17;
+    uint64_t r_object_address_18;
+    oop r_pinned_body_address_5;
+    uint64_t r_object_address_19;
     oop o_6;
     int32_t v_8;
     uint64_t v_9;
+    bool r_c4_code_store_rejected_6;
+    oop r_load_ref_6;
+    uint64_t r_object_address_20;
+    uint64_t r_object_address_21;
+    oop r_pinned_body_address_6;
+    uint64_t r_object_address_22;
     int64_t v_10;
     bool a_boolean;
     oop local_3;
     oop *p;
     oop o_7;
+    bool r_c4_code_store_rejected_7;
+    oop r_load_ref_7;
+    uint64_t r_object_address_23;
+    uint64_t r_object_address_24;
+    oop r_pinned_body_address_7;
+    uint64_t r_object_address_25;
     oop o_8;
+    bool r_c4_code_store_rejected_8;
+    oop r_load_ref_8;
+    uint64_t r_object_address_26;
+    uint64_t r_object_address_27;
+    oop r_pinned_body_address_8;
+    uint64_t r_object_address_28;
     oop o_9;
+    bool r_c4_code_store_rejected_9;
+    oop r_load_ref_9;
+    uint64_t r_object_address_29;
+    oop r_pinned_body_address_9;
+    uint64_t r_object_address_30;
     oop o_10;
     int32_t v_11;
     uint64_t v_12;
     uint64_t v_13;
+    bool r_c4_code_store_rejected_10;
+    oop r_load_ref_10;
+    uint64_t r_object_address_31;
+    oop r_pinned_body_address_10;
+    uint64_t r_object_address_32;
     oop v_14;
     if (!({
     bad = false;
@@ -2829,7 +3525,28 @@ void prim_next_event(void)
         return;
     }
     a_2 = prim_base[1];
-    if (!(((a_2 & 7) == 0) && (((int32_t)(((*(uint64_t *)a_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)a_2 >= 8) && (!(((*(uint64_t *)a_2) & H_IMMUTABLE) != 0)))))) {
+    if (!(((a_2 & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a_2);
+        goto exit_object_address;
+    }
+    r_object_address = a_2;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a_2);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a_2;
+exit_object_address_2:;
+    r_object_address_2; }) >= 8) && (!(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(a_2);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = a_2;
+exit_object_address_3:;
+    r_object_address_3; })) & H_IMMUTABLE) != 0)))))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -2849,11 +3566,58 @@ void prim_next_event(void)
     v_2 = e->type;
     v_3 = (uint64_t)((((int64_t)v_2) << 1) | 1);
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected = v_3 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(o);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = o;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref = c4_load_ref(o, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(o);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = o;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = false;
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o, 0U, v_3);
         goto exit_store_ref;
     }
-    *(uint64_t *)(o + 16 + 0) = v_3;
-    if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; }))[0] = v_3;
+    if (((v_3 & 7) == 0) && ((v_3 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(o);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0)))) {
         remember(o);
     }
 exit_store_ref:;
@@ -2861,38 +3625,162 @@ exit_store_ref:;
     v_4 = e->time_ms;
     v_5 = (uint64_t)((v_4 << 1) | 1);
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_2 = v_5 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(o_2);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = o_2;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_2 = c4_load_ref(o_2, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_8 = c4_heap_address(o_2);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = o_2;
+exit_object_address_8:;
+    r_object_address_8; }) + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
+        goto exit_c4_code_store_rejected_2;
+    }
+    r_c4_code_store_rejected_2 = false;
+exit_c4_code_store_rejected_2:;
+    r_c4_code_store_rejected_2; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_2, 1U, v_5);
         goto exit_store_ref_2;
     }
-    *(uint64_t *)(o_2 + 16 + 8) = v_5;
-    if (((v_5 & 7) == 0) && ((v_5 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_2) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_2), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_2 = o_2 + 16;
+    r_pinned_body_address_2; }))[1] = v_5;
+    if (((v_5 & 7) == 0) && ((v_5 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_2 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_9 = c4_heap_address(o_2);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = o_2;
+exit_object_address_9:;
+    r_object_address_9; })) & H_REMEMBERED) == 0)))) {
         remember(o_2);
     }
 exit_store_ref_2:;
     v = float_oop(e->x);
     o_3 = *a;
     if (__builtin_expect(c4_enabled, 0)) {
-        if (c4_cannot_replace_code_slot(o_3, 2U, v)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_3 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_10 = c4_heap_address(o_3);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = o_3;
+exit_object_address_10:;
+    r_object_address_10; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_3 = c4_load_ref(o_3, 2U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_11 = c4_heap_address(o_3);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = o_3;
+exit_object_address_11:;
+    r_object_address_11; }) + 16 + 16);
+exit_load_ref_3:;
+    r_load_ref_3; });
+        goto exit_c4_code_store_rejected_3;
+    }
+    r_c4_code_store_rejected_3 = c4_cannot_replace_code_slot(o_3, 2U, v);
+exit_c4_code_store_rejected_3:;
+    r_c4_code_store_rejected_3; })) {
             fatal_begin();
             fprintf(stderr, "C4 cannot replace compiled method storage");
             fatal_end();
         }
-        if (*(uint64_t *)(o_3 + 8) == cls_context) {
+        if (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_12 = c4_heap_address(o_3);
+        goto exit_object_address_12;
+    }
+    r_object_address_12 = o_3;
+exit_object_address_12:;
+    r_object_address_12; }) + 8) == cls_context) {
             c4_store_context_stackp(o_3, v);
         } else {
             c4_heap_store_ref(o_3, 2U, v);
         }
         goto exit_store_ref_3;
     }
-    *(uint64_t *)(o_3 + 16 + 16) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_3) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_3), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_3 = o_3 + 16;
+    r_pinned_body_address_3; }))[2] = v;
+    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_3 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_13 = c4_heap_address(o_3);
+        goto exit_object_address_13;
+    }
+    r_object_address_13 = o_3;
+exit_object_address_13:;
+    r_object_address_13; })) & H_REMEMBERED) == 0)))) {
         remember(o_3);
     }
 exit_store_ref_3:;
     v = float_oop(e->y);
     o_4 = *a;
     if (__builtin_expect(c4_enabled, 0)) {
-        if (c4_cannot_replace_code_slot(o_4, 3U, v)) {
+        if (({
+    if (c4_moving && (o_4 == active_ctx)) {
+        r_c4_code_store_rejected_4 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_14 = c4_heap_address(o_4);
+        goto exit_object_address_14;
+    }
+    r_object_address_14 = o_4;
+exit_object_address_14:;
+    r_object_address_14; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_4 = c4_load_ref(o_4, 3U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_15 = c4_heap_address(o_4);
+        goto exit_object_address_15;
+    }
+    r_object_address_15 = o_4;
+exit_object_address_15:;
+    r_object_address_15; }) + 16 + 24);
+exit_load_ref_4:;
+    r_load_ref_4; });
+        goto exit_c4_code_store_rejected_4;
+    }
+    r_c4_code_store_rejected_4 = c4_cannot_replace_code_slot(o_4, 3U, v);
+exit_c4_code_store_rejected_4:;
+    r_c4_code_store_rejected_4; })) {
             fatal_begin();
             fprintf(stderr, "C4 cannot replace compiled method storage");
             fatal_end();
@@ -2900,8 +3788,22 @@ exit_store_ref_3:;
         c4_heap_store_ref(o_4, 3U, v);
         goto exit_store_ref_4;
     }
-    *(uint64_t *)(o_4 + 16 + 24) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_4 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_4) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_4), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_4 = o_4 + 16;
+    r_pinned_body_address_4; }))[3] = v;
+    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_4 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_16 = c4_heap_address(o_4);
+        goto exit_object_address_16;
+    }
+    r_object_address_16 = o_4;
+exit_object_address_16:;
+    r_object_address_16; })) & H_REMEMBERED) == 0)))) {
         remember(o_4);
     }
 exit_store_ref_4:;
@@ -2909,11 +3811,58 @@ exit_store_ref_4:;
     v_6 = e->key;
     v_7 = (uint64_t)((v_6 << 1) | 1);
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_5 = v_7 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_17 = c4_heap_address(o_5);
+        goto exit_object_address_17;
+    }
+    r_object_address_17 = o_5;
+exit_object_address_17:;
+    r_object_address_17; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_5 = c4_load_ref(o_5, 4U);
+        goto exit_load_ref_5;
+    }
+    r_load_ref_5 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_18 = c4_heap_address(o_5);
+        goto exit_object_address_18;
+    }
+    r_object_address_18 = o_5;
+exit_object_address_18:;
+    r_object_address_18; }) + 16 + 32);
+exit_load_ref_5:;
+    r_load_ref_5; });
+        goto exit_c4_code_store_rejected_5;
+    }
+    r_c4_code_store_rejected_5 = false;
+exit_c4_code_store_rejected_5:;
+    r_c4_code_store_rejected_5; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_5, 4U, v_7);
         goto exit_store_ref_5;
     }
-    *(uint64_t *)(o_5 + 16 + 32) = v_7;
-    if (((v_7 & 7) == 0) && ((v_7 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_5 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_5) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_5), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_5 = o_5 + 16;
+    r_pinned_body_address_5; }))[4] = v_7;
+    if (((v_7 & 7) == 0) && ((v_7 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_5 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_19 = c4_heap_address(o_5);
+        goto exit_object_address_19;
+    }
+    r_object_address_19 = o_5;
+exit_object_address_19:;
+    r_object_address_19; })) & H_REMEMBERED) == 0)))) {
         remember(o_5);
     }
 exit_store_ref_5:;
@@ -2921,11 +3870,58 @@ exit_store_ref_5:;
     v_8 = e->mods;
     v_9 = (uint64_t)((((int64_t)v_8) << 1) | 1);
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_6 = v_9 != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_20 = c4_heap_address(o_6);
+        goto exit_object_address_20;
+    }
+    r_object_address_20 = o_6;
+exit_object_address_20:;
+    r_object_address_20; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_6 = c4_load_ref(o_6, 5U);
+        goto exit_load_ref_6;
+    }
+    r_load_ref_6 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_21 = c4_heap_address(o_6);
+        goto exit_object_address_21;
+    }
+    r_object_address_21 = o_6;
+exit_object_address_21:;
+    r_object_address_21; }) + 16 + 40);
+exit_load_ref_6:;
+    r_load_ref_6; });
+        goto exit_c4_code_store_rejected_6;
+    }
+    r_c4_code_store_rejected_6 = false;
+exit_c4_code_store_rejected_6:;
+    r_c4_code_store_rejected_6; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_6, 5U, v_9);
         goto exit_store_ref_6;
     }
-    *(uint64_t *)(o_6 + 16 + 40) = v_9;
-    if (((v_9 & 7) == 0) && ((v_9 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_6 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_6) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_6), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_6 = o_6 + 16;
+    r_pinned_body_address_6; }))[5] = v_9;
+    if (((v_9 & 7) == 0) && ((v_9 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_6 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_22 = c4_heap_address(o_6);
+        goto exit_object_address_22;
+    }
+    r_object_address_22 = o_6;
+exit_object_address_22:;
+    r_object_address_22; })) & H_REMEMBERED) == 0)))) {
         remember(o_6);
     }
 exit_store_ref_6:;
@@ -2949,22 +3945,116 @@ exit_store_ref_6:;
         v = float_oop(e->dx);
         o_7 = *p;
         if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_7 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_23 = c4_heap_address(o_7);
+        goto exit_object_address_23;
+    }
+    r_object_address_23 = o_7;
+exit_object_address_23:;
+    r_object_address_23; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_7 = c4_load_ref(o_7, 0U);
+        goto exit_load_ref_7;
+    }
+    r_load_ref_7 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_24 = c4_heap_address(o_7);
+        goto exit_object_address_24;
+    }
+    r_object_address_24 = o_7;
+exit_object_address_24:;
+    r_object_address_24; }) + 16 + 0);
+exit_load_ref_7:;
+    r_load_ref_7; });
+        goto exit_c4_code_store_rejected_7;
+    }
+    r_c4_code_store_rejected_7 = false;
+exit_c4_code_store_rejected_7:;
+    r_c4_code_store_rejected_7; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
             c4_heap_store_ref(o_7, 0U, v);
             goto exit_store_ref_7;
         }
-        *(uint64_t *)(o_7 + 16 + 0) = v;
-        if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_7 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_7) & H_REMEMBERED) == 0)))) {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_7), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_7 = o_7 + 16;
+    r_pinned_body_address_7; }))[0] = v;
+        if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_7 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_25 = c4_heap_address(o_7);
+        goto exit_object_address_25;
+    }
+    r_object_address_25 = o_7;
+exit_object_address_25:;
+    r_object_address_25; })) & H_REMEMBERED) == 0)))) {
             remember(o_7);
         }
     exit_store_ref_7:;
         v = float_oop(e->dy);
         o_8 = *p;
         if (__builtin_expect(c4_enabled, 0)) {
+            if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_8 = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_26 = c4_heap_address(o_8);
+        goto exit_object_address_26;
+    }
+    r_object_address_26 = o_8;
+exit_object_address_26:;
+    r_object_address_26; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_8 = c4_load_ref(o_8, 1U);
+        goto exit_load_ref_8;
+    }
+    r_load_ref_8 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_27 = c4_heap_address(o_8);
+        goto exit_object_address_27;
+    }
+    r_object_address_27 = o_8;
+exit_object_address_27:;
+    r_object_address_27; }) + 16 + 8);
+exit_load_ref_8:;
+    r_load_ref_8; });
+        goto exit_c4_code_store_rejected_8;
+    }
+    r_c4_code_store_rejected_8 = false;
+exit_c4_code_store_rejected_8:;
+    r_c4_code_store_rejected_8; })) {
+                fatal_begin();
+                fprintf(stderr, "C4 cannot replace compiled method storage");
+                fatal_end();
+            }
             c4_heap_store_ref(o_8, 1U, v);
             goto exit_store_ref_8;
         }
-        *(uint64_t *)(o_8 + 16 + 8) = v;
-        if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_8 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_8) & H_REMEMBERED) == 0)))) {
+        ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_8), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_8 = o_8 + 16;
+    r_pinned_body_address_8; }))[1] = v;
+        if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_8 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_28 = c4_heap_address(o_8);
+        goto exit_object_address_28;
+    }
+    r_object_address_28 = o_8;
+exit_object_address_28:;
+    r_object_address_28; })) & H_REMEMBERED) == 0)))) {
             remember(o_8);
         }
     exit_store_ref_8:;
@@ -2973,11 +4063,51 @@ exit_store_ref_6:;
     }
     o_9 = *a;
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_9 = v != ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_9 = c4_load_ref(o_9, 6U);
+        goto exit_load_ref_9;
+    }
+    r_load_ref_9 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_29 = c4_heap_address(o_9);
+        goto exit_object_address_29;
+    }
+    r_object_address_29 = o_9;
+exit_object_address_29:;
+    r_object_address_29; }) + 16 + 48);
+exit_load_ref_9:;
+    r_load_ref_9; });
+        goto exit_c4_code_store_rejected_9;
+    }
+    r_c4_code_store_rejected_9 = false;
+exit_c4_code_store_rejected_9:;
+    r_c4_code_store_rejected_9; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_9, 6U, v);
         goto exit_store_ref_9;
     }
-    *(uint64_t *)(o_9 + 16 + 48) = v;
-    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_9 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_9) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_9), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_9 = o_9 + 16;
+    r_pinned_body_address_9; }))[6] = v;
+    if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_9 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_30 = c4_heap_address(o_9);
+        goto exit_object_address_30;
+    }
+    r_object_address_30 = o_9;
+exit_object_address_30:;
+    r_object_address_30; })) & H_REMEMBERED) == 0)))) {
         remember(o_9);
     }
 exit_store_ref_9:;
@@ -2991,11 +4121,51 @@ exit_store_ref_9:;
     }
     v_12; });
     if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    if (c4_moving && false) {
+        r_c4_code_store_rejected_10 = v_13 != ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_10 = c4_load_ref(o_10, 7U);
+        goto exit_load_ref_10;
+    }
+    r_load_ref_10 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_31 = c4_heap_address(o_10);
+        goto exit_object_address_31;
+    }
+    r_object_address_31 = o_10;
+exit_object_address_31:;
+    r_object_address_31; }) + 16 + 56);
+exit_load_ref_10:;
+    r_load_ref_10; });
+        goto exit_c4_code_store_rejected_10;
+    }
+    r_c4_code_store_rejected_10 = false;
+exit_c4_code_store_rejected_10:;
+    r_c4_code_store_rejected_10; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
         c4_heap_store_ref(o_10, 7U, v_13);
         goto exit_store_ref_10;
     }
-    *(uint64_t *)(o_10 + 16 + 56) = v_13;
-    if (((v_13 & 7) == 0) && ((v_13 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_10 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_10) & H_REMEMBERED) == 0)))) {
+    ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o_10), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address_10 = o_10 + 16;
+    r_pinned_body_address_10; }))[7] = v_13;
+    if (((v_13 & 7) == 0) && ((v_13 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_10 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_32 = c4_heap_address(o_10);
+        goto exit_object_address_32;
+    }
+    r_object_address_32 = o_10;
+exit_object_address_32:;
+    r_object_address_32; })) & H_REMEMBERED) == 0)))) {
         remember(o_10);
     }
 exit_store_ref_10:;
@@ -3686,10 +4856,14 @@ void prim_raster_draw(void)
 {
     bool r_args;
     oop a;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     raster_state local;
     raster_state *st;
     oop r_load_ref;
+    uint64_t r_object_address_3;
     oop r_load_ref_2;
+    uint64_t r_object_address_4;
     uint8_t *v;
     int64_t first;
     int64_t n;
@@ -3706,7 +4880,21 @@ void prim_raster_draw(void)
         return;
     }
     a = prim_base[1];
-    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)a == 23)))) {
+    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) == 23)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -3740,7 +4928,14 @@ void prim_raster_draw(void)
         r_load_ref = c4_load_ref(a, 21U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 168);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(a);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = a;
+exit_object_address_3:;
+    r_object_address_3; }) + 16 + 168);
 exit_load_ref:;
     r_load_ref; }) == true_oop;
     st->wrap = ({
@@ -3748,7 +4943,14 @@ exit_load_ref:;
         r_load_ref_2 = c4_load_ref(a, 22U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(a + 16 + 176);
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(a);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = a;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 176);
 exit_load_ref_2:;
     r_load_ref_2; }) == true_oop;
     v = address_arg(1);
@@ -4818,19 +6020,51 @@ static uint8_t *range_args(bool writable, int64_t *h, int64_t *count)
 /* PlatformPrimitives>>rect:into: */
 static bool rect(oop r, int *out)
 {
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     int i;
     oop r_load_ref;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
     oop v;
-    if (!(((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)r == 4)))) {
+    if (!(((r & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(r);
+        goto exit_object_address;
+    }
+    r_object_address = r;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(r);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = r;
+exit_object_address_2:;
+    r_object_address_2; }) == 4)))) {
         return false;
     }
     for (i = 0; i <= 3; i++) {
         v = ({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(r);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = r;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(r, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(r + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(r);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = r;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; });
         if (!((v & 1) != 0)) {
@@ -4845,13 +6079,29 @@ exit_load_ref:;
 static int64_t platform_primitives_slot(oop a, int i)
 {
     oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     oop o;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; });
     if (!((o & 1) != 0)) {
@@ -4877,27 +6127,67 @@ static char *string_arg(int i)
 /* PlatformPrimitives>>stringVector:nonEmpty: */
 static char **string_vector(oop a, bool non_empty)
 {
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
     uint32_t n;
     char **v;
     int64_t i;
     oop r_load_ref;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
     oop s;
     int64_t k;
-    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((!non_empty) || ((uint32_t)*(uint64_t *)a != 0))))) {
+    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((!non_empty) || ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) != 0))))) {
         return (char **)NULL;
     }
-    n = (uint32_t)*(uint64_t *)a;
+    n = (uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(a);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = a;
+exit_object_address_3:;
+    r_object_address_3; });
     v = (char **)calloc((uint64_t)n + 1, sizeof(char *));
     if (v == NULL) {
         return (char **)NULL;
     }
     for (i = 0; i <= (int64_t)n - 1; i++) {
         s = ({
-    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(a);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = a;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(a + 16 + 8 * i);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(a);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = a;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 8 * i);
 exit_load_ref:;
     r_load_ref; });
         if (is_text(s)) {
@@ -4917,10 +6207,26 @@ exit_load_ref:;
 /* PlatformPrimitives>>surface:into: */
 static bool surface(oop a, raster_state *s)
 {
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     int64_t n;
     int64_t n_2;
     int32_t f;
-    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)a >= 4)))) {
+    if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(a);
+        goto exit_object_address;
+    }
+    r_object_address = a;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(a);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = a;
+exit_object_address_2:;
+    r_object_address_2; }) >= 4)))) {
         return false;
     }
     s->pixels = pointer_slot(a, 0);
@@ -4939,8 +6245,15 @@ static bool surface(oop a, raster_state *s)
 /* PlatformPrimitives>>textOrDelta:into: */
 static bool text_or_delta(oop o, pf_event *e)
 {
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
     oop r_load_ref;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
     oop r_load_ref_2;
+    uint64_t r_object_address_6;
+    uint64_t r_object_address_7;
     if (o == nil_oop) {
         e->xkind = PF_X_NIL;
         return true;
@@ -4955,21 +6268,70 @@ static bool text_or_delta(oop o, pf_event *e)
         e->ival = o == true_oop ? 1 : 0;
         return true;
     }
-    if (((o & 7) == 0) && (((class_of(o) == object_memory_special(SO_POINT)) && ((uint32_t)*(uint64_t *)o >= 2)) || (((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)o == 2)))) {
+    if (((o & 7) == 0) && (((class_of(o) == object_memory_special(SO_POINT)) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; }) >= 2)) || (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_3 = c4_heap_address(o);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = o;
+exit_object_address_3:;
+    r_object_address_3; }) == 2)))) {
         e->xkind = PF_X_POINT;
         return number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_4 = c4_heap_address(o);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = o;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
-    r_load_ref = *(uint64_t *)(o + 16 + 0);
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_5 = c4_heap_address(o);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = o;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 0);
 exit_load_ref:;
     r_load_ref; }), &e->dx) && number_of(({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_6 = c4_heap_address(o);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o;
+exit_object_address_6:;
+    r_object_address_6; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o, 1U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(o + 16 + 8);
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_7 = c4_heap_address(o);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = o;
+exit_object_address_7:;
+    r_object_address_7; }) + 16 + 8);
 exit_load_ref_2:;
     r_load_ref_2; }), &e->dy);
     }

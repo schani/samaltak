@@ -545,6 +545,7 @@ static bool build_once(oop m)
     oop o_4;
     uint64_t bits_6;
     oop r;
+    uint64_t r_object_address;
     oop cls;
     int32_t v_6;
     int32_t r_guard;
@@ -880,7 +881,14 @@ exit_frame_ints:;
         goto exit_guard_receiver_class;
     }
     r = ob_frame->fp[-1];
-    cls = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(r + 8);
+    cls = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(r);
+        goto exit_object_address;
+    }
+    r_object_address = r;
+exit_object_address:;
+    r_object_address; }) + 8);
     if (cls == *(uint64_t *)(ob_root_method + 16 + 8)) {
         goto exit_guard_receiver_class;
     }

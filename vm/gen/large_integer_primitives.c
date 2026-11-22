@@ -72,6 +72,7 @@ static void answer(uint64_t *r, int64_t n, bool neg)
     uint64_t v_2;
     int64_t used;
     uint64_t o;
+    uint64_t r_pinned_body_address;
     k = n;
     while ((k > 0) && (r[k - 1] == 0)) {
         k = k - 1;
@@ -97,7 +98,14 @@ static void answer(uint64_t *r, int64_t n, bool neg)
         prim_error_code = PRIM_ERR_NO_MEMORY;
         return;
     }
-    memcpy((uint8_t *)(o + 16), r, (uint64_t)(k * 8));
+    memcpy((uint8_t *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable Point");
+        fatal_end();
+    }
+    r_pinned_body_address = o + 16;
+    r_pinned_body_address; }), r, (uint64_t)(k * 8));
     prim_result = o;
     prim_status = PS_OK;
 }
@@ -446,6 +454,8 @@ static int64_t lowest(uint64_t *x, int64_t n)
 static bool operand(oop o, large_operand *x)
 {
     int64_t v;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
     uint64_t c;
     uint64_t *p;
     int64_t n;
@@ -457,10 +467,24 @@ static bool operand(oop o, large_operand *x)
         x->neg = v < 0;
         return true;
     }
-    if (!(((o & 7) == 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES))) {
+    if (!(((o & 7) == 0) && ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES))) {
         return false;
     }
-    c = *(uint64_t *)(o + 8);
+    c = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 8);
     if (!((c == object_memory_special(SO_LARGEPOS)) || (c == object_memory_special(SO_LARGENEG)))) {
         return false;
     }

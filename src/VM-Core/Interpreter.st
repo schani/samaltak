@@ -147,6 +147,9 @@ c4CheckpointAt: pcPointer stack: stackTop base: stackBase frame: frame
 	frame isNull
 		ifTrue: [self saveCtxAt: pcPointer stack: stackTop base: stackBase]
 		ifFalse: [self saveFrame: frame at: pcPointer stack: stackTop base: stackBase].
+	vmMain c4Moving ifTrue: [
+		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 relocation checkpoint'].
+		c4 movePoll].
 	self c4Poll
 !
 c4Poll
@@ -314,12 +317,13 @@ methodStorage: m at: i
 	its initialized storage cannot be replaced. No weak or Context view."
 	| o f |
 	vmMain c4Enabled ifTrue: [
-		((self isPtr: m) and: [m ~= 0 and: [(self rawClass: m) = memory clsCompiledmethod and: [
-			(self formatOf: m) = F_FIXED and: [(self numSlots: m) > i]]]])
+		((self isPtr: m) and: [m ~= 0 and: [(c4 movable: m) not and: [(self rawClass: m) = memory clsCompiledmethod and: [
+			(self formatOf: m) = F_FIXED and: [(self numSlots: m) > i]]]]])
 			ifFalse: [self fatal: 'bad C4 CompiledMethod layout']].
 	o := self loadRef: m at: i.
 	vmMain c4Enabled ifTrue: [
-		((self isPtr: o) and: [o ~= 0 and: [o ~= memory nilOop]]) ifFalse: [self fatal: 'missing C4 method storage'].
+		((self isPtr: o) and: [o ~= 0 and: [o ~= memory nilOop and: [(c4 movable: o) not]]])
+			ifFalse: [self fatal: 'invalid C4 method storage'].
 		f := self formatOf: o.
 		(i = CM_LITERALS
 			ifTrue: [f = F_VAR or: [f = F_FIXED]]
