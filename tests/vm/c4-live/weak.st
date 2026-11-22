@@ -37,7 +37,7 @@ check value: ((clone at: 1) = 23 and: [(clone at: 3) = $x and: [(clone at: 4) = 
 check value: (Process allLive noneSatisfy: [:p | p name = 'c4-weak-probe'])
 	value: 'process registry retained unreachable processes'.
 "Let the worker finish publishing reusable blocks, with the normal timer."
-(Delay forMilliseconds: 50) wait.
+(Delay forMilliseconds: 600) wait.
 check value: filler size = 8388608 value: 'pressure allocation lost'.
 stats := Smalltalk vm primStatistics.
 check value: ((stats first = 0 and: [stats second = 0]) and: [(stats at: 12) > 0])

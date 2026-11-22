@@ -183,7 +183,7 @@ exit_object_address_4:;
         ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(a), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -270,7 +270,7 @@ exit_object_address_2:;
         return (uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -288,7 +288,7 @@ exit_canonical_oop:;
         return (uint8_t *)(uint32_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_2 = ({
@@ -551,7 +551,7 @@ void prim_clipboard_data(void)
     memcpy((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(result), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -781,7 +781,7 @@ exit_object_address_4:;
         ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -1275,7 +1275,7 @@ void prim_file_stat(void)
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -1315,7 +1315,7 @@ exit_store_ref:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_2), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_2 = ({
@@ -1365,7 +1365,7 @@ exit_object_address_3:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_3), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_3 = ({
@@ -1437,7 +1437,7 @@ exit_c4_code_store_rejected:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_4), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_4 = ({
@@ -1993,7 +1993,7 @@ void prim_gpu_compile_shader(void)
     memcpy((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(result), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -4136,7 +4136,7 @@ exit_canonical_oop_2:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_3), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -4176,7 +4176,7 @@ exit_store_ref:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_4), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_2 = ({
@@ -4226,7 +4226,7 @@ exit_object_address_6:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_5), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_3 = ({
@@ -4298,7 +4298,7 @@ exit_c4_code_store_rejected:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_6), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_4 = ({
@@ -4338,7 +4338,7 @@ exit_store_ref_4:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_7), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_5 = ({
@@ -4378,7 +4378,7 @@ exit_store_ref_5:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_8), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_6 = ({
@@ -4434,7 +4434,7 @@ exit_store_ref_6:;
         ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_9), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_7 = ({
@@ -4473,7 +4473,7 @@ exit_object_address_14:;
         ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_10), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_8 = ({
@@ -4514,7 +4514,7 @@ exit_object_address_15:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_11), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_9 = ({
@@ -4560,7 +4560,7 @@ exit_store_ref_9:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_12), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_10 = ({

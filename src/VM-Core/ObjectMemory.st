@@ -406,7 +406,7 @@ allocC4Try: cls format: fmt slots: n
 		first = 16rFFFFFFFF ifTrue: [^0]].
 	bytes := 16 + (8 * n asUInt64).
 	addr := self local: 'uint64_t'.
-	plain := (vmMain c4Moving and: [cls = clsPoint and: [fmt = F_FIXED and: [n = 2]]]) ifTrue: [1] ifFalse: [0].
+	plain := (vmMain c4Moving and: [fmt = F_FIXED and: [n = 2 and: [c4 plainClass: cls]]]) ifTrue: [1] ifFalse: [0].
 	o := c4 reserve: bytes plain: plain into: addr.
 	o = 0 ifTrue: [^0].
 	self initObjectAt: addr value class: cls format: fmt slots: n.

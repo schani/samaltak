@@ -67,9 +67,11 @@ loadImage: path
 importC4
 	"Startup only: all image references have been relocated."
 	<function>
-	| p fmt bytes slots refs sp cls first |
+	| p fmt bytes slots refs sp cls first association |
 	c4 contextClass: memory clsContext.
-	c4 pointClass: memory clsPoint.
+	vmMain c4Moving ifTrue: [
+		association := memory special: SO_ASSOCIATION.
+		c4 plainPoint: memory clsPoint message: memory clsMessage association: association].
 	c4 forwardByteClass: memory clsBytestring wideClass: (memory special: SO_WIDESTRING).
 	c4 nilOop: memory nilOop.
 	p := gc oldLo.

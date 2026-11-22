@@ -9,6 +9,7 @@ static void import_c4(void);
 /* ImageFile>>importC4 */
 static void import_c4(void)
 {
+    oop association;
     uint64_t p;
     uint64_t r_object_address;
     int32_t fmt;
@@ -26,7 +27,10 @@ static void import_c4(void)
     uint64_t r_object_address_7;
     oop sp;
     c4_heap_set_context_class(cls_context);
-    c4_heap_set_point_class(cls_point);
+    if (c4_moving) {
+        association = object_memory_special(SO_ASSOCIATION);
+        c4_heap_set_plain_classes(cls_point, cls_message, association);
+    }
     c4_heap_set_forward_classes(cls_bytestring, object_memory_special(SO_WIDESTRING));
     c4_heap_set_nil(nil_oop);
     p = old_lo;
@@ -259,7 +263,7 @@ exit_object_address_5:;
             s = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({

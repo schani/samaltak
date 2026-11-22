@@ -315,8 +315,9 @@ roots: fn
 		w := w max: hi]
 !
 methodStorage: m at: i
-	"C4 borrows interior views across safepoints. The method is rooted and
-	its initialized storage cannot be replaced. No weak or Context view."
+	"C4 borrows pinned storage across dispatch; literal entries are logical
+	oops, including movable Associations. The rooted method's initialized
+	storage cannot be replaced. No weak or Context view."
 	| o f |
 	vmMain c4Enabled ifTrue: [
 		((self isPtr: m) and: [m ~= 0 and: [(c4 movable: m) not and: [(self rawClass: m) = memory clsCompiledmethod and: [

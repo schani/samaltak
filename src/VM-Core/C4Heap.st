@@ -25,8 +25,12 @@ pinnedCapacity
 	<c: 'size_t c4_heap_pinned_capacity(void)'>
 	^0
 !
-pointClass: cls
-	<c: 'void c4_heap_set_point_class(uint64_t cls)'>
+plainPoint: point message: message association: association
+	<c: 'void c4_heap_set_plain_classes(uint64_t point, uint64_t message, uint64_t association)'>
+!
+plainClass: cls
+	<c: 'bool c4_heap_plain_class(uint64_t cls)'>
+	^false
 !
 threshold: bytes
 	<c: 'void c4_heap_set_threshold(size_t bytes)'>

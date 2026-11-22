@@ -567,7 +567,7 @@ static oop init_moving(size_t pinned_bytes)
     oop cls = (oop)(uintptr_t)p;
     initialize(cls, cls, F_FIXED, 0);
     assert(c4_heap_import(cls, 16, 0, C4_NO_WEAK));
-    c4_heap_set_point_class(cls);
+    c4_heap_set_plain_classes(cls, 0, 0);
     c4_heap_set_nil(cls);
     assert(c4_heap_start());
     return cls;
@@ -670,6 +670,61 @@ static void moving(void)
     assert(fresh != p[0] && c4_heap_address(fresh) == old[0]);
     assert(c4_heap_address(p[0]) != old[0] && body(p[0])[0] == header);
     assert(c4_heap_load_ref(weak, 0) == p[1] && c4_heap_load_ref(p[1], 1) == fresh);
+    c4_heap_stats();
+}
+
+static void moving_general(void)
+{
+    size_t cap = 5 * 16384;
+    void *base = mmap(NULL, cap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(base != MAP_FAILED && c4_heap_init_moving(base, cap));
+    oop cls = (oop)(uintptr_t)base, msg_class = cls + 16, assoc_class = cls + 32;
+    for (oop o = cls; o <= assoc_class; o += 16) {
+        initialize(o, cls, F_FIXED, 0);
+        assert(c4_heap_import(o, 16, 0, C4_NO_WEAK));
+    }
+    c4_heap_set_nil(cls);
+    c4_heap_set_plain_classes(cls, msg_class, assoc_class);
+    assert(c4_heap_start());
+    assert(c4_heap_plain_class(cls) && c4_heap_plain_class(msg_class) &&
+        c4_heap_plain_class(assoc_class) && !c4_heap_plain_class(0));
+
+    oop assoc = point(assoc_class, true), message = point(msg_class, true);
+    oop dead_assoc = point(assoc_class, true), dead_message = point(msg_class, true);
+    oop literals = alloc(cls, F_VAR, 2), weak = reserve_pinned(40);
+    initialize(weak, cls, F_WEAK, 3);
+    c4_heap_publish(weak, 3, 0);
+    c4_heap_store_ref(literals, 0, assoc);
+    c4_heap_store_ref(assoc, 1, message);
+    c4_heap_store_ref(message, 1, assoc);
+    c4_heap_store_ref(weak, 0, message);
+    c4_heap_store_ref(weak, 1, dead_assoc);
+    c4_heap_store_ref(weak, 2, dead_message);
+
+    /* Frame-like borrow into a pinned container; entries are oops,
+     * not addresses of the two-slot bodies. */
+    const oop *lits = body(literals) + 2;
+    uintptr_t old_assoc = (uintptr_t)body(assoc), old_message = (uintptr_t)body(message);
+    assert(c4_heap_begin());
+    c4_heap_root(literals);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    c4_heap_move_poll();
+
+    assert(lits == body(literals) + 2 && lits[0] == assoc);
+    assert((uintptr_t)body(lits[0]) != old_assoc);
+    assert((uintptr_t)body(message) != old_message);
+    assert(*(const oop *)old_assoc == UINT64_C(0xdddddddddddddddd));
+    assert(*(const oop *)old_message == UINT64_C(0xdddddddddddddddd));
+    assert(body(assoc)[1] == assoc_class && body(message)[1] == msg_class);
+    assert(body(lits[0])[3] == message && body(message)[3] == lits[0]);
+    assert(c4_heap_load_ref(weak, 0) == message);
+    assert(c4_heap_load_ref(weak, 1) == cls && c4_heap_load_ref(weak, 2) == cls);
+    assert(c4_heap_take_weak_clears() == 2);
+
+    c4_heap_store_ref(lits[0], 1, (oop)199);
+    assert(body(assoc)[3] == (oop)199 && c4_heap_load_ref(assoc, 1) == (oop)199);
     c4_heap_stats();
 }
 
@@ -1010,6 +1065,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "pinned-fit")) pinned_fit();
     else if (!strcmp(argv[1], "pinned-clear-split")) pinned_clear_split();
     else if (!strcmp(argv[1], "moving")) moving();
+    else if (!strcmp(argv[1], "moving-general")) moving_general();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else return 2;
     return 0;

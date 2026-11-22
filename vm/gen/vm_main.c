@@ -243,7 +243,7 @@ exit_load_ref_2:;
     ((oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(proc), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({

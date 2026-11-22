@@ -1556,7 +1556,7 @@ exit_load_ref:;
     f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_2), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -2266,7 +2266,7 @@ exit_load_ref:;
             f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_2), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -2356,7 +2356,7 @@ exit_load_ref_2:;
     f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_6), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_2 = ({
@@ -2403,7 +2403,7 @@ exit_load_ref_3:;
     f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_8), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_3 = ({
@@ -2569,7 +2569,7 @@ exit_load_ref_4:;
     f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_11), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_4 = ({
@@ -2635,7 +2635,7 @@ exit_load_ref_5:;
     f->lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_13), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_5 = ({

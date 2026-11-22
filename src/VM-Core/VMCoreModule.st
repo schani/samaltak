@@ -107,11 +107,11 @@ fmtHasPointers: f
 	^f >= 1 and: [f <= 4]
 !
 bodyAddress: o
-	"Physical payload address, not an oop. A raw view of a movable object must not cross dispatch."
+	"Resolve for a scalar access only. Escaping interior views must use pinnedBodyAddress:."
 	^(self objectAddress: o) + 16
 !
 pinnedBodyAddress: o
-	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable Point'].
+	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable object'].
 	^(self canonicalOop: o) + 16
 !
 slotsOf: o

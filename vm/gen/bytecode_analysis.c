@@ -212,7 +212,7 @@ exit_load_ref_4:;
     ana_bcs = (uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(bc), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
@@ -227,7 +227,7 @@ exit_canonical_oop:;
     ana_lits = (oop *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(lo), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address_2 = ({

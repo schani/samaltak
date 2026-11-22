@@ -73,9 +73,11 @@ enum {
     NO_REGION = REGION_COUNT
 };
 
+enum plain_kind { PLAIN_POINT, PLAIN_MESSAGE, PLAIN_ASSOCIATION, PLAIN_KINDS };
+
 typedef struct {
     c4_cell trace;
-    _Atomic uint64_t shadow[3];   /* class, x, y: no physical addresses */
+    _Atomic uint64_t shadow[3];   /* class, field 0, field 1: all logical oops */
     uintptr_t addr;               /* mutator only */
     uint32_t next_free;
 } c4_point;
@@ -87,7 +89,7 @@ typedef struct {
 
 typedef struct {
     uintptr_t tokens, pool;
-    uint64_t point_class;
+    uint64_t plain_classes[PLAIN_KINDS];
     c4_point points[POINT_IDS];
     c4_region region[REGION_COUNT];
     _Atomic uint32_t occupied;    /* logical bodies; excludes evacuation aliases */
@@ -98,7 +100,7 @@ typedef struct {
     uint32_t source, source_live, reserve, next_source, cursor;
     uint32_t free_ids, retired_head, retired_tail;
     uint32_t peak, body_slots, body_peak, max_inspected, max_copied;
-    uint64_t moved, inspected, released, dense, source_reused, fallback;
+    uint64_t moved, moved_kind[PLAIN_KINDS], inspected, released, dense, source_reused, fallback;
 } c4_move_lane;
 
 static struct {
@@ -320,7 +322,8 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
     if (!heap.started || !heap.bytes_class || from == to || from == heap.nil ||
         from == heap.context_class || from == heap.bytes_class ||
         from == heap.wide_class || to == heap.nil || to == heap.context_class ||
-        to == heap.bytes_class || to == heap.wide_class)
+        to == heap.bytes_class || to == heap.wide_class ||
+        c4_heap_plain_class(from) || c4_heap_plain_class(to))
         return false;
 
     unsigned phase = acquire(&heap.phase);
@@ -627,10 +630,27 @@ size_t c4_heap_pinned_capacity(void)
     return (size_t)heap.capacity * 8;
 }
 
-void c4_heap_set_point_class(uint64_t cls)
+void c4_heap_set_plain_classes(uint64_t point, uint64_t message, uint64_t association)
 {
-    if (heap.started) bad_contract("Point class after start");
-    if (heap.moving) heap.moving->point_class = cls;
+    if (heap.started) bad_contract("plain classes after start");
+    c4_move_lane *m = heap.moving;
+    if (!m) return;
+    m->plain_classes[PLAIN_POINT] = point;
+    m->plain_classes[PLAIN_MESSAGE] = message;
+    m->plain_classes[PLAIN_ASSOCIATION] = association;
+}
+
+static enum plain_kind plain_kind(const c4_move_lane *m, uint64_t cls)
+{
+    if (m && cls)
+        for (unsigned i = 0; i < PLAIN_KINDS; ++i)
+            if (m->plain_classes[i] == cls) return i;
+    return PLAIN_KINDS;
+}
+
+bool c4_heap_plain_class(uint64_t cls)
+{
+    return plain_kind(heap.moving, cls) != PLAIN_KINDS;
 }
 
 void c4_heap_set_threshold(size_t bytes)
@@ -670,7 +690,7 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
     unsigned format = (header >> H_FMT_SHIFT) & H_FMT_MASK;
     if (c4_heap_movable(obj[1]) ||
         (at >= heap.capacity && (format != F_FIXED || refs != 2 ||
-            obj[1] != heap.moving->point_class)) ||
+            !c4_heap_plain_class(obj[1]))) ||
         (uint32_t)header != words - 2 ||
         refs != (format >= F_FIXED && format <= F_WEAK ? words - 2 : 0) ||
         ((format == F_WEAK) != (weak_start != C4_NO_WEAK)) ||
@@ -732,10 +752,14 @@ bool c4_heap_start(void)
         if (refs_at(relaxed(&cell->layout), at) >= C4_RESERVED) return false;
     }
     if (heap.moving) {
-        uint32_t at;
-        if (!offset(heap.moving->point_class, &at) || at >= relaxed(&heap.top)) return false;
-        c4_cell *cell = cell_at(at);
-        if (refs_at(relaxed(&cell->layout), at) >= C4_RESERVED) return false;
+        if (!heap.moving->plain_classes[PLAIN_POINT]) return false;
+        for (unsigned i = 0; i < PLAIN_KINDS; ++i) {
+            uint64_t cls = heap.moving->plain_classes[i];
+            if (!cls) continue;
+            uint32_t at;
+            if (cls == heap.context_class || !live_pinned(cls, &at) ||
+                plain_kind(heap.moving, cls) != i) return false;
+        }
     }
     uint32_t at;
     if (heap.bytes_class && (!live_pinned(heap.bytes_class, &at) ||
@@ -917,7 +941,7 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
     if (heap.unpublished) bad_contract("nested private reserve");
     uint64_t obj = 0;
     if (lane == C4_PLAIN && heap.moving) {
-        if (bytes != POINT_BYTES) bad_contract("non-Point extent in Point lane");
+        if (bytes != POINT_BYTES) bad_contract("invalid extent in two-slot lane");
         obj = reserve_point();
         if (!obj) {
             ++heap.moving->fallback;
@@ -1088,6 +1112,9 @@ void c4_heap_move_poll(void)
             point->addr = dest;
             copied += POINT_BYTES;
             ++m->moved;
+            enum plain_kind kind = plain_kind(m, relaxed(&point->shadow[0]));
+            if (kind == PLAIN_KINDS) bad_contract("unregistered movable class");
+            ++m->moved_kind[kind];
         }
 #ifdef SAMALTAK_C4_TEST
         memset((void *)old, 0xdd, POINT_BYTES);
@@ -1137,7 +1164,9 @@ bool c4_heap_begin(void)
     ++heap.cycles_started;
     release(&heap.phase, C4_ROOTS);
     if (heap.nil) shade_mutator(heap.nil);
-    if (m) shade_mutator(m->point_class);
+    if (m)
+        for (unsigned i = 0; i < PLAIN_KINDS; ++i)
+            if (m->plain_classes[i]) shade_mutator(m->plain_classes[i]);
     if (heap.bytes_class) {
         shade_mutator(heap.bytes_class);
         shade_mutator(heap.wide_class);
@@ -1223,12 +1252,14 @@ void c4_heap_stats(void)
         " live_bytes=%u peak_live_bytes=%u body_bytes=%u peak_body_bytes=%u pinned_fallback=%" PRIu64
         " moved=%" PRIu64 " inspected=%" PRIu64 " released=%" PRIu64
         " dense=%" PRIu64 " source_reused=%" PRIu64
+        " moved_point=%" PRIu64 " moved_message=%" PRIu64 " moved_association=%" PRIu64
         " max_inspected=%u max_copied=%u\n",
         REGION_COUNT * REGION_BYTES, REGION_BYTES, POINT_IDS, sizeof *m,
         relaxed(&m->occupied) * POINT_BYTES, m->peak * POINT_BYTES,
         m->body_slots * POINT_BYTES, m->body_peak * POINT_BYTES, m->fallback,
         m->moved, m->inspected, m->released, m->dense, m->source_reused,
-        m->max_inspected, m->max_copied);
+        m->moved_kind[PLAIN_POINT], m->moved_kind[PLAIN_MESSAGE],
+        m->moved_kind[PLAIN_ASSOCIATION], m->max_inspected, m->max_copied);
 }
 
 #endif

@@ -129,7 +129,7 @@ static void answer(uint64_t *r, int64_t n, bool neg)
     memcpy((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o), 0)) {
         fatal_begin();
-        fprintf(stderr, "raw body view of a movable Point");
+        fprintf(stderr, "raw body view of a movable object");
         fatal_end();
     }
     r_pinned_body_address = ({
