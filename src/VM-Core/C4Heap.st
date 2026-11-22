@@ -80,6 +80,12 @@ becomeForward: from to: to
 forbidBecome: obj
 	<c: 'void c4_heap_forbid_become(uint64_t obj)'>
 !
+enterRawRead
+	<c: 'void c4_heap_enter_raw_read(void)'>
+!
+leaveRawRead
+	<c: 'void c4_heap_leave_raw_read(void)'>
+!
 movable: obj
 	<c: 'bool c4_heap_movable(uint64_t obj)'>
 	^false

@@ -23,7 +23,8 @@ String compile: 'c4BecomeCheckRawRootAfter: ignored hash: hash
 		ByteArray new: 1048579.
 		1 to: 8000 do: [:i | i + 1]].
 	^self class == WideString and: [self identityHash = hash and: [
-		self size = 5003 and: [(self at: 1) codePoint = 955]]]'.
+		self size = 5003 and: [(self at: 1) codePoint = 955 and: [
+			(self indexOfSubCollection: (String with: (Character value: 955)) startingAt: 1) = 1]]]]'.
 StringTest compile: 'c4BecomeStack
 	| old target hash pair |
 	old := ByteString new: 1.
@@ -81,6 +82,10 @@ check value: test c4BecomeQuickLiteral == target value: 'quick literal returned 
 (StringTest >> #c4BecomeLiteralSize) literals first becomeForward: target.
 check value: test c4BecomeLiteralSize = 11 value: 'literal dispatch used old class or length'.
 check value: test c4BecomeStack value: 'stale stack receiver did not keep target alive'.
+source := '01234567890123456789 borrowed bytes'.
+check value: (source indexOfSubCollection: 'borrowed bytes' startingAt: 1) = 22 value: 'byte search missed'.
+check value: (source indexOfSubCollection: source startingAt: 1) = 1 value: 'aliased byte search missed'.
+check value: (source indexOfSubCollection: 'not there' startingAt: 1) = 0 value: 'byte search false match'.
 test c4BecomeHeap: check.
 Smalltalk vm stdoutWrite: 'become aliases ok', (String with: Character lf).
 Smalltalk quit: 0

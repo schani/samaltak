@@ -59,6 +59,13 @@ uint64_t c4_heap_canonical(uint64_t obj);
 /* A live pinned object with a borrowed raw view cannot become until reused.
  * Do not pass an already-forwarded raw source here. */
 void c4_heap_forbid_become(uint64_t obj);
+/* Non-nesting synchronous raw read on the sole mutator. Enter before
+ * getting interior pointers, leave before any dispatch/idle poll or
+ * forwarding. The caller must already keep owners live in VM roots;
+ * this neither roots nor pins anything and does not permit pointer escape.
+ * The VM's raw body accessors still reject movable owners. */
+void c4_heap_enter_raw_read(void);
+void c4_heap_leave_raw_read(void);
 /* Class word and body slot writes, respectively. Neither is a post-store hook. */
 void c4_heap_store_class(uint64_t owner, uint64_t value);
 void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value);
@@ -128,6 +135,8 @@ static inline bool c4_heap_become_forward(uint64_t from, uint64_t to)
 static inline bool c4_heap_has_forwarding(void) { return false; }
 static inline uint64_t c4_heap_canonical(uint64_t obj) { return obj; }
 static inline void c4_heap_forbid_become(uint64_t obj) { (void)obj; }
+static inline void c4_heap_enter_raw_read(void) { }
+static inline void c4_heap_leave_raw_read(void) { }
 static inline void c4_heap_store_class(uint64_t obj, uint64_t value)
 { ((uint64_t *)(uintptr_t)obj)[1] = value; }
 static inline void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)

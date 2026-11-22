@@ -467,7 +467,12 @@ primStringIndexOfSubstring
 	m := (memory stringSize: p) asInt64.
 	m = 0 ifTrue: [^self answer: s].
 	((self formatOf: r) >= F_BYTES and: [(self formatOf: p) >= F_BYTES]) ifTrue: [
-		^self answer: (self intOop: (search indexOfBytes: (self bytesOf: p) size: m in: (self bytesOf: r) size: n from: (self intVal: s) - 1) + 1)].
+		"Owners stay on the primitive stack. Search only reads; it cannot
+		retain a pointer, allocate, reenter the VM or service a poll."
+		vmMain c4Enabled ifTrue: [c4 enterRawRead].
+		k := search indexOfBytes: (self bytesOf: p) size: m in: (self bytesOf: r) size: n from: (self intVal: s) - 1.
+		vmMain c4Enabled ifTrue: [c4 leaveRawRead].
+		^self answer: (self intOop: k + 1)].
 	((self formatOf: r) < F_BYTES and: [(self formatOf: p) < F_BYTES]) ifTrue: [
 		w := self words32Of: r.
 		v := self words32Of: p.

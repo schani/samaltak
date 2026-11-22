@@ -143,7 +143,7 @@ static struct {
 
     /* Mutator-owned, apart from explicitly atomic publication above. */
     size_t threshold, since_begin;  /* bytes */
-    bool started, pressure;
+    bool started, pressure, raw_read;
     uint64_t unpublished;         /* sole private reserve; cannot cross a poll */
     uint32_t unpublished_words;   /* exact body size, excluding extent padding */
     uint64_t imports, cycles_started, closed, close_retries, allocated, reused, failed;
@@ -159,6 +159,24 @@ static _Noreturn void bad_contract(const char *what)
 {
     fprintf(stderr, "C4 heap invariant: %s\n", what);
     abort();
+}
+
+void c4_heap_enter_raw_read(void)
+{
+    if (!heap.started || heap.unpublished || heap.raw_read)
+        bad_contract("invalid synchronous raw read entry");
+    heap.raw_read = true;
+}
+
+void c4_heap_leave_raw_read(void)
+{
+    if (!heap.raw_read) bad_contract("unbalanced synchronous raw read exit");
+    heap.raw_read = false;
+}
+
+static inline void require_raw_read_quiescence(const char *what)
+{
+    if (heap.raw_read) bad_contract(what);
 }
 
 static bool object_size(size_t bytes, uint32_t *words)
@@ -376,6 +394,7 @@ void c4_heap_forbid_become(uint64_t obj)
 
 bool c4_heap_become_forward(uint64_t from, uint64_t to)
 {
+    require_raw_read_quiescence("forwarding during synchronous raw read");
     uint32_t src, dst;
     if (!heap.started || !heap.bytes_class || from == to || from == heap.nil ||
         from == heap.context_class || from == heap.bytes_class ||
@@ -1332,6 +1351,7 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
 
 void c4_heap_move_poll(void)
 {
+    require_raw_read_quiescence("relocation poll during synchronous raw read");
     c4_move_lane *m = heap.moving;
     if (!m || m->source == NO_REGION || acquire(&heap.phase) != C4_IDLE) return;
     if (heap.unpublished) bad_contract("private reserve at move poll");
@@ -1449,6 +1469,7 @@ void c4_heap_enum_finish(void)
 
 bool c4_heap_begin(void)
 {
+    require_raw_read_quiescence("cycle start during synchronous raw read");
     if (!heap.started || acquire(&heap.phase) != C4_IDLE) return false;
     if (heap.unpublished) bad_contract("private reserve at cycle start");
     c4_move_lane *m = heap.moving;
@@ -1518,6 +1539,7 @@ void c4_heap_end_roots(void)
 
 void c4_heap_finish_poll(void)
 {
+    require_raw_read_quiescence("close poll during synchronous raw read");
     if (acquire(&heap.phase) != C4_CLOSE) return;
     /* Only we can publish inbox work, and no barrier can straddle this
      * checkpoint. Worker is parked and cannot drain until phase changes. */

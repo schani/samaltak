@@ -618,7 +618,7 @@ static const oop *body(oop obj)
     return (const oop *)(uintptr_t)c4_heap_address(obj);
 }
 
-static void moving(void)
+static void moving(bool leak_read)
 {
     enum { SLOTS = 512 };
     oop cls = init_moving(16384);
@@ -668,6 +668,9 @@ static void moving(void)
     assert(c4_heap_load_ref(weak, 1) == cls);
     assert(c4_heap_address(p[0]) == old[0]);  /* sweep does not relocate */
     assert(!c4_heap_begin());               /* also blocks epoch re-arm */
+    c4_heap_enter_raw_read();
+    assert(body(p[0])[0] == header);
+    if (!leak_read) c4_heap_leave_raw_read();
     for (unsigned poll = 0; poll < 8; ++poll) {
         unsigned before = poll * 64;
         c4_heap_move_poll();
@@ -804,6 +807,36 @@ static oop forward_start(size_t extra, oop *bytes_class, oop *wide_class)
     assert(c4_heap_start());
     assert(!c4_heap_has_forwarding());
     return nil;
+}
+
+static void raw_read(const char *op)
+{
+    oop bc, wc;
+    forward_start(2 * extent(1), &bc, &wc);
+    oop from = alloc(bc, F_BYTES + 7, 1);
+    oop to = alloc(wc, F_W32 + 1, 1);
+    if (!strcmp(op, "unpaired")) c4_heap_leave_raw_read();
+
+    if (strcmp(op, "start")) {
+        assert(c4_heap_begin());
+        c4_heap_root(from);
+        c4_heap_root(to);
+        c4_heap_end_roots();
+        while (!atomic_load(&proposals)) sched_yield();
+    }
+
+    c4_heap_enter_raw_read();
+    assert(body(from)[2] == 1);
+    if (!strcmp(op, "nest")) c4_heap_enter_raw_read();
+    if (!strcmp(op, "start")) c4_heap_begin();
+    if (!strcmp(op, "close")) c4_heap_finish_poll();
+    if (!strcmp(op, "forward")) c4_heap_become_forward(from, to);
+    c4_heap_leave_raw_read();
+
+    assert(!strcmp(op, "ok"));
+    finish_cycle();
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_address(from) == to);
 }
 
 static oop weak_owner(oop cls, uint32_t slots)
@@ -1475,7 +1508,9 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "forward-pinned-overlap")) forward_pinned_overlap();
     else if (!strcmp(argv[1], "pinned-fit")) pinned_fit();
     else if (!strcmp(argv[1], "pinned-clear-split")) pinned_clear_split();
-    else if (!strcmp(argv[1], "moving")) moving();
+    else if (!strcmp(argv[1], "moving")) moving(false);
+    else if (!strcmp(argv[1], "raw-read-move")) moving(true);
+    else if (!strncmp(argv[1], "raw-read-", 9)) raw_read(argv[1] + 9);
     else if (!strcmp(argv[1], "moving-general")) moving_general();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else if (!strcmp(argv[1], "enumeration")) enumeration();

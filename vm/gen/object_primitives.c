@@ -4898,6 +4898,7 @@ void prim_string_index_of_substring(void)
     uint64_t r_canonical_oop_4;
     uint64_t r_pinned_body_address_2;
     uint64_t r_canonical_oop_5;
+    int64_t k;
     int64_t v_2;
     uint64_t v_3;
     uint64_t r_object_address_4;
@@ -4912,7 +4913,6 @@ void prim_string_index_of_substring(void)
     int64_t v_4;
     uint64_t v_5;
     int64_t i_2;
-    int64_t k;
     int64_t v_6;
     uint64_t v_7;
     o = prim_base[0];
@@ -4984,7 +4984,10 @@ exit_object_address_2:;
     r_object_address_3 = p;
 exit_object_address_3:;
     r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES)) {
-        v_2 = index_of_bytes((uint8_t *)({
+        if (c4_enabled) {
+            c4_heap_enter_raw_read();
+        }
+        k = index_of_bytes((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(p), 0)) {
         fatal_begin();
         fprintf(stderr, "raw body view of a movable object");
@@ -5012,7 +5015,11 @@ exit_canonical_oop_4:;
     r_canonical_oop_5 = r;
 exit_canonical_oop_5:;
     r_canonical_oop_5; }) + 16;
-    r_pinned_body_address_2; }), n, (((int64_t)s) >> 1) - 1) + 1;
+    r_pinned_body_address_2; }), n, (((int64_t)s) >> 1) - 1);
+        if (c4_enabled) {
+            c4_heap_leave_raw_read();
+        }
+        v_2 = k + 1;
         v_3 = (uint64_t)((v_2 << 1) | 1);
         prim_result = v_3;
         prim_status = PS_OK;
