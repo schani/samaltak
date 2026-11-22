@@ -2485,6 +2485,188 @@ exit_byte_at:;
     prim_status = PS_OK;
 }
 
+/* ObjectPrimitives>>primC4AllInstancesRequest */
+void prim_c4_all_instances_request(void)
+{
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t cls;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t sem;
+    oop o_3;
+    uint64_t r_canonical_oop_3;
+    uint64_t carrier;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop r_load_ref;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
+    oop r_load_ref_2;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
+    uint64_t r_object_address_9;
+    oop r_load_ref_3;
+    uint64_t r_object_address_10;
+    uint64_t r_object_address_11;
+    if (!(c4_enabled && (prim_nargs == 2))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    o = prim_base[0];
+    cls = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    sem = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
+    o_3 = prim_base[2];
+    carrier = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_3 = c4_heap_canonical(o_3);
+        goto exit_canonical_oop_3;
+    }
+    r_canonical_oop_3 = o_3;
+exit_canonical_oop_3:;
+    r_canonical_oop_3; });
+    if (!(((cls & 7) == 0) && ((cls != 0) && ((cls != nil_oop) && (((sem & 7) == 0) && ((sem != 0) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(sem);
+        goto exit_object_address;
+    }
+    r_object_address = sem;
+exit_object_address:;
+    r_object_address; }) + 8) == object_memory_special(SO_SEMAPHORE)) && (((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(sem);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = sem;
+exit_object_address_2:;
+    r_object_address_2; }) == 3) && ((({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(sem);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = sem;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(sem, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(sem);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = sem;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 0);
+exit_load_ref:;
+    r_load_ref; }) == nil_oop) && (({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(sem);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = sem;
+exit_object_address_5:;
+    r_object_address_5; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(sem, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(sem);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = sem;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; }) == 1ULL)))))))))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    if (!(((carrier & 7) == 0) && ((carrier != 0) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_7 = c4_heap_address(carrier);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = carrier;
+exit_object_address_7:;
+    r_object_address_7; }) + 8) == cls_array) && (((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_8 = c4_heap_address(carrier);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = carrier;
+exit_object_address_8:;
+    r_object_address_8; }) == 1) && ((!(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_9 = c4_heap_address(carrier);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = carrier;
+exit_object_address_9:;
+    r_object_address_9; })) & H_IMMUTABLE) != 0)) && (({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_10 = c4_heap_address(carrier);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = carrier;
+exit_object_address_10:;
+    r_object_address_10; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_3 = c4_load_ref(carrier, 0U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_11 = c4_heap_address(carrier);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = carrier;
+exit_object_address_11:;
+    r_object_address_11; }) + 16 + 0);
+exit_load_ref_3:;
+    r_load_ref_3; }) == nil_oop))))))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    if (!c4_enum_request(cls, sem, carrier)) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    prim_result = cls;
+    prim_status = PS_OK;
+}
+
 /* ObjectPrimitives>>primChangeClassTo */
 void prim_change_class_to(void)
 {

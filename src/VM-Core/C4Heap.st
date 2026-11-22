@@ -107,6 +107,23 @@ top
 	^0
 ! !
 
+!C4Heap methodsFor: 'enumeration'!
+enumRequest: cls maxRoots: n excluding: sem and: carrier
+	<c: 'bool c4_heap_enum_request(uint64_t cls, uint32_t n, uint64_t sem, uint64_t carrier)'>
+	^false
+!
+enumCount
+	<c: 'int32_t c4_heap_enum_count(void)'>
+	^-2
+!
+enumAt: i
+	<c: 'uint64_t c4_heap_enum_at(uint32_t i)'>
+	^0
+!
+enumFinish
+	<c: 'void c4_heap_enum_finish(void)'>
+! !
+
 !C4Heap methodsFor: 'cycles'!
 beginCycle
 	<c: 'bool c4_heap_begin(void)'>

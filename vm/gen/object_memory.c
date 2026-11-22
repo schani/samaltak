@@ -27,7 +27,6 @@ bool word_hash = true;
 
 static uint64_t alloc_c4(oop cls, int32_t fmt, uint32_t n);
 static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n);
-static uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n);
 static uint64_t alloc_slow(oop *cls, uint64_t bytes);
 static uint64_t alloc_words32(oop cls, uint64_t n);
 static uint32_t fnv_hash(uint64_t s);
@@ -237,7 +236,7 @@ uint64_t alloc_old(oop cls, int32_t fmt, uint32_t n)
 }
 
 /* ObjectMemory>>allocOldTry:format:slots: */
-static uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n)
+uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n)
 {
     oop local;
     oop *cls_root;

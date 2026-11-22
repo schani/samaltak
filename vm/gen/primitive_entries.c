@@ -82,6 +82,7 @@ primitive_entry vm_primitive_table[] = {
     {91, 2, "charFromValue", prim_char_from_value},
     {92, 2, "stringAsUppercase", prim_string_as_uppercase},
     {93, 2, "stringAsLowercase", prim_string_as_lowercase},
+    {94, 0, "c4AllInstancesRequest", prim_c4_all_instances_request},
     {100, 3, "stringAt", prim_string_at},
     {101, 3, "stringAtPut", prim_string_at_put},
     {102, 3, "stringHash", prim_string_hash},

@@ -9,6 +9,11 @@ static bool alloc_sample_pending;
 int32_t alloc_sample_sema;
 int64_t alloc_sample_size;
 bool alloc_sample_unread;
+static oop c4_enum_carrier;
+static uint32_t c4_enum_index;
+static bool c4_enum_pending;
+static oop c4_enum_result;
+static oop c4_enum_semaphore;
 static bool c4_finalization_pending;
 static int64_t frame_fps;
 static int64_t frame_index;
@@ -687,6 +692,193 @@ void c4_collect_weak_clears(void)
     }
 }
 
+/* Scheduler>>c4EnumPoll */
+void c4_enum_poll(void)
+{
+    int32_t n;
+    uint32_t end;
+    uint64_t v;
+    bool r_c4_code_store_rejected;
+    uint64_t r_object_address;
+    oop r_load_ref;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t r_object_address_5;
+    bool r_c4_code_store_rejected_2;
+    uint64_t r_pinned_body_address_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t r_object_address_6;
+    if (c4_enum_semaphore == 0) {
+        return;
+    }
+    n = c4_heap_enum_count();
+    if (n == -2) {
+        return;
+    }
+    if (n >= 0) {
+        if (c4_enum_result == 0) {
+            c4_enum_result = alloc_old_try(cls_array, F_VAR, (uint32_t)n);
+        }
+        if (c4_enum_result != 0) {
+            end = c4_enum_index + 64 < (uint32_t)n ? c4_enum_index + 64 : (uint32_t)n;
+            while (c4_enum_index < end) {
+                v = c4_heap_enum_at(c4_enum_index);
+                if (__builtin_expect(c4_enabled, 0)) {
+                    if (({
+    if ((c4_enum_index == CTX_METHOD) && ((c4_enum_result == active_ctx) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(c4_enum_result);
+        goto exit_object_address;
+    }
+    r_object_address = c4_enum_result;
+exit_object_address:;
+    r_object_address; }) + 8) == cls_context))) {
+        r_c4_code_store_rejected = v != ({
+    if (__builtin_expect(c4_enabled, 0) && ((c4_enum_index >= CTX_FIXED) || (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(c4_enum_result);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = c4_enum_result;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)))) {
+        r_load_ref = c4_load_ref(c4_enum_result, c4_enum_index);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(c4_enum_result);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = c4_enum_result;
+exit_object_address_3:;
+    r_object_address_3; }) + 16 + 8 * c4_enum_index);
+exit_load_ref:;
+    r_load_ref; });
+        goto exit_c4_code_store_rejected;
+    }
+    r_c4_code_store_rejected = ((c4_enum_index == CM_LITERALS) || ((c4_enum_index == CM_BYTECODES) || (c4_enum_index == SO_COMPILEDMETHOD))) && c4_cannot_replace_code_slot(c4_enum_result, c4_enum_index, v);
+exit_c4_code_store_rejected:;
+    r_c4_code_store_rejected; })) {
+                        fatal_begin();
+                        fprintf(stderr, "C4 cannot replace compiled method storage");
+                        fatal_end();
+                    }
+                    if ((c4_enum_index == CTX_STACKP) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(c4_enum_result);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = c4_enum_result;
+exit_object_address_4:;
+    r_object_address_4; }) + 8) == cls_context)) {
+                        c4_store_context_stackp(c4_enum_result, v);
+                    } else {
+                        c4_heap_store_ref(c4_enum_result, c4_enum_index, v);
+                    }
+                    goto exit_store_ref;
+                }
+                ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(c4_enum_result), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(c4_enum_result);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = c4_enum_result;
+exit_canonical_oop:;
+    r_canonical_oop; }) + 16;
+    r_pinned_body_address; }))[c4_enum_index] = v;
+                if (((v & 7) == 0) && ((v - young_lo < young_hi - young_lo) && ((!((uint64_t)(c4_enum_result - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(c4_enum_result);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = c4_enum_result;
+exit_object_address_5:;
+    r_object_address_5; })) & H_REMEMBERED) == 0)))) {
+                    remember(c4_enum_result);
+                }
+            exit_store_ref:;
+                c4_enum_index = c4_enum_index + 1;
+            }
+            if (c4_enum_index < (uint32_t)n) {
+                return;
+            }
+            if (__builtin_expect(c4_enabled, 0)) {
+                if (({
+    r_c4_code_store_rejected_2 = false;
+    r_c4_code_store_rejected_2; })) {
+                    fatal_begin();
+                    fprintf(stderr, "C4 cannot replace compiled method storage");
+                    fatal_end();
+                }
+                c4_heap_store_ref(c4_enum_carrier, 0U, c4_enum_result);
+                goto exit_store_ref_2;
+            }
+            ((oop *)({
+    if (__builtin_expect(c4_moving && c4_heap_movable(c4_enum_carrier), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    r_pinned_body_address_2 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(c4_enum_carrier);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = c4_enum_carrier;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; }) + 16;
+    r_pinned_body_address_2; }))[0] = c4_enum_result;
+            if (((c4_enum_result & 7) == 0) && (((uint64_t)(c4_enum_result - young_lo) < young_hi - young_lo) && ((!((uint64_t)(c4_enum_carrier - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(c4_enum_carrier);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = c4_enum_carrier;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0)))) {
+                remember(c4_enum_carrier);
+            }
+        exit_store_ref_2:;
+        }
+    }
+    c4_enum_result = 0;
+    c4_enum_index = 0;
+    c4_heap_enum_finish();
+    c4_enum_pending = true;
+    request_interrupt_check();
+}
+
+/* Scheduler>>c4EnumRequest:semaphore:carrier: */
+bool c4_enum_request(uint64_t cls, uint64_t sem, uint64_t carrier)
+{
+    if (c4_enum_semaphore != 0) {
+        return false;
+    }
+    if (!c4_heap_enum_request(cls, 262200, sem, carrier)) {
+        return false;
+    }
+    c4_enum_semaphore = sem;
+    c4_enum_carrier = carrier;
+    return true;
+}
+
+/* Scheduler>>c4EnumRoots */
+void c4_enum_roots(void)
+{
+    c4_heap_root(c4_enum_semaphore);
+    c4_heap_root(c4_enum_carrier);
+}
+
 /* Scheduler>>handleInterrupts */
 void handle_interrupts(void)
 {
@@ -699,6 +891,7 @@ void handle_interrupts(void)
     int32_t f_2;
     uint64_t r_object_address_4;
     int32_t i;
+    oop sem;
     atomic_exchange(&interrupt_pending[0], 0);
     platform_interface_poll();
     now = now_us();
@@ -787,6 +980,15 @@ exit_object_address_4:;
         signal_index(pending_ext[i]);
     }
     pending_ext_n = 0;
+    if (!c4_enum_pending) {
+        goto exit_c4_enum_signal;
+    }
+    sem = c4_enum_semaphore;
+    c4_enum_semaphore = 0;
+    c4_enum_carrier = 0;
+    c4_enum_pending = false;
+    scheduler_semaphore_signal(sem);
+exit_c4_enum_signal:;
     tick_update();
 }
 
@@ -830,7 +1032,7 @@ static void idle_wait(void)
         c4_poll();
     }
     pause_charging();
-    if ((pending_ext_n == 0) && ((!alloc_sample_pending) && (!c4_finalization_pending))) {
+    if ((pending_ext_n == 0) && ((!alloc_sample_pending) && ((!c4_finalization_pending) && (!c4_enum_pending)))) {
         if (work_clock_on) {
             now_2 = ({
     if (!((work_clock_running || work_clock_paced) && (!work_clock_held))) {
@@ -915,10 +1117,10 @@ exit_work_clock_sync:;
                 if (c4_enabled) {
                     busy = c4_heap_busy();
                     c4_collect_weak_clears();
-                    if (c4_finalization_pending) {
+                    if (c4_finalization_pending || c4_enum_pending) {
                         goto exit_idle_platform_wait;
                     }
-                    if (busy && ((us_2 < 0) || (us_2 > 1000))) {
+                    if ((busy || (c4_enum_semaphore != 0)) && ((us_2 < 0) || (us_2 > 1000))) {
                         us_2 = 1000;
                     }
                 }
@@ -935,10 +1137,10 @@ exit_work_clock_sync:;
                     if (c4_enabled) {
                         busy_2 = c4_heap_busy();
                         c4_collect_weak_clears();
-                        if (c4_finalization_pending) {
+                        if (c4_finalization_pending || c4_enum_pending) {
                             goto exit_idle_platform_wait_2;
                         }
-                        if (busy_2 && ((us_3 < 0) || (us_3 > 1000))) {
+                        if ((busy_2 || (c4_enum_semaphore != 0)) && ((us_3 < 0) || (us_3 > 1000))) {
                             us_3 = 1000;
                         }
                     }
@@ -984,10 +1186,10 @@ exit_work_clock_thread_cycles_2:;
             if (c4_enabled) {
                 busy_3 = c4_heap_busy();
                 c4_collect_weak_clears();
-                if (c4_finalization_pending) {
+                if (c4_finalization_pending || c4_enum_pending) {
                     goto exit_idle_platform_wait_3;
                 }
-                if (busy_3 && ((us_4 < 0) || (us_4 > 1000))) {
+                if ((busy_3 || (c4_enum_semaphore != 0)) && ((us_4 < 0) || (us_4 > 1000))) {
                     us_4 = 1000;
                 }
             }
@@ -998,10 +1200,10 @@ exit_work_clock_thread_cycles_2:;
             if (c4_enabled) {
                 busy_4 = c4_heap_busy();
                 c4_collect_weak_clears();
-                if (c4_finalization_pending) {
+                if (c4_finalization_pending || c4_enum_pending) {
                     goto exit_idle_platform_wait_4;
                 }
-                if (busy_4 && ((us_5 < 0) || (us_5 > 1000))) {
+                if ((busy_4 || (c4_enum_semaphore != 0)) && ((us_5 < 0) || (us_5 > 1000))) {
                     us_5 = 1000;
                 }
             }
@@ -1604,10 +1806,10 @@ exit_work_clock_sync:;
             if (c4_enabled) {
                 busy = c4_heap_busy();
                 c4_collect_weak_clears();
-                if (c4_finalization_pending) {
+                if (c4_finalization_pending || c4_enum_pending) {
                     goto exit_idle_platform_wait;
                 }
-                if (busy && ((us_3 < 0) || (us_3 > 1000))) {
+                if ((busy || (c4_enum_semaphore != 0)) && ((us_3 < 0) || (us_3 > 1000))) {
                     us_3 = 1000;
                 }
             }
@@ -1624,10 +1826,10 @@ exit_work_clock_sync:;
                 if (c4_enabled) {
                     busy_2 = c4_heap_busy();
                     c4_collect_weak_clears();
-                    if (c4_finalization_pending) {
+                    if (c4_finalization_pending || c4_enum_pending) {
                         goto exit_idle_platform_wait_2;
                     }
-                    if (busy_2 && ((us_4 < 0) || (us_4 > 1000))) {
+                    if ((busy_2 || (c4_enum_semaphore != 0)) && ((us_4 < 0) || (us_4 > 1000))) {
                         us_4 = 1000;
                     }
                 }
@@ -1669,10 +1871,10 @@ exit_work_clock_thread_cycles_2:;
             if (c4_enabled) {
                 busy_3 = c4_heap_busy();
                 c4_collect_weak_clears();
-                if (c4_finalization_pending) {
+                if (c4_finalization_pending || c4_enum_pending) {
                     goto exit_idle_platform_wait_3;
                 }
-                if (busy_3 && ((us_5 < 0) || (us_5 > 1000))) {
+                if ((busy_3 || (c4_enum_semaphore != 0)) && ((us_5 < 0) || (us_5 > 1000))) {
                     us_5 = 1000;
                 }
             }

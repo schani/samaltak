@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-static _Atomic bool stall_close, at_close;
+static _Atomic bool stall_close, at_close, stall_enum, at_enum;
 static _Atomic unsigned proposals;
 static _Atomic bool stall_cas, at_cas;
 static oop race_owner, race_prev;
@@ -41,6 +41,12 @@ void c4_heap_test_after_close(void)
     if (!atomic_load(&stall_close)) return;
     atomic_store(&at_close, true);
     while (atomic_load(&stall_close)) sched_yield();
+}
+
+void c4_heap_test_before_enum(void)
+{
+    atomic_store(&at_enum, true);
+    while (atomic_load(&stall_enum)) sched_yield();
 }
 
 static void *arena(size_t size)
@@ -1047,6 +1053,163 @@ static void forward_pinned_overlap(void)
     assert(!reserve_pinned(extent(0)));
 }
 
+static void enum_begin(oop cls, oop root)
+{
+    assert(c4_heap_enum_request(cls, 32, 0, 0));
+    assert(!c4_heap_enum_request(cls, 32, 0, 0));
+    assert(c4_heap_should_collect());
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+}
+
+static int32_t enum_count(void)
+{
+    int32_t n;
+    while ((n = c4_heap_enum_count()) == -2) sched_yield();
+    return n;
+}
+
+static void enumeration(void)
+{
+    const size_t size = (128 + 64) * 1024;
+    void *base = mmap(NULL, size, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(base != MAP_FAILED && c4_heap_init_moving(base, size));
+    oop nil = import_nil(base);
+    oop bc = nil + extent(0), wc = bc + extent(0), pc = wc + extent(0);
+    oop cc = pc + extent(0);
+    oop mc = cc + extent(0), ac = mc + extent(0);
+    for (oop cls = bc; cls <= ac; cls += extent(0)) {
+        initialize(cls, nil, F_EMPTY, 0);
+        assert(c4_heap_import(cls, extent(0), 0, C4_NO_WEAK));
+    }
+    c4_heap_set_plain_classes(pc, mc, ac);
+    c4_heap_set_forward_classes(bc, wc);
+    c4_heap_set_context_class(cc);
+    assert(c4_heap_start());
+    oop root = alloc(nil, F_VAR, 5);
+    oop ctx = alloc(cc, F_FIXVAR, CTX_FIXED + 2);
+    oop weak = weak_owner(nil, 2);
+    oop keeper = point(pc, true);
+    oop other = point(pc, true);
+    oop weak_only = point(pc, true);
+    oop alias = alloc(bc, F_BYTES, 1), alias2 = alloc(bc, F_BYTES, 1);
+    oop wide = alloc(wc, F_W32, 1);
+    oop msg = point(mc, true), assoc = point(ac, true);
+    c4_heap_store_ref(msg, 0, assoc);
+    c4_heap_store_ref(root, 4, msg);
+    assert(c4_heap_become_forward(alias, wide));
+    c4_heap_store_ref(root, 0, weak);
+    c4_heap_store_ref(root, 1, ctx);
+    c4_heap_store_ref(root, 2, wide);
+    /* Keep a raw forwarding source in the root stream, too. */
+    c4_heap_store_ref(root, 3, alias2);
+    c4_heap_store_ref(weak, 0, weak_only);
+    c4_heap_store_ref(ctx, CTX_STACKP, 3); /* one live slot */
+    c4_heap_store_ref(ctx, CTX_FIXED, keeper);
+    c4_heap_store_ref(ctx, CTX_FIXED + 1, other); /* inactive Context tail */
+
+    enum_begin(pc, root);
+    c4_heap_root(alias);
+    c4_heap_store_ref(ctx, CTX_STACKP, 5);
+    c4_heap_store_ref(ctx, CTX_FIXED, other);
+    c4_heap_store_ref(root, 1, nil);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    oop fresh = point(pc, true);
+    c4_heap_store_ref(root, 1, fresh);
+    c4_heap_store_ref(ctx, CTX_FIXED, fresh);
+    for (unsigned i = 0; i < 100; ++i) {
+        c4_heap_finish_poll();
+        c4_heap_move_poll();
+        assert(c4_heap_busy() && c4_heap_enum_count() == -2);
+        assert(!c4_heap_begin());
+    }
+    atomic_store(&stall_enum, false);
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == keeper);
+    c4_heap_enum_finish();
+    enum_begin(pc, root);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == fresh);
+    c4_heap_enum_finish();
+
+    /* Mid-view forwarding must not introduce an edge into this cut. The
+     * already-forwarded alias and direct reference must deduplicate. */
+    enum_begin(wc, root);
+    c4_heap_root(alias);
+    oop wide2 = alloc(wc, F_W32, 1);
+    assert(c4_heap_become_forward(alias2, wide2));
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == wide);
+    c4_heap_enum_finish();
+
+    enum_begin(bc, root);
+    c4_heap_end_roots();
+    assert(enum_count() == 0);
+    c4_heap_enum_finish();
+    oop alias3 = alloc(bc, F_BYTES, 1);
+    enum_begin(bc, root);
+    c4_heap_root(alias3);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == alias3);
+    assert(c4_heap_become_forward(alias3, wide2));
+    assert(c4_heap_enum_count() == -1);
+    c4_heap_enum_finish();
+
+    enum_begin(mc, root);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == msg);
+    c4_heap_enum_finish();
+    enum_begin(ac, root);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == assoc);
+    c4_heap_enum_finish();
+
+    /* Transfer to a strong slot before releasing the view. GC can run
+     * immediately; it must preserve only the published result. */
+    enum_begin(pc, root);
+    c4_heap_store_ref(root, 1, nil);
+    c4_heap_end_roots();
+    assert(enum_count() == 1 && c4_heap_enum_at(0) == fresh);
+    c4_heap_store_ref(root, 1, c4_heap_enum_at(0));
+    c4_heap_enum_finish();
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(root, 1) == fresh);
+    assert(c4_heap_load_ref(weak, 0) == nil);
+    assert(c4_heap_address(fresh) != fresh);
+}
+
+static void enumeration_limit(void)
+{
+    arena(256 * 1024);
+    assert(c4_heap_start());
+    oop cls = alloc(1, F_EMPTY, 0);
+    oop root = alloc(1, F_VAR, C4_ENUM_LIMIT + 1);
+    for (uint32_t i = 0; i <= C4_ENUM_LIMIT; ++i)
+        c4_heap_store_ref(root, i, alloc(cls, F_EMPTY, 0));
+    enum_begin(cls, root);
+    c4_heap_end_roots();
+    assert(enum_count() == -1);
+    c4_heap_enum_finish();
+    c4_heap_store_ref(root, C4_ENUM_LIMIT, 1);
+    enum_begin(cls, root);
+    c4_heap_end_roots();
+    assert(enum_count() == C4_ENUM_LIMIT);
+    c4_heap_enum_finish();
+
+    oop excluded = c4_heap_load_ref(root, 0);
+    assert(c4_heap_enum_request(cls, 32, excluded, c4_heap_load_ref(root, 1)));
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+    c4_heap_end_roots();
+    assert(enum_count() == C4_ENUM_LIMIT - 2);
+    c4_heap_enum_finish();
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -1067,6 +1230,8 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "moving")) moving();
     else if (!strcmp(argv[1], "moving-general")) moving_general();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
+    else if (!strcmp(argv[1], "enumeration")) enumeration();
+    else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
     else return 2;
     return 0;
 }

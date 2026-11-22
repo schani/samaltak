@@ -265,6 +265,28 @@ primAllInstances
 	instancesResult := 0.
 	self answer: a
 !
+primC4AllInstancesRequest
+	<vmPrimitive: 94 name: 'c4AllInstancesRequest'>
+	<notTryable>
+	| cls sem carrier |
+	(vmMain c4Enabled and: [self argCount = 2]) ifFalse: [^self fail].
+	cls := self receiver.
+	sem := self arg0.
+	carrier := self arg: 1.
+	((self isPtr: cls) and: [cls ~= 0 and: [cls ~= memory nilOop and: [
+		(self isPtr: sem) and: [sem ~= 0 and: [
+			(self rawClass: sem) = (memory special: SO_SEMAPHORE) and: [
+			(self numSlots: sem) = (SEM_EXCESS + 1) and: [
+			(self loadRef: sem at: LL_FIRST) = memory nilOop and: [
+			(self loadRef: sem at: SEM_EXCESS) = (self intOop: 0)]]]]]]]])
+		ifFalse: [^self fail].
+	((self isPtr: carrier) and: [carrier ~= 0 and: [
+		(self rawClass: carrier) = memory clsArray and: [(self numSlots: carrier) = 1 and: [
+			(self isImmutable: carrier) not and: [(self loadRef: carrier at: 0) = memory nilOop]]]]])
+		ifFalse: [^self fail].
+	(scheduler c4EnumRequest: cls semaphore: sem carrier: carrier) ifFalse: [^self fail].
+	self answer: cls
+!
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
 	vmMain c4Enabled ifTrue: [^self c4BecomeForward].

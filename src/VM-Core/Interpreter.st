@@ -152,6 +152,10 @@ c4CheckpointAt: pcPointer stack: stackTop base: stackBase frame: frame
 		c4 movePoll].
 	self c4Poll
 !
+c4EnumRequest: cls excluding: sem and: carrier
+	"Scalar roots, internal C4 roots and the maximum frame/stack extents."
+	^c4 enumRequest: cls maxRoots: C4_FRAME_ROOTS + CSTACK_SLOTS + 40 + scheduler ledgerCapacity excluding: sem and: carrier
+!
 c4Poll
 	"Only between bytecodes, after externalize. Native calls that borrow oops or
 	push C-local roots finish before this point. A pressure assist never arms."
@@ -159,6 +163,7 @@ c4Poll
 	| budget f i k w |
 	c4 finishPoll.
 	scheduler c4CollectWeakClears.
+	scheduler c4EnumPoll.
 	budget := 64.
 	(c4FrameNext = c4FrameLimit and: [c4StackNext = c4StackLimit]) ifTrue: [
 		c4 shouldCollect ifFalse: [^self].
@@ -194,9 +199,10 @@ c4Poll
 		c4 root: memory clsBytestring.
 		c4 root: memory clsBytearray.
 		c4 root: memory clsMessage.
+		scheduler c4EnumRoots.
 		"The ledger is mutable but bounded; capture its raw oops at the cut."
 		0 to: scheduler ledgerN - 1 do: [:j | c4 root: (scheduler ledgerProcs at: j)].
-		budget := budget - 24 - scheduler ledgerN].
+		budget := budget - 26 - scheduler ledgerN].
 	[c4FrameNext < c4FrameLimit and: [budget >= 3]] whileTrue: [
 		i := c4FrameNext.
 		(c4SavedFrameBits at: i)

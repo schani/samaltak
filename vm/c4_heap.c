@@ -20,7 +20,10 @@
 _Static_assert(ATOMIC_INT_LOCK_FREE == 2 && ATOMIC_LONG_LOCK_FREE == 2 &&
     ATOMIC_LLONG_LOCK_FREE == 2, "C4 requires native word atomics");
 
-enum c4_phase { C4_IDLE, C4_ROOTS, C4_MARK, C4_CLOSE, C4_CLEAR, C4_SWEEP };
+enum c4_phase {
+    C4_IDLE, C4_ROOTS, C4_MARK, C4_CLOSE, C4_CLEAR, C4_SWEEP,
+    C4_ENUM_ROOTS, C4_ENUM_TRACE, C4_ENUM_READY
+};
 #define C4_FREE UINT32_MAX
 #define C4_RESERVED (UINT32_MAX - 1u)
 #define C4_FORBID 1u
@@ -102,6 +105,23 @@ typedef struct {
     uint32_t peak, body_slots, body_peak, max_inspected, max_copied;
     uint64_t moved, moved_kind[PLAIN_KINDS], inspected, released, dense, source_reused, fallback;
 } c4_move_lane;
+
+/* One versioned view at a time. First writes preserve the old shadow
+ * value. The version release precedes the corresponding shadow release. */
+typedef struct {
+    _Atomic uint64_t version, old;
+} c4_view_word;
+
+static struct {
+    c4_view_word *words;            /* pinned shadow + 4 words per movable handle */
+    uint64_t *visited;              /* one stamp per pinned cell / movable handle */
+    uint64_t version, cls, exclude_a, exclude_b;
+    uint64_t *roots;                /* filled in interpreter root slices */
+    uint32_t nroots, max_roots;
+    bool bytes_invalid;             /* mutator only */
+    int32_t count;                  /* published with ENUM_READY; -1 on overflow */
+    uint64_t ids[C4_ENUM_LIMIT];
+} view;
 
 static struct {
     uintptr_t base;
@@ -234,6 +254,32 @@ uint64_t c4_heap_canonical(uint64_t obj)
     return c4_heap_has_forwarding() ? canonical(obj) : obj;
 }
 
+static bool viewing(unsigned phase)
+{
+    return phase == C4_ENUM_ROOTS || phase == C4_ENUM_TRACE;
+}
+
+static c4_view_word *view_row(uint32_t at)
+{
+    return view.words + (at < heap.capacity ? at :
+        (size_t)heap.capacity + 4 * (at - heap.capacity));
+}
+
+static void preserve_word(c4_view_word *word, _Atomic uint64_t *slot)
+{
+    if (relaxed(&word->version) == view.version) return;
+    put_relaxed(&word->old, relaxed(slot));
+    release(&word->version, view.version);
+}
+
+static uint64_t read_view(c4_view_word *word, _Atomic uint64_t *slot)
+{
+    if (acquire(&word->version) == view.version) return relaxed(&word->old);
+    uint64_t value = acquire(slot);
+    /* If we read a new store, its release carries publication of old. */
+    return acquire(&word->version) == view.version ? relaxed(&word->old) : value;
+}
+
 static bool marking(unsigned phase)
 {
     return phase == C4_ROOTS || phase == C4_MARK || phase == C4_CLOSE;
@@ -343,6 +389,8 @@ bool c4_heap_become_forward(uint64_t from, uint64_t to)
         return false;
 
     if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
+    if (viewing(phase)) preserve_word(view_row(src), &heap.shadow[src]);
+    if (view.cls == heap.bytes_class) view.bytes_invalid = true;
     release(&heap.shadow[src], to);
     if (marking(phase)) {
         /* RMW against claim(): if it already claimed the source, shade the
@@ -494,6 +542,70 @@ static void sweep_points(uint64_t *reclaimed, uint64_t *bytes)
     }
 }
 
+/* No sweep, relocation or retirement while the view is outstanding.
+ * Only starts reached by the cut's roots and preserved strong edges enter
+ * this stack. New allocations can only reuse spans/IDs already free at cut. */
+static void view_push(uint64_t value, uint32_t *work)
+{
+    uint32_t at;
+    if (!key_of(value, &at)) return;
+    c4_cell *cell = cell_at(at);
+    if (refs_at(acquire(&cell->layout), at) >= C4_RESERVED) return;
+    size_t i = at < heap.capacity ? at / 2 :
+        ((size_t)heap.capacity + 1) / 2 + at - heap.capacity;
+    if (view.visited[i] == view.version) return;
+    view.visited[i] = view.version;
+    /* GC is idle and working cells are live, never allocator bin links. */
+    cell->link = *work;
+    *work = at + 1;
+}
+
+static int32_t enumerate_view(void)
+{
+    uint32_t work = 0;
+    int32_t count = 0;
+    for (uint32_t i = 0; i < view.nroots; ++i)
+        view_push(view.roots[i], &work);
+    while (work) {
+        uint32_t at = work - 1;
+        c4_cell *cell = cell_at(at);
+        work = cell->link;
+        c4_view_word *row = view_row(at);
+        bool pinned = at < heap.capacity;
+        if (pinned) {
+            uint64_t target = read_view(row, &heap.shadow[at]);
+            if (target && target != C4_FORBID) {
+                view_push(target, &work);
+                continue; /* never emit a forwarding source */
+            }
+        }
+        uint32_t refs = (uint32_t)relaxed(&cell->layout);
+        _Atomic uint64_t *shadow = shadow_row(at);
+        uint64_t cls = read_view(row + 1, shadow);
+        if (cls == view.cls) {
+            uint64_t id = pinned ? heap.base + (size_t)at * 8 :
+                heap.moving->tokens + (size_t)(at - heap.capacity) * 8;
+            if (id != view.exclude_a && id != view.exclude_b) {
+                if (count == C4_ENUM_LIMIT) return -1;
+                view.ids[count++] = id;
+            }
+        }
+        view_push(cls, &work);
+        uint32_t limit = refs;
+        if (cell->weak_start != C4_NO_WEAK) {
+            limit = cell->weak_start;
+        } else if (pinned && cls == heap.context_class && refs >= CTX_FIXED) {
+            uint64_t sp = read_view(row + 2 + CTX_STACKP, shadow + 1 + CTX_STACKP);
+            uint64_t n = sp >> 1;
+            if (!(sp & 1) || n > refs - CTX_FIXED) return -1;
+            limit = CTX_FIXED + (uint32_t)n;
+        }
+        for (uint32_t i = 0; i < limit; ++i)
+            view_push(read_view(row + 2 + i, shadow + 1 + i), &work);
+    }
+    return count;
+}
+
 static void *worker(void *unused)
 {
     (void)unused;
@@ -540,6 +652,14 @@ static void *worker(void *unused)
 #endif
                 continue;
             }
+        } else if (phase == C4_ENUM_TRACE) {
+#ifdef SAMALTAK_C4_TEST
+            extern void c4_heap_test_before_enum(void);
+            c4_heap_test_before_enum();
+#endif
+            view.count = enumerate_view();
+            release(&heap.phase, C4_ENUM_READY);
+            continue;
         } else if (phase == C4_CLEAR) {
             if (acquire(&heap.inbox) || local || inbound) bad_contract("close with mark work");
             uint64_t cleared = clear_weak(acquire(&heap.top));
@@ -1000,10 +1120,12 @@ void c4_heap_store_class(uint64_t obj, uint64_t value)
         bad_contract("forwarding class reassignment");
     if (heap.context_class && ((old == heap.context_class) != (value == heap.context_class)))
         bad_contract("Context class reassignment");
-    if (marking(acquire(&heap.phase))) {
+    unsigned phase = acquire(&heap.phase);
+    if (marking(phase)) {
         shade_mutator(old);
         shade_mutator(value);
     }
+    if (value != old && viewing(phase)) preserve_word(view_row(at) + 1, slot);
     release(slot, value);
     ((uint64_t *)(uintptr_t)c4_heap_address(obj))[1] = value;
 }
@@ -1071,6 +1193,8 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
         }
         shade_mutator(value);
     }
+    if (index < cell->weak_start && viewing(phase))
+        preserve_word(view_row(at) + 2 + index, field);
     release(field, value);
     ((uint64_t *)(uintptr_t)c4_heap_address(obj))[2 + (size_t)index] = value;
 }
@@ -1142,11 +1266,77 @@ void c4_heap_move_poll(void)
     ++m->released;
 }
 
+bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b)
+{
+    if (!heap.started || !cls || view.cls || view.version == UINT64_MAX ||
+        max_roots < 4 + PLAIN_KINDS || (view.roots && max_roots != view.max_roots))
+        return false;
+    if (!view.words) {
+        size_t points = heap.moving ? POINT_IDS : 0;
+        size_t words = (heap.capacity + 4 * points) * sizeof *view.words;
+        size_t visited = (((size_t)heap.capacity + 1) / 2 + points) * sizeof *view.visited;
+        size_t roots = (size_t)max_roots * sizeof *view.roots;
+        void *mem = mmap(NULL, words + visited + roots, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (mem == MAP_FAILED) return false;
+        view.words = mem;
+        view.visited = (void *)((char *)mem + words);
+        view.roots = (void *)((char *)mem + words + visited);
+        view.max_roots = max_roots;
+    }
+    view.cls = cls;
+    view.exclude_a = exclude_a;
+    view.exclude_b = exclude_b;
+    return true;
+}
+
+static void enum_root(uint64_t value)
+{
+    if (view.nroots == view.max_roots) bad_contract("enumeration root capacity");
+    view.roots[view.nroots++] = value;
+}
+
+int32_t c4_heap_enum_count(void)
+{
+    if (acquire(&heap.phase) != C4_ENUM_READY) return -2;
+    return view.bytes_invalid ? -1 : view.count;
+}
+
+uint64_t c4_heap_enum_at(uint32_t index)
+{
+    int32_t count = c4_heap_enum_count();
+    if (count < 0 || index >= (uint32_t)count) bad_contract("enumeration result index");
+    return view.ids[index];
+}
+
+void c4_heap_enum_finish(void)
+{
+    if (acquire(&heap.phase) != C4_ENUM_READY) bad_contract("enumeration not ready");
+    view.cls = 0;
+    release(&heap.phase, C4_IDLE);
+}
+
 bool c4_heap_begin(void)
 {
     if (!heap.started || acquire(&heap.phase) != C4_IDLE) return false;
     if (heap.unpublished) bad_contract("private reserve at cycle start");
     c4_move_lane *m = heap.moving;
+    if (view.cls) {
+        ++view.version;
+        view.bytes_invalid = false;
+        view.nroots = 0;
+        enum_root(view.cls);
+        enum_root(heap.nil);
+        if (m)
+            for (unsigned i = 0; i < PLAIN_KINDS; ++i)
+                if (m->plain_classes[i]) enum_root(m->plain_classes[i]);
+        if (heap.bytes_class) {
+            enum_root(heap.bytes_class);
+            enum_root(heap.wide_class);
+        }
+        release(&heap.phase, C4_ENUM_ROOTS);
+        return true;
+    }
     if (m) {
         if (m->source != NO_REGION) return false;
         if (m->region[m->reserve].used) bad_contract("occupied Point reserve");
@@ -1177,14 +1367,21 @@ bool c4_heap_begin(void)
 
 void c4_heap_root(uint64_t value)
 {
-    if (acquire(&heap.phase) != C4_ROOTS) bad_contract("root outside publication");
+    unsigned phase = acquire(&heap.phase);
+    if (phase == C4_ENUM_ROOTS) return enum_root(value);
+    if (phase != C4_ROOTS) bad_contract("root outside publication");
     shade_mutator(value);
 }
 
 void c4_heap_end_roots(void)
 {
-    if (acquire(&heap.phase) != C4_ROOTS) bad_contract("seal outside publication");
-    release(&heap.phase, C4_MARK);
+    unsigned phase = acquire(&heap.phase);
+    if (phase == C4_ENUM_ROOTS) {
+        release(&heap.phase, C4_ENUM_TRACE);
+    } else {
+        if (phase != C4_ROOTS) bad_contract("seal outside publication");
+        release(&heap.phase, C4_MARK);
+    }
     wake_worker();
 }
 
@@ -1216,8 +1413,9 @@ bool c4_heap_busy(void)
 
 bool c4_heap_should_collect(void)
 {
-    if (!heap.started || c4_heap_busy() ||
-        (heap.moving && heap.moving->source != NO_REGION)) return false;
+    if (!heap.started || c4_heap_busy()) return false;
+    if (view.cls) return true;
+    if (heap.moving && heap.moving->source != NO_REGION) return false;
     size_t headroom = (size_t)(heap.capacity - relaxed(&heap.occupied)) * 8;
     size_t budget = headroom / 4;
     if (budget < 4096) budget = 4096;
@@ -1232,7 +1430,10 @@ uint64_t c4_heap_top(void)
 
 void c4_heap_stats(void)
 {
-    static const char *const phases[] = { "idle", "roots", "mark", "close", "clear", "sweep" };
+    static const char *const phases[] = {
+        "idle", "roots", "mark", "close", "clear", "sweep",
+        "enum-roots", "enum-trace", "enum-ready"
+    };
     unsigned phase = acquire(&heap.phase);
     fprintf(stderr,
         "c4: phase=%s imported=%" PRIu64 " cycles_started=%" PRIu64

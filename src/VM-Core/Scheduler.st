@@ -1,5 +1,5 @@
 VMCoreModule subclass: #Scheduler
-	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs sliceStartNs windowStartNs windowCpuUs ledgerProcs ledgerNs ledgerN statReconciles startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired c4FinalizationPending'
+	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs sliceStartNs windowStartNs windowCpuUs ledgerProcs ledgerNs ledgerN statReconciles startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired c4FinalizationPending c4EnumSemaphore c4EnumCarrier c4EnumResult c4EnumIndex c4EnumPending'
 	classVariableNames: 'LEDGER_SIZE RECONCILE_NS TICK_DEADLINE TICK_POLL WORK_CLOCK_FLOOR WORK_CLOCK_POLL_US WORK_CYCLES_PER_US'
 	package: 'VM-Core'!
 
@@ -26,7 +26,8 @@ declarations
 		(workClockOn bool) (workClockRunning bool) (workClockPaced bool) (workClockUsesCycles bool)
 		(workClockUs int64_t) (workClockCycles int64_t) (workClockRaw int64_t) (workClockHeld bool) (workClockHoldCycles int64_t) (workClockQuerying bool)
 		(frameSema int32_t) (frameFps int64_t) (frameOriginUs int64_t) (frameIndex int64_t) (frameNextUs int64_t)
-		(sliceUs int64_t) (sliceDueUs int64_t) (slicePriority int64_t) (sliceExpired bool) (c4FinalizationPending bool))
+		(sliceUs int64_t) (sliceDueUs int64_t) (slicePriority int64_t) (sliceExpired bool) (c4FinalizationPending bool)
+		(c4EnumSemaphore oop) (c4EnumCarrier oop) (c4EnumResult oop) (c4EnumIndex uint32_t) (c4EnumPending bool))
 !
 initialize
 	"Charging: the ledger's entries (the size of ledgerProcs and ledgerNs), the longest window between two reads of the thread clock (ns)."
@@ -105,6 +106,9 @@ ledgerProcs
 !
 ledgerN
 	^ledgerN
+!
+ledgerCapacity
+	^LEDGER_SIZE
 ! !
 
 !Scheduler methodsFor: 'time'!
@@ -555,6 +559,53 @@ c4CollectWeakClears
 		c4FinalizationPending := true.
 		self requestInterruptCheck]
 !
+c4EnumRequest: cls semaphore: sem carrier: carrier
+	<function>
+	c4EnumSemaphore ~= 0 ifTrue: [^false].
+	(interpreter c4EnumRequest: cls excluding: sem and: carrier) ifFalse: [^false].
+	c4EnumSemaphore := sem.
+	c4EnumCarrier := carrier.
+	^true
+!
+c4EnumRoots
+	<function>
+	c4 root: c4EnumSemaphore.
+	c4 root: c4EnumCarrier
+!
+c4EnumPoll
+	"Never switches. Publish a rooted result before allowing reuse again.
+	The sized allocation is capped by the engine; copy at most 64 IDs here."
+	<function>
+	| n end |
+	c4EnumSemaphore = 0 ifTrue: [^self].
+	n := c4 enumCount.
+	n = -2 ifTrue: [^self].
+	n >= 0 ifTrue: [
+		c4EnumResult = 0 ifTrue: [
+			c4EnumResult := memory allocOldTry: memory clsArray format: F_VAR slots: n asUInt32].
+		c4EnumResult ~= 0 ifTrue: [
+			end := (c4EnumIndex + 64) min: n asUInt32.
+			[c4EnumIndex < end] whileTrue: [
+				self storeRef: c4EnumResult at: c4EnumIndex put: (c4 enumAt: c4EnumIndex).
+				c4EnumIndex := c4EnumIndex + 1].
+			c4EnumIndex < n asUInt32 ifTrue: [^self].
+			self storeRef: c4EnumCarrier at: 0 put: c4EnumResult]].
+	c4EnumResult := 0.
+	c4EnumIndex := 0.
+	c4 enumFinish.
+	c4EnumPending := true.
+	self requestInterruptCheck
+!
+c4EnumSignal
+	"An ordinary scheduler wakeup, from an interrupt safepoint or idle."
+	| sem |
+	c4EnumPending ifFalse: [^self].
+	sem := c4EnumSemaphore.
+	c4EnumSemaphore := 0.
+	c4EnumCarrier := 0.
+	c4EnumPending := false.
+	self semaphoreSignal: sem
+!
 idlePlatformWait: timeoutUs
 	"Sample busy before draining: an idle observation must see all clears
 	from that cycle. A busy observation bounds the sleep across a new clear."
@@ -563,8 +614,8 @@ idlePlatformWait: timeoutUs
 	vmMain c4Enabled ifTrue: [
 		busy := c4 busy.
 		self c4CollectWeakClears.
-		c4FinalizationPending ifTrue: [^self].
-		(busy and: [us < 0 or: [us > 1000]]) ifTrue: [us := 1000]].
+		(c4FinalizationPending or: [c4EnumPending]) ifTrue: [^self].
+		((busy or: [c4EnumSemaphore ~= 0]) and: [us < 0 or: [us > 1000]]) ifTrue: [us := 1000]].
 	platform wait: us
 !
 idleWait
@@ -576,7 +627,7 @@ idleWait
 	"The wait/suspend primitives have committed; registers are externalized."
 	vmMain c4Enabled ifTrue: [interpreter c4Poll].
 	self pauseCharging.
-	(pendingExtN = 0 and: [allocSamplePending not and: [c4FinalizationPending not]]) ifTrue: [
+	(pendingExtN = 0 and: [allocSamplePending not and: [c4FinalizationPending not and: [c4EnumPending not]]]) ifTrue: [
 		workClockOn ifTrue: [^self workClockIdleWait].
 		now := self nowUs.
 		wait := 16r7FFFFFFFFFFFFFFF.
@@ -705,6 +756,7 @@ handleInterrupts
 		(self isSemaphore: s) ifTrue: [self semaphoreSignal: s]].
 	0 to: pendingExtN - 1 do: [:i | self signalIndex: (pendingExt at: i)].
 	pendingExtN := 0.
+	self c4EnumSignal.
 	self tickUpdate
 !
 setTimer: ms

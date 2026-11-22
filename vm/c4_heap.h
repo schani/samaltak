@@ -13,6 +13,7 @@
 
 /* weak_start is the validated fixed count for F_WEAK, otherwise C4_NO_WEAK. */
 #define C4_NO_WEAK UINT32_MAX
+#define C4_ENUM_LIMIT 4096
 
 enum c4_lane { C4_PINNED, C4_PLAIN };
 
@@ -61,6 +62,15 @@ void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value);
  * Heals one alias on read. Respect Context's live-prefix rule. */
 uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index);
 uint32_t c4_heap_weak_start(uint64_t obj);
+
+/* Queue one exact view, armed by the next successful begin(). Reclamation
+ * remains off until finish; publish/root the result before calling it. */
+bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b);
+/* -2: pending, -1: failed, otherwise number of canonical IDs. Recheck
+ * before publication: forwarding of ByteStrings can invalidate a view. */
+int32_t c4_heap_enum_count(void);
+uint64_t c4_heap_enum_at(uint32_t index);
+void c4_heap_enum_finish(void);
 
 /* Start root snapshot, enqueue scalar roots and displaced unpublished roots,
  * and seal after all root slices. The collector cannot sweep before the seal.
@@ -120,6 +130,11 @@ static inline void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t valu
 static inline uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
 { return ((const uint64_t *)(uintptr_t)obj)[2 + (size_t)index]; }
 static inline uint32_t c4_heap_weak_start(uint64_t obj) { (void)obj; return C4_NO_WEAK; }
+static inline bool c4_heap_enum_request(uint64_t cls, uint32_t max_roots, uint64_t exclude_a, uint64_t exclude_b)
+{ (void)cls; (void)max_roots; (void)exclude_a; (void)exclude_b; return false; }
+static inline int32_t c4_heap_enum_count(void) { return -2; }
+static inline uint64_t c4_heap_enum_at(uint32_t index) { (void)index; return 0; }
+static inline void c4_heap_enum_finish(void) { }
 static inline bool c4_heap_begin(void) { return false; }
 static inline void c4_heap_root(uint64_t value) { (void)value; }
 static inline void c4_heap_end_roots(void) { }

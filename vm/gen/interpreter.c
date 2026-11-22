@@ -1431,6 +1431,7 @@ void c4_poll(void)
     size_t w;
     c4_heap_finish_poll();
     c4_collect_weak_clears();
+    c4_enum_poll();
     budget = 64;
     if ((c4_frame_next == c4_frame_limit) && (c4_stack_next == c4_stack_limit)) {
         if (!c4_heap_should_collect()) {
@@ -1476,10 +1477,11 @@ void c4_poll(void)
         c4_heap_root(cls_bytestring);
         c4_heap_root(cls_bytearray);
         c4_heap_root(cls_message);
+        c4_enum_roots();
         for (j_2 = 0; j_2 <= ledger_n - 1; j_2++) {
             c4_heap_root(ledger_procs[j_2]);
         }
-        budget = budget - 24 - ledger_n;
+        budget = budget - 26 - ledger_n;
     }
     while ((c4_frame_next < c4_frame_limit) && (budget >= 3)) {
         i = c4_frame_next;
