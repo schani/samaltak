@@ -13549,7 +13549,7 @@ bool jit_baseline_compiler_compile(oop m)
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
     counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
@@ -13801,7 +13801,7 @@ bool jit_baseline_compiler_compile(oop m)
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
     counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
@@ -50919,19 +50919,19 @@ exit_str_11:;
     amd64_assembler_move_any_from(X13, X9);
     amd64_assembler_bind(have);
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cls_block);
         goto exit_object_address;
     }
     r_object_address = cls_block;
 exit_object_address:;
-    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(cls_block, 2U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address_2 = c4_heap_address(cls_block);
         goto exit_object_address_2;
     }
@@ -53116,19 +53116,19 @@ exit_adr:;
     }
     arm64_assembler_bind(have);
     o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cls_block);
         goto exit_object_address;
     }
     r_object_address = cls_block;
 exit_object_address:;
-    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(cls_block, 2U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address_2 = c4_heap_address(cls_block);
         goto exit_object_address_2;
     }
@@ -104074,7 +104074,7 @@ exit_source_3:;
         if (counter_addr != 0) {
             pc = sl_pc[i];
             a_9 = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cur_method);
         goto exit_object_address;
     }
@@ -118642,7 +118642,7 @@ exit_offset_to_6:;
         if (counter_addr != 0) {
             pc = sl_pc[i];
             a = (uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(cur_method);
         goto exit_object_address;
     }

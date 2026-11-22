@@ -31,6 +31,9 @@ pointClass: cls
 threshold: bytes
 	<c: 'void c4_heap_set_threshold(size_t bytes)'>
 !
+forwardByteClass: bytes wideClass: wide
+	<c: 'void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)'>
+!
 contextClass: cls
 	<c: 'void c4_heap_set_context_class(uint64_t cls)'>
 !
@@ -57,6 +60,21 @@ reserve: bytes plain: lane into: address
 address: obj
 	<c: 'uint64_t c4_heap_address(uint64_t obj)'>
 	^0
+!
+hasForwarding
+	<c: 'bool c4_heap_has_forwarding(void)'>
+	^false
+!
+canonical: obj
+	<c: 'uint64_t c4_heap_canonical(uint64_t obj)'>
+	^obj
+!
+becomeForward: from to: to
+	<c: 'bool c4_heap_become_forward(uint64_t from, uint64_t to)'>
+	^false
+!
+forbidBecome: obj
+	<c: 'void c4_heap_forbid_become(uint64_t obj)'>
 !
 movable: obj
 	<c: 'bool c4_heap_movable(uint64_t obj)'>

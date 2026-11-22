@@ -252,6 +252,7 @@ c4LoadRef: o at: i
 	<var: #i type: 'uint32_t'>
 	(self formatOf: o) = F_WEAK ifTrue: [^c4 loadRef: o at: i].
 	(i >= CTX_FIXED and: [(self rawClass: o) = clsContext and: [i >= (self contextPrefix: o)]]) ifTrue: [^nilOop].
+	c4 hasForwarding ifTrue: [^c4 loadRef: o at: i].
 	^self uint64At: (self bodyAddress: o) + (8 * i asUInt64)
 !
 c4CannotReplaceCodeSlot: o at: i put: v

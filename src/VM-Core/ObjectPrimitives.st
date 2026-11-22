@@ -267,12 +267,23 @@ primAllInstances
 !
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
-	vmMain c4Enabled ifTrue: [^self fail].
+	vmMain c4Enabled ifTrue: [^self c4BecomeForward].
 	((self isPtr: self receiver) and: [(self isPtr: self arg0) and: [self receiver ~= memory nilOop]]) ifFalse: [^self fail].
 	interpreter flushIfMarried: self receiver.
 	gc fullGC.
 	gc becomeForward: self receiver to: self arg0.
 	self answer: self receiver
+!
+c4BecomeForward
+	| from to |
+	self argCount = 1 ifFalse: [^self fail].
+	from := self receiver.
+	to := self arg0.
+	((self isPtr: from) and: [from ~= 0 and: [(self rawClass: from) = memory clsBytestring and: [
+		(self isPtr: to) and: [to ~= 0 and: [(self rawClass: to) = (memory special: SO_WIDESTRING)]]]]])
+		ifFalse: [^self fail].
+	(c4 becomeForward: from to: to) ifFalse: [^self fail].
+	self answer: to
 !
 primSpecialObjectsArray
 	<vmPrimitive: 89 name: 'specialObjectsArray'>

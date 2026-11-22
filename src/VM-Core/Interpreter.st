@@ -170,6 +170,8 @@ c4Poll
 		c4FrameLimit := nframes asUInt64.
 		c4StackNext := 0.
 		c4StackLimit := cstackUsed.
+		"Publish the raw slots, including saved SATB roots. A raw alias
+		still resident in a slot needs its own cell to survive."
 		c4 root: memory specialsOop.
 		c4 root: activeCtx.
 		c4 root: scheduler lastPreempted.
@@ -247,7 +249,7 @@ cstackSlot: p put: v
 	<var: #p type: 'oop *'>
 	<var: #v type: #oop>
 	(self unlikely: c4StackNext < c4StackLimit) ifTrue: [self preserveStackRoot: p].
-	p value: v
+	p value: (self canonicalOop: v)
 !
 c4StackSlot: p put: v
 	<function>
@@ -327,7 +329,11 @@ methodStorage: m at: i
 		f := self formatOf: o.
 		(i = CM_LITERALS
 			ifTrue: [f = F_VAR or: [f = F_FIXED]]
-			ifFalse: [f >= F_BYTES]) ifFalse: [self fatal: 'bad C4 method storage layout']].
+			ifFalse: [f >= F_BYTES]) ifFalse: [self fatal: 'bad C4 method storage layout'].
+		"Only an exact ByteString could become; a rooted oop alone does
+		not protect the physical bytecodes borrowed by the interpreter."
+		(i = CM_BYTECODES and: [(self rawClass: o) = memory clsBytestring])
+			ifTrue: [c4 forbidBecome: o]].
 	^o
 !
 methodLits: m
@@ -649,8 +655,9 @@ flushMethodCacheSelector: aSelector
 !
 lookupMethod: aClass selector: aSelector
 	<function>
-	| h c md keys vals cap mask i k n |
-	h := self hashOf: aSelector.
+	| h c md keys vals cap mask i k n selector |
+	selector := self canonicalOop: aSelector.
+	h := self hashOf: selector.
 	c := aClass.
 	[(self isPtr: c) and: [c ~= memory nilOop]] whileTrue: [
 		md := self loadRef: c at: BEH_METHODDICT.
@@ -664,7 +671,7 @@ lookupMethod: aClass selector: aSelector
 				n := 0.
 				[n < cap] whileTrue: [
 					k := self loadRef: keys at: i.
-					k = aSelector ifTrue: [^self loadRef: vals at: i].
+					k = selector ifTrue: [^self loadRef: vals at: i].
 					k = memory nilOop
 						ifTrue: [n := cap]
 						ifFalse: [
@@ -856,10 +863,10 @@ primArgc
 	^primNargs
 !
 primReceiver
-	^primBase at: 0
+	^self canonicalOop: (primBase at: 0)
 !
 primArg: i
-	^primBase at: 1 + i
+	^self canonicalOop: (primBase at: 1 + i)
 !
 primStackBase
 	"The receiver slot in the active activation."
@@ -1935,11 +1942,11 @@ bitOr
 !
 identical
 	<bytecode: 16rB3>
-	^self boolResult: (sp at: -1) = sp value
+	^self boolResult: (self canonicalOop: (sp at: -1)) = (self canonicalOop: sp value)
 !
 notIdentical
 	<bytecode: 16rB4>
-	^self boolResult: (sp at: -1) ~= sp value
+	^self boolResult: (self canonicalOop: (sp at: -1)) ~= (self canonicalOop: sp value)
 !
 bcAt
 	<bytecode: 16rB0>

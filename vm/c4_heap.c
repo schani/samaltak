@@ -23,6 +23,7 @@ _Static_assert(ATOMIC_INT_LOCK_FREE == 2 && ATOMIC_LONG_LOCK_FREE == 2 &&
 enum c4_phase { C4_IDLE, C4_ROOTS, C4_MARK, C4_CLOSE, C4_CLEAR, C4_SWEEP };
 #define C4_FREE UINT32_MAX
 #define C4_RESERVED (UINT32_MAX - 1u)
+#define C4_FORBID 1u
 
 #define relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
 #define acquire(p) atomic_load_explicit((p), memory_order_acquire)
@@ -81,7 +82,7 @@ typedef struct {
 static struct {
     uintptr_t base;
     uint32_t capacity;              /* words */
-    uint64_t context_class, nil;
+    uint64_t context_class, nil, bytes_class, wide_class;
     _Atomic uint32_t *bins;         /* exact size in words */
     c4_cell *cells;
     _Atomic uint64_t *shadow;
@@ -90,7 +91,7 @@ static struct {
     _Atomic uint32_t phase, epoch;
     _Atomic uint32_t inbox;         /* mutator push / worker exchange */
     _Atomic uint32_t top, occupied; /* words */
-    _Atomic uint32_t wake, has_weak;
+    _Atomic uint32_t wake, has_weak, has_forwarding;
     _Atomic uint64_t weak_pending, weak_cleared;
 
     /* Mutator-owned, apart from explicitly atomic publication above. */
@@ -141,6 +142,7 @@ bool c4_heap_movable(uint64_t obj)
 
 uint64_t c4_heap_address(uint64_t obj)
 {
+    obj = c4_heap_canonical(obj);
     uint32_t id;
     if (!token_id(obj, &id)) return obj;
     c4_point *point = &heap.moving->points[id];
@@ -172,6 +174,35 @@ static c4_cell *cell_at(uint32_t at)
     c4_cell *cell = heap.cells + at / 2;
     uint32_t span = relaxed(&cell->span);
     return span && (span & 1) == (at & 1) ? cell : NULL;
+}
+
+/* The unused pinned shadow header is zero, C4_FORBID, or a target oop.
+ * A weak reader may sample a slot just before CLEAR rewrites it, so keep
+ * the marker and cell start through sweep. Only private reserve resets it. */
+static uint64_t forward_at(uint32_t at)
+{
+    uint64_t target = acquire(&heap.shadow[at]);
+    return target == C4_FORBID ? 0 : target;
+}
+
+bool c4_heap_has_forwarding(void)
+{
+    return acquire(&heap.has_forwarding) != 0;
+}
+
+static uint64_t canonical(uint64_t obj)
+{
+    uint32_t at;
+    if (offset(obj, &at) && at < acquire(&heap.top) && cell_at(at)) {
+        uint64_t target = forward_at(at);
+        if (target) return target;
+    }
+    return obj;
+}
+
+uint64_t c4_heap_canonical(uint64_t obj)
+{
+    return c4_heap_has_forwarding() ? canonical(obj) : obj;
 }
 
 static bool marking(unsigned phase)
@@ -217,7 +248,7 @@ static c4_cell *claim(uint64_t value, uint32_t *at)
     if (!cell || acquire(&cell->refs) >= C4_RESERVED) return NULL;
     uint32_t epoch = relaxed(&heap.epoch);
     if (relaxed(&cell->seen) == epoch ||
-        atomic_exchange_explicit(&cell->seen, epoch, memory_order_relaxed) == epoch)
+        atomic_exchange_explicit(&cell->seen, epoch, memory_order_acq_rel) == epoch)
         return NULL;
     return cell;
 }
@@ -239,6 +270,59 @@ static void shade_mutator(uint64_t value)
             bad_contract("inbox has multiple producers");
     }
     if (!head) wake_worker();
+}
+
+static c4_cell *live_pinned(uint64_t obj, uint32_t *at)
+{
+    if (!offset(obj, at) || *at >= acquire(&heap.top)) return NULL;
+    c4_cell *cell = cell_at(*at);
+    return cell && acquire(&cell->refs) < C4_RESERVED ? cell : NULL;
+}
+
+void c4_heap_forbid_become(uint64_t obj)
+{
+    uint32_t at;
+    if (!heap.started || !live_pinned(obj, &at) || forward_at(at))
+        bad_contract("raw borrow without live unforwarded pinned owner");
+    put_relaxed(&heap.shadow[at], C4_FORBID);
+}
+
+bool c4_heap_become_forward(uint64_t from, uint64_t to)
+{
+    uint32_t src, dst;
+    if (!heap.started || !heap.bytes_class || from == to || from == heap.nil ||
+        from == heap.context_class || from == heap.bytes_class ||
+        from == heap.wide_class || to == heap.nil || to == heap.context_class ||
+        to == heap.bytes_class || to == heap.wide_class)
+        return false;
+
+    unsigned phase = acquire(&heap.phase);
+    /* After ACK only current-cycle live operands are eligible. While marking
+     * the worker cannot reclaim before this call finishes. */
+    if ((phase == C4_CLEAR || phase == C4_SWEEP) &&
+            (!post_close_live(from) || !post_close_live(to))) return false;
+    c4_cell *source = live_pinned(from, &src);
+    if (!source || !live_pinned(to, &dst) ||
+        relaxed(&heap.shadow[src]) || forward_at(dst) ||
+        relaxed(shadow_row(src)) != heap.bytes_class ||
+        relaxed(shadow_row(dst)) != heap.wide_class) return false;
+
+    unsigned sf = (*(const uint64_t *)(uintptr_t)from >> H_FMT_SHIFT) & H_FMT_MASK;
+    unsigned tf = (*(const uint64_t *)(uintptr_t)to >> H_FMT_SHIFT) & H_FMT_MASK;
+    if (sf < F_BYTES || sf > F_BYTES + 7 || (tf != F_W32 && tf != F_W32 + 1))
+        return false;
+
+    if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
+    release(&heap.shadow[src], to);
+    if (marking(phase)) {
+        /* RMW against claim(): if it already claimed the source, shade the
+         * inserted edge; otherwise its acquire claim observes publication.
+         * The original class edge is independently rooted. A white source
+         * does not keep its target alive merely by acquiring forwarding. */
+        uint32_t seen = atomic_fetch_or_explicit(&source->seen, 0, memory_order_acq_rel);
+        if (seen == relaxed(&heap.epoch)) shade_mutator(to);
+    }
+    return true;
 }
 
 static void shade_worker(uint64_t value, uint32_t *work)
@@ -283,13 +367,15 @@ static uint64_t clear_weak(uint32_t limit)
             for (uint32_t i = cell->weak_start; i < refs; ++i) {
                 _Atomic uint64_t *slot = &heap.shadow[at + 2 + i];
                 uint64_t prev = acquire(slot);
-                if (post_close_live(prev)) continue;
+                uint64_t next = c4_heap_canonical(prev);
+                if (!post_close_live(next)) next = heap.nil;
+                if (next == prev) continue;
 #ifdef SAMALTAK_C4_TEST
                 extern void c4_heap_test_before_weak_cas(uint64_t obj, uint32_t i, uint64_t prev);
                 c4_heap_test_before_weak_cas(heap.base + (size_t)at * 8, i, prev);
 #endif
-                if (atomic_compare_exchange_strong_explicit(slot, &prev, heap.nil,
-                        memory_order_acq_rel, memory_order_relaxed))
+                if (atomic_compare_exchange_strong_explicit(slot, &prev, next,
+                        memory_order_acq_rel, memory_order_relaxed) && next == heap.nil)
                     ++cleared;
                 /* A racing overwrite cannot have installed another white oop. */
             }
@@ -367,10 +453,17 @@ static void *worker(void *unused)
                 uint32_t at = *source - 1;
                 c4_cell *cell = cell_at(at);
                 *source = cell->mark_link;
+                ++marked;
+                uint64_t target = at < heap.capacity && c4_heap_has_forwarding()
+                    ? forward_at(at) : 0;
+                if (target) {
+                    ++edges;
+                    shade_worker(target, &local);
+                    continue;
+                }
                 uint32_t refs = relaxed(&cell->refs);
                 uint32_t limit = cell->weak_start != C4_NO_WEAK ? cell->weak_start :
                     is_context(at, refs) ? context_snapshot_limit(at, cell, refs) : refs;
-                ++marked;
                 edges += (uint64_t)limit + 1;
                 for (uint32_t f = 0; f <= limit; ++f)
                     shade_worker(acquire(&shadow_row(at)[f]), &local);
@@ -506,12 +599,20 @@ void c4_heap_set_nil(uint64_t nil)
     heap.nil = nil;
 }
 
+void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
+{
+    if (heap.started || !bytes || !wide || bytes == wide)
+        bad_contract("invalid forwarding classes");
+    heap.bytes_class = bytes;
+    heap.wide_class = wide;
+}
+
 /* Real object access is mutator-only and occurs in private reserved blocks
  * or during import. weak_start comes from the validated class format. */
 static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
     uint32_t weak_start, unsigned phase)
 {
-    const uint64_t *obj = (const uint64_t *)(uintptr_t)addr;
+    uint64_t *obj = (uint64_t *)(uintptr_t)addr;
     uint64_t header = obj[0];
     unsigned format = (header >> H_FMT_SHIFT) & H_FMT_MASK;
     if (c4_heap_movable(obj[1]) ||
@@ -525,8 +626,13 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
         return false;
     bool shade_edges = marking(phase);
     bool closed = phase == C4_CLEAR || phase == C4_SWEEP;
+    bool normalize = c4_heap_has_forwarding();
     for (uint32_t i = 0; i <= refs; ++i) {
         uint64_t value = obj[1 + i];
+        if (i && normalize) {
+            uint64_t next = canonical(value);
+            if (next != value) obj[1 + i] = value = next;
+        }
         /* i == 0 is the class word. The fixed prefix is strong. */
         if (i <= weak_start) {
             if (shade_edges) shade_mutator(value);
@@ -578,6 +684,9 @@ bool c4_heap_start(void)
         c4_cell *cell = cell_at(at);
         if (!cell || relaxed(&cell->refs) >= C4_RESERVED) return false;
     }
+    uint32_t at;
+    if (heap.bytes_class && (!live_pinned(heap.bytes_class, &at) ||
+            !live_pinned(heap.wide_class, &at))) return false;
     pthread_attr_t attr;
     if (pthread_attr_init(&attr)) return false;
     if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) {
@@ -663,6 +772,7 @@ static uint64_t reserve_pinned(size_t bytes)
             uint32_t epoch = relaxed(&heap.epoch);
             put_relaxed(&cell->seen, epoch);
             put_relaxed(&cell->refs, C4_RESERVED);
+            put_relaxed(&heap.shadow[at], 0);
             if (head) {
                 ++heap.reused;
             } else {
@@ -728,6 +838,7 @@ void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
 void c4_heap_store_class(uint64_t obj, uint64_t value)
 {
     uint32_t at, refs;
+    obj = c4_heap_canonical(obj);
     c4_cell *cell = body_owner(obj, &at, &refs);
     _Atomic uint64_t *slot = shadow_row(at);
     uint64_t old = relaxed(slot);
@@ -735,6 +846,10 @@ void c4_heap_store_class(uint64_t obj, uint64_t value)
         bad_contract("invalid movable role in class store");
     if (cell->weak_start != C4_NO_WEAK && value != old)
         bad_contract("weak class reassignment");
+    if (heap.bytes_class && value != old &&
+        (old == heap.bytes_class || old == heap.wide_class ||
+         value == heap.bytes_class || value == heap.wide_class))
+        bad_contract("forwarding class reassignment");
     if (heap.context_class && ((old == heap.context_class) != (value == heap.context_class)))
         bad_contract("Context class reassignment");
     if (marking(acquire(&heap.phase))) {
@@ -748,33 +863,47 @@ void c4_heap_store_class(uint64_t obj, uint64_t value)
 uint32_t c4_heap_weak_start(uint64_t obj)
 {
     uint32_t at, refs;
-    return body_owner(obj, &at, &refs)->weak_start;
+    return body_owner(c4_heap_canonical(obj), &at, &refs)->weak_start;
 }
 
 uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index)
 {
     uint32_t at, refs;
+    obj = c4_heap_canonical(obj);
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body load outside reference slots");
-    if (index < cell->weak_start) return acquire(&shadow_row(at)[1 + index]);
+    _Atomic uint64_t *field = &shadow_row(at)[1 + index];
+    if (index < cell->weak_start) {
+        uint64_t raw = acquire(field);
+        uint64_t value = c4_heap_canonical(raw);
+        if (value != raw) c4_heap_store_ref(obj, index, value);
+        return value;
+    }
 
     /* Observe the phase first: an IDLE load must be ordered after CLEAR,
      * not sample stale shadow just before the worker publishes IDLE. */
     unsigned phase = acquire(&heap.phase);
-    uint64_t value = acquire(&shadow_row(at)[1 + index]);
+    uint64_t raw = acquire(field);
 #ifdef SAMALTAK_C4_TEST
     extern void c4_heap_test_after_weak_load(uint64_t obj, uint32_t i, uint64_t value);
-    c4_heap_test_after_weak_load(obj, index, value);
+    c4_heap_test_after_weak_load(obj, index, raw);
 #endif
+    uint64_t value = c4_heap_canonical(raw);
     if (marking(phase)) shade_mutator(value);
     else if ((phase == C4_CLEAR || phase == C4_SWEEP) && !post_close_live(value))
         return heap.nil;
+    /* Only weak shadow is authoritative. Do not restore a worker clear. */
+    if (value != raw)
+        atomic_compare_exchange_strong_explicit(field, &raw, value,
+            memory_order_acq_rel, memory_order_relaxed);
     return value;
 }
 
 void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)
 {
     uint32_t at, refs;
+    obj = c4_heap_canonical(obj);
+    value = c4_heap_canonical(value);
     c4_cell *cell = body_owner(obj, &at, &refs);
     if (index >= refs) bad_contract("body store outside reference slots");
     _Atomic uint64_t *field = &shadow_row(at)[1 + index];
@@ -885,6 +1014,10 @@ bool c4_heap_begin(void)
     release(&heap.phase, C4_ROOTS);
     if (heap.nil) shade_mutator(heap.nil);
     if (m) shade_mutator(m->point_class);
+    if (heap.bytes_class) {
+        shade_mutator(heap.bytes_class);
+        shade_mutator(heap.wide_class);
+    }
     wake_worker();
     return true;
 }

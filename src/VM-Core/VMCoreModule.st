@@ -62,9 +62,14 @@ bool: aBoolean
 ! !
 
 !VMCoreModule methodsFor: 'objects'!
+canonicalOop: o
+	"Resolve identity, not storage. Publish raw oops from root slots."
+	(self unlikely: (vmMain c4Enabled and: [c4 hasForwarding])) ifTrue: [^c4 canonical: o].
+	^o
+!
 objectAddress: o
 	"Import/bootstrap and the legacy heap use address-as-oop."
-	(self unlikely: (vmMain c4Enabled and: [vmMain c4Moving]))
+	(self unlikely: (vmMain c4Enabled and: [vmMain c4Moving or: [c4 hasForwarding]]))
 		ifTrue: [^c4 address: o].
 	^o
 !
@@ -107,7 +112,7 @@ bodyAddress: o
 !
 pinnedBodyAddress: o
 	(self unlikely: (vmMain c4Moving and: [c4 movable: o])) ifTrue: [self fatal: 'raw body view of a movable Point'].
-	^o + 16
+	^(self canonicalOop: o) + 16
 !
 slotsOf: o
 	^self cCoerce: (self pinnedBodyAddress: o) to: 'oop *'
@@ -133,7 +138,7 @@ contextPrefix: o
 !
 loadRef: o at: i
 	"The scalar heap body reference load."
-	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED or: [(self formatOf: o) = F_WEAK]])
+	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED or: [c4 hasForwarding or: [(self formatOf: o) = F_WEAK]]])
 		ifTrue: [^memory c4LoadRef: o at: i asUInt32].
 	^self uint64At: (self bodyAddress: o) + (8 * i)
 !

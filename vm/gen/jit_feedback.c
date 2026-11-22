@@ -50,7 +50,7 @@ uint32_t flags_at(oop m, int64_t pc)
     s = site_at(m, pc);
     f = s == NULL ? 0U : s->flags;
     if ((*(uint8_t *)(uint64_t)(fb_floats + (((uint64_t)(uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
@@ -112,7 +112,7 @@ feedback_site *site_at(oop m, int64_t pc)
     uint64_t i;
     feedback_site *s;
     i = ((uint64_t)(uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
@@ -135,7 +135,7 @@ static feedback_site *site_for(oop m, int64_t pc)
     uint64_t i;
     feedback_site *s;
     i = ((uint64_t)(uint32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }

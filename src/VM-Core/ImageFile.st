@@ -70,6 +70,7 @@ importC4
 	| p fmt bytes slots refs sp cls first |
 	c4 contextClass: memory clsContext.
 	c4 pointClass: memory clsPoint.
+	c4 forwardByteClass: memory clsBytestring wideClass: (memory special: SO_WIDESTRING).
 	c4 nilOop: memory nilOop.
 	p := gc oldLo.
 	[p < gc oldTop] whileTrue: [

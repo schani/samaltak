@@ -882,7 +882,7 @@ exit_frame_ints:;
     }
     r = ob_frame->fp[-1];
     cls = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(r);
         goto exit_object_address;
     }

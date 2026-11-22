@@ -39,12 +39,24 @@ bool c4_heap_start(void);
  * is the full slot count for pointer formats 1–4, zero for raw formats. */
 uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr);
 void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start);
+/* Configure exact pinned ByteString and WideString classes before start.
+ * The classes are roots. Omit to disable forwarding. The target header
+ * (including its identity hash) is unchanged. */
+void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide);
+bool c4_heap_become_forward(uint64_t from, uint64_t to);
+/* Sticky fast guard. Canonicalization gives a logical oop, not a body view.
+ * Trace a raw alias unless the actual root slot has been normalized. */
+bool c4_heap_has_forwarding(void);
+uint64_t c4_heap_canonical(uint64_t obj);
+/* A live pinned object with a borrowed raw view cannot become until reused.
+ * Do not pass an already-forwarded raw source here. */
+void c4_heap_forbid_become(uint64_t obj);
 /* Class word and body slot writes, respectively. Neither is a post-store hook. */
 void c4_heap_store_class(uint64_t owner, uint64_t value);
 void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value);
 /* Shadow is authoritative for weak slots, even between cycles. The load
  * shades weak referents before close ACK, and hides white ones after ACK.
- * Nonweak callers must still respect Context's live-prefix rule. */
+ * Heals one alias on read. Respect Context's live-prefix rule. */
 uint64_t c4_heap_load_ref(uint64_t obj, uint32_t index);
 uint32_t c4_heap_weak_start(uint64_t obj);
 
@@ -90,6 +102,13 @@ static inline uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t
 { (void)bytes; (void)lane; *init_addr = 0; return 0; }
 static inline void c4_heap_publish(uint64_t obj, uint32_t refs, uint32_t weak_start)
 { (void)obj; (void)refs; (void)weak_start; }
+static inline void c4_heap_set_forward_classes(uint64_t bytes, uint64_t wide)
+{ (void)bytes; (void)wide; }
+static inline bool c4_heap_become_forward(uint64_t from, uint64_t to)
+{ (void)from; (void)to; return false; }
+static inline bool c4_heap_has_forwarding(void) { return false; }
+static inline uint64_t c4_heap_canonical(uint64_t obj) { return obj; }
+static inline void c4_heap_forbid_become(uint64_t obj) { (void)obj; }
 static inline void c4_heap_store_class(uint64_t obj, uint64_t value)
 { ((uint64_t *)(uintptr_t)obj)[1] = value; }
 static inline void c4_heap_store_ref(uint64_t obj, uint32_t index, uint64_t value)

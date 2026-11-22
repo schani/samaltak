@@ -619,6 +619,241 @@ static void moving_saturated(void)
     assert(c4_heap_address(point(cls, true)) == next);  /* empty source reclaimed */
 }
 
+static oop forward_start(size_t extra, oop *bytes_class, oop *wide_class)
+{
+    oop nil = import_nil(arena(3 * extent(0) + extra));
+    *bytes_class = nil + extent(0);
+    *wide_class = *bytes_class + extent(0);
+    initialize(*bytes_class, nil, F_EMPTY, 0);
+    initialize(*wide_class, nil, F_EMPTY, 0);
+    assert(c4_heap_import(*bytes_class, extent(0), 0, C4_NO_WEAK));
+    assert(c4_heap_import(*wide_class, extent(0), 0, C4_NO_WEAK));
+    c4_heap_set_forward_classes(*bytes_class, *wide_class);
+    assert(c4_heap_start());
+    assert(!c4_heap_has_forwarding());
+    return nil;
+}
+
+static oop weak_owner(oop cls, uint32_t slots)
+{
+    oop obj = reserve_pinned(extent(slots));
+    assert(obj);
+    initialize(obj, cls, F_WEAK, slots);
+    c4_heap_publish(obj, slots, 0);
+    return obj;
+}
+
+static void forward_strong(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(1) + extent(2) + extent(3) +
+        extent(4) + extent(5) + extent(6), &bc, &wc);
+    oop holder = alloc(nil, F_VAR, 1);
+    oop from = alloc(bc, F_BYTES + 4, 2);
+    oop to = alloc(wc, F_W32 + 1, 3);
+    oop forbidden = alloc(bc, F_BYTES, 4);
+    oop other_wide = alloc(wc, F_W32, 5);
+    oop *from_words = (oop *)(uintptr_t)from;
+    oop *to_words = (oop *)(uintptr_t)to;
+    from_words[0] |= (oop)42 << H_HASH_SHIFT;
+    to_words[0] |= (oop)123 << H_HASH_SHIFT;
+    c4_heap_forbid_become(forbidden);
+
+    assert(!c4_heap_become_forward(from, forbidden));
+    assert(!c4_heap_become_forward(to, other_wide));
+    assert(!c4_heap_become_forward(to, from));
+    assert(!c4_heap_become_forward(from, from));
+    assert(!c4_heap_become_forward(from, nil));
+    assert(!c4_heap_become_forward(from, 3));
+    assert(!c4_heap_become_forward(forbidden, to));
+    assert(!c4_heap_has_forwarding());
+
+    c4_heap_store_ref(holder, 0, from);
+    assert(c4_heap_become_forward(from, to));
+    assert(!c4_heap_become_forward(from, other_wide));
+    assert(c4_heap_has_forwarding());
+    assert(c4_heap_canonical(from) == to && c4_heap_canonical(to) == to);
+    assert(c4_heap_canonical(3) == 3);
+    const oop *resolved = (const oop *)(uintptr_t)c4_heap_address(from);
+    assert(resolved == to_words);
+    assert((resolved[0] >> H_HASH_SHIFT & H_HASH_MASK) == 123);
+    assert((from_words[0] >> H_HASH_SHIFT & H_HASH_MASK) == 42);
+
+    oop new_holder = reserve_pinned(extent(6));
+    assert(new_holder);
+    initialize(new_holder, nil, F_VAR, 6);
+    ((oop *)(uintptr_t)new_holder)[2] = from;
+    c4_heap_publish(new_holder, 6, C4_NO_WEAK);
+    assert(((oop *)(uintptr_t)new_holder)[2] == to);
+    c4_heap_store_ref(new_holder, 1, from);
+    assert(((oop *)(uintptr_t)new_holder)[3] == to);
+
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_root(other_wide);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(!reserve_pinned(extent(2)));
+    assert(!reserve_pinned(extent(3)));
+    assert(((oop *)(uintptr_t)holder)[2] == from);
+    assert(c4_heap_load_ref(holder, 0) == to);
+    assert(((oop *)(uintptr_t)holder)[2] == to);
+
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_root(other_wide);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(bc, F_BYTES, 2) == from);
+    assert(c4_heap_canonical(from) == from);
+    assert(alloc(bc, F_BYTES, 4) == forbidden);
+    assert(c4_heap_become_forward(forbidden, to)); /* Forbid reset on reuse. */
+    assert(c4_heap_become_forward(from, to));
+}
+
+static void forward_claimed(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(1) + extent(2) + extent(3), &bc, &wc);
+    oop holder = alloc(nil, F_VAR, 1);
+    oop from = alloc(bc, F_BYTES, 2);
+    oop to = alloc(wc, F_W32, 3);
+    c4_heap_store_ref(holder, 0, from);
+
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    /* The source has already been traced as an ordinary ByteString. */
+    assert(c4_heap_become_forward(from, to));
+    assert(c4_heap_load_ref(holder, 0) == to);
+    c4_heap_finish_poll();
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(atomic_load(&proposals) >= 2);
+    assert(!reserve_pinned(extent(2))); /* SATB keeps the displaced raw alias. */
+    assert(!reserve_pinned(extent(3)));
+
+    assert(c4_heap_begin());
+    c4_heap_root(holder);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(bc, F_BYTES, 2) == from);
+    assert(!reserve_pinned(extent(3)));
+}
+
+static void forward_weak(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(2) + extent(3) + extent(4) +
+        extent(5) + extent(6), &bc, &wc);
+    oop owner = weak_owner(nil, 2);
+    oop from_live = alloc(bc, F_BYTES, 3);
+    oop to_live = alloc(wc, F_W32, 4);
+    oop from_dead = alloc(bc, F_BYTES, 5);
+    oop to_dead = alloc(wc, F_W32, 6);
+    c4_heap_store_ref(owner, 0, from_live);
+    c4_heap_store_ref(owner, 1, from_dead);
+
+    /* Both sources are white and only weakly referenced at publication. */
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(to_live);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    assert(c4_heap_become_forward(from_live, to_live));
+    assert(c4_heap_become_forward(from_dead, to_dead));
+
+    race_owner = owner;
+    race_slot = 0;
+    race_prev = from_live;
+    atomic_store(&stall_cas, true);
+    atomic_store(&stall_close, false);
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    /* Read races CLEAR and returns the live target even after source sweep. */
+    finish_during_load = true;
+    assert(c4_heap_load_ref(owner, 0) == to_live);
+    finish_during_load = false;
+    assert(!c4_heap_busy());
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(alloc(nil, F_VAR, 3) == from_live);
+    assert(alloc(nil, F_VAR, 5) == from_dead);
+    assert(alloc(nil, F_VAR, 6) == to_dead);
+    assert(c4_heap_load_ref(owner, 0) == to_live);
+    assert(c4_heap_load_ref(owner, 1) == nil);
+    assert(((oop *)(uintptr_t)owner)[2] == from_live); /* Ignore raw weak bytes. */
+}
+
+static void forward_weak_read(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(1) + extent(2) + extent(3), &bc, &wc);
+    oop owner = weak_owner(nil, 1);
+    oop from = alloc(bc, F_BYTES, 2);
+    oop to = alloc(wc, F_W32, 3);
+    c4_heap_store_ref(owner, 0, from);
+    assert(c4_heap_become_forward(from, to));
+
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    assert(c4_heap_load_ref(owner, 0) == to);
+    c4_heap_finish_poll();
+    atomic_store(&stall_close, false);
+    finish_cycle();
+    assert(atomic_load(&proposals) >= 2);
+    assert(c4_heap_take_weak_clears() == 0);
+    assert(alloc(nil, F_VAR, 2) == from); /* Weak read marked only canonical target. */
+    assert(!reserve_pinned(extent(3)));
+    assert(c4_heap_load_ref(owner, 0) == to);
+}
+
+static void forward_after_ack(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(2) + extent(3) + extent(4) + extent(5), &bc, &wc);
+    oop owner = weak_owner(nil, 2);
+    oop from = alloc(bc, F_BYTES, 3);
+    oop to = alloc(wc, F_W32, 4);
+    oop white = alloc(bc, F_BYTES, 5);
+    c4_heap_store_ref(owner, 0, from);
+    c4_heap_store_ref(owner, 1, white);
+    race_owner = owner;
+    race_slot = 1;
+    race_prev = white;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(from);
+    c4_heap_root(to);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    /* Worker has passed slot 0. The old alias must survive this sweep. */
+    assert(!c4_heap_become_forward(white, to));
+    assert(c4_heap_become_forward(from, to));
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+    assert(!reserve_pinned(extent(3)));
+
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(to);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(nil, F_VAR, 3) == from);
+    assert(c4_heap_load_ref(owner, 0) == to);
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -628,6 +863,11 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "weak-close")) weak_close();
     else if (!strcmp(argv[1], "weak-shadow")) weak_shadow();
     else if (!strcmp(argv[1], "weak-idle")) weak_idle_transition();
+    else if (!strcmp(argv[1], "forward-strong")) forward_strong();
+    else if (!strcmp(argv[1], "forward-claimed")) forward_claimed();
+    else if (!strcmp(argv[1], "forward-weak")) forward_weak();
+    else if (!strcmp(argv[1], "forward-weak-read")) forward_weak_read();
+    else if (!strcmp(argv[1], "forward-after-ack")) forward_after_ack();
     else if (!strcmp(argv[1], "moving")) moving();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else return 2;

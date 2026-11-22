@@ -7,28 +7,55 @@ static uint64_t print_string_of(double a);
 /* NumericPrimitives>>primCharFromValue */
 void prim_char_from_value(void)
 {
-    oop v;
-    uint32_t code_point;
+    oop o;
+    uint64_t r_canonical_oop;
     uint64_t v_2;
-    v = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    uint64_t v;
+    uint32_t code_point;
+    uint64_t v_3;
+    v = ({
+    if (prim_nargs > 0) {
+        o = prim_base[1];
+        v_2 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    } else {
+        v_2 = nil_oop;
+    }
+    v_2; });
     if (!(((v & 1) != 0) && (((((int64_t)v) >> 1) >= 0) && ((((int64_t)v) >> 1) <= CHAR_VALUE_MAX)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
     code_point = (uint32_t)(((int64_t)v) >> 1);
-    v_2 = (((uint64_t)code_point) << 3) | 2;
-    prim_result = v_2;
+    v_3 = (((uint64_t)code_point) << 3) | 2;
+    prim_result = v_3;
     prim_status = PS_OK;
 }
 
 /* NumericPrimitives>>primCharValue */
 void prim_char_value(void)
 {
-    oop r;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t r;
     uint32_t v;
     uint64_t v_2;
-    r = prim_base[0];
+    o = prim_base[0];
+    r = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!((r & 7) == 2)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -43,10 +70,20 @@ void prim_char_value(void)
 /* NumericPrimitives>>primFloatAbs */
 void prim_float_abs(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -62,11 +99,23 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatAdd */
 void prim_float_add(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -77,7 +126,15 @@ void prim_float_add(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -93,10 +150,20 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatArcTan */
 void prim_float_arc_tan(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -112,12 +179,22 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatAsIEEEBits */
 void prim_float_as_ieee_bits(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     uint64_t b;
     int64_t v;
     uint64_t v_2;
     uint64_t v_3;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -140,10 +217,20 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatCos */
 void prim_float_cos(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -159,11 +246,23 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatDiv */
 void prim_float_div(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -174,7 +273,15 @@ void prim_float_div(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -195,11 +302,23 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatEq */
 void prim_float_eq(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -210,7 +329,15 @@ void prim_float_eq(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -226,10 +353,20 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatExp */
 void prim_float_exp(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -245,11 +382,21 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatExponent */
 void prim_float_exponent(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     int v;
     uint64_t v_2;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -274,12 +421,22 @@ void prim_float_fraction_part(void)
 {
     double local;
     double *ip;
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
     memset(&local, 0, sizeof local);
     ip = &local;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -297,11 +454,22 @@ void prim_float_from_ieee_bits(void)
 {
     uint64_t local;
     uint64_t *b;
+    oop o;
+    uint64_t r_canonical_oop;
     double d;
     uint64_t v;
     memset(&local, 0, sizeof local);
     b = &local;
-    if ((prim_nargs < 1) || (!u64_of(prim_base[1], b))) {
+    if ((prim_nargs < 1) || ({
+    o = prim_base[1];
+    !u64_of(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), b); })) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -315,11 +483,23 @@ void prim_float_from_ieee_bits(void)
 /* NumericPrimitives>>primFloatGreater */
 void prim_float_greater(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -330,7 +510,15 @@ void prim_float_greater(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -346,11 +534,23 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatGreaterEq */
 void prim_float_greater_eq(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -361,7 +561,15 @@ void prim_float_greater_eq(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -377,14 +585,24 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatHash */
 void prim_float_hash(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     int v;
     uint64_t v_2;
     uint64_t h;
     int64_t v_3;
     uint64_t v_4;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -424,11 +642,23 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatLess */
 void prim_float_less(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -439,7 +669,15 @@ void prim_float_less(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -455,11 +693,23 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatLessEq */
 void prim_float_less_eq(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -470,7 +720,15 @@ void prim_float_less_eq(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -486,10 +744,20 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatLn */
 void prim_float_ln(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -505,11 +773,23 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatMul */
 void prim_float_mul(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -520,7 +800,15 @@ void prim_float_mul(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -536,11 +824,23 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatNotEq */
 void prim_float_not_eq(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     bool a_boolean;
     oop v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -551,7 +851,15 @@ void prim_float_not_eq(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -567,9 +875,19 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatPrintString */
 void prim_float_print_string(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -584,10 +902,20 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatSin */
 void prim_float_sin(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -603,10 +931,20 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatSqrt */
 void prim_float_sqrt(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -622,11 +960,23 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatSub */
 void prim_float_sub(void)
 {
-    oop ro;
-    oop bo;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t bo;
     double d;
     uint64_t v;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -637,7 +987,15 @@ void prim_float_sub(void)
         prim_error_code = -1;
         goto exit_float_args_do;
     }
-    bo = prim_base[1];
+    o_2 = prim_base[1];
+    bo = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
     if (!(is_float(bo) || ((bo & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -653,18 +1011,45 @@ exit_float_args_do:;
 /* NumericPrimitives>>primFloatTimesTwoPower */
 void prim_float_times_two_power(void)
 {
-    oop ro;
-    oop e;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t e;
     int64_t n;
     double d;
-    uint64_t v;
-    ro = prim_base[0];
+    uint64_t v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_float_receiver_do;
     }
-    e = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    e = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!((e & 1) != 0)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -678,8 +1063,8 @@ void prim_float_times_two_power(void)
         n = -100000;
     }
     d = ldexp(float_val(ro), (int32_t)n);
-    v = float_oop(d);
-    prim_result = v;
+    v_2 = float_oop(d);
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_float_receiver_do:;
 }
@@ -687,11 +1072,21 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primFloatTruncated */
 void prim_float_truncated(void)
 {
-    oop ro;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
     double t;
     int64_t v;
     uint64_t v_2;
-    ro = prim_base[0];
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!is_float(ro)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -713,21 +1108,48 @@ exit_float_receiver_do:;
 /* NumericPrimitives>>primIntAdd */
 void prim_int_add(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
-    v = (((int64_t)ro) >> 1) + (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) + (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -739,10 +1161,20 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntAsFloat */
 void prim_int_as_float(void)
 {
-    oop r;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t r;
     double d;
     uint64_t v;
-    r = prim_base[0];
+    o = prim_base[0];
+    r = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
     if (!((r & 1) != 0)) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -757,21 +1189,48 @@ void prim_int_as_float(void)
 /* NumericPrimitives>>primIntBitAnd */
 void prim_int_bit_and(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
-    v = (((int64_t)ro) >> 1) & (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) & (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -783,21 +1242,48 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntBitOr */
 void prim_int_bit_or(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
-    v = (((int64_t)ro) >> 1) | (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) | (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -809,14 +1295,41 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntBitShift */
 void prim_int_bit_shift(void)
 {
-    oop ro;
-    oop ao;
-    int64_t r;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
     uint64_t v;
-    int64_t v_2;
-    uint64_t v_3;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    uint64_t ao;
+    int64_t r;
+    uint64_t v_2;
+    int64_t v_3;
+    uint64_t v_4;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -840,18 +1353,18 @@ void prim_int_bit_shift(void)
             return;
         }
         if ((r >= VM_INT_MIN) && (r <= VM_INT_MAX)) {
-            v = (uint64_t)((r << 1) | 1);
-            prim_result = v;
+            v_2 = (uint64_t)((r << 1) | 1);
+            prim_result = v_2;
             prim_status = PS_OK;
         } else {
             prim_status = PS_FAIL;
             prim_error_code = -1;
         }
     } else {
-        v_2 = (((int64_t)ao) >> 1) <= -63 ? (((int64_t)ro) >> 1) < 0 ? -1 : 0 : ((int64_t)ro) >> 1 >> (-(((int64_t)ao) >> 1));
-        if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
-            v_3 = (uint64_t)((v_2 << 1) | 1);
-            prim_result = v_3;
+        v_3 = (((int64_t)ao) >> 1) <= -63 ? (((int64_t)ro) >> 1) < 0 ? -1 : 0 : ((int64_t)ro) >> 1 >> (-(((int64_t)ao) >> 1));
+        if ((v_3 >= VM_INT_MIN) && (v_3 <= VM_INT_MAX)) {
+            v_4 = (uint64_t)((v_3 << 1) | 1);
+            prim_result = v_4;
             prim_status = PS_OK;
         } else {
             prim_status = PS_FAIL;
@@ -864,21 +1377,48 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntBitXor */
 void prim_int_bit_xor(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
-    v = (((int64_t)ro) >> 1) ^ (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) ^ (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -890,12 +1430,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntDiv */
 void prim_int_div(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -906,10 +1473,10 @@ void prim_int_div(void)
         prim_error_code = -1;
         return;
     }
-    v = (((int64_t)ro) >> 1) / (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) / (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -921,20 +1488,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntEq */
 void prim_int_eq(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) == (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -942,12 +1536,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntFloorDiv */
 void prim_int_floor_div(void)
 {
-    oop ro;
-    oop ao;
-    int64_t q;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
     uint64_t v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    uint64_t ao;
+    int64_t q;
+    uint64_t v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -963,8 +1584,8 @@ void prim_int_floor_div(void)
         q = q - 1;
     }
     if ((q >= VM_INT_MIN) && (q <= VM_INT_MAX)) {
-        v = (uint64_t)((q << 1) | 1);
-        prim_result = v;
+        v_2 = (uint64_t)((q << 1) | 1);
+        prim_result = v_2;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -976,20 +1597,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntGreater */
 void prim_int_greater(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) > (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -997,20 +1645,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntGreaterEq */
 void prim_int_greater_eq(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) >= (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -1018,20 +1693,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntLess */
 void prim_int_less(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) < (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -1039,20 +1741,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntLessEq */
 void prim_int_less_eq(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) <= (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -1060,12 +1789,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntMod */
 void prim_int_mod(void)
 {
-    oop ro;
-    oop ao;
-    int64_t r;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
     uint64_t v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    uint64_t ao;
+    int64_t r;
+    uint64_t v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1081,8 +1837,8 @@ void prim_int_mod(void)
         r = r + (((int64_t)ao) >> 1);
     }
     if ((r >= VM_INT_MIN) && (r <= VM_INT_MAX)) {
-        v = (uint64_t)((r << 1) | 1);
-        prim_result = v;
+        v_2 = (uint64_t)((r << 1) | 1);
+        prim_result = v_2;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -1094,12 +1850,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntMul */
 void prim_int_mul(void)
 {
-    oop ro;
-    oop ao;
-    int64_t r;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
     uint64_t v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    uint64_t ao;
+    int64_t r;
+    uint64_t v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1107,8 +1890,8 @@ void prim_int_mul(void)
     }
     if (!__builtin_mul_overflow(((int64_t)ro) >> 1, ((int64_t)ao) >> 1, &r)) {
         if ((r >= VM_INT_MIN) && (r <= VM_INT_MAX)) {
-            v = (uint64_t)((r << 1) | 1);
-            prim_result = v;
+            v_2 = (uint64_t)((r << 1) | 1);
+            prim_result = v_2;
             prim_status = PS_OK;
         } else {
             prim_status = PS_FAIL;
@@ -1124,20 +1907,47 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntNotEq */
 void prim_int_not_eq(void)
 {
-    oop ro;
-    oop ao;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
     bool a_boolean;
-    oop v;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop v_2;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
     a_boolean = (((int64_t)ro) >> 1) != (((int64_t)ao) >> 1);
-    v = a_boolean ? true_oop : false_oop;
-    prim_result = v;
+    v_2 = a_boolean ? true_oop : false_oop;
+    prim_result = v_2;
     prim_status = PS_OK;
 exit_int_args_do:;
 }
@@ -1145,12 +1955,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntQuo */
 void prim_int_quo(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1161,10 +1998,10 @@ void prim_int_quo(void)
         prim_error_code = -1;
         return;
     }
-    v = (((int64_t)ro) >> 1) / (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) / (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -1176,12 +2013,39 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntRem */
 void prim_int_rem(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
@@ -1192,10 +2056,10 @@ void prim_int_rem(void)
         prim_error_code = -1;
         return;
     }
-    v = (((int64_t)ro) >> 1) % (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) % (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -1207,21 +2071,48 @@ exit_int_args_do:;
 /* NumericPrimitives>>primIntSub */
 void prim_int_sub(void)
 {
-    oop ro;
-    oop ao;
-    int64_t v;
-    uint64_t v_2;
-    ro = prim_base[0];
-    ao = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    oop o;
+    uint64_t r_canonical_oop;
+    uint64_t ro;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    uint64_t ao;
+    int64_t v_2;
+    uint64_t v_3;
+    o = prim_base[0];
+    ro = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    ao = ({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; });
     if (!(((ro & 1) != 0) && ((ao & 1) != 0))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         goto exit_int_args_do;
     }
-    v = (((int64_t)ro) >> 1) - (((int64_t)ao) >> 1);
-    if ((v >= VM_INT_MIN) && (v <= VM_INT_MAX)) {
-        v_2 = (uint64_t)((v << 1) | 1);
-        prim_result = v_2;
+    v_2 = (((int64_t)ro) >> 1) - (((int64_t)ao) >> 1);
+    if ((v_2 >= VM_INT_MIN) && (v_2 <= VM_INT_MAX)) {
+        v_3 = (uint64_t)((v_2 << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;

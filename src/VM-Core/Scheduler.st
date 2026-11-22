@@ -187,16 +187,20 @@ reconcile
 !
 ledgerAdd: proc ns: ns
 	"Add ns to proc's entry, a new one if it has none (there is room)."
+	| canonical |
+	canonical := self canonicalOop: proc.
 	0 to: ledgerN - 1 do: [:i |
-		(ledgerProcs at: i) = proc ifTrue: [
+		(self canonicalOop: (ledgerProcs at: i)) = canonical ifTrue: [
 			ledgerNs at: i put: (ledgerNs at: i) + ns.
 			^self]].
-	ledgerProcs at: ledgerN put: proc.
+	ledgerProcs at: ledgerN put: canonical.
 	ledgerNs at: ledgerN put: ns.
 	ledgerN := ledgerN + 1
 !
 inLedger: proc
-	0 to: ledgerN - 1 do: [:i | (ledgerProcs at: i) = proc ifTrue: [^true]].
+	| canonical |
+	canonical := self canonicalOop: proc.
+	0 to: ledgerN - 1 do: [:i | (self canonicalOop: (ledgerProcs at: i)) = canonical ifTrue: [^true]].
 	^false
 !
 charge: proc us: us

@@ -17,7 +17,7 @@ static int64_t increment(uint64_t *x, int64_t n);
 static uint64_t large_integer_primitives_limb_of_lowest(int64_t i, large_operand *x, int64_t z);
 static uint64_t large_integer_primitives_limb_of_shifted_by(int64_t i, uint64_t *x, int64_t s);
 static int64_t lowest(uint64_t *x, int64_t n);
-static bool operand(oop o, large_operand *x);
+static bool operand(uint64_t o, large_operand *x);
 static void product(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r);
 static uint64_t *large_integer_primitives_scratch(int64_t n);
 static void large_integer_primitives_shift_count_left_into(uint64_t *x, int64_t n, int64_t k, uint64_t *r);
@@ -31,6 +31,11 @@ static void large_integer_primitives_add(bool subtract)
     large_operand *a;
     large_operand local_2;
     large_operand *b;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
     bool bneg;
     uint64_t *r;
     int64_t n;
@@ -38,7 +43,29 @@ static void large_integer_primitives_add(bool subtract)
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     b = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, b))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), b))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -73,6 +100,7 @@ static void answer(uint64_t *r, int64_t n, bool neg)
     int64_t used;
     uint64_t o;
     uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
     k = n;
     while ((k > 0) && (r[k - 1] == 0)) {
         k = k - 1;
@@ -104,7 +132,14 @@ static void answer(uint64_t *r, int64_t n, bool neg)
         fprintf(stderr, "raw body view of a movable Point");
         fatal_end();
     }
-    r_pinned_body_address = o + 16;
+    r_pinned_body_address = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }) + 16;
     r_pinned_body_address; }), r, (uint64_t)(k * 8));
     prim_result = o;
     prim_status = PS_OK;
@@ -117,6 +152,11 @@ static void bit_op(int op)
     large_operand *a;
     large_operand local_2;
     large_operand *b;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
     int64_t n;
     uint64_t *r;
     int64_t za;
@@ -129,7 +169,29 @@ static void bit_op(int op)
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     b = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, b))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), b))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -209,6 +271,11 @@ static void large_integer_primitives_divide(int mode)
     large_operand *a;
     large_operand local_2;
     large_operand *b;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
     int64_t na;
     int64_t nb;
     uint64_t *w;
@@ -223,7 +290,29 @@ static void large_integer_primitives_divide(int mode)
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     b = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, b))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), b))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -451,7 +540,7 @@ static int64_t lowest(uint64_t *x, int64_t n)
 }
 
 /* LargeIntegerPrimitives>>operand:into: */
-static bool operand(oop o, large_operand *x)
+static bool operand(uint64_t o, large_operand *x)
 {
     int64_t v;
     uint64_t r_object_address;
@@ -468,7 +557,7 @@ static bool operand(oop o, large_operand *x)
         return true;
     }
     if (!(((o & 7) == 0) && ((int32_t)(((*(uint64_t *)({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(o);
         goto exit_object_address;
     }
@@ -478,7 +567,7 @@ exit_object_address:;
         return false;
     }
     c = *(uint64_t *)(({
-    if (__builtin_expect(c4_enabled && c4_moving, 0)) {
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address_2 = c4_heap_address(o);
         goto exit_object_address_2;
     }
@@ -524,17 +613,44 @@ void prim_large_bit_shift(void)
     large_operand *a;
     large_operand local_2;
     large_operand *s;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
     uint64_t m;
     int64_t k;
     int64_t n;
     uint64_t *r;
-    int v;
-    uint64_t v_2;
+    int v_2;
+    uint64_t v_3;
     memset(&local, 0, sizeof local);
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     s = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, s))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), s))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
@@ -567,9 +683,9 @@ void prim_large_bit_shift(void)
         return;
     }
     if (k / 64 >= a->count) {
-        v = a->neg ? -1 : 0;
-        v_2 = (uint64_t)((((int64_t)v) << 1) | 1);
-        prim_result = v_2;
+        v_2 = a->neg ? -1 : 0;
+        v_3 = (uint64_t)((((int64_t)v_2) << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
         return;
     }
@@ -599,31 +715,58 @@ void prim_large_compare(void)
     large_operand *a;
     large_operand local_2;
     large_operand *b;
-    int v;
-    uint64_t v_2;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
+    int v_2;
+    uint64_t v_3;
     int c;
-    int v_3;
-    uint64_t v_4;
+    int v_4;
+    uint64_t v_5;
     memset(&local, 0, sizeof local);
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     b = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, b))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), b))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
     if (a->neg != b->neg) {
-        v = a->neg ? -1 : 1;
-        v_2 = (uint64_t)((((int64_t)v) << 1) | 1);
-        prim_result = v_2;
+        v_2 = a->neg ? -1 : 1;
+        v_3 = (uint64_t)((((int64_t)v_2) << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
         return;
     }
     c = large_integer_primitives_compare(a->limbs, a->count, b->limbs, b->count);
-    v_3 = a->neg ? 0 - c : c;
-    v_4 = (uint64_t)((((int64_t)v_3) << 1) | 1);
-    prim_result = v_4;
+    v_4 = a->neg ? 0 - c : c;
+    v_5 = (uint64_t)((((int64_t)v_4) << 1) | 1);
+    prim_result = v_5;
     prim_status = PS_OK;
 }
 
@@ -646,13 +789,40 @@ void prim_large_mul(void)
     large_operand *a;
     large_operand local_2;
     large_operand *b;
+    oop o;
+    uint64_t r_canonical_oop;
+    oop o_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t v;
     int64_t n;
     uint64_t *r;
     memset(&local, 0, sizeof local);
     a = &local;
     memset(&local_2, 0, sizeof local_2);
     b = &local_2;
-    if (!(operand(prim_base[0], a) && operand(prim_nargs > 0 ? prim_base[1] : nil_oop, b))) {
+    o = prim_base[0];
+    if (!(operand(({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(o);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = o;
+exit_canonical_oop:;
+    r_canonical_oop; }), a) && operand(({
+    if (prim_nargs > 0) {
+        o_2 = prim_base[1];
+        v = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(o_2);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = o_2;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    } else {
+        v = nil_oop;
+    }
+    v; }), b))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
