@@ -113,6 +113,7 @@ primAtPut
 						ifFalse: [
 							f >= F_BYTES ifFalse: [^self fail].
 							((self isInt: v) and: [(self intVal: v) >= 0 and: [(self intVal: v) <= 255]]) ifFalse: [^self fail].
+							jit c4BytecodeWillWrite: r.
 							(self bytesOf: r) at: k put: (self intVal: v) asUInt8]]].
 	self answer: v
 !
@@ -344,6 +345,7 @@ primStringAtPut
 	(self formatOf: r) >= F_BYTES
 		ifTrue: [
 			(self charVal: c) > 255 ifTrue: [^self fail].
+			jit c4BytecodeWillWrite: r.
 			(self bytesOf: r) at: k put: (self charVal: c) asUInt8]
 		ifFalse: [(self words32Of: r) at: k put: (self charVal: c)].
 	self answer: c
@@ -524,7 +526,9 @@ primReplaceFromTo
 		memory copyRefs: r at: (fr + start - 1) asUInt64 from: src at: (fs + rstart - 1) asUInt64 count: n asUInt64].
 	kind = 2 ifTrue: [libc memmove: (self bytesOf: r) + ((start - 1) * 8) from: (self bytesOf: src) + ((rstart - 1) * 8) size: n asUInt64 * 8].
 	kind = 3 ifTrue: [libc memmove: (self words32Of: r) + start - 1 from: (self words32Of: src) + rstart - 1 size: n asUInt64 * 4].
-	kind = 4 ifTrue: [libc memmove: (self bytesOf: r) + start - 1 from: (self bytesOf: src) + rstart - 1 size: n asUInt64].
+	kind = 4 ifTrue: [
+		jit c4BytecodeWillWrite: r.
+		libc memmove: (self bytesOf: r) + start - 1 from: (self bytesOf: src) + rstart - 1 size: n asUInt64].
 	self answer: r
 ! !
 
@@ -545,6 +549,7 @@ byteAt: width put: isPut
 	n := self rawByteSize: r.
 	i := self arg0.
 	((self isInt: i) and: [(self intVal: i) >= 1 and: [((self intVal: i) - 1) asUInt64 + width <= n]]) ifFalse: [^0 asUInt64].
+	isPut ifTrue: [jit c4BytecodeWillWrite: r].
 	^(self pinnedBodyAddress: r) + ((self intVal: i) - 1) asUInt64
 !
 storedFloat: v

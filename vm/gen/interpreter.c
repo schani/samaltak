@@ -58172,6 +58172,7 @@ exit_object_address_2292:;
     r_next_bytecode_229; })];
         }
         if ((c_32 == cls_bytestring) && (((v_410 & 7) == 2) && (((uint32_t)(v_410 >> 3) < 256) && (k_21 < byte_size(o_1035))))) {
+            c4_bytecode_will_write(o_1035);
             ((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_1035), 0)) {
         fatal_begin();
@@ -58206,6 +58207,7 @@ exit_canonical_oop_633:;
     r_next_bytecode_230; })];
         }
         if ((c_32 == cls_bytearray) && (((v_410 & 1) != 0) && (((uint64_t)(((int64_t)v_410) >> 1) < 256) && (k_21 < byte_size(o_1035))))) {
+            c4_bytecode_will_write(o_1035);
             ((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(o_1035), 0)) {
         fatal_begin();

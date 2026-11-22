@@ -714,6 +714,8 @@ compile: m mode: md notes: wantNotes
 	<var: #h type: 'JitMethod *'>
 	| t0 dt start ok h err |
 	self ensureOpen ifFalse: [^self null].
+	vmMain c4Enabled ifTrue: [
+		c4 noteCodeBytes: (interpreter methodStorage: m at: CM_BYTECODES)].
 	t0 := scheduler pauseCharging.
 	start := cache top.
 	mapCount := 0.
@@ -972,6 +974,12 @@ c4ForwardingInstalled
 	jitMode = JIT_BASELINE ifTrue: [
 		self dropAllCode.
 		self prepare]
+!
+c4BytecodeWillWrite: obj
+	<function>
+	(vmMain c4Enabled and: [c4 isCodeBytes: obj]) ifTrue: [
+		self c4ForwardingOutsideNative ifFalse: [self fatal: 'C4 byte write on a native stack'].
+		self c4ForwardingInstalled]
 !
 c4MaxCodeRoots
 	^brt c4MaxCodeRoots

@@ -83,6 +83,13 @@ becomeForward: from to: to
 forbidBecome: obj
 	<c: 'void c4_heap_forbid_become(uint64_t obj)'>
 !
+noteCodeBytes: obj
+	<c: 'void c4_heap_note_code_bytes(uint64_t obj)'>
+!
+isCodeBytes: obj
+	<c: 'bool c4_heap_is_code_bytes(uint64_t obj)'>
+	^false
+!
 enterRawRead
 	<c: 'void c4_heap_enter_raw_read(void)'>
 !

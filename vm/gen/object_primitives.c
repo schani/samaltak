@@ -851,6 +851,7 @@ exit_canonical_oop_9:;
             prim_error_code = -1;
             return;
         }
+        c4_bytecode_will_write(r);
         ((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();
@@ -1389,6 +1390,7 @@ exit_canonical_oop_2:;
         r_byte_at = 0ULL;
         goto exit_byte_at;
     }
+    c4_bytecode_will_write(r);
     r_byte_at = ({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();
@@ -1637,6 +1639,7 @@ exit_canonical_oop_2:;
         r_byte_at = 0ULL;
         goto exit_byte_at;
     }
+    c4_bytecode_will_write(r);
     r_byte_at = ({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();
@@ -2337,6 +2340,7 @@ exit_canonical_oop_2:;
         r_byte_at = 0ULL;
         goto exit_byte_at;
     }
+    c4_bytecode_will_write(r);
     r_byte_at = ({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();
@@ -3883,6 +3887,7 @@ exit_canonical_oop_10:;
     r_pinned_body_address_5; }) + rstart - 1, (uint64_t)n * 4);
     }
     if (kind == 4) {
+        c4_bytecode_will_write(r);
         memmove((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();
@@ -4374,6 +4379,7 @@ exit_object_address_3:;
             prim_error_code = -1;
             return;
         }
+        c4_bytecode_will_write(r);
         ((uint8_t *)({
     if (__builtin_expect(c4_moving && c4_heap_movable(r), 0)) {
         fatal_begin();

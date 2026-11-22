@@ -27,6 +27,7 @@ enum c4_phase {
 #define C4_FREE UINT32_MAX
 #define C4_RESERVED (UINT32_MAX - 1u)
 #define C4_FORBID 1u
+#define C4_CODE_BYTES 2u
 
 #define relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
 #define acquire(p) atomic_load_explicit((p), memory_order_acquire)
@@ -248,8 +249,8 @@ static uint32_t refs_at(uint64_t layout, uint32_t at)
     return at >= heap.capacity || layout_at(layout, at) ? (uint32_t)layout : C4_FREE;
 }
 
-/* Pinned shadow headers are zero, a forwarding target, C4_FORBID, or
- * an odd lazy-shadow incarnation tag (> C4_FORBID).
+/* Pinned shadow headers are zero, a forwarding target, a raw borrow marker,
+ * or an odd lazy-shadow incarnation tag (> C4_FORBID).
  * A weak reader may sample a slot just before CLEAR rewrites it, so keep
  * the marker and cell start through sweep. Only private reserve resets it. */
 static uint64_t forward_target(uint64_t marker)
@@ -388,8 +389,31 @@ void c4_heap_forbid_become(uint64_t obj)
     uint32_t at;
     if (!heap.started || !live_pinned(obj, &at) || forward_at(at))
         bad_contract("raw borrow without live unforwarded pinned owner");
-    if (relaxed(&heap.shadow[at]) > C4_FORBID) bad_contract("raw borrow with lazy reference shadow");
+    uint64_t marker = relaxed(&heap.shadow[at]);
+    if (marker == C4_CODE_BYTES) return;
+    if (marker > C4_FORBID) bad_contract("raw borrow with lazy reference shadow");
     put_relaxed(&heap.shadow[at], C4_FORBID);
+}
+
+/* Monotone within the body incarnation. Keeping an old mark after code
+ * retirement can only cause an unnecessary invalidation, not retain an oop. */
+void c4_heap_note_code_bytes(uint64_t obj)
+{
+    uint32_t at;
+    if (!heap.started || !live_pinned(obj, &at) ||
+            (uint32_t)relaxed(&cell_at(at)->layout) != 0)
+        bad_contract("code storage must be a live pinned raw body");
+    uint64_t marker = relaxed(&heap.shadow[at]);
+    if (marker > C4_CODE_BYTES) bad_contract("invalid code storage marker");
+    put_relaxed(&heap.shadow[at], C4_CODE_BYTES);
+}
+
+bool c4_heap_is_code_bytes(uint64_t obj)
+{
+    require_raw_read_quiescence("byte write during synchronous raw read");
+    uint32_t at;
+    if (!live_pinned(c4_heap_canonical(obj), &at)) return false;
+    return relaxed(&heap.shadow[at]) == C4_CODE_BYTES;
 }
 
 /* Mutator only. Tags start at zero; no generation can repeat. */

@@ -13,7 +13,7 @@ ${CC:-cc} ${CFLAGS:--O2} -std=gnu11 -Wall -Wextra -Werror -pthread \
     -UNDEBUG -DSAMALTAK_NO_PLATFORM -DSAMALTAK_C4_TEST -Ivm -I"${SAMALTAK_VM_GEN:-vm/gen}" \
     vm/c4_heap.c tests/vm/c4-live/engine_test.c -o "$tmp/engine-test"
 for test in close cache-close shadow oracle weak-close weak-shadow weak-idle lazy-publish lazy-mark lazy-enumeration pinned-fit pinned-clear-split moving moving-general moving-oracle moving-saturated \
-    forward-strong forward-claimed forward-weak forward-weak-read forward-after-ack forward-pinned-overlap enumeration enumeration-limit cache-enumeration raw-read-ok; do
+    code-bytes forward-strong forward-claimed forward-weak forward-weak-read forward-after-ack forward-pinned-overlap enumeration enumeration-limit cache-enumeration raw-read-ok; do
     timeout -k 1 15 "$tmp/engine-test" "$test"
     echo "c4-engine: $test passed"
 done

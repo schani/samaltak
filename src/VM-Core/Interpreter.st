@@ -2074,9 +2074,11 @@ bcAtPut
 			self storeRef: o at: k put: v.
 			^self atPutAnswer: v].
 		(c = memory clsBytestring and: [(self isChar: v) and: [(self charVal: v) < 256 and: [k < (memory byteSize: o)]]]) ifTrue: [
+			jit c4BytecodeWillWrite: o.
 			(self bytesOf: o) at: k put: (self charVal: v) asUInt8.
 			^self atPutAnswer: v].
 		(c = memory clsBytearray and: [(self isInt: v) and: [(self intVal: v) asUInt64 < 256 and: [k < (memory byteSize: o)]]]) ifTrue: [
+			jit c4BytecodeWillWrite: o.
 			(self bytesOf: o) at: k put: (self intVal: v) asUInt8.
 			^self atPutAnswer: v]].
 	^self specialSend

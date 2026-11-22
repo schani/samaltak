@@ -64,6 +64,9 @@ uint64_t c4_heap_canonical(uint64_t obj);
 /* A live pinned object with a borrowed raw view cannot become until reused.
  * Do not pass an already-forwarded raw source here. */
 void c4_heap_forbid_become(uint64_t obj);
+/* Lifetime marker for pinned compiled bytecodes. Not a root. */
+void c4_heap_note_code_bytes(uint64_t obj);
+bool c4_heap_is_code_bytes(uint64_t obj);
 /* Non-nesting synchronous raw read on the sole mutator. Enter before
  * getting interior pointers, leave before any dispatch/idle poll or
  * forwarding. The caller must already keep owners live in VM roots;
@@ -144,6 +147,8 @@ static inline bool c4_heap_become_forward(uint64_t from, uint64_t to)
 static inline bool c4_heap_has_forwarding(void) { return false; }
 static inline uint64_t c4_heap_canonical(uint64_t obj) { return obj; }
 static inline void c4_heap_forbid_become(uint64_t obj) { (void)obj; }
+static inline void c4_heap_note_code_bytes(uint64_t obj) { (void)obj; }
+static inline bool c4_heap_is_code_bytes(uint64_t obj) { (void)obj; return false; }
 static inline void c4_heap_enter_raw_read(void) { }
 static inline void c4_heap_leave_raw_read(void) { }
 static inline void c4_heap_store_class(uint64_t obj, uint64_t value)

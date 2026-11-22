@@ -903,6 +903,28 @@ static oop weak_owner(oop cls, uint32_t slots)
     return obj;
 }
 
+static void code_bytes(void)
+{
+    oop bc, wc;
+    oop nil = forward_start(extent(1) + extent(2), &bc, &wc);
+    oop bytes = alloc(bc, F_BYTES, 1);
+    oop wide = alloc(wc, F_W32, 2);
+    assert(!c4_heap_is_code_bytes(bytes));
+    c4_heap_note_code_bytes(bytes);
+    c4_heap_forbid_become(bytes);
+    assert(c4_heap_is_code_bytes(bytes));
+    assert(c4_heap_canonical(bytes) == bytes);
+    assert(!c4_heap_become_forward(bytes, wide));
+    assert(c4_heap_begin());
+    c4_heap_root(nil);
+    c4_heap_root(wide);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(bc, F_BYTES, 1) == bytes);
+    assert(!c4_heap_is_code_bytes(bytes));
+    assert(c4_heap_become_forward(bytes, wide));
+}
+
 static void forward_strong(void)
 {
     oop bc, wc;
@@ -1709,6 +1731,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "lazy-mark")) lazy_mark();
     else if (!strcmp(argv[1], "lazy-enumeration")) lazy_enumeration();
     else if (!strcmp(argv[1], "weak-idle")) weak_idle_transition();
+    else if (!strcmp(argv[1], "code-bytes")) code_bytes();
     else if (!strcmp(argv[1], "forward-strong")) forward_strong();
     else if (!strcmp(argv[1], "forward-claimed")) forward_claimed();
     else if (!strcmp(argv[1], "forward-weak")) forward_weak();

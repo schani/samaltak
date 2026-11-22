@@ -1804,6 +1804,7 @@ void jit_runtime_back_jump(frame *f);
 uint64_t baseline_stat(int32_t i);
 void become_method(uint64_t from);
 uint64_t jit_runtime_block_code_for(oop m);
+void c4_bytecode_will_write(oop obj);
 void c4_forwarding_installed(void);
 void c4_native_checkpoint(void);
 uint64_t cache_code_for(oop m);

@@ -1,4 +1,4 @@
-| receiver method assert |
+| receiver method nativeMethod bytes location assert |
 assert := [:ok :message | ok ifFalse: [
 	Smalltalk vm stderrWrite: message, String lf.
 	Smalltalk quit: 1]].
@@ -22,6 +22,23 @@ method primitive: 0.
 assert value: (receiver perform: #epochCacheProbe) == false value: 'stale perform entry'.
 Array compile: 'epochCacheProbe ^ 0'.
 40 timesRepeat: [assert value: receiver epochCacheSender == 0 value: 'stale method after replacement'].
+Array compile: 'editableEpochMethod
+	| i |
+	i := 0.
+	[i < 256] whileTrue: [i := i + 1].
+	^true'.
+nativeMethod := Array >> #editableEpochMethod.
+40 timesRepeat: [assert value: receiver editableEpochMethod == true value: 'editable method before write'].
+CHECK_BASELINE ifTrue: [
+	assert value: nativeMethod jitSendSites notNil value: 'editable method never compiled'].
+bytes := nativeMethod bytecodes.
+location := bytes size - 1.
+assert value: (bytes at: location) = 16r71 value: 'unexpected return opcode'.
+bytes at: location put: 16r72.
+40 timesRepeat: [assert value: receiver editableEpochMethod == false value: 'editable method after write'].
+CHECK_BASELINE ifTrue: [
+	assert value: nativeMethod jitSendSites notNil value: 'editable method did not recompile'].
+Array removeSelector: #editableEpochMethod.
 Array removeSelector: #epochCacheProbe.
 assert value: ([receiver epochCacheSender. false] on: MessageNotUnderstood do: [:e | true])
 	value: 'stale method after removal'.
