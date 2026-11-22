@@ -221,6 +221,29 @@ indexableSize: o
 	^0
 ! !
 
+!ObjectMemory methodsFor: 'bulk reference stores'!
+copyRefs: dst at: di from: src at: si count: n
+	"Copy validated pointer slots between heap objects (including weak slots). Indices are zero-based; ranges may overlap. Does not collect."
+	<function>
+	<var: #dst type: 'oop'>
+	<var: #di type: 'size_t'>
+	<var: #src type: 'oop'>
+	<var: #si type: 'size_t'>
+	<var: #n type: 'size_t'>
+	libc memmove: (self slotsOf: dst) + di from: (self slotsOf: src) + si size: n * 8.
+	gc rememberIfOld: dst
+!
+copyRefs: dst at: di fromBuffer: src count: n
+	"Copy from a non-overlapping buffer of oops, not heap slots or raw frame words. Does not collect. Remember old destinations even for an empty copy: Context flushes batch their fixed-field writes with this copy."
+	<function>
+	<var: #dst type: 'oop'>
+	<var: #di type: 'size_t'>
+	<var: #src type: 'oop *'>
+	<var: #n type: 'size_t'>
+	libc memcpy: (self slotsOf: dst) + di from: src size: n * 8.
+	gc rememberIfOld: dst
+! !
+
 !ObjectMemory methodsFor: 'allocation'!
 nextHash
 	<function>

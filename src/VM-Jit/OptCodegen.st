@@ -1776,7 +1776,7 @@ subFp: off
 !
 emitReplace: n slow: slow done: done
 	"replaceFrom:to:with:startingAt: (NF_REPLACE: the receiver's elements bytes, NF_W32 32-bit words, NF_PTRS pointers) as its primitive does it (JitBaselineCompiler>>emitReplacePrimitive:), in x16, x17 and the scratch registers, its arguments read again where needed: the copy stub, the receiver the result; anything else the call (slow)."
-	| nd s args d e young old skip r fail fused |
+	| nd s args d e skip r fail fused |
 	fused := self isFusedReplace: n.
 	fail := fused ifTrue: [asm newLabel] ifFalse: [slow].
 	nd := ir node: n.
@@ -1796,20 +1796,7 @@ emitReplace: n slow: slow done: done
 	asm b: fail if: COND_NE.
 	asm ubfx: X16 with: self scratchB lsb: H_FMT_SHIFT width: 5.
 	self emitKindCheck: X16 shift: s slow: fail.
-	s = 3 ifTrue: [
-		asm comment: 'young or remembered'.
-		young := asm newLabel.
-		old := asm newLabel.
-		asm ldr: X16 base: X22 offset: self youngLoOffset.
-		asm cmp: d with: X16.
-		asm b: old if: COND_LO.
-		asm ldr: X16 base: X22 offset: self youngHiOffset.
-		asm cmp: d with: X16.
-		asm b: young if: COND_LO.
-		asm bind: old.
-		asm tst: self scratchB imm: H_REMEMBERED.
-		asm b: fail if: COND_EQ.
-		asm bind: young].
+	s = 3 ifTrue: [stubs emitBulkRefCopyGuardFor: d asInt32 header: self scratchB slow: fail].
 	self emitElementsOf: d shift: s into: self scratchB temp: X16.
 	asm cmp: X17 with: self scratchB.
 	asm b: fail if: COND_GT.

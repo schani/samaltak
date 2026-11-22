@@ -71,10 +71,7 @@ void jit_baseline_runtime_after_gc(void)
 /* JitBaselineRuntime>>allRoots: */
 void jit_baseline_runtime_all_roots(void (*fn)(oop *))
 {
-    int64_t i;
-    for (i = 0; i <= oop_slot_count - 1; i++) {
-        fn((oop *)oop_slots[i]);
-    }
+    code_roots(fn);
     memset(mega_table, 0, 131072);
     memset(block_table, 0, 32768);
 }
@@ -358,6 +355,15 @@ void canonicalize_below(frame *f)
 }
 
 #endif
+/* JitBaselineRuntime>>codeRoots: */
+void code_roots(void (*fn)(oop *))
+{
+    int64_t i;
+    for (i = 0; i <= oop_slot_count - 1; i++) {
+        fn((oop *)oop_slots[i]);
+    }
+}
+
 /* JitBaselineRuntime>>entrySlow:ret:callee: */
 uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
 {

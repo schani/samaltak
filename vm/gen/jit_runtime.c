@@ -254,23 +254,22 @@ void jit_runtime_all_roots(void (*fn)(oop *))
     int i;
     jit_method *h;
     jit_feedback_all_roots(fn);
-    opt_runtime_all_roots(fn);
+    opt_runtime_all_roots(fn, true);
     if (!cache_opened) {
-        return;
+        goto exit_visit_all_roots;
     }
     begin_writing();
     jit_baseline_runtime_all_roots(fn);
-    if (table_count == 0) {
-        end_writing();
-        return;
-    }
-    for (i = 0; i <= 65535; i++) {
-        h = method_table[i];
-        if (h != NULL) {
-            fn(&h->method);
+    if (table_count != 0) {
+        for (i = 0; i <= 65535; i++) {
+            h = method_table[i];
+            if (h != NULL) {
+                fn(&h->method);
+            }
         }
     }
     end_writing();
+exit_visit_all_roots:;
 }
 
 /* JitRuntime>>backJump: */
@@ -2081,10 +2080,7 @@ oop new_array(uint32_t n, oop *p)
 {
     uint64_t a;
     a = alloc_obj(cls_array, F_VAR, n);
-    memcpy((oop *)(a + 16), p, (uint64_t)n * 8);
-    if (((a & 7) == 0) && ((!(a - young_lo < young_hi - young_lo)) && (((*(uint64_t *)a) & H_REMEMBERED) == 0))) {
-        remember(a);
-    }
+    object_memory_copy_refs_at_from_buffer_count(a, 0, p, n);
     return a;
 }
 
@@ -2405,6 +2401,28 @@ uint64_t push_context(frame *f)
     marry(f);
     f->fp[f->sp] = f->ctx;
     return 0;
+}
+
+/* JitRuntime>>readRoots: */
+void read_roots(void (*fn)(oop *))
+{
+    int i;
+    jit_method *h;
+    jit_feedback_all_roots(fn);
+    opt_runtime_all_roots(fn, false);
+    if (!cache_opened) {
+        goto exit_visit_all_roots;
+    }
+    code_roots(fn);
+    if (table_count != 0) {
+        for (i = 0; i <= 65535; i++) {
+            h = method_table[i];
+            if (h != NULL) {
+                fn(&h->method);
+            }
+        }
+    }
+exit_visit_all_roots:;
 }
 
 /* JitRuntime>>refreshState */

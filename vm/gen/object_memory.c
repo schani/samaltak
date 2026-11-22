@@ -313,6 +313,24 @@ oop class_of(oop o)
     return v;
 }
 
+/* ObjectMemory>>copyRefs:at:from:at:count: */
+void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_t si, size_t n)
+{
+    memmove((oop *)(dst + 16) + di, (oop *)(src + 16) + si, n * 8);
+    if (((dst & 7) == 0) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0))) {
+        remember(dst);
+    }
+}
+
+/* ObjectMemory>>copyRefs:at:fromBuffer:count: */
+void object_memory_copy_refs_at_from_buffer_count(oop dst, size_t di, oop *src, size_t n)
+{
+    memcpy((oop *)(dst + 16) + di, src, n * 8);
+    if (((dst & 7) == 0) && ((!((uint64_t)(dst - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)dst) & H_REMEMBERED) == 0))) {
+        remember(dst);
+    }
+}
+
 /* ObjectMemory>>fixedFields: */
 uint32_t fixed_fields(oop o)
 {

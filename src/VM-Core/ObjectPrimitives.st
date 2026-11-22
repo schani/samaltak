@@ -147,7 +147,7 @@ primInstVarAtPut
 !
 primShallowCopy
 	<vmPrimitive: 80 name: 'shallowCopy'>
-	| r c |
+	| r c n |
 	r := self receiver.
 	(self isPtr: r) ifFalse: [^self answer: r].
 	"a married Context's state is its frame's: Context>>shallowCopy copies what Smalltalk reads"
@@ -155,8 +155,10 @@ primShallowCopy
 	c := memory allocObjTry: (self rawClass: r) format: (self formatOf: r) slots: (self numSlots: r) asUInt64.
 	c = 0 ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 	r := self receiver.
-	libc memcpy: (self slotsOf: c) from: (self slotsOf: r) size: (self numSlots: r) asUInt64 * 8.
-	(self fmtHasPointers: (self formatOf: r)) ifTrue: [gc rememberIfOld: c].
+	n := self numSlots: r.
+	(self fmtHasPointers: (self formatOf: r))
+		ifTrue: [memory copyRefs: c at: 0 from: r at: 0 count: n]
+		ifFalse: [libc memcpy: (self bytesOf: c) from: (self bytesOf: r) size: n asUInt64 * 8].
 	self answer: c
 !
 primIsImmutable
@@ -453,9 +455,8 @@ primReplaceFromTo
 	kind = 1 ifTrue: [
 		fr := memory fixedFields: r.
 		fs := memory fixedFields: src.
-		libc memmove: (self slotsOf: r) + fr + start - 1 from: (self slotsOf: src) + fs + rstart - 1 size: n asUInt64 * 8.
-		gc rememberIfOld: r].
-	kind = 2 ifTrue: [libc memmove: (self slotsOf: r) + start - 1 from: (self slotsOf: src) + rstart - 1 size: n asUInt64 * 8].
+		memory copyRefs: r at: (fr + start - 1) asUInt64 from: src at: (fs + rstart - 1) asUInt64 count: n asUInt64].
+	kind = 2 ifTrue: [libc memmove: (self bytesOf: r) + ((start - 1) * 8) from: (self bytesOf: src) + ((rstart - 1) * 8) size: n asUInt64 * 8].
 	kind = 3 ifTrue: [libc memmove: (self words32Of: r) + start - 1 from: (self words32Of: src) + rstart - 1 size: n asUInt64 * 4].
 	kind = 4 ifTrue: [libc memmove: (self bytesOf: r) + start - 1 from: (self bytesOf: src) + rstart - 1 size: n asUInt64].
 	self answer: r

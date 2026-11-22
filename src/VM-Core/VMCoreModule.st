@@ -106,11 +106,11 @@ isYoung: o
 	^(o - gc youngLo) asUInt64 < (gc youngHi - gc youngLo)
 !
 loadRef: o at: i
-	"Every load of an object pointer from the heap goes through here (the GC's load barrier, see docs/design.md)."
+	"The scalar heap body reference load. Bulk copies and native fast paths handle their loads separately."
 	^self uint64At: o + 16 + (8 * i)
 !
 storeRef: o at: i put: v
-	"Every store of an object pointer into the heap goes through here: the generational write barrier."
+	"The scalar generational write barrier. For bulk copies see ObjectMemory's copyRefs: methods."
 	self uint64At: o + 16 + (8 * i) put: v.
 	((self isPtr: v) and: [(self isYoung: v) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]])
 		ifTrue: [gc remember: o]

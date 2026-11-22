@@ -627,8 +627,7 @@ doesNotUnderstand: sel class: cls frame: f index: k argc: n
 	memory pushRoot: roots.
 	memory pushRoot: roots + 1.
 	roots at: 2 put: (memory allocObj: memory clsArray format: F_VAR slots: n asUInt32).
-	libc memcpy: (self slotsOf: (roots at: 2)) from: base + 1 size: n asUInt64 * 8.
-	gc rememberIfOld: (roots at: 2).
+	memory copyRefs: (roots at: 2) at: 0 fromBuffer: base + 1 count: n asUInt64.
 	memory pushRoot: roots + 2.
 	isize := (self intVal: (self loadRef: memory clsMessage at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK.
 	msg := memory allocObj: memory clsMessage format: F_FIXED slots: (isize < 2 ifTrue: [2] ifFalse: [isize]) asUInt32.
@@ -1093,8 +1092,7 @@ materialize: f
 		s at: CTX_METHOD put: (rtActMethod at: i).
 		s at: CTX_CLOSURE put: ((rtActClosure at: i) >= 0 ifTrue: [rtDeoptVals at: (rtActClosure at: i)] ifFalse: [memory nilOop]).
 		s at: CTX_RECEIVER put: (rtDeoptVals at: (rtActRcv at: i)).
-		0 to: (rtActDepth at: i) - 1 do: [:j | s at: CTX_FIXED + j put: (rtDeoptVals at: (rtActVals at: i) + j)].
-		gc rememberIfOld: c.
+		memory copyRefs: c at: CTX_FIXED fromBuffer: rtDeoptVals + (rtActVals at: i) count: (rtActDepth at: i) asUInt64.
 		interpreter activeCtx: c].
 	rtDeoptCount := 0
 !
@@ -1174,16 +1172,19 @@ stillYoung: o
 	0 to: o poolCount asInt64 - 1 do: [:i | ((self isPtr: (self poolAt: i of: o)) and: [self isYoung: (self poolAt: i of: o)]) ifTrue: [^true]].
 	^false
 !
-allRoots: fn
+allRoots: fn updating: updating
 	<function>
 	self decodedRoots: fn.
-	self allPools: fn
+	updating ifTrue: [self allPools: fn] ifFalse: [self poolRoots: fn]
 !
 allPools: fn
-	"Every optimized header's method and pool (in the code cache)."
 	cache beginWriting.
-	0 to: rtAllCount - 1 do: [:i | self roots: (rtAll at: i) fn: fn].
+	self poolRoots: fn.
 	cache endWriting
+!
+poolRoots: fn
+	"Every optimized header's method and pool (in the code cache)."
+	0 to: rtAllCount - 1 do: [:i | self roots: (rtAll at: i) fn: fn]
 !
 headerValid: o with: valid
 	"The GC verifier: o's method and pool."

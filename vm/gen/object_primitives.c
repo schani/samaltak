@@ -1318,13 +1318,10 @@ exit_element_kind_of_2:;
     if (kind == 1) {
         fr = fixed_fields(r);
         fs = fixed_fields(src);
-        memmove((oop *)(r + 16) + fr + start - 1, (oop *)(src + 16) + fs + rstart - 1, (uint64_t)n * 8);
-        if (((r & 7) == 0) && ((!((uint64_t)(r - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)r) & H_REMEMBERED) == 0))) {
-            remember(r);
-        }
+        object_memory_copy_refs_at_from_at_count(r, (uint64_t)(fr + start - 1), src, (uint64_t)(fs + rstart - 1), (uint64_t)n);
     }
     if (kind == 2) {
-        memmove((oop *)(r + 16) + start - 1, (oop *)(src + 16) + rstart - 1, (uint64_t)n * 8);
+        memmove((uint8_t *)(r + 16) + (start - 1) * 8, (uint8_t *)(src + 16) + (rstart - 1) * 8, (uint64_t)n * 8);
     }
     if (kind == 3) {
         memmove((uint32_t *)(r + 16) + start - 1, (uint32_t *)(src + 16) + rstart - 1, (uint64_t)n * 4);
@@ -1380,6 +1377,7 @@ void prim_shallow_copy(void)
 {
     oop r;
     uint64_t c;
+    uint32_t n;
     int32_t f;
     r = prim_base[0];
     if (!((r & 7) == 0)) {
@@ -1399,12 +1397,12 @@ void prim_shallow_copy(void)
         return;
     }
     r = prim_base[0];
-    memcpy((oop *)(c + 16), (oop *)(r + 16), (uint64_t)(uint32_t)*(uint64_t *)r * 8);
+    n = (uint32_t)*(uint64_t *)r;
     f = (int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK);
     if ((f >= 1) && (f <= 4)) {
-        if (((c & 7) == 0) && ((!(c - young_lo < young_hi - young_lo)) && (((*(uint64_t *)c) & H_REMEMBERED) == 0))) {
-            remember(c);
-        }
+        object_memory_copy_refs_at_from_at_count(c, 0, r, 0, n);
+    } else {
+        memcpy((uint8_t *)(c + 16), (uint8_t *)(r + 16), (uint64_t)n * 8);
     }
     prim_result = c;
     prim_status = PS_OK;

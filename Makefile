@@ -69,16 +69,27 @@ test: test-core
 	$(MAKE) test-uefi
 	@echo "make test: all passed"
 PLATFORM_CHECK = @[ -f vm/build/.variant-platform ] || { echo "make test: FAILED: the VM was built without the platform layer (SDL3), UI tests would not run"; exit 1; }
-test-core: image test-vm
+test-core: image test-vm test-c4
 	$(PLATFORM_CHECK)
 	tests/vm/gen_test.sh $(OUT)/samaltak.image
 	tests/boot/layering_test.sh
 	tests/st_suite.sh $(OUT)/samaltak.image
-	SAMALTAK_VERIFY_GC=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
+	SAMALTAK_VERIFY_GC=1 SAMALTAK_VERIFY_MARK=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
 	$(MAKE) fresh-runtime
 	tests/st_suite.sh $(OUT)/runtime.image -- Weather --load apps/Weather
 	tests/st_suite.sh $(OUT)/runtime.image -- Agents --load apps/Agents
 	tests/st_suite.sh $(OUT)/runtime.image -- Wodify --load apps/Wodify
+
+test-c4: image
+	tests/st_suite.sh "$(OUT)/samaltak.image" -- C4HeapTest --load apps/C4Prototype
+	@log=$$(mktemp "$(OUT)/c4-mark.XXXXXX") || exit; trap 'rm -f "$$log"' 0; rc=0; \
+		SAMALTAK_VERIFY_GC=1 SAMALTAK_VERIFY_MARK=1 tests/st_suite.sh "$(OUT)/samaltak.image" --eden 1 -- C4-MarkTests --load tests/vm/C4MarkTest.st >"$$log" 2>&1 || rc=$$?; \
+		cat "$$log"; [ "$$rc" -eq 0 ] || exit "$$rc"; \
+		awk '$$0 == "samaltak: verify mark: full GC matched" { n++ } END { exit n != 1 }' "$$log" || { echo 'test-c4: expected exactly one native mark witness' >&2; exit 1; }
+ifeq ($(shell uname -s -m),Linux x86_64)
+	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-native/run.sh "$(OUT)/samaltak.image"
+endif
+
 test-tools: image
 	$(PLATFORM_CHECK)
 	$(MAKE) -C vm/platform test st-test
@@ -233,4 +244,4 @@ clean:
 	$(MAKE) -C vm clean
 	rm -rf build
 
-.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-tools test video mindblown-video jit-video clean
+.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-tools test video mindblown-video jit-video clean

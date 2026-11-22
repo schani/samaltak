@@ -66,8 +66,8 @@ static void trace_deopt(jit_method *h, int64_t k, int mode);
 static jit_method *unit_of(oop m, int32_t s, int32_t t);
 static int32_t variant_of(frame *f, oop m, int32_t s, int32_t g);
 
-/* OptRuntime>>allRoots: */
-void opt_runtime_all_roots(void (*fn)(oop *))
+/* OptRuntime>>allRoots:updating: */
+void opt_runtime_all_roots(void (*fn)(oop *), bool updating)
 {
     int32_t i;
     int32_t i_2;
@@ -76,6 +76,11 @@ void opt_runtime_all_roots(void (*fn)(oop *))
     oop *pool;
     int64_t i_4;
     oop o_2;
+    int32_t i_5;
+    jit_method *o_3;
+    oop *pool_2;
+    int64_t i_6;
+    oop o_4;
     if (rt_deopt_count == 0) {
         goto exit_decoded_roots;
     }
@@ -86,19 +91,33 @@ void opt_runtime_all_roots(void (*fn)(oop *))
         fn(rt_act_method + i_2);
     }
 exit_decoded_roots:;
-    begin_writing();
-    for (i_3 = 0; i_3 <= rt_all_count - 1; i_3++) {
-        o = rt_all[i_3];
-        fn(&o->method);
-        pool = (oop *)(o->code_start + o->pool_offset);
-        for (i_4 = 0; i_4 <= (int64_t)o->pool_count - 1; i_4++) {
-            o_2 = pool[i_4];
-            if ((o_2 & 7) == 0) {
-                fn(pool + i_4);
+    if (updating) {
+        begin_writing();
+        for (i_3 = 0; i_3 <= rt_all_count - 1; i_3++) {
+            o = rt_all[i_3];
+            fn(&o->method);
+            pool = (oop *)(o->code_start + o->pool_offset);
+            for (i_4 = 0; i_4 <= (int64_t)o->pool_count - 1; i_4++) {
+                o_2 = pool[i_4];
+                if ((o_2 & 7) == 0) {
+                    fn(pool + i_4);
+                }
+            }
+        }
+        end_writing();
+    } else {
+        for (i_5 = 0; i_5 <= rt_all_count - 1; i_5++) {
+            o_3 = rt_all[i_5];
+            fn(&o_3->method);
+            pool_2 = (oop *)(o_3->code_start + o_3->pool_offset);
+            for (i_6 = 0; i_6 <= (int64_t)o_3->pool_count - 1; i_6++) {
+                o_4 = pool_2[i_6];
+                if ((o_4 & 7) == 0) {
+                    fn(pool_2 + i_6);
+                }
             }
         }
     }
-    end_writing();
 }
 
 /* OptRuntime>>blockCodeFor:start: */
@@ -1494,7 +1513,6 @@ void materialize(frame *f)
     oop *s;
     int32_t v_2;
     int32_t v_3;
-    int32_t j_3;
     h = (jit_method *)f->code;
     k = f->pc - (int32_t)h->bc_size;
     top = f == frames + (nframes - 1);
@@ -1586,12 +1604,7 @@ exit_frame_size_of_act:;
         s[CTX_METHOD] = rt_act_method[i_5];
         s[CTX_CLOSURE] = rt_act_closure[i_5] >= 0 ? rt_deopt_vals[rt_act_closure[i_5]] : nil_oop;
         s[CTX_RECEIVER] = rt_deopt_vals[rt_act_rcv[i_5]];
-        for (j_3 = 0; j_3 <= rt_act_depth[i_5] - 1; j_3++) {
-            s[CTX_FIXED + j_3] = rt_deopt_vals[rt_act_vals[i_5] + j_3];
-        }
-        if (((c & 7) == 0) && ((!((uint64_t)(c - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)c) & H_REMEMBERED) == 0))) {
-            remember(c);
-        }
+        object_memory_copy_refs_at_from_buffer_count(c, CTX_FIXED, rt_deopt_vals + rt_act_vals[i_5], (uint64_t)rt_act_depth[i_5]);
         active_ctx = c;
     }
     rt_deopt_count = 0;
@@ -1964,9 +1977,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t o_8;
     oop local[3];
     oop *roots;
-    oop o_9;
-    oop o_10;
-    uint64_t o_11;
+    uint64_t o_9;
     int64_t isize;
     uint64_t msg;
     oop v_2;
@@ -1987,8 +1998,8 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t r_sent_4;
     bool r_call_leaf;
     uint64_t r_sent_5;
-    oop o_12;
-    uint64_t o_13;
+    oop o_10;
+    uint64_t o_11;
     uint64_t r_perform;
     oop *base_3;
     oop sel_2;
@@ -1998,8 +2009,8 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     cache_entry *v_5;
     cache_entry *g_3;
     uint64_t r_leave_before_2;
-    oop o_14;
-    uint64_t o_15;
+    oop o_12;
+    uint64_t o_13;
     int32_t i_5;
     uint64_t r_resend_2;
     uint64_t r_4;
@@ -2104,15 +2115,10 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     push_root(roots);
     push_root(roots + 1);
     roots[2] = alloc_obj(cls_array, F_VAR, (uint32_t)n);
-    o_9 = roots[2];
-    memcpy((oop *)(o_9 + 16), base_2 + 1, (uint64_t)n * 8);
-    o_10 = roots[2];
-    if (((o_10 & 7) == 0) && ((!((uint64_t)(o_10 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_10) & H_REMEMBERED) == 0))) {
-        remember(o_10);
-    }
+    object_memory_copy_refs_at_from_buffer_count(roots[2], 0, base_2 + 1, (uint64_t)n);
     push_root(roots + 2);
-    o_11 = *(uint64_t *)(cls_message + 16 + 16);
-    isize = (((int64_t)o_11) >> 1) & CLS_INSTSIZE_MASK;
+    o_9 = *(uint64_t *)(cls_message + 16 + 16);
+    isize = (((int64_t)o_9) >> 1) & CLS_INSTSIZE_MASK;
     msg = alloc_obj(cls_message, F_FIXED, (uint32_t)(isize < 2 ? 2 : isize));
     pop_root();
     pop_root();
@@ -2230,9 +2236,9 @@ exit_sent_5:;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o_12 = f->method;
-    o_13 = *(uint64_t *)(o_12 + 16 + 16);
-    f->lits = (oop *)(o_13 + 16);
+    o_10 = f->method;
+    o_11 = *(uint64_t *)(o_10 + 16 + 16);
+    f->lits = (oop *)(o_11 + 16);
     if (((e->kind & K_PRIM) != 0) && ((e->prim == perform_fn) || (e->prim == perform_args_fn))) {
         return ({
     base_3 = f->fp + (f->sp - n - 1);
@@ -2254,9 +2260,9 @@ exit_sent_5:;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o_14 = f->method;
-    o_15 = *(uint64_t *)(o_14 + 16 + 16);
-    f->lits = (oop *)(o_15 + 16);
+    o_12 = f->method;
+    o_13 = *(uint64_t *)(o_12 + 16 + 16);
+    f->lits = (oop *)(o_13 + 16);
     r_leave_before_2 = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before_2; });
         goto exit_perform;

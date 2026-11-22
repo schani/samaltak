@@ -10,6 +10,14 @@ uint64_t eden_lo;
 bool finalization_pending;
 static uint64_t ft_top;
 uint64_t gc_epoch;
+static oop mark_current;
+static uint32_t mark_field;
+static uint32_t mark_limit;
+static size_t mark_seen;
+static mark_verify_space mark_spaces[3];
+static oop *mark_work;
+static size_t mark_work_cap;
+static size_t mark_work_count;
 size_t max_heap_bytes;
 static uint64_t old_alt_hi;
 static uint64_t old_alt_lo;
@@ -38,6 +46,7 @@ static uint64_t to_hi;
 static uint64_t to_lo;
 static uint64_t to_top;
 static int32_t verify = -1;
+static int32_t verify_mark = -1;
 static uint64_t vlo;
 static size_t weak_cap;
 static size_t weak_count;
@@ -48,23 +57,30 @@ uint64_t young_lo;
 static void garbage_collector_after_gc(void);
 static void become_root(oop *p);
 static void clear_weak_slots(bool (*is_dead)(oop *));
+static void compare_mark_with_forwarding(void);
 static void discard(uint64_t p, uint64_t n);
 static void for_each_root(void (*fn)(oop *));
-static uint64_t full_copy(oop o);
 static bool full_dead(oop *v);
 static void full_root(oop *p);
 static bool garbage_collector_is_context(oop o);
+static void mark_enqueue(oop o);
+static void mark_frozen_heap(void);
+static void mark_root(oop *p);
+static void mark_space(mark_verify_space *space, uint64_t lo, uint64_t top);
 static void mark_starts_from(uint64_t lo, uint64_t hi);
+static bool mark_step(void);
+static void record_weak(oop o);
 static bool refers_to_young(oop o);
 static uint64_t reserve(size_t n);
 static uint64_t scav_copy(oop o);
 static bool scav_dead(oop *v);
 static void scav_root(oop *p);
 static bool scav_scan(oop o);
-static uint32_t traced_slots(oop o);
+static int64_t traced_slots(oop o);
 static bool valid_ref(oop v);
 static void verify_heap(void);
 static void verify_space_from(uint64_t lo, uint64_t hi, bool is_old);
+static void visit_roots(void (*fn)(oop *), bool updating);
 
 /* GarbageCollector>>afterGC */
 static void garbage_collector_after_gc(void)
@@ -167,6 +183,52 @@ void collect_garbage(uint64_t need)
     }
 }
 
+/* GarbageCollector>>compareMarkWithForwarding */
+static void compare_mark_with_forwarding(void)
+{
+    uint64_t matched;
+    int i;
+    mark_verify_space *space;
+    uint64_t p;
+    uint64_t word;
+    bool marked;
+    bool forwarded;
+    void *a;
+    int b;
+    matched = 0ULL;
+    for (i = 0; i <= 2; i++) {
+        space = mark_spaces + i;
+        p = space->lo;
+        while (p < space->top) {
+            word = (p - space->lo) / 8;
+            marked = (space->bits[word / 8] & (1LL << (word % 8))) != 0;
+            forwarded = ((*(uint64_t *)p) & H_FORWARDED) != 0;
+            if (marked != forwarded) {
+                a = (void *)p;
+                b = marked ? 1 : 0;
+                fatal_begin();
+                fprintf(stderr, "verify mark: %p marked=%d (forwarding bit differs)", a, b);
+                fatal_end();
+            }
+            if (marked) {
+                matched = matched + 1;
+            }
+            p = p + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p);
+        }
+        free(space->bits);
+        space->bits = (uint8_t *)NULL;
+    }
+    if (matched != mark_seen) {
+        fatal_begin();
+        fprintf(stderr, "verify mark: marked reference is not an object start");
+        fatal_end();
+    }
+    if (verify_mark == 1) {
+        fputs("samaltak: verify mark: full GC matched\n", stderr);
+        verify_mark = 2;
+    }
+}
+
 /* GarbageCollector>>discard:size: */
 static void discard(uint64_t p, uint64_t n)
 {
@@ -180,75 +242,7 @@ static void discard(uint64_t p, uint64_t n)
 /* GarbageCollector>>forEachRoot: */
 static void for_each_root(void (*fn)(oop *))
 {
-    oop local[6];
-    oop *r;
-    int i;
-    oop o;
-    oop c;
-    oop o_2;
-    oop o_3;
-    oop o_4;
-    oop o_5;
-    int i_2;
-    int32_t i_3;
-    int32_t i_4;
-    memset(&local, 0, sizeof local);
-    r = local;
-    r[0] = specials_oop;
-    r[1] = active_ctx;
-    r[2] = last_preempted;
-    r[3] = alloc_sample_class;
-    r[4] = prim_result;
-    r[5] = resend_selector;
-    for (i = 0; i <= 5; i++) {
-        fn(r + i);
-    }
-    o = r[0];
-    specials_oop = o;
-    c = r[1];
-    active_ctx = c;
-    o_2 = r[2];
-    last_preempted = o_2;
-    o_3 = r[3];
-    alloc_sample_class = o_3;
-    o_4 = r[4];
-    prim_result = o_4;
-    o_5 = r[5];
-    resend_selector = o_5;
-    for (i_2 = 0; i_2 <= 3; i_2++) {
-        fn(tmp_roots + i_2);
-    }
-    for (i_3 = 0; i_3 <= ledger_n - 1; i_3++) {
-        fn(ledger_procs + i_3);
-    }
-    for (i_4 = 0; i_4 <= root_count - 1; i_4++) {
-        fn(root_stack[i_4]);
-    }
-    interpreter_roots(fn);
-}
-
-/* GarbageCollector>>fullCopy: */
-static uint64_t full_copy(oop o)
-{
-    uint64_t h;
-    uint64_t bytes;
-    uint64_t dst;
-    uint64_t h_2;
-    uint64_t h_3;
-    h = *(uint64_t *)o;
-    if ((h & H_FORWARDED) != 0) {
-        return *(uint64_t *)(o + 8);
-    }
-    bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
-    dst = ft_top;
-    ft_top = ft_top + bytes;
-    memcpy((void *)dst, (void *)o, bytes);
-    h_2 = h & 1152921504606846975ULL;
-    *(uint64_t *)dst = h_2;
-    h_3 = h | H_FORWARDED;
-    *(uint64_t *)o = h_3;
-    *(uint64_t *)(o + 8) = dst;
-    return dst;
+    visit_roots(fn, true);
 }
 
 /* GarbageCollector>>fullDead: */
@@ -278,6 +272,14 @@ void full_gc(void)
     oop *s;
     int64_t i;
     int64_t stop;
+    oop *p;
+    oop v;
+    uint64_t r_full_copy;
+    uint64_t h;
+    uint64_t bytes;
+    uint64_t dst;
+    uint64_t h_2;
+    uint64_t h_3;
     uint64_t lo;
     uint64_t hi;
     uint64_t live;
@@ -288,6 +290,12 @@ void full_gc(void)
     stat_full_gcs = stat_full_gcs + 1;
     stat_allocated = stat_allocated + (eden_box[0] - eden_lo);
     old_used = old_top - old_lo;
+    if (verify_mark < 0) {
+        verify_mark = getenv("SAMALTAK_VERIFY_MARK") != NULL ? 1 : 0;
+    }
+    if (verify_mark != 0) {
+        mark_frozen_heap();
+    }
     ft_top = old_alt_lo;
     weak_count = 0;
     memset(&local, 0, sizeof local);
@@ -303,11 +311,35 @@ void full_gc(void)
         class_slot = (oop *)(scan + 8);
         full_root(class_slot);
         s = (oop *)(scan + 16);
-        stop = (int64_t)traced_slots(scan) - 1;
+        stop = traced_slots(scan) - 1;
         for (i = 0; i <= stop; i++) {
-            full_root(s + i);
+            p = s + i;
+            v = *p;
+            if (((v & 7) == 0) && (v != 0)) {
+                *p = ({
+    h = *(uint64_t *)v;
+    if ((h & H_FORWARDED) != 0) {
+        r_full_copy = *(uint64_t *)(v + 8);
+        goto exit_full_copy;
+    }
+    bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)v;
+    dst = ft_top;
+    ft_top = ft_top + bytes;
+    memcpy((void *)dst, (void *)v, bytes);
+    h_2 = h & 1152921504606846975ULL;
+    *(uint64_t *)dst = h_2;
+    h_3 = h | H_FORWARDED;
+    *(uint64_t *)v = h_3;
+    *(uint64_t *)(v + 8) = dst;
+    r_full_copy = dst;
+exit_full_copy:;
+    r_full_copy; });
+            }
         }
         scan = scan + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)scan);
+    }
+    if (verify_mark != 0) {
+        compare_mark_with_forwarding();
     }
     clear_weak_slots(full_dead);
     discard(old_lo, old_used);
@@ -344,9 +376,32 @@ void full_gc(void)
 static void full_root(oop *p)
 {
     oop v;
+    uint64_t r_full_copy;
+    uint64_t h;
+    uint64_t bytes;
+    uint64_t dst;
+    uint64_t h_2;
+    uint64_t h_3;
     v = *p;
     if (((v & 7) == 0) && (v != 0)) {
-        *p = full_copy(v);
+        *p = ({
+    h = *(uint64_t *)v;
+    if ((h & H_FORWARDED) != 0) {
+        r_full_copy = *(uint64_t *)(v + 8);
+        goto exit_full_copy;
+    }
+    bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)v;
+    dst = ft_top;
+    ft_top = ft_top + bytes;
+    memcpy((void *)dst, (void *)v, bytes);
+    h_2 = h & 1152921504606846975ULL;
+    *(uint64_t *)dst = h_2;
+    h_3 = h | H_FORWARDED;
+    *(uint64_t *)v = h_3;
+    *(uint64_t *)(v + 8) = dst;
+    r_full_copy = dst;
+exit_full_copy:;
+    r_full_copy; });
     }
 }
 
@@ -386,6 +441,95 @@ static bool garbage_collector_is_context(oop o)
     return (c == ctx) || ((((*(uint64_t *)ctx) & H_FORWARDED) != 0) && (c == *(uint64_t *)(ctx + 8)));
 }
 
+/* GarbageCollector>>markEnqueue: */
+static void mark_enqueue(oop o)
+{
+    mark_verify_space *space;
+    void *a;
+    oop word;
+    oop index;
+    int64_t mask;
+    uint8_t *bits;
+    if (!(((o & 7) == 0) && (o != 0))) {
+        return;
+    }
+    space = mark_spaces;
+    while ((space < mark_spaces + 3) && ((o < space->lo) || (o >= space->top))) {
+        space = space + 1;
+    }
+    if (space == mark_spaces + 3) {
+        a = (void *)o;
+        fatal_begin();
+        fprintf(stderr, "verify mark: reference outside from-space: %p", a);
+        fatal_end();
+    }
+    word = (o - space->lo) / 8;
+    index = word / 8;
+    mask = 1LL << (word % 8);
+    bits = space->bits;
+    if ((bits[index] & mask) != 0) {
+        return;
+    }
+    bits[index] = (uint8_t)(bits[index] | mask);
+    mark_seen = mark_seen + 1;
+    if (mark_work_count == mark_work_cap) {
+        mark_work_cap = mark_work_cap == 0 ? 1024 : mark_work_cap * 2;
+        mark_work = (oop *)realloc(mark_work, mark_work_cap * sizeof(oop));
+        if (mark_work == NULL) {
+            fatal_begin();
+            fprintf(stderr, "verify mark: out of memory for worklist");
+            fatal_end();
+        }
+    }
+    mark_work[mark_work_count] = o;
+    mark_work_count = mark_work_count + 1;
+}
+
+/* GarbageCollector>>markFrozenHeap */
+static void mark_frozen_heap(void)
+{
+    mark_space(mark_spaces, old_lo, old_top);
+    mark_space(mark_spaces + 1, surv_lo, surv_top);
+    mark_space(mark_spaces + 2, eden_lo, eden_box[0]);
+    mark_seen = 0;
+    mark_enqueue(nil_oop);
+    visit_roots(mark_root, false);
+    read_roots(mark_root);
+    for (;;) {
+        if (!mark_step()) {
+            break;
+        }
+    }
+    free(mark_work);
+    mark_work = (oop *)NULL;
+    mark_work_cap = 0;
+}
+
+/* GarbageCollector>>markRoot: */
+static void mark_root(oop *p)
+{
+    mark_enqueue(*p);
+}
+
+/* GarbageCollector>>markSpace:from:to: */
+static void mark_space(mark_verify_space *space, uint64_t lo, uint64_t top)
+{
+    uint64_t bytes;
+    space->lo = lo;
+    space->top = top;
+    bytes = (top - lo + 63) / 64;
+    if (bytes == 0) {
+        space->bits = (uint8_t *)NULL;
+        return;
+    }
+    space->bits = (uint8_t *)calloc(bytes, 1);
+    if (space->bits == NULL) {
+        fatal_begin();
+        fprintf(stderr, "verify mark: out of memory for mark bits");
+        fatal_end();
+    }
+}
+
 /* GarbageCollector>>markStartsFrom:to: */
 static void mark_starts_from(uint64_t lo, uint64_t hi)
 {
@@ -397,6 +541,56 @@ static void mark_starts_from(uint64_t lo, uint64_t hi)
         start_bits[k / 8] = (uint8_t)(start_bits[k / 8] | (1LL << (k % 8)));
         p = p + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p);
     }
+}
+
+/* GarbageCollector>>markStep */
+static bool mark_step(void)
+{
+    uint64_t cls;
+    int32_t f;
+    bool is_ctx;
+    int64_t r_strong_slots;
+    uint32_t n;
+    oop sp;
+    if (mark_current == 0) {
+        if (mark_work_count == 0) {
+            return false;
+        }
+        mark_work_count = mark_work_count - 1;
+        mark_current = mark_work[mark_work_count];
+        cls = *(uint64_t *)(mark_current + 8);
+        mark_enqueue(cls);
+        f = (int32_t)(((*(uint64_t *)mark_current) >> H_FMT_SHIFT) & H_FMT_MASK);
+        is_ctx = cls == cls_context;
+        mark_limit = (uint32_t)({
+    if (!((f >= 1) && (f <= 4))) {
+        r_strong_slots = 0U;
+        goto exit_strong_slots;
+    }
+    if (f == F_WEAK) {
+        r_strong_slots = fixed_fields(mark_current);
+        goto exit_strong_slots;
+    }
+    n = (uint32_t)*(uint64_t *)mark_current;
+    if ((f == F_FIXVAR) && (is_ctx && (n >= CTX_FIXED))) {
+        sp = ((oop *)(mark_current + 16))[CTX_STACKP];
+        if (((sp & 1) != 0) && (((((int64_t)sp) >> 1) >= 0) && ((((int64_t)sp) >> 1) <= (int64_t)(n - CTX_FIXED)))) {
+            r_strong_slots = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+            goto exit_strong_slots;
+        }
+    }
+    r_strong_slots = n;
+exit_strong_slots:;
+    r_strong_slots; });
+        mark_field = 0;
+    } else {
+        mark_enqueue(((oop *)(mark_current + 16))[mark_field]);
+        mark_field = mark_field + 1;
+    }
+    if (mark_field == mark_limit) {
+        mark_current = 0;
+    }
+    return true;
 }
 
 /* GarbageCollector>>oldAllocTry: */
@@ -420,6 +614,22 @@ uint64_t old_alloc_try(uint64_t bytes)
     p = old_top;
     old_top = old_top + bytes;
     return p;
+}
+
+/* GarbageCollector>>recordWeak: */
+static void record_weak(oop o)
+{
+    if (weak_count == weak_cap) {
+        weak_cap = weak_cap == 0 ? 256 : weak_cap * 2;
+        weak_list = (oop *)realloc(weak_list, weak_cap * 8);
+        if (weak_list == NULL) {
+            fatal_begin();
+            fprintf(stderr, "out of memory growing the weak object list to %zu entries", weak_cap);
+            fatal_end();
+        }
+    }
+    weak_list[weak_count] = o;
+    weak_count = weak_count + 1;
 }
 
 /* GarbageCollector>>refersToYoung: */
@@ -575,7 +785,7 @@ static bool scav_scan(oop o)
         young = young || (c - young_lo < young_hi - young_lo);
     }
     s = (oop *)(o + 16);
-    stop = (int64_t)traced_slots(o) - 1;
+    stop = traced_slots(o) - 1;
     for (i = 0; i <= stop; i++) {
         v = s[i];
         if (((v & 7) == 0) && ((uint64_t)(v - young_lo) < young_hi - young_lo)) {
@@ -657,44 +867,46 @@ void scavenge(void)
 }
 
 /* GarbageCollector>>tracedSlots: */
-static uint32_t traced_slots(oop o)
+static int64_t traced_slots(oop o)
 {
     int32_t f;
-    oop sp;
+    bool is_ctx;
+    int64_t r_strong_slots;
     uint32_t n;
-    uint32_t live;
+    oop sp;
+    int64_t count;
     int64_t i;
     f = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+    is_ctx = (f == F_FIXVAR) && garbage_collector_is_context(o);
+    count = ({
     if (!((f >= 1) && (f <= 4))) {
-        return 0;
+        r_strong_slots = 0U;
+        goto exit_strong_slots;
     }
-    if ((f == F_FIXVAR) && garbage_collector_is_context(o)) {
+    if (f == F_WEAK) {
+        r_strong_slots = fixed_fields(o);
+        goto exit_strong_slots;
+    }
+    n = (uint32_t)*(uint64_t *)o;
+    if ((f == F_FIXVAR) && (is_ctx && (n >= CTX_FIXED))) {
         sp = ((oop *)(o + 16))[CTX_STACKP];
-        n = (uint32_t)*(uint64_t *)o;
-        if ((!((sp & 1) != 0)) || (((((int64_t)sp) >> 1) < 0) || ((((int64_t)sp) >> 1) > (int64_t)(n - CTX_FIXED)))) {
-            return n;
+        if (((sp & 1) != 0) && (((((int64_t)sp) >> 1) >= 0) && ((((int64_t)sp) >> 1) <= (int64_t)(n - CTX_FIXED)))) {
+            r_strong_slots = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
+            goto exit_strong_slots;
         }
-        live = (uint32_t)(CTX_FIXED + (((int64_t)sp) >> 1));
-        for (i = live; i <= (int64_t)n - 1; i++) {
+    }
+    r_strong_slots = n;
+exit_strong_slots:;
+    r_strong_slots; });
+    if (is_ctx) {
+        for (i = count; i <= (int64_t)(uint32_t)*(uint64_t *)o - 1; i++) {
             ((oop *)(o + 16))[i] = nil_oop;
         }
-        return live;
     }
-    if (f != F_WEAK) {
-        return (uint32_t)*(uint64_t *)o;
+    if (f == F_WEAK) {
+        record_weak(o);
     }
-    if (weak_count == weak_cap) {
-        weak_cap = weak_cap == 0 ? 256 : weak_cap * 2;
-        weak_list = (oop *)realloc(weak_list, weak_cap * 8);
-        if (weak_list == NULL) {
-            fatal_begin();
-            fprintf(stderr, "out of memory growing the weak object list to %zu entries", weak_cap);
-            fatal_end();
-        }
-    }
-    weak_list[weak_count] = o;
-    weak_count = weak_count + 1;
-    return fixed_fields(o);
+    return count;
 }
 
 /* GarbageCollector>>validRef: */
@@ -814,6 +1026,58 @@ static void verify_space_from(uint64_t lo, uint64_t hi, bool is_old)
         }
         p = p + (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p);
     }
+}
+
+/* GarbageCollector>>visitRoots:updating: */
+static void visit_roots(void (*fn)(oop *), bool updating)
+{
+    oop local[6];
+    oop *r;
+    int i;
+    oop o;
+    oop c;
+    oop o_2;
+    oop o_3;
+    oop o_4;
+    oop o_5;
+    int i_2;
+    int32_t i_3;
+    int32_t i_4;
+    memset(&local, 0, sizeof local);
+    r = local;
+    r[0] = specials_oop;
+    r[1] = active_ctx;
+    r[2] = last_preempted;
+    r[3] = alloc_sample_class;
+    r[4] = prim_result;
+    r[5] = resend_selector;
+    for (i = 0; i <= 5; i++) {
+        fn(r + i);
+    }
+    if (updating) {
+        o = r[0];
+        specials_oop = o;
+        c = r[1];
+        active_ctx = c;
+        o_2 = r[2];
+        last_preempted = o_2;
+        o_3 = r[3];
+        alloc_sample_class = o_3;
+        o_4 = r[4];
+        prim_result = o_4;
+        o_5 = r[5];
+        resend_selector = o_5;
+    }
+    for (i_2 = 0; i_2 <= 3; i_2++) {
+        fn(tmp_roots + i_2);
+    }
+    for (i_3 = 0; i_3 <= ledger_n - 1; i_3++) {
+        fn(ledger_procs + i_3);
+    }
+    for (i_4 = 0; i_4 <= root_count - 1; i_4++) {
+        fn(root_stack[i_4]);
+    }
+    interpreter_roots(fn);
 }
 
 /* GarbageCollector>>walkOldSpace:data: */

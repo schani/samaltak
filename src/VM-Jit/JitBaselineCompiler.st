@@ -1547,10 +1547,9 @@ emitStringComparePrimitive: fail
 emitReplacePrimitive: fail
 	"replaceFrom:to:with:startingAt: (start, stop, the replacement and its start in slots 0-3) of bytes, 32-bit words or indexable pointers without fixed fields from an object of the same kind, within both: the copy stub (memmove's semantics). An immutable receiver, an old pointer receiver not remembered yet (the C function remembers it), anything else: the C function."
 	<function>
-	| words ptrs young |
+	| words ptrs |
 	words := asm newLabel.
 	ptrs := asm newLabel.
-	young := asm newLabel.
 	asm comment: 'primitive replaceFrom:to:with:startingAt: the receiver not immutable, the replacement an object'.
 	asm tst: X0 imm: 7.
 	asm b: fail if: COND_NE.
@@ -1610,16 +1609,7 @@ emitReplacePrimitive: fail
 	asm b: fail if: COND_NE.
 	asm cmp: X11 imm: F_VAR.
 	asm b: fail if: COND_NE.
-	asm comment: 'a young receiver or a remembered one'.
-	asm ldp: X16 with: X17 base: X22 offset: self youngLoOffset.
-	asm sub: X10 with: X0 with: X16.
-	asm sub: X17 with: X17 with: X16.
-	asm cmp: X10 with: X17.
-	asm b: young if: COND_LO.
-	asm ldr: X16 base: X0 offset: 0.
-	asm tst: X16 imm: H_REMEMBERED.
-	asm b: fail if: COND_EQ.
-	asm bind: young.
+	stubs emitBulkRefCopyGuardFor: X0 header: -1 slow: fail.
 	self emitReplaceShift: 3 fail: fail
 !
 emitReplaceShift: s fail: fail

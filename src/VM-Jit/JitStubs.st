@@ -161,6 +161,40 @@ emitReloadPinned
 	asm ldr: X25 base: X22 offset: self falseOffset
 ! !
 
+!JitStubs methodsFor: 'barriers'!
+emitBulkRefCopyGuardFor: o header: h slow: slow
+	"The native fast path of ObjectMemory's heap-to-heap copyRefs:. Only young or already remembered destinations can use the copy stub; otherwise the primitive performs the copy and remembers the destination. h = -1 means the header is not live and X10/X17 are scratch."
+	<function>
+	<var: #o type: 'int32_t'>
+	<var: #h type: 'int32_t'>
+	<var: #slow type: 'int32_t'>
+	| young old hdr |
+	asm comment: 'bulk reference copy: young or already remembered destination'.
+	young := asm newLabel.
+	hdr := h.
+	h = -1
+		ifTrue: [
+			asm ldp: X16 with: X17 base: X22 offset: self youngLoOffset.
+			asm sub: X10 with: o with: X16.
+			asm sub: X17 with: X17 with: X16.
+			asm cmp: X10 with: X17.
+			asm b: young if: COND_LO.
+			hdr := X16.
+			asm ldr: hdr base: o offset: 0]
+		ifFalse: [
+			old := asm newLabel.
+			asm ldr: X16 base: X22 offset: self youngLoOffset.
+			asm cmp: o with: X16.
+			asm b: old if: COND_LO.
+			asm ldr: X16 base: X22 offset: self youngHiOffset.
+			asm cmp: o with: X16.
+			asm b: young if: COND_LO.
+			asm bind: old].
+	asm tst: hdr imm: H_REMEMBERED.
+	asm b: slow if: COND_EQ.
+	asm bind: young
+! !
+
 !JitStubs methodsFor: 'generating'!
 generate
 	"Generate the trampolines and stubs at the code cache's top; answer whether they fit."

@@ -957,8 +957,12 @@ youngRoots: fn
 allRoots: fn
 	"Full GCs and become (writing enabled): every object in the code; the caches keyed by objects are cleared."
 	<function>
-	0 to: oopSlotCount - 1 do: [:i | fn call: (self cCoerce: (oopSlots at: i) to: 'oop *')].
+	self codeRoots: fn.
 	self clearCaches
+!
+codeRoots: fn
+	<function>
+	0 to: oopSlotCount - 1 do: [:i | fn call: (self cCoerce: (oopSlots at: i) to: 'oop *')]
 !
 afterGC
 	"Forget slots whose objects are old now; the caches keyed by objects are cleared (young ones moved)."

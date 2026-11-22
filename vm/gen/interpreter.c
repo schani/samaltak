@@ -1451,6 +1451,7 @@ void interpret(void)
     oop o_242;
     uint64_t o_243;
     oop o_244;
+    oop *src;
     uint8_t r_next_bytecode_150;
     int8_t v_167;
     oop a_4;
@@ -3000,7 +3001,7 @@ void interpret(void)
     oop o_817;
     uint64_t o_818;
     oop o_819;
-    oop *src;
+    oop *src_2;
     int32_t k_22;
     oop *s_230;
     oop m_233;
@@ -3220,6 +3221,7 @@ void interpret(void)
     oop o_909;
     uint64_t o_910;
     oop o_911;
+    oop *src_3;
     oop mc;
     uint64_t o_912;
     int64_t isize_2;
@@ -5859,9 +5861,11 @@ op_make_array:;
         fr = (frame *)NULL;
     }
     sp = sp - n_5;
-    memcpy((oop *)(a_3 + 16), sp + 1, (uint64_t)n_5 * 8);
-    if (((a_3 & 7) == 0) && ((!(a_3 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)a_3) & H_REMEMBERED) == 0))) {
-        remember(a_3);
+    src = sp + 1;
+    if (fr == NULL) {
+        object_memory_copy_refs_at_from_at_count(a_3, 0, active_ctx, (uint64_t)(CTX_FIXED + (src - fp)), (uint64_t)n_5);
+    } else {
+        object_memory_copy_refs_at_from_buffer_count(a_3, 0, src, (uint64_t)n_5);
     }
     sp = sp + 1;
     *sp = a_3;
@@ -11324,12 +11328,12 @@ activate:;
     fr = fr + 1;
     goto enter_frame;
 activate_from_context:;
-    src = sp - argc;
-    cstack[0] = src[0];
+    src_2 = sp - argc;
+    cstack[0] = src_2[0];
     for (k_22 = 1; k_22 <= argc; k_22++) {
-        cstack[k_22] = src[k_22];
+        cstack[k_22] = src_2[k_22];
     }
-    sp = src - 1;
+    sp = src_2 - 1;
     s_230 = (oop *)(active_ctx + 16);
     m_233 = s_230[CTX_METHOD];
     o_820 = *(uint64_t *)(m_233 + 16 + 24);
@@ -12188,9 +12192,11 @@ send_does_not_understand:;
         ip = (uint8_t *)(o_910 + 16) + (((int64_t)o_911) >> 1);
         fr = (frame *)NULL;
     }
-    memcpy((oop *)(args + 16), sp - argc + 1, (uint64_t)argc * 8);
-    if (((args & 7) == 0) && ((!(args - young_lo < young_hi - young_lo)) && (((*(uint64_t *)args) & H_REMEMBERED) == 0))) {
-        remember(args);
+    src_3 = sp - argc + 1;
+    if (fr == NULL) {
+        object_memory_copy_refs_at_from_at_count(args, 0, active_ctx, (uint64_t)(CTX_FIXED + (src_3 - fp)), (uint64_t)argc);
+    } else {
+        object_memory_copy_refs_at_from_buffer_count(args, 0, src_3, (uint64_t)argc);
     }
     tmp_roots[3] = args;
     mc = cls_message;
@@ -12432,10 +12438,7 @@ void materialize_all(void)
             s[CTX_METHOD] = f->method;
             s[CTX_CLOSURE] = f->closure;
             s[CTX_RECEIVER] = f->fp[-1];
-            memcpy(s + CTX_FIXED, f->fp, (uint64_t)f->sp * 8);
-            if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
-                remember(ctx);
-            }
+            object_memory_copy_refs_at_from_buffer_count(ctx, CTX_FIXED, f->fp, (uint64_t)f->sp);
             active_ctx = ctx;
         }
     }
@@ -12996,13 +12999,10 @@ void interpreter_widow(frame *f)
     if ((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) && ((int64_t)((jit_method *)f->code)->raw_base < (int64_t)((jit_method *)f->code)->slots)) {
         n = n < (int64_t)((jit_method *)f->code)->raw_base ? n : (int64_t)((jit_method *)f->code)->raw_base;
     }
-    memcpy(s + CTX_FIXED, f->fp, (uint64_t)n * 8);
     s[CTX_SENDER] = nil_oop;
     s[CTX_PC] = nil_oop;
     s[CTX_STACKP] = (uint64_t)((n << 1) | 1);
-    if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
-        remember(ctx);
-    }
+    object_memory_copy_refs_at_from_buffer_count(ctx, CTX_FIXED, f->fp, (uint64_t)n);
     f->ctx = nil_oop;
 }
 

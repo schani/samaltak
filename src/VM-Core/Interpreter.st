@@ -267,8 +267,7 @@ materializeAll
 				s at: CTX_METHOD put: f method.
 				s at: CTX_CLOSURE put: f closure.
 				s at: CTX_RECEIVER put: (f fp at: -1).
-				libc memcpy: s + CTX_FIXED from: f fp size: f sp asUInt64 * 8.
-				gc rememberIfOld: ctx.
+				memory copyRefs: ctx at: CTX_FIXED fromBuffer: f fp count: f sp asUInt64.
 				activeCtx := ctx]].
 	nframes := 0.
 	cstackUsed := 0.
@@ -319,11 +318,10 @@ widow: f
 	f sp < n ifTrue: [n := f sp].
 	"not an optimized frame's raw slots (doubles' IEEE bits)"
 	((jit isOptFrame: f) and: [(jit rawBaseOf: f) < (jit rawTopOf: f)]) ifTrue: [n := n min: (jit rawBaseOf: f)].
-	libc memcpy: s + CTX_FIXED from: f fp size: n asUInt64 * 8.
 	s at: CTX_SENDER put: memory nilOop.
 	s at: CTX_PC put: memory nilOop.
 	s at: CTX_STACKP put: (self intOop: n).
-	gc rememberIfOld: ctx.
+	memory copyRefs: ctx at: CTX_FIXED fromBuffer: f fp count: n asUInt64.
 	f ctx: memory nilOop
 !
 widowFrom: k to: n
@@ -1114,6 +1112,12 @@ toContext
 		self materializeAll.
 		self loadCtx]
 !
+copyFromStack: src to: dst count: n
+	"The interpreter's stack can be a C frame or the active heap Context."
+	fr isNull
+		ifTrue: [memory copyRefs: dst at: 0 from: activeCtx at: (CTX_FIXED + (src - fp)) asUInt64 count: n asUInt64]
+		ifFalse: [memory copyRefs: dst at: 0 fromBuffer: src count: n asUInt64]
+!
 push: v
 	sp := sp + 1.
 	sp value: v
@@ -1449,8 +1453,7 @@ makeArray
 	a := memory allocObj: memory clsArray format: F_VAR slots: n.
 	self reload.
 	sp := sp - n.
-	libc memcpy: (self slotsOf: a) from: sp + 1 size: n asUInt64 * 8.
-	gc rememberIfOld: a.
+	self copyFromStack: sp + 1 to: a count: n.
 	self push: a
 !
 closure
@@ -2068,8 +2071,7 @@ sendDoesNotUnderstand
 	tmpRoots at: 2 put: cls.
 	args := memory allocObj: memory clsArray format: F_VAR slots: argc asUInt32.
 	self reload.
-	libc memcpy: (self slotsOf: args) from: sp - argc + 1 size: argc asUInt64 * 8.
-	gc rememberIfOld: args.
+	self copyFromStack: sp - argc + 1 to: args count: argc.
 	tmpRoots at: 3 put: args.
 	mc := memory clsMessage.
 	isize := (self intVal: (self loadRef: mc at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK.

@@ -25,19 +25,9 @@ Working decisions. Open questions marked **?**.
 
 ## GC: keep the door open for pauseless (C4-style)
 
-The collector is simple and stop-the-world: copying scavenges of eden and survivor spaces, full GC of old space (see implementation.md). The design must not preclude a concurrent, compacting, never-stop-the-world GC, so these are constraints on all VM and primitive code:
+The VM currently collects synchronously on its one mutator. `loadRef:at:` is a plain load and `storeRef:at:put:` implements the generational barrier for many body accesses. Neither covers all reference traffic: class words, heap Context stacks and literals, bulk operations and JIT code also have direct paths.
 
-1. **Single choke point for heap reference loads.** Every load of an object pointer from the heap goes through one VM function (`loadRef:at:`, `load_ref` in C). Initially a no-op; later it becomes C4's loaded-value barrier (check, then self-heal on stale/unmarked refs). The future JIT emits the same barrier.
-2. **Single choke point for stores** (`storeRef:at:put:`, `store_ref` in C), for generational/remembered-set and SATB needs.
-3. **Spare pointer bits.** Tagged 64-bit words reserve metadata bits (e.g. NMT/color) that the barrier can test; immediates use the low tag bits.
-4. **Identity hash in the header**, never derived from the address.
-5. **No raw heap pointers held across safepoints** in VM code. Primitives and the platform layer use handles or re-load after any allocation/safepoint.
-6. **Precise roots.** Contexts are heap objects (or precisely mapped stack frames); no conservative scanning.
-7. **Region (page) based heap** with bump allocation, so pages can be evacuated and relocated concurrently.
-8. **Mutator checkpoints instead of global stops.** The mutator polls at safepoints; GC phase changes use per-thread handshakes, not a world stop. With one mutator thread this is cheap.
-9. **`become:` via forwarding** handled by the same load barrier, not by a heap scan. Today `becomeForward:` is a full GC followed by a scan of old space; only the primitive knows.
-10. **Off-heap memory for GPU and I/O buffers**: never moved, referenced by handle objects.
-11. Weak references and ephemerons designed for concurrent marking from the start.
+The [C4 roadmap](c4.md) separates current behavior from the target: complete mutator load/store barriers, precise roots at bounded checkpoints, region-based relocation, and no stop-the-world fallback in C4 mode. Keep identity hashes independent of addresses and use handles or off-heap buffers for retained native state. See [implementation.md](implementation.md#object-memory) for the current heap format and collector.
 
 ## Debugging and profiling
 

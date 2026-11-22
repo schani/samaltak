@@ -974,14 +974,21 @@ methodRoots: fn
 allRoots: fn
 	"Full GCs and become: every header's method and every object in the code."
 	<function>
+	self visitAllRoots: fn updating: true
+!
+readRoots: fn
+	"Same roots, with no writes, cache invalidation or write-protection changes."
+	<function>
+	self visitAllRoots: fn updating: false
+!
+visitAllRoots: fn updating: updating
 	feedback allRoots: fn.
-	optimizer allRoots: fn.
+	optimizer allRoots: fn updating: updating.
 	cacheOpened ifFalse: [^self].
-	cache beginWriting.
-	brt allRoots: fn.
-	tableCount = 0 ifTrue: [^cache endWriting].
-	self methodRoots: fn.
-	cache endWriting
+	updating ifTrue: [cache beginWriting].
+	updating ifTrue: [brt allRoots: fn] ifFalse: [brt codeRoots: fn].
+	tableCount ~= 0 ifTrue: [self methodRoots: fn].
+	updating ifTrue: [cache endWriting]
 !
 afterGC
 	"Objects moved: refresh the JitState, forget young headers whose methods are old now."
@@ -1468,8 +1475,7 @@ newArray: n from: p
 	<returns: 'oop'>
 	| a |
 	a := memory allocObj: memory clsArray format: F_VAR slots: n.
-	libc memcpy: (self slotsOf: a) from: p size: n asUInt64 * 8.
-	gc rememberIfOld: a.
+	memory copyRefs: a at: 0 fromBuffer: p count: n.
 	^a
 !
 optSendFrom: f ret: ret
