@@ -7,6 +7,7 @@
 # or clang.
 # Profile-guided: pgo.profdata (if present) steers optimization; `make pgo IMAGE=...` retrains it. NO_PGO=1 skips it.
 # BRIEF=1 prints one line per file instead of the commands.
+VM_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S := $(shell uname -s)
 OS := $(shell echo $(UNAME_S) | tr a-z A-Z)
 ARCH := $(if $(filter x86_64 amd64,$(shell uname -m)),X86_64,ARM64)
@@ -21,7 +22,7 @@ else
   CFLAGS ?= -O2 -g -flto=auto
   CFLAGS += -Wno-type-limits -Wno-parentheses -Wno-maybe-uninitialized -Wno-format-truncation
 endif
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen -I.
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen -I"$(VM_DIR)"
 ifeq ($(UNAME_S),Darwin)
   CFLAGS += -D_DARWIN_C_SOURCE
   OS_PLATFORM_LIBS := -framework CoreVideo -lobjc
@@ -79,6 +80,7 @@ else
   SRCS := $(CORE_SRCS) $(HEADLESS_SRCS)
   ifeq ($(OS)/$(ARCH),LINUX/X86_64)
     SRCS += c4_heap.c
+    vpath c4_heap.c $(VM_DIR)
   endif
   CFLAGS += -DSAMALTAK_NO_PLATFORM
 endif
