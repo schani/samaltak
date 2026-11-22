@@ -1,11 +1,12 @@
 | heapBase replacement |
 Processor stopTimeSlicer.
 heapBase := [
-	(thisContext == heapBase and: [heapBase method ~~ replacement]) ifFalse: [Smalltalk quit: 2].
-	Smalltalk vm stdoutWrite: 'running in heap base', (String with: Character lf).
-	heapBase method: replacement.
-	heapBase method == replacement ifFalse: [Smalltalk quit: 3].
+	thisContext == heapBase ifFalse: [Smalltalk quit: 3].
+	"Try the primitive before any activation that might suspend this context."
+	heapBase instVarAt: 4 put: replacement.
+	heapBase method == replacement ifFalse: [Smalltalk quit: 4].
+	Smalltalk vm stdoutWrite: 'active Context method written', String lf.
 	Smalltalk quit: 0] asContext.
 replacement := heapBase method shallowCopy.
 (Process forContext: heapBase priority: Processor activeProcess priority + 1) resume.
-Smalltalk quit: 2
+Smalltalk quit: 3

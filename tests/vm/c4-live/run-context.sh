@@ -21,17 +21,20 @@ timeout -k 2 30 "$runtime" --c4 --eden 8 --max-heap 128 "$image"     --headless 
     fail reflection
 grep -Fxq 'C4 Context reflection ok' "$out/reflection.log" || fail reflection
 
-rc=0
-timeout -k 2 30 "$runtime" --c4 --eden 8 --max-heap 128 "$image"     --headless --eval "$(cat tests/vm/c4-live/context-method.st)" >"$out/method.log" 2>&1 ||
-    rc=$?
-[ "$rc" -eq 70 ] &&
-    grep -Fxq 'running in heap base' "$out/method.log" &&
-    grep -Fxq 'samaltak: fatal: C4 cannot replace compiled method storage' "$out/method.log" ||
-    fail method
-timeout -k 2 30 "$runtime" --jit none --eden 8 --max-heap 128 "$image" \
-    --headless --eval "$(cat tests/vm/c4-live/context-method.st)" >"$out/method-legacy.log" 2>&1 ||
-    fail method-legacy
-grep -Fxq 'running in heap base' "$out/method-legacy.log" || fail method-legacy
+for mode in c4 c4-moving legacy; do
+    case "$mode" in legacy) set -- --jit none ;; *) set -- "--$mode" ;; esac
+    log=$out/method-$mode.log
+    rc=0
+    timeout -k 2 30 "$runtime" "$@" --eden 8 --max-heap 128 "$image" \
+        --headless --eval "$(cat tests/vm/c4-live/context-method.st)" >"$log" 2>&1 || rc=$?
+    if [ "$mode" = legacy ]; then
+        [ "$rc" -eq 0 ] && grep -Fxq 'active Context method written' "$log" || fail "method-$mode"
+    else
+        # A failed reflective primitive reports bounds without writing.
+        [ "$rc" -ne 0 ] && grep -q '^Error: SubscriptOutOfBounds: Index 4 out of bounds' "$log" &&
+            ! grep -Fxq 'active Context method written' "$log" || fail "method-$mode"
+    fi
+done
 
 for mode in c4 legacy; do
     case "$mode" in c4) set -- --c4 ;; legacy) set -- --jit none ;; esac
