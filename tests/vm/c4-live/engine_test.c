@@ -1336,6 +1336,112 @@ static oop alloc_nil(oop cls, unsigned fmt, uint32_t slots, uint32_t weak_start,
     return obj;
 }
 
+static void moving_oracle(void)
+{
+    enum { COUNT = 130, GROUP = 13, LAST_SLOT = 129 };
+    oop cls = init_moving(16384);
+    oop nodes[COUNT], old_body[COUNT];
+    unsigned edges[COUNT][2];
+    bool expected[COUNT] = {false}, enumerated[COUNT] = {false};
+    unsigned queue[COUNT], head = 0, tail = 0;
+    oop weak = weak_owner(cls, COUNT);
+    oop root = alloc_nil(cls, F_VAR, LAST_SLOT + 1, C4_NO_WEAK, cls);
+    const unsigned seeds[] = {1, 5 * GROUP + 1, 8 * GROUP + 1};
+    for (unsigned i = 0; i < COUNT; ++i) {
+        nodes[i] = point(cls, true);
+        old_body[i] = c4_heap_address(nodes[i]);
+    }
+    for (unsigned i = 0; i < COUNT; ++i) {
+        const unsigned base = i / GROUP * GROUP;
+        edges[i][0] = base + rand32() % GROUP;
+        edges[i][1] = base + (i + 1) % GROUP; /* ring through the last slot */
+        c4_heap_store_ref(nodes[i], 0, nodes[edges[i][0]]);
+        c4_heap_store_ref(nodes[i], 1, nodes[edges[i][1]]);
+        c4_heap_store_ref(weak, i, nodes[i]);
+    }
+    for (unsigned s = 0; s < sizeof seeds / sizeof *seeds; ++s) {
+        expected[seeds[s]] = true;
+        queue[tail++] = seeds[s];
+        c4_heap_store_ref(root, LAST_SLOT - s, nodes[seeds[s]]);
+    }
+    /* Ground truth uses only graph construction, not engine state/loads. */
+    while (head < tail) {
+        unsigned i = queue[head++];
+        for (unsigned e = 0; e < 2; ++e) {
+            unsigned k = edges[i][e];
+            if (!expected[k]) {
+                expected[k] = true;
+                queue[tail++] = k;
+            }
+        }
+    }
+    assert(tail == 3 * GROUP && !expected[COUNT - 1]);
+
+    /* This class also owns the pinned fixture objects: exclude only those.
+     * Stall ENUM_TRACE and overwrite the same versioned last-slot index
+     * in adjacent handle rows, plus a materialized lazy pinned field. */
+    assert(c4_heap_enum_request(cls, 32, root, weak));
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+    c4_heap_root(weak);
+    atomic_store(&stall_enum, true);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_enum)) sched_yield();
+    for (unsigned i = 1; i <= 2; ++i)
+        c4_heap_store_ref(nodes[i], 1, nodes[COUNT - 1]);
+    c4_heap_store_ref(root, LAST_SLOT, nodes[COUNT - 1]);
+    atomic_store(&stall_enum, false);
+    /* nil is also its own class in init_moving. */
+    assert(enum_count() == (int32_t)tail + 1);
+    unsigned nils = 0;
+    for (unsigned n = 0; n < tail + 1; ++n) {
+        oop obj = c4_heap_enum_at(n);
+        if (obj == cls) {
+            ++nils;
+            continue;
+        }
+        unsigned i = 0;
+        while (i < COUNT && nodes[i] != obj) ++i;
+        assert(i < COUNT && expected[i] && !enumerated[i]);
+        enumerated[i] = true;
+    }
+    assert(nils == 1);
+    for (unsigned i = 0; i < COUNT; ++i) assert(enumerated[i] == expected[i]);
+    c4_heap_enum_finish();
+    for (unsigned i = 1; i <= 2; ++i)
+        c4_heap_store_ref(nodes[i], 1, nodes[edges[i][1]]);
+    c4_heap_store_ref(root, LAST_SLOT, nodes[seeds[0]]);
+
+    assert(c4_heap_begin());
+    c4_heap_root(root);
+    c4_heap_root(weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_take_weak_clears() == COUNT - tail);
+    for (unsigned i = 0; i < COUNT; ++i) {
+        assert(c4_heap_load_ref(weak, i) == (expected[i] ? nodes[i] : cls));
+        if (expected[i]) assert(c4_heap_address(nodes[i]) == old_body[i]);
+    }
+    for (unsigned poll = 1; poll <= 3; ++poll) {
+        c4_heap_move_poll();
+        for (unsigned i = 0; i < COUNT; ++i) {
+            if (!expected[i]) continue;
+            assert((c4_heap_address(nodes[i]) != old_body[i]) == (i < poll * 64));
+            for (unsigned e = 0; e < 2; ++e) {
+                assert(c4_heap_load_ref(nodes[i], e) == nodes[edges[i][e]]);
+                assert(body(nodes[i])[2 + e] == nodes[edges[i][e]]);
+            }
+        }
+        if (poll < 3) {
+            assert(!c4_heap_begin());
+            oop fresh = point(cls, true);
+            for (unsigned i = 0; i < COUNT; ++i) assert(fresh != nodes[i]);
+        }
+    }
+    assert(point(cls, true) == nodes[COUNT - 1]);
+    assert(c4_heap_load_ref(weak, COUNT - 1) == cls);
+}
+
 static void lazy_mark(void)
 {
     enum { SLOTS = 1025, FIRST_WORD = 512 };
@@ -1615,6 +1721,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "raw-read-move")) moving(true);
     else if (!strncmp(argv[1], "raw-read-", 9)) raw_read(argv[1] + 9);
     else if (!strcmp(argv[1], "moving-general")) moving_general();
+    else if (!strcmp(argv[1], "moving-oracle")) moving_oracle();
     else if (!strcmp(argv[1], "moving-saturated")) moving_saturated();
     else if (!strcmp(argv[1], "enumeration")) enumeration();
     else if (!strcmp(argv[1], "enumeration-limit")) enumeration_limit();
