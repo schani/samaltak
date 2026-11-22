@@ -155,6 +155,7 @@ c4Poll
 	<function>
 	| budget f i k w |
 	c4 finishPoll.
+	scheduler c4CollectWeakClears.
 	budget := 64.
 	(c4FrameNext = c4FrameLimit and: [c4StackNext = c4StackLimit]) ifTrue: [
 		c4 shouldCollect ifFalse: [^self].
@@ -308,8 +309,28 @@ roots: fn
 			w := w + 1].
 		w := w max: hi]
 !
+methodStorage: m at: i
+	"C4 borrows interior views across safepoints. The method is rooted and
+	its initialized storage cannot be replaced. No weak or Context view."
+	| o f |
+	vmMain c4Enabled ifTrue: [
+		((self isPtr: m) and: [m ~= 0 and: [(self rawClass: m) = memory clsCompiledmethod and: [
+			(self formatOf: m) = F_FIXED and: [(self numSlots: m) > i]]]])
+			ifFalse: [self fatal: 'bad C4 CompiledMethod layout']].
+	o := self loadRef: m at: i.
+	vmMain c4Enabled ifTrue: [
+		((self isPtr: o) and: [o ~= 0 and: [o ~= memory nilOop]]) ifFalse: [self fatal: 'missing C4 method storage'].
+		f := self formatOf: o.
+		(i = CM_LITERALS
+			ifTrue: [f = F_VAR or: [f = F_FIXED]]
+			ifFalse: [f >= F_BYTES]) ifFalse: [self fatal: 'bad C4 method storage layout']].
+	^o
+!
+methodLits: m
+	^self slotsOf: (self methodStorage: m at: CM_LITERALS)
+!
 methodBcs: m
-	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
+	^self bytesOf: (self methodStorage: m at: CM_BYTECODES)
 !
 beforeGC
 	"Frames hold raw pointers into their methods' bytecodes and literals: offsets while objects move."
@@ -338,7 +359,7 @@ afterGC
 	0 to: nframes - 1 do: [:i |
 		f := frames + i.
 		f ip: (self methodBcs: f method) + f pc.
-		f lits: (self slotsOf: (self loadRef: f method at: CM_LITERALS))]
+		f lits: (self methodLits: f method)]
 !
 frameSize: f
 	"frameSize of a frame's method or block (at least its args and temps)."
@@ -480,7 +501,7 @@ contextField: i of: c
 	"Field i (sender, pc or stackp) of Context c as Smalltalk sees it: a married one answers from its frame, its sender being the caller frame's Context, married now (activeCtx for frame 0). 0 if that would look into an optimized frame (the caller's; c's own for pc and stackp): the frames are flushed instead, and c holds the answer. The caller has externalized."
 	<function>
 	| f |
-	(self isMarried: c) ifFalse: [^(self slotsOf: c) at: i].
+	(self isMarried: c) ifFalse: [^self loadRef: c at: i].
 	f := frames + (self intVal: (self loadRef: c at: CTX_SENDER)).
 	i = CTX_SENDER ifTrue: [
 		f = frames ifTrue: [^activeCtx].
@@ -668,11 +689,11 @@ fillCache: aClass selector: aSelector
 	pf := (p ~= 0 and: [p ~= PRIM_ENSURE_MARKER and: [p ~= PRIM_ONDO_MARKER]])
 		ifTrue: [primitives lookup: p]
 		ifFalse: [self null].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self methodStorage: m at: CM_BYTECODES.
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
 	e bcs: (self bytesOf: bc).
-	e lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	e lits: (self methodLits: m).
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
 	e fsize < ((self intVal: na) + e ntemps) ifTrue: [e fsize: ((self intVal: na) + e ntemps) asInt32].
@@ -931,7 +952,7 @@ blockActivate: n fromArray: fromArray
 	f fp: nfp.
 	f pc: (self intVal: (self loadRef: cl at: BC_STARTPC)) asInt32.
 	f ip: (self methodBcs: m) + (self intVal: (self loadRef: cl at: BC_STARTPC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self methodLits: m).
 	f sp: (count + ntemps) asInt32.
 	count to: count + ntemps - 1 do: [:i | self cstackSlot: nfp + i put: memory nilOop].
 	cstackUsed := (nfp + count + ntemps - cstack) asUInt64
@@ -1007,7 +1028,7 @@ pushFrame: m argc: n code: c ecode: ecode
 	g code: c.
 	g fp: nfp.
 	g ip: (self methodBcs: m).
-	g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	g lits: (self methodLits: m).
 	g sp: (n + ntemps) asInt32.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	ecode >= 0 ifTrue: [nfp at: n put: (self intOop: ecode)].
@@ -1045,7 +1066,7 @@ thawFor: code
 	c := activeCtx.
 	s := self slotsOf: c.
 	sender := s at: CTX_SENDER.
-	(nframes = 0 and: [(self isPtr: sender) and: [sender ~= memory nilOop and: [(self rawClass: sender) = memory clsContext and: [self isInt: ((self slotsOf: sender) at: CTX_PC)]]]]) ifFalse: [^self null].
+	(nframes = 0 and: [(self isPtr: sender) and: [sender ~= memory nilOop and: [(self rawClass: sender) = memory clsContext and: [self isInt: (self loadRef: sender at: CTX_PC)]]]]) ifFalse: [^self null].
 	n := self intVal: (s at: CTX_STACKP).
 	m := s at: CTX_METHOD.
 	f := frames + 0.
@@ -1057,7 +1078,7 @@ thawFor: code
 	f code: code.
 	f fp: cstack + 1.
 	f ip: (self methodBcs: m) + (self intVal: (s at: CTX_PC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self methodLits: m).
 	f sp: n asInt32.
 	s at: CTX_SENDER put: (self intOop: 0).
 	s at: CTX_STACKP put: (self intOop: 0).
@@ -1222,9 +1243,11 @@ readInt16: p
 !Interpreter methodsFor: 'interpreter registers'!
 loadCtx
 	| s m |
+	(vmMain c4Enabled and: [(self isPtr: activeCtx) not or: [activeCtx = 0 or: [(self rawClass: activeCtx) ~= memory clsContext]]])
+		ifTrue: [self fatal: 'bad C4 active Context'].
 	s := self slotsOf: activeCtx.
 	m := s at: CTX_METHOD.
-	lits := self slotsOf: ((self slotsOf: m) at: CM_LITERALS).
+	lits := self methodLits: m.
 	fp := s + CTX_FIXED.
 	sp := fp + (self intVal: (s at: CTX_STACKP)) - 1.
 	(self isInt: (s at: CTX_PC)) ifFalse: [self fatal: 'resuming a dead context'].
@@ -1451,7 +1474,7 @@ pushLiteral
 pushLiteralVariable
 	<bytecodes: #(16r40 16r5F)>
 	<specialize>
-	self push: ((self slotsOf: (lits at: self currentBytecode - 16r40)) at: ASSOC_VALUE)
+	self push: (self loadRef: (lits at: self currentBytecode - 16r40) at: ASSOC_VALUE)
 !
 popStoreTemp
 	<bytecodes: #(16r60 16r67)>
@@ -1527,7 +1550,7 @@ pushLiteralX
 !
 pushLiteralVariableX
 	<bytecode: 16r83>
-	self push: ((self slotsOf: (lits at: ip value)) at: ASSOC_VALUE).
+	self push: (self loadRef: (lits at: ip value) at: ASSOC_VALUE).
 	ip := ip + 1
 !
 storeTempX
@@ -1923,7 +1946,7 @@ bcAt
 		c := self rawClass: a.
 		k := ((self intVal: b) - 1) asUInt64.
 		c = memory clsArray
-			ifTrue: [k < (self numSlots: a) ifTrue: [^self ret1: ((self slotsOf: a) at: k)]]
+			ifTrue: [k < (self numSlots: a) ifTrue: [^self ret1: (self loadRef: a at: k)]]
 			ifFalse: [
 				c = memory clsBytestring
 					ifTrue: [k < (memory byteSize: a) ifTrue: [^self ret1: (self charOop: ((self bytesOf: a) at: k))]]
@@ -1996,7 +2019,7 @@ bcPoint
 	| b |
 	b := sp value.
 	((self isPtr: b) and: [(self rawClass: b) = memory clsPoint]) ifTrue: [
-		self stackSlot: sp put: ((self slotsOf: b) at: self currentBytecode - 16rBB).
+		self stackSlot: sp put: (self loadRef: b at: self currentBytecode - 16rBB).
 		^self].
 	^self specialSend
 !
@@ -2160,7 +2183,7 @@ haveEntry: e
 				newMethod := tmpRoots at: 0.
 				tmpRoots at: 0 put: memory nilOop.
 				newBcs := self methodBcs: newMethod.
-				newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+				newLits := self methodLits: newMethod.
 				(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode]]].
 	^self activate
 !
@@ -2177,7 +2200,7 @@ activate
 		newMethod := tmpRoots at: 0.
 		tmpRoots at: 0 put: memory nilOop.
 		newBcs := self methodBcs: newMethod.
-		newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+		newLits := self methodLits: newMethod.
 		self loadCtx.
 		^self activateFromContext].
 	fr ip: ip.
@@ -2305,7 +2328,7 @@ contextReturn
 	| s sender |
 	s := self slotsOf: activeCtx.
 	sender := s at: CTX_SENDER.
-	(sender = memory nilOop or: [(self isInt: ((self slotsOf: sender) at: CTX_PC)) not]) ifTrue: [^self cannotReturn].
+	(sender = memory nilOop or: [(self isInt: (self loadRef: sender at: CTX_PC)) not]) ifTrue: [^self cannotReturn].
 	(self unlikely: vmMain c4Enabled) ifTrue: [self ctx: activeCtx setStackp: sp - fp + 1].
 	self heapSlot: activeCtx at: CTX_PC put: memory nilOop.
 	self heapSlot: activeCtx at: CTX_SENDER put: memory nilOop.

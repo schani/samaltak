@@ -67,11 +67,6 @@ void prim_allocation_sampling(void)
     oop o_4;
     int32_t n_3;
     oop v;
-    if (c4_enabled) {
-        prim_status = PS_FAIL;
-        prim_error_code = -1;
-        return;
-    }
     if ((prim_nargs < 2) || ({
     o = prim_base[1];
     (!((o & 1) != 0)) || ({
@@ -103,7 +98,7 @@ void prim_closure_value(void)
     oop r_load_ref;
     b = prim_base[0];
     if (!(((b & 7) == 0) && (*(uint64_t *)(b + 8) == cls_block) && (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)b) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(b, 2U);
         goto exit_load_ref;
     }
@@ -130,7 +125,7 @@ void prim_closure_value_with_arguments(void)
     if (!(((b & 7) == 0) && (*(uint64_t *)(b + 8) == cls_block) && (((a & 7) == 0) && ((*(uint64_t *)(a + 8) == cls_array) && ({
     v = (uint32_t)*(uint64_t *)a;
     ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)b) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(b, 2U);
         goto exit_load_ref;
     }
@@ -267,7 +262,7 @@ void prim_perform_with_arguments(void)
     for (i = 0; i <= n - 1; i++) {
         p = b + 1 + i;
         v = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)arr) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(arr, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -318,7 +313,7 @@ void prim_process_resume(void)
         return;
     }
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(p, 1U);
         goto exit_load_ref;
     }
@@ -326,7 +321,7 @@ void prim_process_resume(void)
 exit_load_ref:;
     r_load_ref; });
     if (!(((ctx & 7) == 0) && ((ctx != nil_oop) && ((*(uint64_t *)(ctx + 8) == cls_context) && ((({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(p, 3U);
         goto exit_load_ref_2;
     }
@@ -413,7 +408,7 @@ void prim_process_stack_into(void)
     n = 0;
     fresh = (proc == last_preempted) && last_preempted_at_entry ? 1 : 0;
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)proc) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(proc, 1U);
         goto exit_load_ref;
     }
@@ -422,7 +417,7 @@ exit_load_ref:;
     r_load_ref; });
     while (((ctx & 7) == 0) && ((ctx != nil_oop) && (n < max))) {
         cl = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)ctx) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(ctx, 4U);
         goto exit_load_ref_2;
     }
@@ -432,7 +427,7 @@ exit_load_ref_2:;
         pc = ({
     if (((cl & 7) == 0) && (cl != nil_oop)) {
         o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cl) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(cl, 1U);
         goto exit_load_ref_3;
     }
@@ -445,7 +440,7 @@ exit_load_ref_3:;
     }
     v; });
         meths[n] = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)ctx) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(ctx, 3U);
         goto exit_load_ref_4;
     }
@@ -455,7 +450,7 @@ exit_load_ref_4:;
         pcs[n] = pc;
         n = n + 1;
         ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)ctx) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(ctx, 0U);
         goto exit_load_ref_5;
     }
@@ -465,7 +460,7 @@ exit_load_ref_5:;
     }
     truncated = ((ctx & 7) == 0) && (ctx != nil_oop) ? 1 : 0;
     prev = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)buf) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(buf, 0U);
         goto exit_load_ref_6;
     }
@@ -478,7 +473,7 @@ exit_load_ref_6:;
         while ((k < lim) && ({
     i = 1 + 2 * k;
     (({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)buf) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_7 = c4_load_ref(buf, (uint32_t)i);
         goto exit_load_ref_7;
     }
@@ -488,7 +483,7 @@ exit_load_ref_7:;
     i_2 = 2 + 2 * k;
     v_2 = pcs[n - 1 - k];
     ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)buf) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_8 = c4_load_ref(buf, (uint32_t)i_2);
         goto exit_load_ref_8;
     }
@@ -576,7 +571,7 @@ void prim_process_suspend(void)
         return;
     }
     l = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(p, 3U);
         goto exit_load_ref;
     }
@@ -851,7 +846,7 @@ void prim_try_primitive(void)
     for (i = 0; i <= (int64_t)n - 1; i++) {
         p = b + 1 + i;
         v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)arr) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(arr, (uint32_t)i);
         goto exit_load_ref;
     }

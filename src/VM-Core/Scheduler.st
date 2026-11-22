@@ -1,5 +1,5 @@
 VMCoreModule subclass: #Scheduler
-	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs sliceStartNs windowStartNs windowCpuUs ledgerProcs ledgerNs ledgerN statReconciles startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired'
+	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs sliceStartNs windowStartNs windowCpuUs ledgerProcs ledgerNs ledgerN statReconciles startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired c4FinalizationPending'
 	classVariableNames: 'LEDGER_SIZE RECONCILE_NS TICK_DEADLINE TICK_POLL WORK_CLOCK_FLOOR WORK_CLOCK_POLL_US WORK_CYCLES_PER_US'
 	package: 'VM-Core'!
 
@@ -26,7 +26,7 @@ declarations
 		(workClockOn bool) (workClockRunning bool) (workClockPaced bool) (workClockUsesCycles bool)
 		(workClockUs int64_t) (workClockCycles int64_t) (workClockRaw int64_t) (workClockHeld bool) (workClockHoldCycles int64_t) (workClockQuerying bool)
 		(frameSema int32_t) (frameFps int64_t) (frameOriginUs int64_t) (frameIndex int64_t) (frameNextUs int64_t)
-		(sliceUs int64_t) (sliceDueUs int64_t) (slicePriority int64_t) (sliceExpired bool))
+		(sliceUs int64_t) (sliceDueUs int64_t) (slicePriority int64_t) (sliceExpired bool) (c4FinalizationPending bool))
 !
 initialize
 	"Charging: the ledger's entries (the size of ledgerProcs and ledgerNs), the longest window between two reads of the thread clock (ns)."
@@ -371,13 +371,13 @@ workClockIdle
 	due := self workClockDeadline.
 	((workClockRunning or: [workClockPaced]) and: [due ~= 16r7FFFFFFFFFFFFFFF]) ifFalse: [
 		self tickSetIdle: true.
-		platform wait: -1.
+		self idlePlatformWait: -1.
 		self tickSetIdle: false.
 		^self].
 	workClockPaced ifTrue: [
 		due > now ifTrue: [
 			self tickSetIdle: true.
-			platform wait: due - now.
+			self idlePlatformWait: due - now.
 			self tickSetIdle: false].
 		^self].
 	due > now ifTrue: [workClockUs := due].
@@ -539,14 +539,37 @@ transferTo: aProcess
 	statProcessSwitches := statProcessSwitches + 1.
 	self sliceCheck
 !
+c4CollectWeakClears
+	<function>
+	| n |
+	n := c4 takeWeakClears.
+	n ~= 0 ifTrue: [
+		gc statWeakCleared: gc statWeakCleared + n.
+		c4FinalizationPending := true.
+		self requestInterruptCheck]
+!
+idlePlatformWait: timeoutUs
+	"Sample busy before draining: an idle observation must see all clears
+	from that cycle. A busy observation bounds the sleep across a new clear."
+	| us busy |
+	us := timeoutUs.
+	vmMain c4Enabled ifTrue: [
+		busy := c4 busy.
+		self c4CollectWeakClears.
+		c4FinalizationPending ifTrue: [^self].
+		(busy and: [us < 0 or: [us > 1000]]) ifTrue: [us := 1000]].
+	platform wait: us
+!
 idleWait
 	<function>
 	| now wait |
 	inIdle := true.
 	sliceDueUs := 0.
 	sliceExpired := false.
+	"The wait/suspend primitives have committed; registers are externalized."
+	vmMain c4Enabled ifTrue: [interpreter c4Poll].
 	self pauseCharging.
-	(pendingExtN = 0 and: [allocSamplePending not]) ifTrue: [
+	(pendingExtN = 0 and: [allocSamplePending not and: [c4FinalizationPending not]]) ifTrue: [
 		workClockOn ifTrue: [^self workClockIdleWait].
 		now := self nowUs.
 		wait := 16r7FFFFFFFFFFFFFFF.
@@ -554,8 +577,8 @@ idleWait
 		(samplerIntervalUs > 0 and: [samplerNextUs - now < wait]) ifTrue: [wait := samplerNextUs - now].
 		self tickSetIdle: true.
 		wait = 16r7FFFFFFFFFFFFFFF
-			ifTrue: [platform wait: -1]
-			ifFalse: [wait > 0 ifTrue: [platform wait: wait]].
+			ifTrue: [self idlePlatformWait: -1]
+			ifFalse: [wait > 0 ifTrue: [self idlePlatformWait: wait]].
 		self tickSetIdle: false].
 	self handleInterrupts.
 	self resumeCharging.
@@ -665,8 +688,10 @@ handleInterrupts
 				self processorYield]
 			ifFalse: [sliceExpired := true].
 		sliceDueUs = 0 ifTrue: [self tickUpdate]].
-	gc finalizationPending ifTrue: [
+	vmMain c4Enabled ifTrue: [self c4CollectWeakClears].
+	(gc finalizationPending or: [c4FinalizationPending]) ifTrue: [
 		gc finalizationPending: false.
+		c4FinalizationPending := false.
 		s := memory special: SO_FINALIZATION_SEMAPHORE.
 		(self isSemaphore: s) ifTrue: [self semaphoreSignal: s]].
 	0 to: pendingExtN - 1 do: [:i | self signalIndex: (pendingExt at: i)].
@@ -741,7 +766,9 @@ allocSampleHit: aClass bytes: bytes
 relinquish: microseconds
 	<function>
 	| us now |
-	(pendingExtN ~= 0 or: [allocSamplePending]) ifTrue: [^self].
+	(pendingExtN ~= 0 or: [allocSamplePending or: [c4FinalizationPending]]) ifTrue: [^self].
+	"Let dispatch start a due cycle; this primitive may have native callers."
+	(vmMain c4Enabled and: [c4 shouldCollect]) ifTrue: [^self].
 	self pauseCharging.
 	workClockOn
 		ifTrue: [self workClockIdle]
@@ -752,7 +779,7 @@ relinquish: microseconds
 			(samplerIntervalUs > 0 and: [samplerNextUs - now < us]) ifTrue: [us := samplerNextUs - now].
 			us > 0 ifTrue: [
 				self tickSetIdle: true.
-				platform wait: us.
+				self idlePlatformWait: us.
 				self tickSetIdle: false]].
 	self resumeCharging.
 	self requestInterruptCheck

@@ -9,6 +9,7 @@ static bool alloc_sample_pending;
 int32_t alloc_sample_sema;
 int64_t alloc_sample_size;
 bool alloc_sample_unread;
+static bool c4_finalization_pending;
 static int64_t frame_fps;
 static int64_t frame_index;
 static int64_t frame_next_us;
@@ -79,7 +80,7 @@ oop active_process(void)
     oop r_load_ref;
     o = object_memory_special(SO_PROCESSOR);
     return ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 1U);
         goto exit_load_ref;
     }
@@ -95,7 +96,7 @@ static void add_first_link(oop link, oop list)
     oop v;
     oop r_load_ref_2;
     v = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(list, 0U);
         goto exit_load_ref;
     }
@@ -112,7 +113,7 @@ exit_load_ref:;
     }
 exit_store_ref:;
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(list, 0U);
         goto exit_load_ref_2;
     }
@@ -170,7 +171,7 @@ static void add_last_link(oop link, oop list)
     }
 exit_store_ref:;
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(list, 0U);
         goto exit_load_ref;
     }
@@ -188,7 +189,7 @@ exit_load_ref:;
     exit_store_ref_2:;
     } else {
         o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(list, 1U);
         goto exit_load_ref_2;
     }
@@ -238,6 +239,20 @@ void alloc_sample_hit(oop a_class, uint64_t bytes)
     alloc_sample_pending = true;
     alloc_sample_unread = true;
     request_interrupt_check();
+}
+
+/* Scheduler>>c4CollectWeakClears */
+void c4_collect_weak_clears(void)
+{
+    uint64_t n;
+    uint64_t n_2;
+    n = c4_heap_take_weak_clears();
+    if (n != 0) {
+        n_2 = stat_weak_cleared + n;
+        stat_weak_cleared = n_2;
+        c4_finalization_pending = true;
+        request_interrupt_check();
+    }
 }
 
 /* Scheduler>>handleInterrupts */
@@ -291,8 +306,12 @@ void handle_interrupts(void)
             tick_update();
         }
     }
-    if (finalization_pending) {
+    if (c4_enabled) {
+        c4_collect_weak_clears();
+    }
+    if (finalization_pending || c4_finalization_pending) {
         finalization_pending = false;
+        c4_finalization_pending = false;
         s = object_memory_special(SO_FINALIZATION_SEMAPHORE);
         if (((s & 7) == 0) && ((s != nil_oop) && ({
     f_2 = (int32_t)(((*(uint64_t *)s) >> H_FMT_SHIFT) & H_FMT_MASK);
@@ -325,17 +344,29 @@ static void idle_wait(void)
     int64_t r_work_clock_deadline_2;
     int64_t due_4;
     int64_t due;
+    int64_t us_2;
+    bool busy;
+    int64_t timeout_us;
+    int64_t us_3;
+    bool busy_2;
     int64_t r_work_clock_thread_cycles_2;
     int64_t r_real_thread_cpu_us_2;
     struct timespec local_2;
     struct timespec *ts_2;
     int64_t now;
     int64_t wait;
+    int64_t us_4;
+    bool busy_3;
+    int64_t us_5;
+    bool busy_4;
     in_idle = true;
     slice_due_us = 0;
     slice_expired = false;
+    if (c4_enabled) {
+        c4_poll();
+    }
     pause_charging();
-    if ((pending_ext_n == 0) && (!alloc_sample_pending)) {
+    if ((pending_ext_n == 0) && ((!alloc_sample_pending) && (!c4_finalization_pending))) {
         if (work_clock_on) {
             now_2 = ({
     if (!((work_clock_running || work_clock_paced) && (!work_clock_held))) {
@@ -416,14 +447,39 @@ exit_work_clock_sync:;
     r_work_clock_deadline_2; });
             if (!((work_clock_running || work_clock_paced) && (due != 0x7FFFFFFFFFFFFFFFLL))) {
                 tick_set_idle(true);
-                platform_interface_wait(-1);
+                us_2 = -1;
+                if (c4_enabled) {
+                    busy = c4_heap_busy();
+                    c4_collect_weak_clears();
+                    if (c4_finalization_pending) {
+                        goto exit_idle_platform_wait;
+                    }
+                    if (busy && ((us_2 < 0) || (us_2 > 1000))) {
+                        us_2 = 1000;
+                    }
+                }
+                platform_interface_wait(us_2);
+            exit_idle_platform_wait:;
                 tick_set_idle(false);
                 goto exit_work_clock_idle;
             }
             if (work_clock_paced) {
                 if (due > now_2) {
                     tick_set_idle(true);
-                    platform_interface_wait(due - now_2);
+                    timeout_us = due - now_2;
+                    us_3 = timeout_us;
+                    if (c4_enabled) {
+                        busy_2 = c4_heap_busy();
+                        c4_collect_weak_clears();
+                        if (c4_finalization_pending) {
+                            goto exit_idle_platform_wait_2;
+                        }
+                        if (busy_2 && ((us_3 < 0) || (us_3 > 1000))) {
+                            us_3 = 1000;
+                        }
+                    }
+                    platform_interface_wait(us_3);
+                exit_idle_platform_wait_2:;
                     tick_set_idle(false);
                 }
                 goto exit_work_clock_idle;
@@ -460,9 +516,33 @@ exit_work_clock_thread_cycles_2:;
         }
         tick_set_idle(true);
         if (wait == 0x7FFFFFFFFFFFFFFFLL) {
-            platform_interface_wait(-1);
+            us_4 = -1;
+            if (c4_enabled) {
+                busy_3 = c4_heap_busy();
+                c4_collect_weak_clears();
+                if (c4_finalization_pending) {
+                    goto exit_idle_platform_wait_3;
+                }
+                if (busy_3 && ((us_4 < 0) || (us_4 > 1000))) {
+                    us_4 = 1000;
+                }
+            }
+            platform_interface_wait(us_4);
+        exit_idle_platform_wait_3:;
         } else if (wait > 0) {
-            platform_interface_wait(wait);
+            us_5 = wait;
+            if (c4_enabled) {
+                busy_4 = c4_heap_busy();
+                c4_collect_weak_clears();
+                if (c4_finalization_pending) {
+                    goto exit_idle_platform_wait_4;
+                }
+                if (busy_4 && ((us_5 < 0) || (us_5 > 1000))) {
+                    us_5 = 1000;
+                }
+            }
+            platform_interface_wait(us_5);
+        exit_idle_platform_wait_4:;
         }
         tick_set_idle(false);
     }
@@ -580,7 +660,7 @@ static int64_t priority_of(oop p)
     oop v;
     int64_t pr;
     v = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(p, 2U);
         goto exit_load_ref;
     }
@@ -611,7 +691,7 @@ exit_in_ledger:;
         reconcile();
     }
     ct = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)proc) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(proc, 5U);
         goto exit_load_ref;
     }
@@ -637,7 +717,7 @@ void processor_yield(void)
     pri = priority_of(active);
     o = object_memory_special(SO_PROCESSOR);
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
@@ -646,7 +726,7 @@ exit_load_ref:;
     r_load_ref; });
     i = pri - 1;
     l = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
         goto exit_load_ref_2;
     }
@@ -654,7 +734,7 @@ exit_load_ref:;
 exit_load_ref_2:;
     r_load_ref_2; });
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)l) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(l, 0U);
         goto exit_load_ref_3;
     }
@@ -742,7 +822,7 @@ exit_ledger_add:;
         proc_2 = ledger_procs[i_3];
         us = share - given;
         ct = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)proc_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(proc_2, 5U);
         goto exit_load_ref;
     }
@@ -788,13 +868,23 @@ void relinquish(int64_t microseconds)
     int64_t r_work_clock_deadline_2;
     int64_t due_4;
     int64_t due;
+    int64_t us_3;
+    bool busy;
+    int64_t timeout_us;
+    int64_t us_4;
+    bool busy_2;
     int64_t r_work_clock_thread_cycles_2;
     int64_t r_real_thread_cpu_us_2;
     struct timespec local_2;
     struct timespec *ts_2;
     int64_t us;
     int64_t now;
-    if ((pending_ext_n != 0) || alloc_sample_pending) {
+    int64_t us_5;
+    bool busy_3;
+    if ((pending_ext_n != 0) || (alloc_sample_pending || c4_finalization_pending)) {
+        return;
+    }
+    if (c4_enabled && c4_heap_should_collect()) {
         return;
     }
     pause_charging();
@@ -878,14 +968,39 @@ exit_work_clock_sync:;
     r_work_clock_deadline_2; });
         if (!((work_clock_running || work_clock_paced) && (due != 0x7FFFFFFFFFFFFFFFLL))) {
             tick_set_idle(true);
-            platform_interface_wait(-1);
+            us_3 = -1;
+            if (c4_enabled) {
+                busy = c4_heap_busy();
+                c4_collect_weak_clears();
+                if (c4_finalization_pending) {
+                    goto exit_idle_platform_wait;
+                }
+                if (busy && ((us_3 < 0) || (us_3 > 1000))) {
+                    us_3 = 1000;
+                }
+            }
+            platform_interface_wait(us_3);
+        exit_idle_platform_wait:;
             tick_set_idle(false);
             goto exit_work_clock_idle;
         }
         if (work_clock_paced) {
             if (due > now_2) {
                 tick_set_idle(true);
-                platform_interface_wait(due - now_2);
+                timeout_us = due - now_2;
+                us_4 = timeout_us;
+                if (c4_enabled) {
+                    busy_2 = c4_heap_busy();
+                    c4_collect_weak_clears();
+                    if (c4_finalization_pending) {
+                        goto exit_idle_platform_wait_2;
+                    }
+                    if (busy_2 && ((us_4 < 0) || (us_4 > 1000))) {
+                        us_4 = 1000;
+                    }
+                }
+                platform_interface_wait(us_4);
+            exit_idle_platform_wait_2:;
                 tick_set_idle(false);
             }
             goto exit_work_clock_idle;
@@ -918,7 +1033,19 @@ exit_work_clock_thread_cycles_2:;
         }
         if (us > 0) {
             tick_set_idle(true);
-            platform_interface_wait(us);
+            us_5 = us;
+            if (c4_enabled) {
+                busy_3 = c4_heap_busy();
+                c4_collect_weak_clears();
+                if (c4_finalization_pending) {
+                    goto exit_idle_platform_wait_3;
+                }
+                if (busy_3 && ((us_5 < 0) || (us_5 > 1000))) {
+                    us_5 = 1000;
+                }
+            }
+            platform_interface_wait(us_5);
+        exit_idle_platform_wait_3:;
             tick_set_idle(false);
         }
     }
@@ -934,7 +1061,7 @@ static oop remove_first_link(oop list)
     oop r_load_ref_2;
     oop next;
     first = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(list, 0U);
         goto exit_load_ref;
     }
@@ -945,7 +1072,7 @@ exit_load_ref:;
         return nil_oop;
     }
     next = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)first) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(first, 0U);
         goto exit_load_ref_2;
     }
@@ -1010,7 +1137,7 @@ bool remove_link(oop link, oop list)
     oop r_load_ref_4;
     prev = nil_oop;
     cur = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(list, 0U);
         goto exit_load_ref;
     }
@@ -1020,7 +1147,7 @@ exit_load_ref:;
     while ((cur != nil_oop) && (cur != link)) {
         prev = cur;
         cur = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cur) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(cur, 0U);
         goto exit_load_ref_2;
     }
@@ -1032,7 +1159,7 @@ exit_load_ref_2:;
         return false;
     }
     next = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)link) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(link, 0U);
         goto exit_load_ref_3;
     }
@@ -1061,7 +1188,7 @@ exit_load_ref_3:;
     exit_store_ref_2:;
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)list) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(list, 1U);
         goto exit_load_ref_4;
     }
@@ -1158,7 +1285,7 @@ void resume_process(oop proc)
             pri = priority_of(active);
             o = object_memory_special(SO_PROCESSOR);
             o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
@@ -1167,7 +1294,7 @@ exit_load_ref:;
     r_load_ref; });
             i = pri - 1;
             add_first_link(active, ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
         goto exit_load_ref_2;
     }
@@ -1178,7 +1305,7 @@ exit_load_ref_2:;
             pri_2 = priority_of(active);
             o_3 = object_memory_special(SO_PROCESSOR);
             o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_3, 0U);
         goto exit_load_ref_3;
     }
@@ -1187,7 +1314,7 @@ exit_load_ref_3:;
     r_load_ref_3; });
             i_2 = pri_2 - 1;
             add_last_link(active, ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_4 = c4_load_ref(o_4, (uint32_t)i_2);
         goto exit_load_ref_4;
     }
@@ -1202,7 +1329,7 @@ exit_load_ref_4:;
         pri_3 = priority_of(proc);
         o_5 = object_memory_special(SO_PROCESSOR);
         o_6 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_5, 0U);
         goto exit_load_ref_5;
     }
@@ -1211,7 +1338,7 @@ exit_load_ref_5:;
     r_load_ref_5; });
         i_3 = pri_3 - 1;
         add_last_link(proc, ({
-    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_6 = c4_load_ref(o_6, (uint32_t)i_3);
         goto exit_load_ref_6;
     }
@@ -1233,7 +1360,7 @@ void scheduler_semaphore_signal(oop sem)
     int64_t v;
     uint64_t v_2;
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)sem) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(sem, 0U);
         goto exit_load_ref;
     }
@@ -1241,7 +1368,7 @@ void scheduler_semaphore_signal(oop sem)
 exit_load_ref:;
     r_load_ref; }) == nil_oop) {
         ex = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)sem) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(sem, 2U);
         goto exit_load_ref_2;
     }
@@ -1281,7 +1408,7 @@ void scheduler_semaphore_wait(oop sem)
     int64_t v;
     uint64_t v_2;
     ex = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)sem) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(sem, 2U);
         goto exit_load_ref;
     }
@@ -1372,7 +1499,7 @@ static void signal_index(int32_t index)
     }
     i = index - 1;
     s = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)ext) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(ext, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -1408,7 +1535,7 @@ static void slice_check(void)
     contended = (!in_idle) && ({
     o = object_memory_special(SO_PROCESSOR);
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
@@ -1417,7 +1544,7 @@ exit_load_ref:;
     r_load_ref; });
     i = pri - 1;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(o_2, (uint32_t)i);
         goto exit_load_ref_2;
     }
@@ -1425,7 +1552,7 @@ exit_load_ref:;
 exit_load_ref_2:;
     r_load_ref_2; });
     ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_3, 0U);
         goto exit_load_ref_3;
     }
@@ -1604,7 +1731,7 @@ exit_store_ref:;
 exit_store_ref_2:;
     o_2 = *proc;
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o_2, 1U);
         goto exit_load_ref;
     }
@@ -1653,7 +1780,7 @@ static void transfer_to_highest(void)
     for (;;) {
         o = object_memory_special(SO_PROCESSOR);
         lists = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
@@ -1662,7 +1789,7 @@ exit_load_ref:;
     r_load_ref; });
         for (i = (int64_t)(uint32_t)*(uint64_t *)lists - 1; i >= (work_clock_on && (!(work_clock_running || (work_clock_paced || work_clock_querying))) ? 49 : 0); i--) {
             l = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)lists) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(lists, (uint32_t)i);
         goto exit_load_ref_2;
     }
@@ -1670,7 +1797,7 @@ exit_load_ref:;
 exit_load_ref_2:;
     r_load_ref_2; });
             if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)l) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(l, 0U);
         goto exit_load_ref_3;
     }

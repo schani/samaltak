@@ -120,8 +120,11 @@ void activated(frame *f)
     frame *g;
     uint64_t c_3;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o_2;
+    int32_t f_3;
+    oop o_3;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -188,15 +191,38 @@ exit_best:;
             c_3 = g->code;
             if (!((c_3 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+                o_3 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-                g->pc = (int32_t)(g->ip - (uint8_t *)(o_2 + 16));
+    if (c4_enabled) {
+        if (!(((o_2 & 7) == 0) && ((o_2 != 0) && (o_2 != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_3 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o_2;
+    r_method_storage; });
+                g->pc = (int32_t)(g->ip - (uint8_t *)(o_3 + 16));
             }
             sync_frame(g);
             a = address_for(g);
@@ -216,8 +242,11 @@ uint64_t address_for(frame *f)
     uint64_t c;
     jit_method *h;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_2;
+    oop o_2;
     int64_t off;
     c = f->code;
     if (!(c > JIT_MAX_COUNT)) {
@@ -228,15 +257,38 @@ uint64_t address_for(frame *f)
         return opt_runtime_resume(f);
     }
     m = f->method;
+    o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-    off = map_offset_of(h, f->ip - (uint8_t *)(o + 16));
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+    off = map_offset_of(h, f->ip - (uint8_t *)(o_2 + 16));
     if (off < 0) {
         return 0;
     }
@@ -302,8 +354,11 @@ void jit_runtime_back_jump(frame *f)
     frame *g;
     uint64_t c_3;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_3;
+    oop o_2;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -370,15 +425,38 @@ void jit_runtime_back_jump(frame *f)
             c_3 = g->code;
             if (!((c_3 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+                o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-                g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_3 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+                g->pc = (int32_t)(g->ip - (uint8_t *)(o_2 + 16));
             }
             sync_frame(g);
             a_2 = address_for(g);
@@ -512,7 +590,7 @@ uint64_t jit_runtime_closure(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -528,7 +606,7 @@ exit_load_ref:;
     marry(f);
     bc = cls_block;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(bc, 2U);
         goto exit_load_ref_2;
     }
@@ -838,7 +916,7 @@ static uint64_t context_entry(bool looping)
     int64_t off;
     c = active_ctx;
     m = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(c, 3U);
         goto exit_load_ref;
     }
@@ -846,7 +924,7 @@ static uint64_t context_entry(bool looping)
 exit_load_ref:;
     r_load_ref; });
     pc = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(c, 1U);
         goto exit_load_ref_2;
     }
@@ -893,7 +971,7 @@ uint64_t jit_runtime_context_field(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -949,22 +1027,28 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t inv;
     oop v;
     oop m_2;
+    oop r_method_storage;
     oop r_load_ref_4;
     oop o_3;
+    int32_t f_2;
+    oop o_4;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
     oop m_3;
+    oop r_method_storage_2;
     oop r_load_ref_5;
-    oop o_4;
+    oop o_5;
+    int32_t f_3;
+    oop o_6;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
     oop r_load_ref_6;
-    oop o_5;
+    oop o_7;
     int64_t r_method_prim_2;
     oop r_load_ref_7;
     oop p_2;
@@ -1010,7 +1094,7 @@ exit_best:;
         return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 5U);
         goto exit_load_ref;
     }
@@ -1081,7 +1165,7 @@ exit_error_code_for:;
         if (((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR) && ((uint32_t)*(uint64_t *)r > (uint32_t)e->quick))) {
             i_2 = e->quick;
             base[0] = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_3 = c4_load_ref(r, (uint32_t)i_2);
         goto exit_load_ref_3;
     }
@@ -1110,15 +1194,38 @@ exit_load_ref_3:;
         base[0] = v;
         if (inv != invalidations) {
             m_2 = f->method;
-            o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+            o_4 = ({
+    if (c4_enabled) {
+        if (!(((m_2 & 7) == 0) && ((m_2 != 0) && ((*(uint64_t *)(m_2 + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m_2 > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(m_2, 3U);
         goto exit_load_ref_4;
     }
     r_load_ref_4 = *(uint64_t *)(m_2 + 16 + 24);
 exit_load_ref_4:;
     r_load_ref_4; });
-            pc = f->ip - (uint8_t *)(o_3 + 16);
+    if (c4_enabled) {
+        if (!(((o_3 & 7) == 0) && ((o_3 != 0) && (o_3 != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o_3;
+    r_method_storage; });
+            pc = f->ip - (uint8_t *)(o_4 + 16);
             n_2 = f->sp - n;
             return ({
     c_2 = f->code;
@@ -1141,15 +1248,38 @@ exit_leave_after:;
         }
         if (inv != invalidations) {
             m_3 = f->method;
-            o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+            o_6 = ({
+    if (c4_enabled) {
+        if (!(((m_3 & 7) == 0) && ((m_3 != 0) && ((*(uint64_t *)(m_3 + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m_3 > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(m_3, 3U);
         goto exit_load_ref_5;
     }
     r_load_ref_5 = *(uint64_t *)(m_3 + 16 + 24);
 exit_load_ref_5:;
     r_load_ref_5; });
-            pc_2 = f->ip - (uint8_t *)(o_4 + 16);
+    if (c4_enabled) {
+        if (!(((o_5 & 7) == 0) && ((o_5 != 0) && (o_5 != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_3 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage_2 = o_5;
+    r_method_storage_2; });
+            pc_2 = f->ip - (uint8_t *)(o_6 + 16);
             n_3 = f->sp;
             return ({
     c_3 = f->code;
@@ -1175,15 +1305,15 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    o_7 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(m, 5U);
         goto exit_load_ref_6;
     }
     r_load_ref_6 = *(uint64_t *)(m + 16 + 40);
 exit_load_ref_6:;
     r_load_ref_6; });
-    ((((int64_t)o_5) >> 1) > 0) && ((({
+    ((((int64_t)o_7) >> 1) > 0) && ((({
     p_2 = ({
     if (__builtin_expect(c4_enabled, 0)) {
         r_load_ref_7 = c4_load_ref(m, 7U);
@@ -1235,22 +1365,28 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t inv;
     oop v;
     oop m_2;
+    oop r_method_storage;
     oop r_load_ref_4;
     oop o_3;
+    int32_t f_2;
+    oop o_4;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
     oop m_3;
+    oop r_method_storage_2;
     oop r_load_ref_5;
-    oop o_4;
+    oop o_5;
+    int32_t f_3;
+    oop o_6;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
     oop r_load_ref_6;
-    oop o_5;
+    oop o_7;
     int64_t r_method_prim_2;
     oop r_load_ref_7;
     oop p_2;
@@ -1296,7 +1432,7 @@ exit_best:;
         return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 5U);
         goto exit_load_ref;
     }
@@ -1367,7 +1503,7 @@ exit_error_code_for:;
         if (((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) <= F_FIXVAR) && ((uint32_t)*(uint64_t *)r > (uint32_t)e->quick))) {
             i_2 = e->quick;
             base[0] = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_3 = c4_load_ref(r, (uint32_t)i_2);
         goto exit_load_ref_3;
     }
@@ -1396,15 +1532,38 @@ exit_load_ref_3:;
         base[0] = v;
         if (inv != invalidations) {
             m_2 = f->method;
-            o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+            o_4 = ({
+    if (c4_enabled) {
+        if (!(((m_2 & 7) == 0) && ((m_2 != 0) && ((*(uint64_t *)(m_2 + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m_2 > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(m_2, 3U);
         goto exit_load_ref_4;
     }
     r_load_ref_4 = *(uint64_t *)(m_2 + 16 + 24);
 exit_load_ref_4:;
     r_load_ref_4; });
-            pc = f->ip - (uint8_t *)(o_3 + 16);
+    if (c4_enabled) {
+        if (!(((o_3 & 7) == 0) && ((o_3 != 0) && (o_3 != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o_3;
+    r_method_storage; });
+            pc = f->ip - (uint8_t *)(o_4 + 16);
             n_2 = f->sp - n;
             return ({
     c_2 = f->code;
@@ -1427,15 +1586,38 @@ exit_leave_after:;
         }
         if (inv != invalidations) {
             m_3 = f->method;
-            o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+            o_6 = ({
+    if (c4_enabled) {
+        if (!(((m_3 & 7) == 0) && ((m_3 != 0) && ((*(uint64_t *)(m_3 + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m_3 > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_5 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(m_3, 3U);
         goto exit_load_ref_5;
     }
     r_load_ref_5 = *(uint64_t *)(m_3 + 16 + 24);
 exit_load_ref_5:;
     r_load_ref_5; });
-            pc_2 = f->ip - (uint8_t *)(o_4 + 16);
+    if (c4_enabled) {
+        if (!(((o_5 & 7) == 0) && ((o_5 != 0) && (o_5 != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_3 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage_2 = o_5;
+    r_method_storage_2; });
+            pc_2 = f->ip - (uint8_t *)(o_6 + 16);
             n_3 = f->sp;
             return ({
     c_3 = f->code;
@@ -1461,15 +1643,15 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    o_7 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(m, 5U);
         goto exit_load_ref_6;
     }
     r_load_ref_6 = *(uint64_t *)(m + 16 + 40);
 exit_load_ref_6:;
     r_load_ref_6; });
-    ((((int64_t)o_5) >> 1) > 0) && ((({
+    ((((int64_t)o_7) >> 1) > 0) && ((({
     p_2 = ({
     if (__builtin_expect(c4_enabled, 0)) {
         r_load_ref_7 = c4_load_ref(m, 7U);
@@ -1579,7 +1761,7 @@ uint64_t exit_sync(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2114,7 +2296,7 @@ static uint64_t interrupt_frame(frame *f, bool at_entry)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2213,7 +2395,7 @@ uint64_t jit_runtime_make_array(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2569,7 +2751,7 @@ static void perf_map_code(jit_method *h, int32_t md)
     fputs(md == JIT_OPT ? "opt:" : "bl:", perf_map);
     o = h->method;
     print_class_name(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 1U);
         goto exit_load_ref;
     }
@@ -2579,7 +2761,7 @@ exit_load_ref:;
     fputs(">>", perf_map);
     o_2 = h->method;
     print_symbol(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_2, 0U);
         goto exit_load_ref_2;
     }
@@ -2646,7 +2828,7 @@ uint64_t push_context(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2741,8 +2923,11 @@ void jit_runtime_resume(frame *f)
     frame *g;
     uint64_t c_2;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_3;
+    oop o_2;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -2787,15 +2972,38 @@ void jit_runtime_resume(frame *f)
             c_2 = g->code;
             if (!((c_2 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+                o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-                g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_3 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+                g->pc = (int32_t)(g->ip - (uint8_t *)(o_2 + 16));
             }
             sync_frame(g);
             a_2 = address_for(g);
@@ -2820,8 +3028,11 @@ void resume_context(bool looping)
     frame *g;
     uint64_t c_2;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_2;
+    oop o_2;
     if (flush_pending && no_opt_frames()) {
         flush_code();
     }
@@ -2870,15 +3081,38 @@ void resume_context(bool looping)
             c_2 = g->code;
             if (!((c_2 > JIT_MAX_COUNT) && (((jit_method *)g->code)->mode == JIT_OPT))) {
                 m = g->method;
-                o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+                o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-                g->pc = (int32_t)(g->ip - (uint8_t *)(o + 16));
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+                g->pc = (int32_t)(g->ip - (uint8_t *)(o_2 + 16));
             }
             sync_frame(g);
             a_2 = address_for(g);
@@ -3015,7 +3249,7 @@ oop special_fast(int32_t k, oop *base)
         if (((a & 7) == 0) && (*(uint64_t *)(a + 8) == cls_point)) {
             i_2 = k - 27;
             return ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i_2);
         goto exit_load_ref;
     }
@@ -3043,7 +3277,7 @@ exit_load_ref:;
             i = (uint64_t)((((int64_t)b) >> 1) - 1);
             if ((*(uint64_t *)(a + 8) == cls_array) && (i < (uint32_t)*(uint64_t *)a)) {
                 return ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref_2;
     }
@@ -3347,7 +3581,7 @@ uint64_t jit_runtime_tier_up(frame *f, int64_t loop)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }

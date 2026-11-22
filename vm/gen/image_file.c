@@ -11,31 +11,46 @@ static void import_c4(void)
 {
     uint64_t p;
     int32_t fmt;
+    uint64_t cls;
     uint32_t slots;
     uint64_t bytes;
     uint32_t refs;
+    int64_t first;
     oop r_load_ref;
     oop sp;
     c4_heap_set_context_class(cls_context);
+    c4_heap_set_nil(nil_oop);
     p = old_lo;
     while (p < old_top) {
         fmt = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
-        if (fmt == F_WEAK) {
-            fatal_begin();
-            fprintf(stderr, "--c4 does not support images containing weak objects");
-            fatal_end();
-        }
+        cls = *(uint64_t *)(p + 8);
         slots = (uint32_t)*(uint64_t *)p;
         bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p;
         refs = (fmt >= 1) && (fmt <= 4) ? slots : 0;
-        if (*(uint64_t *)(p + 8) == cls_context) {
-            if ((fmt != F_FIXVAR) || (slots < CTX_FIXED)) {
+        first = 4294967295LL;
+        if ((fmt == F_WEAK) || (cls == cls_context)) {
+            if (!((cls >= old_lo) && ((cls < old_top) && ((old_top - cls >= 16) && (((cls & 7) == 0) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)cls <= old_top - cls)))))) {
+                fatal_begin();
+                fprintf(stderr, "bad C4 image layout class");
+                fatal_end();
+            }
+            if (fmt == F_WEAK) {
+                first = c4_fixed_fields_for(cls, F_WEAK, slots);
+                if (first == 0xFFFFFFFFLL) {
+                    fatal_begin();
+                    fprintf(stderr, "bad C4 image weak layout");
+                    fatal_end();
+                }
+            }
+        }
+        if (cls == cls_context) {
+            if (!((fmt == F_FIXVAR) && (c4_fixed_fields_for(cls, F_FIXVAR, slots) == CTX_FIXED))) {
                 fatal_begin();
                 fprintf(stderr, "bad C4 image Context layout");
                 fatal_end();
             }
             sp = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(p, 2U);
         goto exit_load_ref;
     }
@@ -48,7 +63,7 @@ exit_load_ref:;
                 fatal_end();
             }
         }
-        if (!c4_heap_import(p, bytes, refs)) {
+        if (!c4_heap_import(p, bytes, refs, (uint32_t)first)) {
             fatal_begin();
             fprintf(stderr, "cannot import object into C4 heap");
             fatal_end();
@@ -74,7 +89,6 @@ void load_image(char *path)
     oop *s;
     int64_t i;
     oop o_2;
-    uint64_t o_3;
     uint64_t an_integer;
     bool a_boolean;
     uint64_t budget;
@@ -142,8 +156,15 @@ void load_image(char *path)
         }
         p = p + bytes;
     }
-    o_3 = h->specials + delta;
-    specials_oop = o_3;
+    p = h->specials + delta;
+    if (c4_requested) {
+        if (!((p >= old_lo) && ((p < old_top) && ((old_top - p >= 16) && (((p & 7) == 0) && (((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && (((uint32_t)*(uint64_t *)p > SO_COMPILEDMETHOD) && (16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)p <= old_top - p)))))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 image special objects array");
+            fatal_end();
+        }
+    }
+    specials_oop = p;
     an_integer = h->hash_seed;
     hash_box[0] = an_integer;
     a_boolean = h->string_hash == 1;

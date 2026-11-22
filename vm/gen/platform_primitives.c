@@ -188,7 +188,7 @@ static double float_slot(oop a, int i)
     memset(&local, 0, sizeof local);
     d = &local;
     if (!number_of(({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -284,7 +284,7 @@ static uint8_t *pointer_slot(oop a, int i)
     memset(&local, 0, sizeof local);
     w = &local;
     if (!u64_of(({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -1081,7 +1081,7 @@ void prim_gpu_begin_pass(void)
         }
         for (i = 0; i <= 3; i++) {
             if (!number_of(({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)cl) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(cl, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -1468,7 +1468,7 @@ void prim_gpu_create_pipeline(void)
     for (i = 0; i <= n - 1; i++) {
         i_2 = 2 * i;
         f = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)attrs) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(attrs, (uint32_t)i_2);
         goto exit_load_ref;
     }
@@ -1477,7 +1477,7 @@ exit_load_ref:;
     r_load_ref; });
         i_3 = 2 * i + 1;
         off = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)attrs) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(attrs, (uint32_t)i_3);
         goto exit_load_ref_2;
     }
@@ -2332,7 +2332,7 @@ void prim_inject_event(void)
     memset(&local, 0, sizeof local);
     e = &local;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(a, 0U);
         goto exit_load_ref;
     }
@@ -2344,7 +2344,7 @@ exit_load_ref:;
         e->type = (int32_t)(((int64_t)o) >> 1);
     }
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(a, 1U);
         goto exit_load_ref_2;
     }
@@ -2353,14 +2353,14 @@ exit_load_ref_2:;
     r_load_ref_2; });
     e->time_ms = (o & 1) != 0 ? ((int64_t)o) >> 1 : platform_common_now_ms();
     ok = ok && (number_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(a, 2U);
         goto exit_load_ref_3;
     }
     r_load_ref_3 = *(uint64_t *)(a + 16 + 16);
 exit_load_ref_3:;
     r_load_ref_3; }), &e->x) && number_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(a, 3U);
         goto exit_load_ref_4;
     }
@@ -2368,7 +2368,7 @@ exit_load_ref_3:;
 exit_load_ref_4:;
     r_load_ref_4; }), &e->y));
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(a, 4U);
         goto exit_load_ref_5;
     }
@@ -2377,7 +2377,7 @@ exit_load_ref_5:;
     r_load_ref_5; });
     e->key = (o & 1) != 0 ? ((int64_t)o) >> 1 : 0;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(a, 5U);
         goto exit_load_ref_6;
     }
@@ -4826,7 +4826,7 @@ static bool rect(oop r, int *out)
     }
     for (i = 0; i <= 3; i++) {
         v = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(r, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -4847,7 +4847,7 @@ static int64_t platform_primitives_slot(oop a, int i)
     oop r_load_ref;
     oop o;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -4893,7 +4893,7 @@ static char **string_vector(oop a, bool non_empty)
     }
     for (i = 0; i <= (int64_t)n - 1; i++) {
         s = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(a, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -4958,14 +4958,14 @@ static bool text_or_delta(oop o, pf_event *e)
     if (((o & 7) == 0) && (((class_of(o) == object_memory_special(SO_POINT)) && ((uint32_t)*(uint64_t *)o >= 2)) || (((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)o == 2)))) {
         e->xkind = PF_X_POINT;
         return number_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 0U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(o + 16 + 0);
 exit_load_ref:;
     r_load_ref; }), &e->dx) && number_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o, 1U);
         goto exit_load_ref_2;
     }

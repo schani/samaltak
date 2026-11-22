@@ -9,6 +9,30 @@
 
 static _Atomic bool stall_close, at_close;
 static _Atomic unsigned proposals;
+static _Atomic bool stall_cas, at_cas;
+static oop race_owner, race_prev;
+static uint32_t race_slot;
+static bool finish_during_load;
+
+/* Runs on the mutator after the shadow read. Force the worker to finish
+ * while that read still holds the pre-CAS bits in a local. */
+void c4_heap_test_after_weak_load(uint64_t obj, uint32_t i, uint64_t value)
+{
+    if (!finish_during_load) return;
+    assert(obj == race_owner && i == race_slot && value == race_prev);
+    assert(atomic_load(&at_cas));
+    atomic_store(&stall_cas, false);
+    while (c4_heap_busy()) sched_yield();
+}
+
+/* The release of the close ACK publishes the configured race tuple. */
+void c4_heap_test_before_weak_cas(uint64_t obj, uint32_t i, uint64_t prev)
+{
+    if (!atomic_load(&stall_cas) || obj != race_owner || i != race_slot) return;
+    assert(prev == race_prev);
+    atomic_store(&at_cas, true);
+    while (atomic_load(&stall_cas)) sched_yield();
+}
 
 /* Runs on the worker after it releases the close proposal. */
 void c4_heap_test_after_close(void)
@@ -43,7 +67,7 @@ static void initialize(oop obj, oop cls, unsigned fmt, uint32_t slots)
 static void publish(oop obj, oop cls, unsigned fmt, uint32_t slots)
 {
     initialize(obj, cls, fmt, slots);
-    c4_heap_publish(obj, fmt >= F_FIXED && fmt <= F_FIXVAR ? slots : 0);
+    c4_heap_publish(obj, fmt >= F_FIXED && fmt <= F_FIXVAR ? slots : 0, C4_NO_WEAK);
 }
 
 static oop alloc(oop cls, unsigned fmt, uint32_t slots)
@@ -107,9 +131,9 @@ static void shadow_snapshot(void)
     void *base = arena(size);
     oop cls = (oop)(uintptr_t)base;
     initialize(cls, cls, F_WEAK, 0);
-    assert(!c4_heap_import(cls, extent(0), 0));
+    assert(!c4_heap_import(cls, extent(0), 0, C4_NO_WEAK));
     initialize(cls, cls, F_EMPTY, 0);
-    assert(c4_heap_import(cls, extent(0), 0));
+    assert(c4_heap_import(cls, extent(0), 0, C4_NO_WEAK));
     c4_heap_set_context_class(cls + extent(0));
     assert(c4_heap_start());
     oop ctx_cls = alloc(cls, F_EMPTY, 0);
@@ -156,6 +180,203 @@ static void shadow_snapshot(void)
     a = alloc(cls, F_VAR, 3);
     b = alloc(cls, F_VAR, 3);
     assert(a == old_edge || b == old_edge);
+}
+
+static oop import_nil(void *base)
+{
+    oop nil = (oop)(uintptr_t)base;
+    c4_heap_set_nil(nil);
+    initialize(nil, nil, F_EMPTY, 0);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    return nil;
+}
+
+static void weak_close(void)
+{
+    /* Room for one new owner, then every allocation needs a swept cell. */
+    size_t size = extent(0) + extent(1) + extent(2) + extent(3) + extent(4) +
+        2 * extent(6) + extent(7);
+    oop nil = import_nil(arena(size));
+    oop owner = nil + extent(0);
+    initialize(owner, nil, F_WEAK, 6);
+    assert(!c4_heap_import(owner, extent(6), 6, C4_NO_WEAK));
+    assert(!c4_heap_import(owner, extent(6), 0, 1));
+    assert(!c4_heap_import(owner, extent(6), 6, 7));
+    assert(c4_heap_import(owner, extent(6), 6, 1));
+    assert(c4_heap_start());
+
+    oop prefix = alloc(nil, F_VAR, 1);
+    oop survivor = alloc(nil, F_VAR, 2);
+    oop dying = alloc(nil, F_VAR, 3);
+    oop raced = alloc(nil, F_VAR, 4);
+    oop child = alloc(nil, F_VAR, 6);
+    c4_heap_store_ref(survivor, 0, child);
+    c4_heap_store_ref(owner, 0, prefix);
+    c4_heap_store_ref(owner, 1, survivor);
+    c4_heap_store_ref(owner, 2, dying);
+    c4_heap_store_ref(owner, 3, raced);
+    c4_heap_store_ref(owner, 4, 6); /* Tagged immediate */
+    assert(c4_heap_weak_start(owner) == 1);
+    assert(c4_heap_load_ref(owner, 2) == dying);
+
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    /* The two pre-ACK weak stores must not shade old or new edges. */
+    c4_heap_store_ref(owner, 2, raced);
+    c4_heap_store_ref(owner, 2, dying);
+    assert(c4_heap_load_ref(owner, 1) == survivor);
+    c4_heap_finish_poll(); /* Weak read must reopen CLOSE. */
+    race_owner = owner;
+    race_slot = 3;
+    race_prev = raced;
+    atomic_store(&stall_cas, true);
+    atomic_store(&stall_close, false);
+    while (atomic_load(&proposals) < 2) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    /* Hold CAS after reading the exact white value in slot 3. At this
+     * point slot 2 has already been cleared but neither cell is reusable. */
+    c4_heap_finish_poll();
+    while (!atomic_load(&at_cas)) sched_yield();
+    assert(c4_heap_load_ref(owner, 0) == prefix);
+    assert(c4_heap_load_ref(owner, 1) == survivor);
+    assert(c4_heap_load_ref(owner, 2) == nil);
+    assert(c4_heap_load_ref(owner, 3) == nil); /* Before CAS. */
+    assert(c4_heap_load_ref(owner, 4) == 6);
+    c4_heap_store_ref(owner, 3, prefix);
+    /* Allocated above CLEAR's high-water snapshot, so publication itself
+     * must reject white weak edges. This owner cannot be visited in CLEAR. */
+    oop post_ack_owner = c4_heap_alloc(extent(7));
+    assert(post_ack_owner);
+    initialize(post_ack_owner, nil, F_WEAK, 7);
+    ((oop *)(uintptr_t)post_ack_owner)[2] = raced;
+    ((oop *)(uintptr_t)post_ack_owner)[3] = prefix;
+    c4_heap_publish(post_ack_owner, 7, 0);
+    c4_heap_store_ref(owner, 5, raced); /* Simulate a stale caller after ACK. */
+    assert(c4_heap_load_ref(owner, 5) == nil);
+    for (unsigned i = 0; i < 10000; ++i) {
+        c4_heap_store_ref(owner, 3, prefix);
+        assert(c4_heap_load_ref(owner, 3) == prefix);
+        c4_heap_finish_poll();
+        assert(c4_heap_busy() && !c4_heap_should_collect());
+        assert(c4_heap_alloc(extent(3)) == 0);
+        assert(c4_heap_alloc(extent(4)) == 0);
+    }
+    atomic_store(&stall_cas, false);
+    finish_cycle();
+
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(c4_heap_take_weak_clears() == 0);
+    assert(c4_heap_alloc(extent(1)) == 0);
+    assert(c4_heap_alloc(extent(2)) == 0);
+    assert(c4_heap_alloc(extent(6)) == 0);
+    assert(alloc(nil, F_VAR, 3) == dying);
+    assert(alloc(nil, F_VAR, 4) == raced);
+    assert(((const oop *)(uintptr_t)owner)[2 + 2] == dying); /* Raw stays stale. */
+    assert(c4_heap_load_ref(owner, 2) == nil); /* No address ABA in IDLE. */
+    assert(c4_heap_load_ref(owner, 3) == prefix);
+    assert(c4_heap_load_ref(post_ack_owner, 0) == nil);
+    assert(c4_heap_load_ref(post_ack_owner, 1) == prefix);
+}
+
+static void weak_shadow(void)
+{
+    /* Logical arena is deliberately full, although the mapping is rounded. */
+    size_t size = extent(0) + extent(1) + 3 * extent(2) + extent(3) +
+        extent(4) + extent(5);
+    void *base = arena(size);
+    oop nil = import_nil(base);
+    assert(c4_heap_start());
+    oop read = alloc(nil, F_VAR, 1);
+    oop white = alloc(nil, F_VAR, 2);
+    oop displaced = alloc(nil, F_VAR, 2);
+    oop fixed = alloc(nil, F_VAR, 2);
+    oop dead_owner = c4_heap_alloc(extent(3));
+    initialize(dead_owner, nil, F_WEAK, 3);
+    ((oop *)(uintptr_t)dead_owner)[2] = white;
+    c4_heap_publish(dead_owner, 3, 0);
+    oop owner = c4_heap_alloc(extent(4));
+    initialize(owner, nil, F_WEAK, 4);
+    ((oop *)(uintptr_t)owner)[2] = read;
+    ((oop *)(uintptr_t)owner)[3] = displaced;
+    c4_heap_publish(owner, 4, 0);
+
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    assert(c4_heap_load_ref(owner, 0) == read); /* ROOTS shades. */
+    c4_heap_store_ref(owner, 1, white); /* Neither old nor new may be shaded. */
+    oop fresh = c4_heap_alloc(extent(5));
+    initialize(fresh, nil, F_WEAK, 5);
+    ((oop *)(uintptr_t)fresh)[2] = fixed;
+    ((oop *)(uintptr_t)fresh)[3] = displaced;
+    c4_heap_publish(fresh, 5, 1); /* Black; shade fixed field, not tail. */
+
+    /* Mutator weak loads and all worker work run without real oop words. */
+    assert(mprotect(base, size, PROT_NONE) == 0);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(owner, 0) == read);
+    assert(c4_heap_load_ref(owner, 1) == nil);
+    assert(c4_heap_load_ref(fresh, 0) == fixed);
+    assert(c4_heap_load_ref(fresh, 1) == nil);
+    assert(c4_heap_take_weak_clears() == 2);
+    assert(c4_heap_take_weak_clears() == 0);
+    assert(mprotect(base, size, PROT_READ | PROT_WRITE) == 0);
+
+    /* dead_owner reuses its address as a strong object. On reuse, the
+     * recorded layout must not retain the previous weak prefix. */
+    oop replacement = alloc(nil, F_VAR, 3);
+    assert(replacement == dead_owner);
+    assert(c4_heap_weak_start(replacement) == C4_NO_WEAK);
+    c4_heap_store_ref(replacement, 1, read);
+    c4_heap_store_ref(owner, 1, fixed);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(replacement);
+    c4_heap_end_roots();
+    assert(mprotect(base, size, PROT_NONE) == 0);
+    finish_cycle();
+    assert(c4_heap_load_ref(owner, 0) == read);
+    assert(c4_heap_load_ref(owner, 1) == nil);
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(c4_heap_take_weak_clears() == 0);
+    assert(mprotect(base, size, PROT_READ | PROT_WRITE) == 0);
+}
+
+static void weak_idle_transition(void)
+{
+    void *base = arena(extent(0) + extent(1) + extent(2));
+    oop nil = import_nil(base);
+    assert(c4_heap_start());
+    oop owner = c4_heap_alloc(extent(1));
+    initialize(owner, nil, F_WEAK, 1);
+    c4_heap_publish(owner, 1, 0);
+    oop white = alloc(nil, F_VAR, 2);
+    c4_heap_store_ref(owner, 0, white);
+
+    race_owner = owner;
+    race_slot = 0;
+    race_prev = white;
+    atomic_store(&stall_cas, true);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_cas)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+
+    finish_during_load = true;
+    assert(c4_heap_load_ref(owner, 0) == nil);
+    finish_during_load = false;
+    assert(!c4_heap_busy());
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(alloc(nil, F_VAR, 2) == white);
+    assert(c4_heap_load_ref(owner, 0) == nil);
 }
 
 enum { NODES = 768, SHAPES = 4, LINKS = 2 };
@@ -245,6 +466,9 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "close")) hostile_close();
     else if (!strcmp(argv[1], "shadow")) shadow_snapshot();
     else if (!strcmp(argv[1], "oracle")) oracle();
+    else if (!strcmp(argv[1], "weak-close")) weak_close();
+    else if (!strcmp(argv[1], "weak-shadow")) weak_shadow();
+    else if (!strcmp(argv[1], "weak-idle")) weak_idle_transition();
     else return 2;
     return 0;
 }

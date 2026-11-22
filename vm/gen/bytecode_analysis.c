@@ -85,7 +85,7 @@ bool analyze(oop m)
     bool r_sends;
     uint8_t op_5;
     bc = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
@@ -93,7 +93,7 @@ bool analyze(oop m)
 exit_load_ref:;
     r_load_ref; });
     lo = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(m, 2U);
         goto exit_load_ref_2;
     }
@@ -102,7 +102,7 @@ exit_load_ref_2:;
     r_load_ref_2; });
     if (!(((bc & 7) == 0) && (((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES) && (((lo & 7) == 0) && ({
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(m, 4U);
         goto exit_load_ref_3;
     }
@@ -111,7 +111,7 @@ exit_load_ref_3:;
     r_load_ref_3; });
     ((o & 1) != 0) && ({
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(m, 5U);
         goto exit_load_ref_4;
     }
@@ -129,7 +129,7 @@ exit_load_ref_4:;
     bc_size = (int32_t)byte_size(bc);
     num_lits = (int32_t)(uint32_t)*(uint64_t *)lo;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(m, 4U);
         goto exit_load_ref_5;
     }
@@ -138,7 +138,7 @@ exit_load_ref_5:;
     r_load_ref_5; });
     num_args = (int32_t)(((int64_t)o_3) >> 1);
     o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(m, 5U);
         goto exit_load_ref_6;
     }

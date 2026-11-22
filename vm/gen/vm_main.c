@@ -168,7 +168,7 @@ int main(int n, char **v)
     }
     o = object_memory_special(SO_PROCESSOR);
     proc = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 1U);
         goto exit_load_ref;
     }
@@ -176,7 +176,7 @@ int main(int n, char **v)
 exit_load_ref:;
     r_load_ref; });
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)proc) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(proc, 1U);
         goto exit_load_ref_2;
     }

@@ -116,7 +116,7 @@ uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret)
     int64_t i;
     stat_block_misses = stat_block_misses + 1;
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(c, 2U);
         goto exit_load_ref;
     }
@@ -154,7 +154,7 @@ exit_load_ref:;
     sync_frame(f);
     o_2 = f->method;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_2, 2U);
         goto exit_load_ref_2;
     }
@@ -164,7 +164,7 @@ exit_load_ref_2:;
     f->lits = (oop *)(o_3 + 16);
     entry = ({
     ctx = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(c, 0U);
         goto exit_load_ref_3;
     }
@@ -176,7 +176,7 @@ exit_load_ref_3:;
         goto exit_entry_of_block;
     }
     m_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)ctx) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(ctx, 3U);
         goto exit_load_ref_4;
     }
@@ -184,7 +184,7 @@ exit_load_ref_3:;
 exit_load_ref_4:;
     r_load_ref_4; });
     startpc_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(c, 1U);
         goto exit_load_ref_5;
     }
@@ -227,7 +227,7 @@ exit_entry_of_block:;
     }
     if ((jit_flags & JIT_FLAG_BLOCKS) != 0) {
         o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(c, 0U);
         goto exit_load_ref_6;
     }
@@ -235,7 +235,7 @@ exit_entry_of_block:;
 exit_load_ref_6:;
     r_load_ref_6; });
         m = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_7 = c4_load_ref(o_4, 3U);
         goto exit_load_ref_7;
     }
@@ -243,7 +243,7 @@ exit_load_ref_6:;
 exit_load_ref_7:;
     r_load_ref_7; });
         startpc = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_8 = c4_load_ref(c, 1U);
         goto exit_load_ref_8;
     }
@@ -271,7 +271,7 @@ oop box(frame *f, uint64_t b)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -301,11 +301,14 @@ void canonicalize_below(frame *f)
     int32_t sp;
     uint32_t info;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_2;
     oop o_2;
-    oop r_load_ref_2;
     oop o_3;
+    oop r_load_ref_2;
+    oop o_4;
     base = (frame *)state_block->base_frame;
     g = f - 1;
     stat_walks = stat_walks + 1;
@@ -347,25 +350,48 @@ void canonicalize_below(frame *f)
         g->pc = pc;
         g->sp = sp;
         m = g->method;
-        o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+        o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-        g->ip = (uint8_t *)(o + 16) + pc;
-        o_2 = g->method;
-        o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
-        r_load_ref_2 = c4_load_ref(o_2, 2U);
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+        g->ip = (uint8_t *)(o_2 + 16) + pc;
+        o_3 = g->method;
+        o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_2 = c4_load_ref(o_3, 2U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 16);
+    r_load_ref_2 = *(uint64_t *)(o_3 + 16 + 16);
 exit_load_ref_2:;
     r_load_ref_2; });
-        g->lits = (oop *)(o_3 + 16);
+        g->lits = (oop *)(o_4 + 16);
         g = g - 1;
     }
 }
@@ -389,11 +415,14 @@ void canonicalize_below(frame *f)
     int32_t sp;
     uint32_t info;
     oop m;
+    oop r_method_storage;
     oop r_load_ref;
     oop o;
+    int32_t f_2;
     oop o_2;
-    oop r_load_ref_2;
     oop o_3;
+    oop r_load_ref_2;
+    oop o_4;
     base = (frame *)state_block->base_frame;
     g = f - 1;
     stat_walks = stat_walks + 1;
@@ -435,25 +464,48 @@ void canonicalize_below(frame *f)
         g->pc = pc;
         g->sp = sp;
         m = g->method;
-        o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+        o_2 = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((*(uint64_t *)(m + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_BYTECODES)))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 3U);
         goto exit_load_ref;
     }
     r_load_ref = *(uint64_t *)(m + 16 + 24);
 exit_load_ref:;
     r_load_ref; });
-        g->ip = (uint8_t *)(o + 16) + pc;
-        o_2 = g->method;
-        o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
-        r_load_ref_2 = c4_load_ref(o_2, 2U);
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && (o != nil_oop)))) {
+            fatal_begin();
+            fprintf(stderr, "missing C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+        g->ip = (uint8_t *)(o_2 + 16) + pc;
+        o_3 = g->method;
+        o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref_2 = c4_load_ref(o_3, 2U);
         goto exit_load_ref_2;
     }
-    r_load_ref_2 = *(uint64_t *)(o_2 + 16 + 16);
+    r_load_ref_2 = *(uint64_t *)(o_3 + 16 + 16);
 exit_load_ref_2:;
     r_load_ref_2; });
-        g->lits = (oop *)(o_3 + 16);
+        g->lits = (oop *)(o_4 + 16);
         g = g - 1;
     }
 }
@@ -509,7 +561,7 @@ uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -550,7 +602,7 @@ exit_load_ref:;
     if (c == 1) {
         o_3 = nfp[-1];
         v = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_3, 2U);
         goto exit_load_ref_2;
     }
@@ -560,7 +612,7 @@ exit_load_ref_2:;
     } else {
         o_4 = h->method;
         v = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_4, 4U);
         goto exit_load_ref_3;
     }
@@ -598,7 +650,7 @@ exit_load_ref_4:;
     r_method_prim; }) & CM_PRIM_ERROR_FLAG) != 0) && ({
     o_6 = h->method;
     ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_6, 5U);
         goto exit_load_ref_5;
     }
@@ -690,7 +742,7 @@ uint64_t feedback_selector_of(oop m, int64_t i)
     if (((info >> 24) & 3) == 2) {
         o = object_memory_special(SO_SPECIAL_SELECTORS);
         r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(o, i_2);
         goto exit_load_ref;
     }
@@ -701,7 +753,7 @@ exit_load_ref:;
     }
     o_2 = h->method;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_2, 2U);
         goto exit_load_ref_2;
     }
@@ -709,7 +761,7 @@ exit_load_ref:;
 exit_load_ref_2:;
     r_load_ref_2; });
     r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_3 = c4_load_ref(o_3, i_2);
         goto exit_load_ref_3;
     }
@@ -928,7 +980,7 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -977,7 +1029,7 @@ exit_site_of:;
     if (((info >> 24) & 3) == 2) {
         o_3 = object_memory_special(SO_SPECIAL_SELECTORS);
         r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(o_3, i);
         goto exit_load_ref_2;
     }
@@ -988,7 +1040,7 @@ exit_load_ref_2:;
     }
     o_4 = h->method;
     o_5 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_4, 2U);
         goto exit_load_ref_3;
     }
@@ -996,7 +1048,7 @@ exit_load_ref_2:;
 exit_load_ref_3:;
     r_load_ref_3; });
     r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_4 = c4_load_ref(o_5, i);
         goto exit_load_ref_4;
     }
@@ -1009,7 +1061,7 @@ exit_selector_of:;
     if (kind == 1) {
         o_6 = h->method;
         o_7 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_6, 1U);
         goto exit_load_ref_5;
     }
@@ -1017,7 +1069,7 @@ exit_selector_of:;
 exit_load_ref_5:;
     r_load_ref_5; });
         v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_7) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(o_7, 0U);
         goto exit_load_ref_6;
     }
@@ -1257,7 +1309,7 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -1306,7 +1358,7 @@ exit_site_of:;
     if (((info >> 24) & 3) == 2) {
         o_3 = object_memory_special(SO_SPECIAL_SELECTORS);
         r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(o_3, i);
         goto exit_load_ref_2;
     }
@@ -1317,7 +1369,7 @@ exit_load_ref_2:;
     }
     o_4 = h->method;
     o_5 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_4, 2U);
         goto exit_load_ref_3;
     }
@@ -1325,7 +1377,7 @@ exit_load_ref_2:;
 exit_load_ref_3:;
     r_load_ref_3; });
     r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_4 = c4_load_ref(o_5, i);
         goto exit_load_ref_4;
     }
@@ -1338,7 +1390,7 @@ exit_selector_of:;
     if (kind == 1) {
         o_6 = h->method;
         o_7 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_6, 1U);
         goto exit_load_ref_5;
     }
@@ -1346,7 +1398,7 @@ exit_selector_of:;
 exit_load_ref_5:;
     r_load_ref_5; });
         v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_7) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(o_7, 0U);
         goto exit_load_ref_6;
     }
@@ -1697,7 +1749,7 @@ static void note_nil_test(uint64_t m, void *d)
         return;
     }
     k = nil_test_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(m, 0U);
         goto exit_load_ref;
     }
@@ -1708,7 +1760,7 @@ exit_load_ref:;
         return;
     }
     cls = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(m, 1U);
         goto exit_load_ref_2;
     }
@@ -1717,7 +1769,7 @@ exit_load_ref_2:;
     r_load_ref_2; });
     root = *(uint64_t *)(nil_oop + 8);
     while (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)root) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(root, 0U);
         goto exit_load_ref_3;
     }
@@ -1725,7 +1777,7 @@ exit_load_ref_2:;
 exit_load_ref_3:;
     r_load_ref_3; }) != nil_oop) {
         root = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)root) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(root, 0U);
         goto exit_load_ref_4;
     }
@@ -1739,7 +1791,7 @@ exit_load_ref_4:;
     }
     quick = k == 1 == (cls != root) ? 0x71 : 0x72;
     bc = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(m, 3U);
         goto exit_load_ref_5;
     }
@@ -1798,7 +1850,7 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -1883,7 +1935,7 @@ exit_load_ref_3:;
     if ((info & 256) != 0) {
         for (i_3 = 0; i_3 <= k - 1; i_3++) {
             fp[i_3] = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)arr) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_4 = c4_load_ref(arr, (uint32_t)i_3);
         goto exit_load_ref_4;
     }
@@ -1942,7 +1994,7 @@ uint64_t jit_baseline_runtime_prim(frame *f, uint64_t fp, uint64_t fn, uint64_t 
         sync_frame(f);
         o = f->method;
         o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -1985,7 +2037,7 @@ exit_leave_after:;
             sync_frame(f);
             o_3 = f->method;
             o_4 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_3, 2U);
         goto exit_load_ref_2;
     }
@@ -2508,7 +2560,7 @@ uint64_t return_slow(frame *f)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2683,7 +2735,7 @@ void unlink_selector(oop sel)
     if (((info >> 24) & 3) == 2) {
         o = object_memory_special(SO_SPECIAL_SELECTORS);
         r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(o, i_2);
         goto exit_load_ref;
     }
@@ -2694,7 +2746,7 @@ exit_load_ref:;
     }
     o_2 = h->method;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_2, 2U);
         goto exit_load_ref_2;
     }
@@ -2702,7 +2754,7 @@ exit_load_ref:;
 exit_load_ref_2:;
     r_load_ref_2; });
     r_selector_of = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_2 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_2 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_3) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_3 = c4_load_ref(o_3, i_2);
         goto exit_load_ref_3;
     }
@@ -2742,7 +2794,7 @@ exit_selector_of:;
     if (((info_2 >> 24) & 3) == 2) {
         o_4 = object_memory_special(SO_SPECIAL_SELECTORS);
         r_selector_of_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_4 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_4 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_4) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_4 = c4_load_ref(o_4, i_4);
         goto exit_load_ref_4;
     }
@@ -2753,7 +2805,7 @@ exit_load_ref_4:;
     }
     o_5 = h_2->method;
     o_6 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_5, 2U);
         goto exit_load_ref_5;
     }
@@ -2761,7 +2813,7 @@ exit_load_ref_4:;
 exit_load_ref_5:;
     r_load_ref_5; });
     r_selector_of_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_4 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_4 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_6 = c4_load_ref(o_6, i_4);
         goto exit_load_ref_6;
     }

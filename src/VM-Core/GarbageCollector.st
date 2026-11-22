@@ -120,6 +120,9 @@ finalizationPending: aBoolean
 !
 statWeakCleared
 	^statWeakCleared
+!
+statWeakCleared: n
+	statWeakCleared := n
 ! !
 
 !GarbageCollector methodsFor: 'spaces'!

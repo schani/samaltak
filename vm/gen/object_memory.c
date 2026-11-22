@@ -8,7 +8,7 @@ oop cls_boxedfloat;
 oop cls_bytearray;
 oop cls_bytestring;
 oop cls_char;
-static oop cls_compiledmethod;
+oop cls_compiledmethod;
 oop cls_context;
 oop cls_message;
 oop cls_point;
@@ -46,11 +46,6 @@ static uint64_t alloc_c4(oop cls, int32_t fmt, uint32_t n)
 {
     uint64_t p;
     uint64_t a;
-    if (fmt == F_WEAK) {
-        fatal_begin();
-        fprintf(stderr, "C4 does not support weak allocation");
-        fatal_end();
-    }
     p = alloc_c4_try(cls, fmt, n);
     if (p == 0) {
         a = 16 + 8 * (uint64_t)n;
@@ -64,6 +59,8 @@ static uint64_t alloc_c4(oop cls, int32_t fmt, uint32_t n)
 /* ObjectMemory>>allocC4Try:format:slots: */
 static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
 {
+    uint32_t refs;
+    int64_t first;
     uint64_t bytes;
     uint64_t p;
     oop *s;
@@ -71,11 +68,19 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     int64_t i;
     uint64_t an_address;
     uint64_t n_2;
-    if (fmt == F_WEAK) {
-        return 0;
+    int64_t n_3;
+    refs = (fmt >= 1) && (fmt <= 4) ? n : 0;
+    first = 4294967295LL;
+    if (cls == cls_context) {
+        if (!((fmt == F_FIXVAR) && (c4_fixed_fields_for(cls, F_FIXVAR, n) == CTX_FIXED))) {
+            return 0;
+        }
     }
-    if ((cls == cls_context) && ((fmt != F_FIXVAR) || (n < CTX_FIXED))) {
-        return 0;
+    if (fmt == F_WEAK) {
+        first = c4_fixed_fields_for(cls, F_WEAK, n);
+        if (first == 0xFFFFFFFFLL) {
+            return 0;
+        }
     }
     bytes = 16 + 8 * (uint64_t)n;
     p = c4_heap_alloc(bytes);
@@ -97,9 +102,20 @@ static uint64_t alloc_c4_try(oop cls, int32_t fmt, uint32_t n)
     if (cls == cls_context) {
         ((oop *)(p + 16))[CTX_STACKP] = 1ULL;
     }
-    c4_heap_publish(p, (fmt >= 1) && (fmt <= 4) ? n : 0);
+    c4_heap_publish(p, refs, (uint32_t)first);
     n_2 = stat_allocated + bytes;
     stat_allocated = n_2;
+    if (alloc_sample_interval > 0) {
+        if (bytes > large_object_bytes) {
+            alloc_sample_hit(cls, bytes);
+        } else if (alloc_sample_countdown <= (int64_t)bytes) {
+            alloc_sample_countdown = alloc_sample_interval;
+            alloc_sample_hit(cls, bytes);
+        } else {
+            n_3 = alloc_sample_countdown - (int64_t)bytes;
+            alloc_sample_countdown = n_3;
+        }
+    }
     return p;
 }
 
@@ -378,13 +394,50 @@ bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v)
     return (((oop *)(o + 16))[i] != nil_oop) && (((oop *)(o + 16))[i] != v);
 }
 
+/* ObjectMemory>>c4FixedFieldsFor:spec:slots: */
+uint32_t c4_fixed_fields_for(oop cls, int expected, uint32_t n)
+{
+    int32_t f;
+    oop r_load_ref;
+    oop fo;
+    int64_t spec;
+    uint32_t fixed;
+    if (!(((cls & 7) == 0) && ((cls != 0) && ((uint32_t)*(uint64_t *)cls > BEH_FORMAT)))) {
+        return 0xFFFFFFFFLL;
+    }
+    f = (int32_t)(((*(uint64_t *)cls) >> H_FMT_SHIFT) & H_FMT_MASK);
+    if (!((f >= F_FIXED) && (f <= F_FIXVAR))) {
+        return 0xFFFFFFFFLL;
+    }
+    fo = ({
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cls) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
+        r_load_ref = c4_load_ref(cls, 2U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(cls + 16 + 16);
+exit_load_ref:;
+    r_load_ref; });
+    if (!((fo & 1) != 0)) {
+        return 0xFFFFFFFFLL;
+    }
+    spec = ((int64_t)fo) >> 1 >> CLS_SPEC_SHIFT;
+    fixed = (uint32_t)((((int64_t)fo) >> 1) & CLS_INSTSIZE_MASK);
+    if ((fixed > n) || (spec != expected)) {
+        return 0xFFFFFFFFLL;
+    }
+    return fixed;
+}
+
 /* ObjectMemory>>c4LoadRef:at: */
 oop c4_load_ref(oop o, uint32_t i)
 {
     uint32_t r_context_prefix;
     uint32_t slots;
     uint64_t sp;
-    if ((*(uint64_t *)(o + 8) == cls_context) && (i >= ({
+    if ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK) {
+        return c4_heap_load_ref(o, i);
+    }
+    if ((i >= CTX_FIXED) && ((*(uint64_t *)(o + 8) == cls_context) && (i >= ({
     slots = (uint32_t)*(uint64_t *)o;
     if (slots < CTX_FIXED) {
         r_context_prefix = slots;
@@ -397,7 +450,7 @@ oop c4_load_ref(oop o, uint32_t i)
     }
     r_context_prefix = 6U;
 exit_context_prefix:;
-    r_context_prefix; }))) {
+    r_context_prefix; })))) {
         return nil_oop;
     }
     return *(uint64_t *)(o + 16 + 8 * (uint64_t)i);
@@ -494,7 +547,7 @@ exit_context_prefix:;
     r_context_prefix; }) - 1;
     for (i = 0; i <= stop; i++) {
         c4_heap_store_ref(dst, (uint32_t)i, ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)src) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(src, (uint32_t)i);
         goto exit_load_ref;
     }
@@ -525,7 +578,7 @@ void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_
                 i_2 = di + i;
                 i_3 = si + i;
                 v = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_3 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_3 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)src) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(src, (uint32_t)i_3);
         goto exit_load_ref;
     }
@@ -556,7 +609,7 @@ exit_load_ref:;
                 i_4 = di + j;
                 i_5 = si + j;
                 v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i_5 >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i_5 >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)src) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref_2 = c4_load_ref(src, (uint32_t)i_5);
         goto exit_load_ref_2;
     }
@@ -647,10 +700,18 @@ uint32_t fixed_fields(oop o)
     if (f == F_FIXED) {
         return (uint32_t)*(uint64_t *)o;
     }
+    if (c4_enabled) {
+        if (f == F_WEAK) {
+            return c4_heap_weak_start(o);
+        }
+        if (*(uint64_t *)(o + 8) == cls_context) {
+            return 6U;
+        }
+    }
     if ((f == F_FIXVAR) || (f == F_WEAK)) {
         o_2 = *(uint64_t *)(o + 8);
         o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o_2, 2U);
         goto exit_load_ref;
     }
@@ -759,7 +820,7 @@ oop instantiate(oop cls, uint64_t n, int *err)
         return nil_oop;
     }
     fo = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)cls) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(cls, 2U);
         goto exit_load_ref;
     }
@@ -792,9 +853,6 @@ exit_load_ref:;
         }
         fmt = F_BYTES + (int32_t)((8 - n % 8) % 8);
         nslots = n / 8 + (n % 8 != 0 ? 1 : 0);
-    }
-    if (c4_enabled && (fmt == F_WEAK)) {
-        return nil_oop;
     }
     o = n > 0x7FFFFFF0 ? 0 : alloc_obj_try(cls, fmt, nslots);
     *err = o != 0 ? 0 : PRIM_ERR_NO_MEMORY;
@@ -1001,7 +1059,7 @@ oop object_memory_special(int index)
         return nil_oop;
     }
     return ({
-    if (__builtin_expect(c4_enabled, 0) && (index >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((index >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)specials_oop) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(specials_oop, (uint32_t)index);
         goto exit_load_ref;
     }

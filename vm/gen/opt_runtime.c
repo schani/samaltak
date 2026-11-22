@@ -1432,7 +1432,7 @@ oop opt_runtime_make_array(frame *f, uint64_t n)
     sync_frame(f);
     o = f->method;
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2068,7 +2068,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
             sync_frame(f);
             o = f->method;
             o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o, 2U);
         goto exit_load_ref;
     }
@@ -2123,7 +2123,7 @@ exit_load_ref:;
     sync_frame(f);
     o_5 = f->method;
     o_6 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_5, 2U);
         goto exit_load_ref_2;
     }
@@ -2142,7 +2142,7 @@ exit_load_ref_2:;
     sync_frame(f);
     o_7 = f->method;
     o_8 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_7) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_7, 2U);
         goto exit_load_ref_3;
     }
@@ -2280,7 +2280,7 @@ exit_sent_5:;
     sync_frame(f);
     o_10 = f->method;
     o_11 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_10) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(o_10, 2U);
         goto exit_load_ref_4;
     }
@@ -2311,7 +2311,7 @@ exit_load_ref_4:;
     sync_frame(f);
     o_12 = f->method;
     o_13 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_12) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_12, 2U);
         goto exit_load_ref_5;
     }

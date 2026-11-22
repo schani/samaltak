@@ -192,7 +192,6 @@ primSamplerInterval
 primAllocationSampling
 	<vmPrimitive: 139 name: 'allocationSampling'>
 	| n |
-	vmMain c4Enabled ifTrue: [^self fail].
 	(self argCount < 2 or: [(self isInt: (self arg: 0)) not or: [(self isInt: (self arg: 1)) not]]) ifTrue: [^self fail].
 	n := self intVal: (self arg: 0).
 	scheduler allocSampleInterval: (n > 0 ifTrue: [n] ifFalse: [0]).

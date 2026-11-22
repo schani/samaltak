@@ -120,7 +120,7 @@ contextPrefix: o
 !
 loadRef: o at: i
 	"The scalar heap body reference load."
-	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED])
+	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED or: [(self formatOf: o) = F_WEAK]])
 		ifTrue: [^memory c4LoadRef: o at: i asUInt32].
 	^self uint64At: o + 16 + (8 * i)
 !

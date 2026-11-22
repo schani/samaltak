@@ -45,7 +45,12 @@ loadImage: path
 			0 to: (self numSlots: o) asInt64 - 1 do: [:i |
 				((self isPtr: (s at: i)) and: [(s at: i) ~= 0]) ifTrue: [s at: i put: ((s at: i) + delta) asUInt64]]].
 		p := p + bytes].
-	memory specialsOop: (h specials + delta) asUInt64.
+	p := (h specials + delta) asUInt64.
+	vmMain c4Requested ifTrue: [
+		(p >= gc oldLo and: [p < gc oldTop and: [gc oldTop - p >= 16 and: [(p bitAnd: 7) = 0 and: [
+			(self formatOf: p) = F_VAR and: [(self numSlots: p) > SO_COMPILEDMETHOD and: [(self objBytes: p) <= (gc oldTop - p)]]]]]])
+			ifFalse: [self fatal: 'bad C4 image special objects array']].
+	memory specialsOop: p.
 	memory hashSeed: h hashSeed.
 	"its hashed collections are by the String hash it was saved with (0: FNV-1a, images from before the other)"
 	memory wordHash: h stringHash = 1.
@@ -60,21 +65,30 @@ loadImage: path
 importC4
 	"Startup only: all image references have been relocated."
 	<function>
-	| p fmt bytes slots refs sp |
+	| p fmt bytes slots refs sp cls first |
 	c4 contextClass: memory clsContext.
+	c4 nilOop: memory nilOop.
 	p := gc oldLo.
 	[p < gc oldTop] whileTrue: [
 		fmt := self formatOf: p.
-		fmt = F_WEAK ifTrue: [self fatal: '--c4 does not support images containing weak objects'].
+		cls := self rawClass: p.
 		slots := self numSlots: p.
 		bytes := self objBytes: p.
 		refs := (self fmtHasPointers: fmt) ifTrue: [slots] ifFalse: [0].
-		(self rawClass: p) = memory clsContext ifTrue: [
-			(fmt ~= F_FIXVAR or: [slots < CTX_FIXED]) ifTrue: [self fatal: 'bad C4 image Context layout'].
+		first := 16rFFFFFFFF asUInt32. "C4_NO_WEAK"
+		(fmt = F_WEAK or: [cls = memory clsContext]) ifTrue: [
+			(cls >= gc oldLo and: [cls < gc oldTop and: [gc oldTop - cls >= 16 and: [(cls bitAnd: 7) = 0 and: [
+				(self objBytes: cls) <= (gc oldTop - cls)]]]]) ifFalse: [self fatal: 'bad C4 image layout class'].
+			fmt = F_WEAK ifTrue: [
+				first := memory c4FixedFieldsFor: cls spec: F_WEAK slots: slots.
+				first = 16rFFFFFFFF ifTrue: [self fatal: 'bad C4 image weak layout']]].
+		cls = memory clsContext ifTrue: [
+			(fmt = F_FIXVAR and: [(memory c4FixedFieldsFor: cls spec: F_FIXVAR slots: slots) = CTX_FIXED])
+				ifFalse: [self fatal: 'bad C4 image Context layout'].
 			sp := self loadRef: p at: CTX_STACKP.
 			((self isInt: sp) and: [(sp >> 1) <= (slots - CTX_FIXED)]) ifFalse: [
 				self fatal: 'bad C4 image Context stack pointer']].
-		(c4 import: p bytes: bytes refs: refs) ifFalse: [self fatal: 'cannot import object into C4 heap'].
+		(c4 import: p bytes: bytes refs: refs weakStart: first asUInt32) ifFalse: [self fatal: 'cannot import object into C4 heap'].
 		p := p + bytes]
 ! !
 

@@ -69,6 +69,9 @@ clsBytestring
 clsBytearray
 	^clsBytearray
 !
+clsCompiledmethod
+	^clsCompiledmethod
+!
 clsMessage
 	^clsMessage
 !
@@ -204,6 +207,9 @@ fixedFields: o
 	| f |
 	f := self formatOf: o.
 	f = F_FIXED ifTrue: [^self numSlots: o].
+	vmMain c4Enabled ifTrue: [
+		f = F_WEAK ifTrue: [^c4 weakStart: o].
+		(self rawClass: o) = clsContext ifTrue: [^CTX_FIXED asUInt32]].
 	(f = F_FIXVAR or: [f = F_WEAK]) ifTrue: [
 		^((self intVal: (self loadRef: (self rawClass: o) at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK) asUInt32].
 	^0
@@ -223,11 +229,29 @@ indexableSize: o
 ! !
 
 !ObjectMemory methodsFor: 'C4 references'!
+c4FixedFieldsFor: cls spec: expected slots: n
+	"For import and allocation: class + fixed prefix are strong. UINT32_MAX
+	is invalid (larger than any object this VM fits in its C4 arena)."
+	<function>
+	<var: #n type: 'uint32_t'>
+	<returns: 'uint32_t'>
+	| fo spec fixed f |
+	((self isPtr: cls) and: [cls ~= 0 and: [(self numSlots: cls) > BEH_FORMAT]]) ifFalse: [^16rFFFFFFFF].
+	f := self formatOf: cls.
+	(f >= F_FIXED and: [f <= F_FIXVAR]) ifFalse: [^16rFFFFFFFF].
+	fo := self loadRef: cls at: BEH_FORMAT.
+	(self isInt: fo) ifFalse: [^16rFFFFFFFF].
+	spec := (self intVal: fo) >> CLS_SPEC_SHIFT.
+	fixed := ((self intVal: fo) bitAnd: CLS_INSTSIZE_MASK) asUInt32.
+	(fixed > n or: [spec ~= expected]) ifTrue: [^16rFFFFFFFF].
+	^fixed
+!
 c4LoadRef: o at: i
 	<function>
 	<var: #o type: 'oop'>
 	<var: #i type: 'uint32_t'>
-	((self rawClass: o) = clsContext and: [i >= (self contextPrefix: o)]) ifTrue: [^nilOop].
+	(self formatOf: o) = F_WEAK ifTrue: [^c4 loadRef: o at: i].
+	(i >= CTX_FIXED and: [(self rawClass: o) = clsContext and: [i >= (self contextPrefix: o)]]) ifTrue: [^nilOop].
 	^self uint64At: o + 16 + (8 * i asUInt64)
 !
 c4CannotReplaceCodeSlot: o at: i put: v
@@ -359,23 +383,37 @@ allocC4Try: cls format: fmt slots: n
 	"No cycle start, root enumeration or wait on allocation pressure."
 	<function>
 	<var: #n type: 'uint32_t'>
-	| p bytes |
-	fmt = F_WEAK ifTrue: [^0].
-	(cls = clsContext and: [fmt ~= F_FIXVAR or: [n < CTX_FIXED]]) ifTrue: [^0].
+	| p bytes refs first |
+	refs := (self fmtHasPointers: fmt) ifTrue: [n] ifFalse: [0].
+	first := 16rFFFFFFFF asUInt32. "C4_NO_WEAK"
+	cls = clsContext ifTrue: [
+		(fmt = F_FIXVAR and: [(self c4FixedFieldsFor: cls spec: F_FIXVAR slots: n) = CTX_FIXED])
+			ifFalse: [^0]].
+	fmt = F_WEAK ifTrue: [
+		first := self c4FixedFieldsFor: cls spec: F_WEAK slots: n.
+		first = 16rFFFFFFFF ifTrue: [^0]].
 	bytes := 16 + (8 * n asUInt64).
 	p := c4 alloc: bytes.
 	p = 0 ifTrue: [^0].
 	self initObjectAt: p class: cls format: fmt slots: n.
 	cls = clsContext ifTrue: [
 		(self slotsOf: p) at: CTX_STACKP put: (self intOop: 0)].
-	c4 publish: p refs: ((self fmtHasPointers: fmt) ifTrue: [n] ifFalse: [0]).
+	c4 publish: p refs: refs weakStart: first asUInt32.
 	gc statAllocated: gc statAllocated + bytes.
+	scheduler allocSampleInterval > 0 ifTrue: [
+		bytes > largeObjectBytes
+			ifTrue: [scheduler allocSampleHit: cls bytes: bytes]
+			ifFalse: [
+				scheduler allocSampleCountdown <= bytes asInt64
+					ifTrue: [
+						scheduler allocSampleCountdown: scheduler allocSampleInterval.
+						scheduler allocSampleHit: cls bytes: bytes]
+					ifFalse: [scheduler allocSampleCountdown: scheduler allocSampleCountdown - bytes asInt64]]].
 	^p
 !
 allocC4: cls format: fmt slots: n
 	<function>
 	| p |
-	fmt = F_WEAK ifTrue: [self fatal: 'C4 does not support weak allocation'].
 	p := self allocC4Try: cls format: fmt slots: n.
 	p = 0 ifTrue: [self fatal: 'C4 out of memory allocating %llu bytes' with: 16 + (8 * n asUInt64)].
 	^p
@@ -516,7 +554,6 @@ instantiate: cls size: n error: err
 									spec = 16 ifFalse: [^nilOop].
 									fmt := F_BYTES + ((8 - (n rem: 8)) rem: 8) asInt32.
 									nslots := (n quo: 8) + ((n rem: 8) ~= 0 ifTrue: [1] ifFalse: [0])]]]].
-	(vmMain c4Enabled and: [fmt = F_WEAK]) ifTrue: [^nilOop].
 	o := n > 16r7FFFFFF0 ifTrue: [0] ifFalse: [self allocObjTry: cls format: fmt slots: nslots].
 	err value: (o ~= 0 ifTrue: [0] ifFalse: [PRIM_ERR_NO_MEMORY]).
 	^o ~= 0 ifTrue: [o] ifFalse: [nilOop]

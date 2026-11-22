@@ -150,7 +150,7 @@ exit_store_ref_4:;
     for (i_2 = 0; i_2 <= n - 1; i_2++) {
         o_5 = *r;
         o_6 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_5) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o_5, 3U);
         goto exit_load_ref;
     }
@@ -161,7 +161,7 @@ exit_load_ref:;
         ((oop *)(o_6 + 16))[3 * i_2] = (uint64_t)((((int64_t)v_4) << 1) | 1);
         o_7 = *r;
         o_8 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_7) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_7, 3U);
         goto exit_load_ref_2;
     }
@@ -174,7 +174,7 @@ exit_load_ref_2:;
             s = string_from((const char *)h->note_texts[i_2]);
             o_9 = *r;
             o_10 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_9) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(o_9, 3U);
         goto exit_load_ref_3;
     }
@@ -217,7 +217,7 @@ exit_store_ref_6:;
     for (i_4 = 0; i_4 <= n - 1; i_4++) {
         o_12 = *r;
         o_13 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_12) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(o_12, 4U);
         goto exit_load_ref_4;
     }
@@ -229,7 +229,7 @@ exit_load_ref_4:;
         s = string_from(symbol_names[i_4]);
         o_14 = *r;
         o_15 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_14) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(o_14, 4U);
         goto exit_load_ref_5;
     }
@@ -485,7 +485,7 @@ exit_store_ref_6:;
         return;
     }
     if ((({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(old, 2U);
         goto exit_load_ref;
     }
@@ -493,7 +493,7 @@ exit_store_ref_6:;
 exit_load_ref:;
     r_load_ref; }) != nil_oop) && ({
     o_7 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(old, 2U);
         goto exit_load_ref_2;
     }
@@ -506,7 +506,7 @@ exit_load_ref_2:;
         return;
     }
     if ((({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(old, 3U);
         goto exit_load_ref_3;
     }
@@ -514,7 +514,7 @@ exit_load_ref_2:;
 exit_load_ref_3:;
     r_load_ref_3; }) != nil_oop) && ({
     o_8 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(old, 3U);
         goto exit_load_ref_4;
     }
@@ -528,7 +528,7 @@ exit_load_ref_4:;
     }
     m = jit_mode;
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(old, 0U);
         goto exit_load_ref_5;
     }
@@ -536,7 +536,7 @@ exit_load_ref_4:;
 exit_load_ref_5:;
     r_load_ref_5; }) != nil_oop) {
         if (!is_kind_of_string(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(old, 0U);
         goto exit_load_ref_6;
     }
@@ -548,7 +548,7 @@ exit_load_ref_6:;
             return;
         }
         p = utf8_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_7 = c4_load_ref(old, 0U);
         goto exit_load_ref_7;
     }
@@ -569,7 +569,7 @@ exit_load_ref_7:;
         }
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_8 = c4_load_ref(old, 1U);
         goto exit_load_ref_8;
     }
@@ -577,7 +577,7 @@ exit_load_ref_7:;
 exit_load_ref_8:;
     r_load_ref_8; }) != nil_oop) {
         if (!is_kind_of_string(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_9 = c4_load_ref(old, 1U);
         goto exit_load_ref_9;
     }
@@ -589,7 +589,7 @@ exit_load_ref_9:;
             return;
         }
         p = utf8_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_10 = c4_load_ref(old, 1U);
         goto exit_load_ref_10;
     }
@@ -620,7 +620,7 @@ exit_load_ref_10:;
         }
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_11 = c4_load_ref(old, 2U);
         goto exit_load_ref_11;
     }
@@ -628,7 +628,7 @@ exit_load_ref_10:;
 exit_load_ref_11:;
     r_load_ref_11; }) != nil_oop) {
         o_9 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_12 = c4_load_ref(old, 2U);
         goto exit_load_ref_12;
     }
@@ -639,7 +639,7 @@ exit_load_ref_12:;
         jit_threshold = n;
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_13 = c4_load_ref(old, 3U);
         goto exit_load_ref_13;
     }
@@ -647,7 +647,7 @@ exit_load_ref_12:;
 exit_load_ref_13:;
     r_load_ref_13; }) != nil_oop) {
         o_10 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_14 = c4_load_ref(old, 3U);
         goto exit_load_ref_14;
     }
@@ -802,7 +802,7 @@ exit_store_ref_6:;
         return;
     }
     if ((({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(old, 2U);
         goto exit_load_ref;
     }
@@ -810,7 +810,7 @@ exit_store_ref_6:;
 exit_load_ref:;
     r_load_ref; }) != nil_oop) && ({
     o_7 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(old, 2U);
         goto exit_load_ref_2;
     }
@@ -823,7 +823,7 @@ exit_load_ref_2:;
         return;
     }
     if ((({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(old, 3U);
         goto exit_load_ref_3;
     }
@@ -831,7 +831,7 @@ exit_load_ref_2:;
 exit_load_ref_3:;
     r_load_ref_3; }) != nil_oop) && ({
     o_8 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_4 = c4_load_ref(old, 3U);
         goto exit_load_ref_4;
     }
@@ -845,7 +845,7 @@ exit_load_ref_4:;
     }
     m = jit_mode;
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_5 = c4_load_ref(old, 0U);
         goto exit_load_ref_5;
     }
@@ -853,7 +853,7 @@ exit_load_ref_4:;
 exit_load_ref_5:;
     r_load_ref_5; }) != nil_oop) {
         if (!is_kind_of_string(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_6 = c4_load_ref(old, 0U);
         goto exit_load_ref_6;
     }
@@ -865,7 +865,7 @@ exit_load_ref_6:;
             return;
         }
         p = utf8_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_7 = c4_load_ref(old, 0U);
         goto exit_load_ref_7;
     }
@@ -886,7 +886,7 @@ exit_load_ref_7:;
         }
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_8 = c4_load_ref(old, 1U);
         goto exit_load_ref_8;
     }
@@ -894,7 +894,7 @@ exit_load_ref_7:;
 exit_load_ref_8:;
     r_load_ref_8; }) != nil_oop) {
         if (!is_kind_of_string(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_9 = c4_load_ref(old, 1U);
         goto exit_load_ref_9;
     }
@@ -906,7 +906,7 @@ exit_load_ref_9:;
             return;
         }
         p = utf8_of(({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_10 = c4_load_ref(old, 1U);
         goto exit_load_ref_10;
     }
@@ -937,7 +937,7 @@ exit_load_ref_10:;
         }
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_11 = c4_load_ref(old, 2U);
         goto exit_load_ref_11;
     }
@@ -945,7 +945,7 @@ exit_load_ref_10:;
 exit_load_ref_11:;
     r_load_ref_11; }) != nil_oop) {
         o_9 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_12 = c4_load_ref(old, 2U);
         goto exit_load_ref_12;
     }
@@ -956,7 +956,7 @@ exit_load_ref_12:;
         jit_threshold = n;
     }
     if (({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_13 = c4_load_ref(old, 3U);
         goto exit_load_ref_13;
     }
@@ -964,7 +964,7 @@ exit_load_ref_12:;
 exit_load_ref_13:;
     r_load_ref_13; }) != nil_oop) {
         o_10 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)old) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_14 = c4_load_ref(old, 3U);
         goto exit_load_ref_14;
     }
@@ -1134,7 +1134,7 @@ void prim_jit_send_sites(void)
         for (j = 0; j <= count - 1; j++) {
             o_6 = *e;
             o_7 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_6) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(o_6, 2U);
         goto exit_load_ref;
     }
@@ -1163,7 +1163,7 @@ exit_load_ref:;
         exit_store_ref_6:;
             o_8 = *e;
             o_9 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)o_8) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(o_8, 3U);
         goto exit_load_ref_2;
     }

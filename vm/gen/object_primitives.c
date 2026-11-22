@@ -157,7 +157,7 @@ exit_index_of:;
     if ((f >= 1) && (f <= 4)) {
         i = fixed_fields(r) + (uint32_t)k;
         v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (i >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(r, i);
         goto exit_load_ref;
     }
@@ -1061,7 +1061,7 @@ void prim_change_class_to(void)
     c = prim_nargs > 0 ? prim_base[1] : nil_oop;
     if (!(((r & 7) == 0) && (((c & 7) == 0) && (((uint32_t)*(uint64_t *)c > BEH_FORMAT) && ({
     o = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref = c4_load_ref(c, 2U);
         goto exit_load_ref;
     }
@@ -1079,7 +1079,7 @@ exit_load_ref:;
         c = prim_nargs > 0 ? prim_base[1] : nil_oop;
     }
     o_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_2 = c4_load_ref(c, 2U);
         goto exit_load_ref_2;
     }
@@ -1088,7 +1088,7 @@ exit_load_ref_2:;
     r_load_ref_2; });
     spec = ((int64_t)o_2) >> 1 >> CLS_SPEC_SHIFT;
     o_3 = ({
-    if (__builtin_expect(c4_enabled, 0) && false) {
+    if (__builtin_expect(c4_enabled, 0) && ((int32_t)(((*(uint64_t *)c) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)) {
         r_load_ref_3 = c4_load_ref(c, 2U);
         goto exit_load_ref_3;
     }
@@ -1259,7 +1259,7 @@ exit_index_of:;
         r = prim_base[0];
     }
     v_2 = ({
-    if (__builtin_expect(c4_enabled, 0) && (k >= CTX_FIXED)) {
+    if (__builtin_expect(c4_enabled, 0) && ((k >= CTX_FIXED) || ((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
         r_load_ref = c4_load_ref(r, (uint32_t)k);
         goto exit_load_ref;
     }

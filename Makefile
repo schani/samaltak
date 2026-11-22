@@ -90,6 +90,7 @@ ifeq ($(shell uname -s -m),Linux x86_64)
 	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-native/run.sh "$(OUT)/samaltak.image"
 	tests/vm/c4-live/run-engine.sh
 	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-live/run.sh
+	OUT="$(OUT)" tests/vm/c4-live/run-weak.sh "$(OUT)/samaltak.image"
 endif
 
 test-c4-live:
