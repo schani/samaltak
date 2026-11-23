@@ -86,6 +86,7 @@ jobs:
           image="$OUT/samaltak.image"
           tests/vm/c4-jit-live/run.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-forward.sh "$image" "$C4_VM"
+          tests/vm/c4-live/run-span-pressure.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-enumeration.sh "$image" "$C4_VM"
           for mode in c4 c4-moving c4-moving-forward; do
             tests/vm/c4-live/run-low-cap.sh "$image" "$C4_VM" "$mode"

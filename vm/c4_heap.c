@@ -64,14 +64,36 @@ static bool layout_at(uint64_t layout, uint32_t at)
 
 enum { SHADOW_CHUNK = 64 }; /* arena words; aligned independently of object starts */
 
-enum { BIN_GROUPS = 4, BINS = BIN_GROUPS * 64 };
+/* Exact below 16 KiB, then 64 subdivisions per doubling (31-bit extents).
+ * A free span indexes by its class floor; a request is rounded up to a
+ * class floor. Thus every node in a selected bin fits, regardless of order. */
+enum {
+    BIN_EXACT_LOG = 11, BIN_EXACT = 1 << BIN_EXACT_LOG,
+    BIN_LOG = 6, BIN_WIDTH = 1 << BIN_LOG,
+    BINS = BIN_EXACT + (31 - BIN_EXACT_LOG) * BIN_WIDTH, BIN_GROUPS = BINS / 64
+};
+_Static_assert(BINS % 64 == 0 && BIN_GROUPS <= 64, "pinned bin bitmap size");
 
 typedef struct {
-    _Atomic uint32_t swept[BINS]; /* single worker pushes; mutator pops */
+    _Atomic uint64_t swept_groups;
     _Atomic uint64_t swept_mask[BIN_GROUPS];
-    uint32_t split[BINS];         /* mutator-only split remainders */
-    uint64_t split_mask[BIN_GROUPS];
+    _Atomic uint32_t swept[BINS]; /* worker publishes; mutator detaches */
+    uint64_t ready_groups;
+    uint64_t ready_mask[BIN_GROUPS];
+    uint32_t ready[BINS];         /* mutator-only: splits and detached runs */
 } c4_bins;
+
+#ifdef SAMALTAK_C4_BIN_TEST
+static uint32_t bin_probes, bin_reads; /* mutator only */
+void c4_heap_test_bin_work(uint32_t *groups, uint32_t *nodes)
+{
+    *groups = bin_probes;
+    *nodes = bin_reads;
+}
+extern void c4_heap_test_before_bin_publish(uint32_t words);
+extern void c4_heap_test_before_bin_group_publish(uint32_t words);
+extern void c4_heap_test_after_bin_group_clear(unsigned bin);
+#endif
 
 enum {
     SMALL_BYTES = 32, INTERVAL_BYTES = 48,
@@ -729,12 +751,24 @@ static uint64_t clear_weak(uint32_t limit)
     return cleared;
 }
 
-/* Exact for small blocks, then eight buckets per power of two. */
+static unsigned bin_shift(uint32_t words)
+{
+    return (31u - __builtin_clz(words)) - BIN_LOG;
+}
+
 static unsigned bin_for(uint32_t words)
 {
-    if (words < 8) return words;
-    unsigned shift = (31 - __builtin_clz(words)) - 3;
-    return shift * 8 + (words >> shift);
+    if (words < BIN_EXACT) return words;
+    unsigned shift = bin_shift(words);
+    return BIN_EXACT + (shift + BIN_LOG - BIN_EXACT_LOG) * BIN_WIDTH +
+        (words >> shift) - BIN_WIDTH;
+}
+
+static uint32_t round_pinned(uint32_t words)
+{
+    if (words < BIN_EXACT) return words;
+    uint32_t mask = (UINT32_C(1) << bin_shift(words)) - 1;
+    return (words + mask) & ~mask;
 }
 
 static void offer_swept(uint32_t at, uint32_t words)
@@ -748,8 +782,22 @@ static void offer_swept(uint32_t at, uint32_t words)
         cell->link = head;
     } while (!atomic_compare_exchange_weak_explicit(&heap.bins.swept[bin],
         &head, at + 1, memory_order_release, memory_order_relaxed));
-    atomic_fetch_or_explicit(&heap.bins.swept_mask[bin / 64],
-        UINT64_C(1) << (bin % 64), memory_order_release);
+
+    /* Publish only on empty -> nonempty. A visible bit therefore grants
+     * a nonempty batch, even if the worker is suspended mid-publication. */
+    if (!head) {
+#ifdef SAMALTAK_C4_BIN_TEST
+        c4_heap_test_before_bin_publish(words);
+#endif
+        unsigned group = bin / 64;
+        uint64_t bit = UINT64_C(1) << (bin % 64);
+        if (!atomic_fetch_or_explicit(&heap.bins.swept_mask[group], bit, memory_order_release)) {
+#ifdef SAMALTAK_C4_BIN_TEST
+            c4_heap_test_before_bin_group_publish(words);
+#endif
+            atomic_fetch_or_explicit(&heap.bins.swept_groups, UINT64_C(1) << group, memory_order_release);
+        }
+    }
 }
 
 static void sweep_pinned(uint32_t limit, uint64_t *reclaimed, uint64_t *bytes)
@@ -1363,6 +1411,10 @@ bool c4_heap_start(void)
 
 static uint32_t bin_words(uint32_t key, unsigned bin)
 {
+#ifdef SAMALTAK_C4_BIN_TEST
+    ++bin_reads;
+#endif
+    if (!key || key > heap.capacity) bad_contract("missing pinned bin head");
     uint32_t at = key - 1;
     uint64_t layout = relaxed(&cell_at(at)->layout);
     uint32_t words = layout_words(layout);
@@ -1371,65 +1423,82 @@ static uint32_t bin_words(uint32_t key, unsigned bin)
     return words;
 }
 
-/* The worker only pushes. In one pop it cannot re-push any popped run.
- * Leave stale availability bits alone except when their head is empty;
- * repair a concurrent push with a head recheck after clearing the bit. */
-static uint32_t take_swept(unsigned bin, uint32_t words, uint32_t *available)
+static void ready_bin(unsigned bin, uint32_t head)
 {
-    _Atomic uint32_t *list = &heap.bins.swept[bin];
-    uint32_t head = acquire(list);
-    uint32_t taken = 0;
-    for (unsigned retry = 0; head && retry < 2; ++retry) {
-        uint32_t span = bin_words(head, bin);
-        if (span < words) return 0;
-        uint32_t next = cell_at(head - 1)->link;
-        if (atomic_compare_exchange_strong_explicit(list, &head, next,
-                memory_order_acquire, memory_order_acquire)) {
-            *available = span;
-            if (next) return head;
-            taken = head;
-            break;
-        }
+    unsigned group = bin / 64;
+    heap.bins.ready[bin] = head;
+    heap.bins.ready_mask[group] |= UINT64_C(1) << (bin % 64);
+    heap.bins.ready_groups |= UINT64_C(1) << group;
+}
+
+/* Only the mutator clears bits. Clear the group summary before removing
+ * its potential last bit. If the worker set a sibling in between, restore
+ * the summary; if it sets one after the group became empty, it publishes
+ * the summary itself. Clear the bin bit before emptying its batch for the
+ * same reason. Neither summary can leave a stale bit after a detach. */
+static uint32_t take_swept(unsigned bin, uint64_t swept)
+{
+    unsigned group = bin / 64;
+    uint64_t bit = UINT64_C(1) << (bin % 64), group_bit = UINT64_C(1) << group;
+    bool last = swept == bit;
+    if (last) {
+        atomic_fetch_and_explicit(&heap.bins.swept_groups, ~group_bit, memory_order_relaxed);
+#ifdef SAMALTAK_C4_BIN_TEST
+        c4_heap_test_after_bin_group_clear(bin);
+#endif
     }
-    if (!head || taken) {
-        _Atomic uint64_t *mask = &heap.bins.swept_mask[bin / 64];
-        uint64_t bit = UINT64_C(1) << (bin % 64);
-        atomic_fetch_and_explicit(mask, ~bit, memory_order_acq_rel);
-        if (acquire(list)) atomic_fetch_or_explicit(mask, bit, memory_order_release);
-    }
-    return taken;
+    uint64_t prior = atomic_fetch_and_explicit(&heap.bins.swept_mask[group], ~bit, memory_order_relaxed);
+    if (last && prior != bit)
+        atomic_fetch_or_explicit(&heap.bins.swept_groups, group_bit, memory_order_relaxed);
+
+    /* No CAS retry or shared link read. Ownership of the whole chain
+     * transfers at once; we pop one node and keep the suffix private. */
+    return atomic_exchange_explicit(&heap.bins.swept[bin], 0, memory_order_acquire);
 }
 
 static uint32_t take_run(uint32_t words, uint32_t *available)
 {
-    unsigned bin = bin_for(words);
-    for (unsigned group = bin / 64; group < BIN_GROUPS; ++group) {
-        uint64_t swept = acquire(&heap.bins.swept_mask[group]);
-        uint64_t split = heap.bins.split_mask[group];
-        uint64_t candidates = (swept | split) & (UINT64_MAX << (bin % 64));
-        for (; candidates; candidates &= candidates - 1) {
-            unsigned i = __builtin_ctzll(candidates);
-            uint64_t bit = UINT64_C(1) << i;
-            unsigned trial = group * 64 + i;
-            if (split & bit) {
-                uint32_t head = heap.bins.split[trial];
-                uint32_t span = bin_words(head, trial);
-                if (span >= words) {
-                    uint32_t next = cell_at(head - 1)->link;
-                    heap.bins.split[trial] = next;
-                    if (!next) heap.bins.split_mask[group] &= ~bit;
-                    *available = span;
-                    return head;
-                }
+#ifdef SAMALTAK_C4_BIN_TEST
+    bin_probes = bin_reads = 0;
+#endif
+    unsigned bin = bin_for(words), first = bin / 64;
+    uint64_t published = acquire(&heap.bins.swept_groups);
+    uint64_t groups = (published | heap.bins.ready_groups) & (UINT64_MAX << first);
+    for (; groups; groups &= groups - 1) {
+#ifdef SAMALTAK_C4_BIN_TEST
+        ++bin_probes;
+#endif
+        unsigned group = __builtin_ctzll(groups);
+        /* A local group does not grant access to swept bins. A worker
+         * paused on empty -> nonempty may have set the mask but not the
+         * group bit; draining it now would leave a stale summary. */
+        uint64_t swept = (published & (UINT64_C(1) << group))
+            ? acquire(&heap.bins.swept_mask[group]) : 0;
+        uint64_t ready = heap.bins.ready_mask[group];
+        uint64_t candidates = swept | ready;
+        if (group == first) candidates &= UINT64_MAX << (bin % 64);
+        /* Only the first group can be rejected by the size cutoff. Any
+         * higher group in the snapshot has a bin until we consume it. */
+        if (!candidates) continue;
+        unsigned i = __builtin_ctzll(candidates);
+        uint64_t bit = UINT64_C(1) << i;
+        unsigned trial = group * 64 + i;
+        bool local = ready & bit;
+        uint32_t head = local ? heap.bins.ready[trial] : take_swept(trial, swept);
+        *available = bin_words(head, trial);
+        if (*available < words) bad_contract("undersized pinned bin");
+        uint32_t next = cell_at(head - 1)->link;
+        if (local) {
+            heap.bins.ready[trial] = next;
+            if (!next) {
+                heap.bins.ready_mask[group] &= ~bit;
+                if (!heap.bins.ready_mask[group])
+                    heap.bins.ready_groups &= ~(UINT64_C(1) << group);
             }
-            /* Only a head in the request's coarse bucket can be too small.
-             * Do not walk a free list on the mutator. */
-            if (swept & bit) {
-                uint32_t head = take_swept(trial, words, available);
-                if (head) return head;
-            }
+        } else if (next) {
+            ready_bin(trial, next);
         }
-        bin = 0; /* all later groups are above the request */
+        return head;
     }
     return 0;
 }
@@ -1442,9 +1511,8 @@ static void offer_split(uint32_t at, uint32_t words)
      * never forwarded. Prior-cycle aliases are no longer in weak slots. */
     put_relaxed(&heap.shadow[at], 0);
     release(&cell->layout, layout_for(at, words, C4_FREE));
-    cell->link = heap.bins.split[bin];
-    heap.bins.split[bin] = at + 1;
-    heap.bins.split_mask[bin / 64] |= UINT64_C(1) << (bin % 64);
+    cell->link = heap.bins.ready[bin];
+    ready_bin(bin, at + 1);
 }
 
 static uintptr_t region_address(const c4_move_bank *b, uint32_t region, uint32_t slot)
@@ -1489,10 +1557,12 @@ static uint64_t reserve_moving(c4_move_state *m, c4_move_bank *b)
     return 0;
 }
 
-static uint64_t reserve_pinned(size_t bytes)
+static uint64_t reserve_pinned(size_t bytes, size_t *charged)
 {
     uint32_t words;
     if (!object_size(bytes, &words)) return 0;
+    words = round_pinned(words);
+    if (words > heap.capacity) return 0;
     uint32_t top = relaxed(&heap.top);
     uint32_t available = 0;
     uint32_t head = take_run(words, &available);
@@ -1514,6 +1584,7 @@ static uint64_t reserve_pinned(size_t bytes)
     release(&cell->layout, layout_for(at, words, C4_RESERVED));
     if (!head) release(&heap.top, at + words);
     atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
+    *charged = (size_t)words * 8;
     return heap.base + (size_t)at * 8;
 }
 
@@ -1523,6 +1594,7 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
     if (!heap.started) return 0;
     if (heap.unpublished) bad_contract("nested private reserve");
     uint64_t obj = 0;
+    size_t charged = bytes;
     if (heap.moving && (lane == C4_PLAIN ||
             (lane == C4_INTERVAL && heap.moving->plain_classes[PLAIN_INTERVAL]))) {
         c4_move_bank *b = &heap.moving->bank[lane == C4_INTERVAL];
@@ -1533,7 +1605,7 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
             heap.pressure = true;
         }
     }
-    if (!obj) obj = reserve_pinned(bytes);
+    if (!obj) obj = reserve_pinned(bytes, &charged);
     if (!obj) {
         heap.pressure = true;
         ++heap.failed;
@@ -1543,8 +1615,8 @@ uint64_t c4_heap_reserve(size_t bytes, enum c4_lane lane, uint64_t *init_addr)
     *init_addr = token_id(obj, &id) ? heap.moving->handles[id].addr : obj;
     heap.unpublished = obj;
     heap.unpublished_words = (uint32_t)(bytes / 8);
-    heap.since_begin = bytes <= SIZE_MAX - heap.since_begin
-        ? heap.since_begin + bytes : SIZE_MAX;
+    heap.since_begin = charged <= SIZE_MAX - heap.since_begin
+        ? heap.since_begin + charged : SIZE_MAX;
     ++heap.allocated;
     return obj;
 }

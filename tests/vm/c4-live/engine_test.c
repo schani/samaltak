@@ -591,6 +591,236 @@ static void pinned_fit(void)
     }
 }
 
+#ifdef SAMALTAK_C4_BIN_TEST
+extern void c4_heap_test_bin_work(uint32_t *groups, uint32_t *nodes);
+static _Atomic bool stall_bin, at_bin;
+static bool publish_sibling;
+static _Atomic uint32_t stall_group_at, reached_group_at;
+
+void c4_heap_test_before_bin_group_publish(uint32_t words)
+{
+    if (atomic_load(&stall_group_at) != words) return;
+    atomic_store(&reached_group_at, words);
+    while (atomic_load(&stall_group_at) == words) sched_yield();
+}
+
+void c4_heap_test_before_bin_publish(uint32_t words)
+{
+    if (words != 127 || !atomic_load(&stall_bin)) return;
+    atomic_store(&at_bin, true);
+    while (atomic_load(&stall_bin)) sched_yield();
+}
+
+void c4_heap_test_after_bin_group_clear(unsigned bin)
+{
+    if (bin != 126 || !publish_sibling) return;
+    assert(atomic_load(&at_bin));
+    atomic_store(&stall_bin, false);
+    while (c4_heap_busy()) sched_yield();
+    publish_sibling = false;
+}
+
+static void assert_bin_work(uint32_t wanted_nodes)
+{
+    uint32_t groups, nodes;
+    c4_heap_test_bin_work(&groups, &nodes);
+    assert(groups <= 2 && nodes == wanted_nodes);
+}
+#else
+static void assert_bin_work(uint32_t wanted_nodes) { (void)wanted_nodes; }
+#endif
+
+static void pinned_stranded(bool splits)
+{
+    /* Both 120 and 127 were in the same coarse bin. Put a long chain of
+     * short runs in front of every fitting run, with live separators and
+     * no bump space. Repeat independently for swept runs and splits. */
+    enum { N = 8192, SMALL = 120, FIT = 127, PARENT = 256, GUARD = 3 };
+    size_t full = 8 * (2 + N * (2 * GUARD + (splits ? 2 * PARENT : SMALL + FIT)));
+    oop nil = import_nil(arena(full));
+    assert(c4_heap_start());
+    oop guards = nil;
+    oop fit[N];
+    for (uint32_t i = 0; i < 2 * N; ++i) {
+        uint32_t words = splits ? PARENT : (i < N ? FIT : SMALL);
+        oop obj = alloc(nil, F_BYTES, words - 2);
+        if (!splits && i < N) fit[i] = obj;
+        oop guard = alloc(nil, F_FIXED, 1);
+        c4_heap_store_ref(guard, 0, guards);
+        guards = guard;
+    }
+    assert(c4_heap_top() == nil + full);
+    assert(c4_heap_begin());
+    c4_heap_root(guards);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    if (splits) {
+        for (uint32_t i = 0; i < 2 * N; ++i) {
+            uint32_t used = PARENT - (i < N ? FIT : SMALL);
+            oop prefix = alloc(nil, F_BYTES, used - 2);
+            if (i < N) fit[i] = prefix + 8 * used;
+        }
+    }
+    /* Genuine no-fit: millions of free bytes, none contiguous enough. */
+    assert(reserve_pinned(8 * (FIT + 1)) == 0);
+    assert_bin_work(0);
+    for (uint32_t i = N; i; --i) {
+        oop obj = reserve_pinned(8 * FIT);
+        if (!obj)
+            fprintf(stderr, "pinned-stranded: %s: %u fitting spans (%u usable bytes) inaccessible\n",
+                splits ? "split" : "swept", i, i * 8 * FIT);
+        assert(obj && obj == fit[i - 1]);
+        assert_bin_work(1);
+        publish(obj, nil, F_BYTES, FIT - 2);
+    }
+    /* A full chain in the same bitmap group must not cost a walk. */
+    for (uint32_t i = 0; i < N; ++i) {
+        assert(reserve_pinned(8 * FIT) == 0);
+        assert_bin_work(0);
+    }
+    for (uint32_t i = 0; i < N; ++i) {
+        alloc(nil, F_BYTES, SMALL - 2);
+        assert_bin_work(1);
+    }
+    assert(reserve_pinned(16) == 0 && c4_heap_top() == nil + full);
+    for (uint32_t i = 0; i < 2 * N; ++i) {
+        assert(guards != nil);
+        guards = c4_heap_load_ref(guards, 0);
+    }
+    assert(guards == nil);
+}
+
+static void pinned_rounded(void)
+{
+    /* An imported extent need not be at a class boundary. Splitting at a
+     * rounded size leaves a real remainder, not part of the logical body.
+     * The sum of charged extents must be reclaimed at the next sweep. */
+    enum { RUN = 4097, REQUEST = 2049, ROUNDED = 2080, TAIL = RUN - ROUNDED };
+    size_t full = 8 * (2 + RUN);
+    oop nil = import_nil(arena(full));
+    oop start = nil + 16;
+    initialize(start, nil, F_BYTES, RUN - 2);
+    assert(c4_heap_import(start, 8 * RUN, 0, C4_NO_WEAK));
+    assert(c4_heap_start());
+    for (unsigned i = 0; i < 3; ++i) {
+        assert(c4_heap_begin());
+        c4_heap_end_roots();
+        finish_cycle();
+        assert(reserve_pinned(8 * RUN) == 0); /* rounds beyond cap */
+        assert(alloc(nil, F_BYTES, REQUEST - 2) == start);
+        assert(alloc(nil, F_BYTES, TAIL - 2) == start + 8 * ROUNDED);
+        assert(reserve_pinned(16) == 0 && c4_heap_top() == nil + full);
+    }
+}
+
+#ifdef SAMALTAK_C4_BIN_TEST
+static void pinned_bin_publish(void)
+{
+    /* Earlier batch remains available while a new batch is unpublished.
+     * A reserve must neither wait nor disturb the delayed publication. */
+    enum { FIRST = 126, SECOND = 127 };
+    oop nil = import_nil(arena(8 * (2 + FIRST + SECOND + 3)));
+    assert(c4_heap_start());
+    oop first = alloc(nil, F_BYTES, FIRST - 2);
+    oop guard = alloc(nil, F_FIXED, 1);
+    oop second = alloc(nil, F_BYTES, SECOND - 2);
+    atomic_store(&stall_bin, true);
+    assert(c4_heap_begin());
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_bin)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    assert(reserve_pinned(8 * SECOND) == 0);
+    assert_bin_work(0);
+    /* Force the worker to publish the sibling between the two bitmap
+     * clears. The worker sees a nonempty group; the mutator must repair. */
+    publish_sibling = true;
+    assert(alloc(nil, F_BYTES, FIRST - 2) == first);
+    assert_bin_work(1);
+    assert(!publish_sibling && !c4_heap_busy());
+    assert(alloc(nil, F_BYTES, SECOND - 2) == second);
+    assert_bin_work(1);
+}
+
+static void pinned_bin_group_publish(void)
+{
+    /* Three initially empty swept groups. Each has a strictly higher
+     * private fit in the same group. Pause after publishing the swept
+     * mask but before publishing the group bit. */
+    enum { N = 3, FIRST = 126, STRIDE = 64, PREFIX = 320 };
+    size_t words = 2;
+    for (unsigned i = 0; i < N; ++i) {
+        unsigned low = FIRST + i * STRIDE;
+        words += low + 3 + PREFIX + low + 1 + 3;
+    }
+    size_t full = 8 * words;
+    oop nil = import_nil(arena(full));
+    assert(c4_heap_start());
+    oop low[N], high[N], prefixes[N], guards = nil;
+    for (unsigned i = 0; i < N; ++i) {
+        unsigned size = FIRST + i * STRIDE;
+        low[i] = alloc(nil, F_BYTES, size - 2);
+        oop guard = alloc(nil, F_FIXED, 1);
+        c4_heap_store_ref(guard, 0, guards);
+        alloc(nil, F_BYTES, PREFIX + size + 1 - 2);
+        guards = alloc(nil, F_FIXED, 1);
+        c4_heap_store_ref(guards, 0, guard);
+    }
+    assert(c4_heap_top() == nil + full);
+    assert(c4_heap_begin());
+    c4_heap_root(guards);
+    for (unsigned i = 0; i < N; ++i) c4_heap_root(low[i]);
+    c4_heap_end_roots();
+    finish_cycle();
+    for (unsigned i = 0; i < N; ++i) {
+        prefixes[i] = alloc(nil, F_BYTES, PREFIX - 2);
+        high[i] = prefixes[i] + 8 * PREFIX;
+    }
+
+    atomic_store(&stall_group_at, FIRST);
+    assert(c4_heap_begin());
+    c4_heap_root(guards);
+    for (unsigned i = 0; i < N; ++i) c4_heap_root(prefixes[i]);
+    c4_heap_end_roots();
+    unsigned early = 0;
+    for (unsigned i = 0; i < N; ++i) {
+        unsigned size = FIRST + i * STRIDE;
+        while (atomic_load(&reached_group_at) != size) {
+            c4_heap_finish_poll();
+            sched_yield();
+        }
+        oop obj = alloc(nil, F_BYTES, size - 2);
+        assert_bin_work(1);
+        if (obj == low[i]) {
+            /* Drain the private fit as well so the broken implementation
+             * exposes the stale summaries on the next lookup. */
+            ++early;
+            assert(alloc(nil, F_BYTES, size + 1 - 2) == high[i]);
+        } else {
+            assert(obj == high[i]);
+        }
+        atomic_store(&stall_group_at, i + 1 == N ? 0 : size + STRIDE);
+    }
+    finish_cycle();
+
+    oop obj = reserve_pinned(8 * FIRST);
+    uint32_t groups, nodes;
+    c4_heap_test_bin_work(&groups, &nodes);
+    fprintf(stderr, "pinned-bin-group-publish: early=%u probes=%u nodes=%u\n",
+        early, groups, nodes);
+    assert(groups == 1 && nodes == 1 && !early && obj == low[0]);
+    publish(obj, nil, F_BYTES, FIRST - 2);
+    for (unsigned i = 1; i < N; ++i)
+        assert(alloc(nil, F_BYTES, FIRST + i * STRIDE - 2) == low[i]);
+    assert(reserve_pinned(16) == 0);
+    c4_heap_test_bin_work(&groups, &nodes);
+    assert(!groups && !nodes && c4_heap_top() == nil + full);
+}
+#endif
+
 static void pinned_clear_split(void)
 {
     /* A prior free run borders a current white run. Split the former at
@@ -1625,7 +1855,7 @@ static oop alloc_nil(oop cls, unsigned fmt, uint32_t slots, uint32_t weak_start,
 
 static void enumeration_log_limit(void)
 {
-    enum { LENGTH = 70000 };
+    enum { LENGTH = 70654 }; /* 70656-word extent: an exact upper-bin boundary */
     size_t room = 2 * extent(LENGTH) + 4 * extent(0);
     oop nil = (oop)(uintptr_t)arena(room);
     initialize(nil, nil, F_EMPTY, 0);
@@ -2045,7 +2275,7 @@ static void lazy_mark(void)
 
 static void lazy_publish(void)
 {
-    enum { SLOTS = 65536 };
+    enum { SLOTS = 65534, PREFIX_WORDS = 512 }; /* split on an upper-bin boundary */
     size_t room = extent(0) + 2 * extent(SLOTS) + 2 * extent(1);
     oop nil = (oop)(uintptr_t)arena(room);
     initialize(nil, nil, F_EMPTY, 0);
@@ -2096,11 +2326,11 @@ static void lazy_publish(void)
     c4_heap_root(kept);
     c4_heap_end_roots();
     finish_cycle();
-    assert(alloc(nil, F_VAR, 3) == strong);
-    oop tail = alloc_nil(nil, F_VAR, SLOTS - 5, C4_NO_WEAK, nil);
-    assert(tail == strong + extent(3));
-    assert(c4_heap_load_ref(tail, SLOTS - 6) == nil);
-    c4_heap_store_ref(tail, SLOTS - 6, kept);
+    assert(alloc(nil, F_VAR, PREFIX_WORDS - 2) == strong);
+    oop tail = alloc_nil(nil, F_VAR, SLOTS - PREFIX_WORDS, C4_NO_WEAK, nil);
+    assert(tail == strong + 8 * PREFIX_WORDS);
+    assert(c4_heap_load_ref(tail, SLOTS - PREFIX_WORDS - 1) == nil);
+    c4_heap_store_ref(tail, SLOTS - PREFIX_WORDS - 1, kept);
 
     assert(c4_heap_begin());
     c4_heap_root(weak);
@@ -2119,7 +2349,7 @@ static void lazy_publish(void)
 static void lazy_enumeration(void)
 {
     enum { SLOTS = 8192, RACE_SLOT = SLOTS / 2 };
-    oop nil = (oop)(uintptr_t)arena(5 * extent(SLOTS) + 4096);
+    oop nil = (oop)(uintptr_t)arena(5 * extent(SLOTS) + 8192);
     initialize(nil, nil, F_EMPTY, 0);
     c4_heap_set_nil(nil);
     assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
@@ -2568,6 +2798,13 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "forward-after-ack")) forward_after_ack();
     else if (!strcmp(argv[1], "forward-pinned-overlap")) forward_pinned_overlap();
     else if (!strcmp(argv[1], "pinned-fit")) pinned_fit();
+    else if (!strcmp(argv[1], "pinned-stranded-swept")) pinned_stranded(false);
+    else if (!strcmp(argv[1], "pinned-stranded-split")) pinned_stranded(true);
+    else if (!strcmp(argv[1], "pinned-rounded")) pinned_rounded();
+#ifdef SAMALTAK_C4_BIN_TEST
+    else if (!strcmp(argv[1], "pinned-bin-publish")) pinned_bin_publish();
+    else if (!strcmp(argv[1], "pinned-bin-group-publish")) pinned_bin_group_publish();
+#endif
     else if (!strcmp(argv[1], "pinned-clear-split")) pinned_clear_split();
     else if (!strcmp(argv[1], "moving")) moving(false);
     else if (!strcmp(argv[1], "raw-read-move")) moving(true);

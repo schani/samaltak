@@ -96,6 +96,7 @@ ifeq ($(shell uname -s -m),Linux x86_64)
 	OUT="$(OUT)" tests/vm/c4-live/run-interval.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
 	OUT="$(OUT)" tests/vm/c4-live/run-context.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-low-cap.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-span-pressure.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-publish.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-become.sh "$(OUT)/samaltak.image"
 	OUT="$(OUT)" tests/vm/c4-live/run-enumeration.sh "$(OUT)/samaltak.image"
