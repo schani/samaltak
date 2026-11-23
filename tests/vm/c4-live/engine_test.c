@@ -439,6 +439,52 @@ static void weak_shadow(void)
     assert(mprotect(base, size, PROT_READ | PROT_WRITE) == 0);
 }
 
+static void weak_owner_reuse(void)
+{
+    void *base = arena(4096);
+    oop nil = import_nil(base);
+    assert(c4_heap_start());
+    oop hole = alloc(nil, F_EMPTY, 0);
+    oop old = reserve_pinned(extent(3));
+    initialize(old, nil, F_WEAK, 3);
+    c4_heap_publish(old, 3, 0);
+    oop separator = alloc(nil, F_EMPTY, 0);
+
+    assert(c4_heap_begin());
+    c4_heap_root(separator);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    /* The old weak owner's cell is now inside the coalesced run. Consume
+     * an odd number of words so the split starts at the opposite parity
+     * in that same pair. A free cell must not be a weak directory entry. */
+    oop prefix = alloc(nil, F_VAR, 1);
+    assert(prefix == hole);
+    assert(c4_heap_begin());
+    c4_heap_root(prefix);
+    c4_heap_root(separator);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    oop owner = reserve_pinned(extent(2));
+    assert(owner == old + sizeof(oop));
+    initialize(owner, nil, F_WEAK, 2);
+    c4_heap_publish(owner, 2, 1);
+    oop white = alloc(nil, F_EMPTY, 0);
+    c4_heap_store_ref(owner, 0, prefix);
+    c4_heap_store_ref(owner, 1, white);
+    assert(c4_heap_begin());
+    c4_heap_root(owner);
+    c4_heap_root(separator);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    assert(c4_heap_take_weak_clears() == 1);
+    assert(c4_heap_load_ref(owner, 0) == prefix);
+    assert(c4_heap_load_ref(owner, 1) == nil);
+    assert(alloc(nil, F_EMPTY, 0) == white);
+}
+
 static void weak_idle_transition(void)
 {
     void *base = arena(extent(0) + extent(1) + extent(2));
@@ -2786,6 +2832,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "oracle")) oracle();
     else if (!strcmp(argv[1], "weak-close")) weak_close();
     else if (!strcmp(argv[1], "weak-shadow")) weak_shadow();
+    else if (!strcmp(argv[1], "weak-owner-reuse")) weak_owner_reuse();
     else if (!strcmp(argv[1], "lazy-publish")) lazy_publish();
     else if (!strcmp(argv[1], "lazy-mark")) lazy_mark();
     else if (!strcmp(argv[1], "lazy-enumeration")) lazy_enumeration();

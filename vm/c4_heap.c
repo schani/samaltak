@@ -173,6 +173,7 @@ static struct {
     uint64_t pointer_forward_classes[PLAIN_INTERVAL]; /* two-slot classes only */
     c4_bins bins;
     c4_cell *cells;
+    _Atomic uint64_t *weak_starts; /* one bit per pinned cell; not a root */
     _Atomic uint64_t *shadow;
     _Atomic uint64_t *chunk_tags;
     c4_move_state *moving;
@@ -723,12 +724,19 @@ static uint64_t clear_weak(uint32_t limit)
     if (!acquire(&heap.has_weak)) return 0;
     uint32_t epoch = relaxed(&heap.epoch);
     uint64_t cleared = 0;
-    for (uint32_t at = 0; at < limit; ) {
-        c4_cell *cell = cell_at(at);
-        uint64_t layout = acquire(&cell->layout);
-        if (!layout_at(layout, at)) bad_contract("missing clear cell");
-        uint32_t refs = (uint32_t)layout;
-        if (refs < C4_RESERVED && relaxed(&cell->seen) == epoch) {
+    /* The release of CLOSE ACK covers all pre-close publications. Only
+     * black objects can be published concurrently, with weak stores
+     * already filtered by post_close_live. No bit can be retired in CLEAR. */
+    for (uint32_t block = 0; block < (limit + 127) / 128; ++block) {
+        for (uint64_t bits = acquire(&heap.weak_starts[block]); bits; bits &= bits - 1) {
+            uint32_t at = 128 * block + 2 * __builtin_ctzll(bits);
+            c4_cell *cell = cell_at(at);
+            uint64_t layout = acquire(&cell->layout);
+            at += (layout >> 32) & 1;
+            if (at >= limit || relaxed(&cell->seen) != epoch) continue;
+            uint32_t refs = (uint32_t)layout;
+            if (refs >= C4_RESERVED || cell->weak_start >= refs)
+                bad_contract("invalid weak owner");
             for (uint32_t i = cell->weak_start; i < refs; ++i) {
                 _Atomic uint64_t *slot = shadow_field(at, i, refs, false);
                 if (!slot) continue;
@@ -746,7 +754,6 @@ static uint64_t clear_weak(uint32_t limit)
                 /* A racing overwrite cannot have installed another white oop. */
             }
         }
-        at += layout_words(layout);
     }
     return cleared;
 }
@@ -812,6 +819,11 @@ static void sweep_pinned(uint32_t limit, uint64_t *reclaimed, uint64_t *bytes)
         bool live = (uint32_t)layout < C4_RESERVED;
         if (live) put_relaxed(&cell->context_limit, 0);
         if (live && relaxed(&cell->seen) != epoch) {
+            /* Retire the directory entry before we let reserve reuse this
+             * pair of words, even when the new start has opposite parity. */
+            if (cell->weak_start < (uint32_t)layout)
+                atomic_fetch_and_explicit(&heap.weak_starts[at / 128],
+                    ~(UINT64_C(1) << ((at / 2) % 64)), memory_order_relaxed);
             /* CLEAR is complete. Retire every old start before offering a
              * combined extent. We never withdraw runs already in bins. */
             put_relaxed(&cell->layout, layout_for(at, words, C4_FREE));
@@ -1098,10 +1110,13 @@ bool c4_heap_init(void *base, size_t capacity)
     size_t words = capacity / 8;
     heap.cells = calloc((words + 1) / 2, sizeof *heap.cells);
     heap.shadow = calloc(words, sizeof *heap.shadow);
+    heap.weak_starts = calloc((words + 127) / 128, sizeof *heap.weak_starts);
     /* Demand-zero tags. Reserving capacity must not touch all its chunks. */
     size_t tag_bytes = ((words + SHADOW_CHUNK - 1) / SHADOW_CHUNK) * sizeof *heap.chunk_tags;
     heap.chunk_tags = mmap(NULL, tag_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (!heap.cells || !heap.shadow || heap.chunk_tags == MAP_FAILED) {
+    if (!heap.cells || !heap.shadow || !heap.weak_starts || heap.chunk_tags == MAP_FAILED) {
+        free(heap.weak_starts);
+        heap.weak_starts = NULL;
         free(heap.cells);
         free(heap.shadow);
         if (heap.chunk_tags != MAP_FAILED) munmap(heap.chunk_tags, tag_bytes);
@@ -1342,12 +1357,15 @@ static bool mirror(uint32_t at, uint64_t addr, uint32_t words, uint32_t refs,
     return true;
 }
 
-static void publish_layout(c4_cell *cell, uint32_t refs, uint32_t weak_start)
+static void publish_layout(uint32_t at, c4_cell *cell, uint32_t refs, uint32_t weak_start)
 {
     cell->weak_start = weak_start;
     release(&cell->layout, (relaxed(&cell->layout) & ~UINT64_C(0xffffffff)) | refs);
-    if (weak_start < refs && !relaxed(&heap.has_weak))
-        release(&heap.has_weak, 1);
+    if (weak_start < refs) {
+        atomic_fetch_or_explicit(&heap.weak_starts[at / 128],
+            UINT64_C(1) << ((at / 2) % 64), memory_order_release);
+        if (!relaxed(&heap.has_weak)) release(&heap.has_weak, 1);
+    }
 }
 
 bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_start)
@@ -1360,7 +1378,7 @@ bool c4_heap_import(uint64_t obj, size_t bytes, uint32_t refs, uint32_t weak_sta
 
     c4_cell *cell = heap.cells + at / 2;
     put_relaxed(&cell->layout, layout_for(at, words, C4_RESERVED));
-    publish_layout(cell, refs, weak_start);
+    publish_layout(at, cell, refs, weak_start);
     put_relaxed(&heap.top, at + words);
     atomic_fetch_add_explicit(&heap.occupied, words, memory_order_relaxed);
     ++heap.imports;
@@ -1637,7 +1655,7 @@ static void publish(uint64_t obj, uint32_t refs, uint32_t weak_start, bool nil_f
     if (!mirror(at, addr, heap.unpublished_words, refs, weak_start, phase, nil_filled))
         bad_contract("unsupported format, extent or weak layout");
     if (viewing(phase)) put_relaxed(view_stamp(at), view_born());
-    publish_layout(cell, refs, weak_start);
+    publish_layout(at, cell, refs, weak_start);
     heap.unpublished = 0;
 }
 
