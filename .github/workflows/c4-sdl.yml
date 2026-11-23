@@ -1,13 +1,17 @@
 name: C4 SDL
 on:
   push:
-    branches: [main]
+    branches: [main, wip/c4-concurrent-gc]
   pull_request:
     branches: [main]
 permissions:
   contents: read
 jobs:
   sdl:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.head_ref != 'wip/c4-concurrent-gc' ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04
     container: debian:bookworm-slim
     timeout-minutes: 30
