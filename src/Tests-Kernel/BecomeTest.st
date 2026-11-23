@@ -171,6 +171,16 @@ testReceiverInItsMethod
 	self assert: holder first class == WideString.
 	self assert: holder first = (String with: $a with: (Character value: 955) with: $c)
 !
+testOptimizedFrameHoldingIt
+	"Optimized code knows the class of what it allocated: after the become it must not read the Array's fields."
+	1 to: 3000 do: [:i | self assert: self allocateForwardAndRead = 11]
+!
+allocateForwardAndRead
+	| a |
+	a := Array with: 1 with: 2.
+	a becomeForward: (OrderedCollection with: 10).
+	^a first + a size
+!
 testEagerKinds
 	| assoc holder |
 	assoc := #a -> 1.

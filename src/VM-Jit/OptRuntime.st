@@ -1271,10 +1271,6 @@ invalidate: h ifPoolHas: o
 	0 to: h poolCount asInt64 - 1 do: [:k | (pool at: k) = o ifTrue: [found := true]].
 	found ifTrue: [self invalidate: h]
 !
-invalidateUnit: h
-	<function>
-	self invalidate: h
-!
 invalidateAll
 	<function>
 	0 to: rtAllCount - 1 do: [:i | self invalidate: (rtAll at: i)]

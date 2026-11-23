@@ -1858,21 +1858,11 @@ static void flush_code(void)
 /* JitRuntime>>forwarded: */
 void forwarded(oop o)
 {
-    int32_t i;
-    frame *f;
-    uint64_t c;
     state_block->forwarders = 1;
     if (!(jit_mode == JIT_OPT)) {
         return;
     }
     invalidate_embedding(o);
-    for (i = 0; i <= nframes - 1; i++) {
-        f = frames + i;
-        c = f->code;
-        if ((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) && interpreter_frame(i, o)) {
-            invalidate_unit((jit_method *)f->code);
-        }
-    }
 }
 
 /* JitRuntime>>headersValid: */
@@ -2155,6 +2145,25 @@ static void open_perf_map(void)
         fprintf(perf_map, "%llx %llx stub:%s\n", (unsigned long long)symbol_addrs[i], (unsigned long long)(end - symbol_addrs[i]), symbol_names[i]);
     }
     fflush(perf_map);
+}
+
+/* JitRuntime>>optFramesHold: */
+bool opt_frames_hold(oop o)
+{
+    int32_t i;
+    frame *f;
+    uint64_t c;
+    if (!(jit_mode == JIT_OPT)) {
+        return false;
+    }
+    for (i = 0; i <= nframes - 1; i++) {
+        f = frames + i;
+        c = f->code;
+        if ((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) && interpreter_frame(i, o)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /* JitRuntime>>optMethodsChanged: */

@@ -1024,16 +1024,19 @@ rawTopOf: f
 	^optimizer rawTopOf: f
 !
 forwarded: o
-	"becomeForward: makes o a forwarder: machine code follows forwarders from now on; optimized code that embeds o, or whose frames hold it, may know its class and is invalidated (its frames leave where they next return or check)."
+	"becomeForward: makes o a forwarder: machine code follows forwarders from now on; optimized code that embeds o may have folded its class and is invalidated."
 	<function>
-	| f |
 	stateBlock forwarders: 1.
 	jitMode = JIT_OPT ifFalse: [^self].
-	optimizer invalidateEmbedding: o.
+	optimizer invalidateEmbedding: o
+!
+optFramesHold: o
+	"An optimized frame holds o (it may know o's class)."
+	<function>
+	jitMode = JIT_OPT ifFalse: [^false].
 	0 to: interpreter nframes - 1 do: [:i |
-		f := interpreter frames + i.
-		((self isOptFrame: f) and: [interpreter frame: i holds: o]) ifTrue: [
-			optimizer invalidateUnit: (self cCoerce: f code to: 'JitMethod *')]]
+		((self isOptFrame: interpreter frames + i) and: [interpreter frame: i holds: o]) ifTrue: [^true]].
+	^false
 !
 becomeMethod: from
 	"from is about to be replaced: if it is a compiled method, its code must not run for its successor."

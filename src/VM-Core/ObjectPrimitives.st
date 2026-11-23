@@ -257,7 +257,13 @@ primBecomeForward
 			interpreter flushIfMarried: from.
 			gc fullGC.
 			gc becomeForward: (memory follow: self receiver) to: (memory follow: self arg0)]
-		ifFalse: [gc forward: from to: to].
+		ifFalse: [
+			(jit optFramesHold: from) ifTrue: [
+				"optimized frames holding from may know its class: they continue as Contexts (their code stays)"
+				interpreter materializeAll.
+				from := memory follow: self receiver.
+				to := memory follow: self arg0].
+			gc forward: from to: to].
 	self answer: self receiver
 !
 isEagerKind: s
