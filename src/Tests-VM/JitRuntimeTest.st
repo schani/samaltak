@@ -133,6 +133,17 @@ testProcessSwitchesInCompiledLoops
 	self assert: log size equals: 100.
 	self assert: (log first: 4) asArray equals: #(-1 1 -2 2)
 !
+testTickerInterruptsInCompiledLoop
+	"The high-priority process can only release the loop while it is running. Warm the method before arming the timer."
+	| o flags |
+	self define: 'spin: n flags: flags | i | i := 0. flags at: 2 put: true. [i < n and: [flags at: 1]] whileTrue: [i := i + 1]. flags at: 2 put: false. ^i'.
+	o := JitRuntimeTestSubject new.
+	flags := {true. false}.
+	2 timesRepeat: [self assert: (o spin: 128 flags: flags) equals: 128].
+	self fork: [[(Delay forMilliseconds: 1) wait. flags at: 2] whileFalse. flags at: 1 put: false]
+		at: Processor activePriority + 1.
+	self assert: (o spin: 20000000 flags: flags) < 20000000
+!
 testDeepRecursion
 	| before |
 	self define: 'depth: n ^n = 0 ifTrue: [0] ifFalse: [(self depth: n - 1) + 1]'.

@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, wip/c4-concurrent-gc]
   pull_request:
     branches: [main]
 
@@ -11,6 +11,10 @@ permissions:
 
 jobs:
   test:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.head_ref != 'wip/c4-concurrent-gc' ||
+      github.event.pull_request.head.repo.full_name != github.repository
     name: ${{ matrix.targets }}
     # make test's stages (see the Makefile), so that each job fits its timeout and every stage reports
     strategy:

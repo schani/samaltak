@@ -93,7 +93,12 @@ primAtPut
 		v := self arg: 1].
 	f := self formatOf: r.
 	(self fmtHasPointers: f)
-		ifTrue: [self storeRef: r at: (memory fixedFields: r) + k asUInt32 put: v]
+		ifTrue: [
+			k := (memory fixedFields: r) asInt64 + k.
+			(vmMain c4Enabled and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail].
+			(self c4InactiveContext: r at: k) ifTrue: [
+				^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
+			self storeRef: r at: k put: v]
 		ifFalse: [
 			f = F_W64
 				ifTrue: [
@@ -108,6 +113,7 @@ primAtPut
 						ifFalse: [
 							f >= F_BYTES ifFalse: [^self fail].
 							((self isInt: v) and: [(self intVal: v) >= 0 and: [(self intVal: v) <= 255]]) ifFalse: [^self fail].
+							jit c4BytecodeWillWrite: r.
 							(self bytesOf: r) at: k put: (self intVal: v) asUInt8]]].
 	self answer: v
 !
@@ -135,6 +141,10 @@ primInstVarAtPut
 	k := self indexOf: (self arg: 0) limit: (self numSlots: r).
 	k < 0 ifTrue: [^self fail].
 	v := self arg: 1.
+	(vmMain c4Enabled and: [k = CTX_STACKP and: [(self rawClass: r) = memory clsContext]]) ifTrue: [
+		(r = interpreter activeCtx or: [interpreter isMarried: r]) ifTrue: [^self fail].
+		(memory c4TryStoreContextStackp: r value: v) ifFalse: [^self fail].
+		^self answer: v].
 	"a married Context: a slot goes to its frame; a fixed field may change how it continues, its frames are flushed first"
 	(interpreter isMarried: r) ifTrue: [
 		k >= CTX_FIXED
@@ -142,12 +152,20 @@ primInstVarAtPut
 			ifFalse: [interpreter materializeAll].
 		r := self receiver.
 		v := self arg: 1].
+	"The receiver can become the heap base during materialization."
+	(vmMain c4Enabled and: [self c4CodeStoreRejected: r at: k put: v]) ifTrue: [^self fail].
+	(self c4InactiveContext: r at: k) ifTrue: [
+		^v = memory nilOop ifTrue: [self answer: v] ifFalse: [self fail]].
 	self storeRef: r at: k put: v.
 	self answer: v
 !
+c4InactiveContext: o at: k
+	^vmMain c4Enabled and: [k >= CTX_FIXED and: [
+		(self rawClass: o) = memory clsContext and: [k asUInt64 >= (self contextPrefix: o)]]]
+!
 primShallowCopy
 	<vmPrimitive: 80 name: 'shallowCopy'>
-	| r c |
+	| r c n |
 	r := self receiver.
 	(self isPtr: r) ifFalse: [^self answer: r].
 	"a married Context's state is its frame's: Context>>shallowCopy copies what Smalltalk reads"
@@ -155,8 +173,13 @@ primShallowCopy
 	c := memory allocObjTry: (self rawClass: r) format: (self formatOf: r) slots: (self numSlots: r) asUInt64.
 	c = 0 ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 	r := self receiver.
-	libc memcpy: (self slotsOf: c) from: (self slotsOf: r) size: (self numSlots: r) asUInt64 * 8.
-	(self fmtHasPointers: (self formatOf: r)) ifTrue: [gc rememberIfOld: c].
+	n := self numSlots: r.
+	(self fmtHasPointers: (self formatOf: r))
+		ifTrue: [
+			(vmMain c4Enabled and: [(self rawClass: r) = memory clsContext])
+				ifTrue: [memory copyC4Context: c from: r]
+				ifFalse: [memory copyRefs: c at: 0 from: r at: 0 count: n]]
+		ifFalse: [libc memcpy: (self bytesOf: c) from: (self bytesOf: r) size: n asUInt64 * 8].
 	self answer: c
 !
 primIsImmutable
@@ -183,6 +206,7 @@ primSetImmutable
 primChangeClassTo
 	<vmPrimitive: 85 name: 'changeClassTo:'>
 	| r c spec isize f nf |
+	vmMain c4Enabled ifTrue: [^self fail].
 	r := self receiver.
 	c := self arg0.
 	((self isPtr: r) and: [(self isPtr: c) and: [(self numSlots: c) > BEH_FORMAT and: [self isInt: (self loadRef: c at: BEH_FORMAT)]]]) ifFalse: [^self fail].
@@ -228,6 +252,7 @@ countInstance: o data: d
 primAllInstances
 	<vmPrimitive: 86 name: 'allInstances'>
 	| a |
+	vmMain c4Enabled ifTrue: [^self fail].
 	gc fullGC.
 	instancesClass := self receiver.
 	instancesResult := 0.
@@ -241,13 +266,50 @@ primAllInstances
 	instancesResult := 0.
 	self answer: a
 !
+primC4AllInstancesRequest
+	<vmPrimitive: 94 name: 'c4AllInstancesRequest'>
+	<notTryable>
+	| cls sem carrier |
+	(vmMain c4Enabled and: [self argCount = 2]) ifFalse: [^self fail].
+	cls := self receiver.
+	sem := self arg0.
+	carrier := self arg: 1.
+	((self isPtr: cls) and: [cls ~= 0 and: [cls ~= memory nilOop and: [
+		(self isPtr: sem) and: [sem ~= 0 and: [
+			(self rawClass: sem) = (memory special: SO_SEMAPHORE) and: [
+			(self numSlots: sem) = (SEM_EXCESS + 1) and: [
+			(self loadRef: sem at: LL_FIRST) = memory nilOop and: [
+			(self loadRef: sem at: SEM_EXCESS) = (self intOop: 0)]]]]]]]])
+		ifFalse: [^self fail].
+	((self isPtr: carrier) and: [carrier ~= 0 and: [
+		(self rawClass: carrier) = memory clsArray and: [(self numSlots: carrier) = 1 and: [
+			(self isImmutable: carrier) not and: [(self loadRef: carrier at: 0) = memory nilOop]]]]])
+		ifFalse: [^self fail].
+	(scheduler c4EnumRequest: cls semaphore: sem carrier: carrier) ifFalse: [^self fail].
+	self answer: cls
+!
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
+	vmMain c4Enabled ifTrue: [^self c4BecomeForward].
 	((self isPtr: self receiver) and: [(self isPtr: self arg0) and: [self receiver ~= memory nilOop]]) ifFalse: [^self fail].
 	interpreter flushIfMarried: self receiver.
 	gc fullGC.
 	gc becomeForward: self receiver to: self arg0.
 	self answer: self receiver
+!
+c4BecomeForward
+	| from to |
+	self argCount = 1 ifFalse: [^self fail].
+	from := self receiver.
+	to := self arg0.
+	((self isPtr: from) and: [from ~= 0 and: [(self isPtr: to) and: [to ~= 0]]])
+		ifFalse: [^self fail].
+	((self rawClass: from) = memory clsBytestring and: [(self rawClass: to) ~= (memory special: SO_WIDESTRING)])
+		ifTrue: [^self fail].
+	jit c4ForwardingOutsideNative ifFalse: [self fatal: 'C4 forwarding entered with native frames live'].
+	(c4 becomeForward: from to: to) ifFalse: [^self fail].
+	jit c4ForwardingInstalled.
+	self answer: to
 !
 primSpecialObjectsArray
 	<vmPrimitive: 89 name: 'specialObjectsArray'>
@@ -284,6 +346,7 @@ primStringAtPut
 	(self formatOf: r) >= F_BYTES
 		ifTrue: [
 			(self charVal: c) > 255 ifTrue: [^self fail].
+			jit c4BytecodeWillWrite: r.
 			(self bytesOf: r) at: k put: (self charVal: c) asUInt8]
 		ifFalse: [(self words32Of: r) at: k put: (self charVal: c)].
 	self answer: c
@@ -407,7 +470,12 @@ primStringIndexOfSubstring
 	m := (memory stringSize: p) asInt64.
 	m = 0 ifTrue: [^self answer: s].
 	((self formatOf: r) >= F_BYTES and: [(self formatOf: p) >= F_BYTES]) ifTrue: [
-		^self answer: (self intOop: (search indexOfBytes: (self bytesOf: p) size: m in: (self bytesOf: r) size: n from: (self intVal: s) - 1) + 1)].
+		"Owners stay on the primitive stack. Search only reads; it cannot
+		retain a pointer, allocate, reenter the VM or service a poll."
+		vmMain c4Enabled ifTrue: [c4 enterRawRead].
+		k := search indexOfBytes: (self bytesOf: p) size: m in: (self bytesOf: r) size: n from: (self intVal: s) - 1.
+		vmMain c4Enabled ifTrue: [c4 leaveRawRead].
+		^self answer: (self intOop: k + 1)].
 	((self formatOf: r) < F_BYTES and: [(self formatOf: p) < F_BYTES]) ifTrue: [
 		w := self words32Of: r.
 		v := self words32Of: p.
@@ -453,11 +521,15 @@ primReplaceFromTo
 	kind = 1 ifTrue: [
 		fr := memory fixedFields: r.
 		fs := memory fixedFields: src.
-		libc memmove: (self slotsOf: r) + fr + start - 1 from: (self slotsOf: src) + fs + rstart - 1 size: n asUInt64 * 8.
-		gc rememberIfOld: r].
-	kind = 2 ifTrue: [libc memmove: (self slotsOf: r) + start - 1 from: (self slotsOf: src) + rstart - 1 size: n asUInt64 * 8].
+		(self c4InactiveContext: r at: fr asInt64 + stop - 1) ifTrue: [^self fail].
+		(vmMain c4Enabled and: [r = memory specialsOop and: [
+			fr asInt64 + start - 1 <= SO_COMPILEDMETHOD and: [fr asInt64 + stop - 1 >= SO_COMPILEDMETHOD]]]) ifTrue: [^self fail].
+		memory copyRefs: r at: (fr + start - 1) asUInt64 from: src at: (fs + rstart - 1) asUInt64 count: n asUInt64].
+	kind = 2 ifTrue: [libc memmove: (self bytesOf: r) + ((start - 1) * 8) from: (self bytesOf: src) + ((rstart - 1) * 8) size: n asUInt64 * 8].
 	kind = 3 ifTrue: [libc memmove: (self words32Of: r) + start - 1 from: (self words32Of: src) + rstart - 1 size: n asUInt64 * 4].
-	kind = 4 ifTrue: [libc memmove: (self bytesOf: r) + start - 1 from: (self bytesOf: src) + rstart - 1 size: n asUInt64].
+	kind = 4 ifTrue: [
+		jit c4BytecodeWillWrite: r.
+		libc memmove: (self bytesOf: r) + start - 1 from: (self bytesOf: src) + rstart - 1 size: n asUInt64].
 	self answer: r
 ! !
 
@@ -478,7 +550,8 @@ byteAt: width put: isPut
 	n := self rawByteSize: r.
 	i := self arg0.
 	((self isInt: i) and: [(self intVal: i) >= 1 and: [((self intVal: i) - 1) asUInt64 + width <= n]]) ifFalse: [^0 asUInt64].
-	^r + 16 + ((self intVal: i) - 1) asUInt64
+	isPut ifTrue: [jit c4BytecodeWillWrite: r].
+	^(self pinnedBodyAddress: r) + ((self intVal: i) - 1) asUInt64
 !
 storedFloat: v
 	"The Float or SmallInteger v as a double; the caller checked it."

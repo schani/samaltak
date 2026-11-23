@@ -1,0 +1,117 @@
+name: C4 headless
+
+on:
+  push:
+    branches: [wip/c4-concurrent-gc]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c4-headless-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: C4 headless (Linux x86-64)
+    runs-on: ubuntu-24.04
+    container: debian:bookworm-slim
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      DISPLAY: ''
+      WAYLAND_DISPLAY: ''
+      OUT: build/c4-ci
+      BOOTSTRAP_VM: vm/build/c4-ci-bootstrap/samaltak
+      C4_VM: vm/build/c4-ci-core/samaltak
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+      - uses: actions/checkout@v6
+      - name: Install repo build dependencies
+        run: .agents/setup
+      - name: Build the platform bootstrap, the core VM, and both stage-2 images
+        env:
+          # Keep optimization for low-cap tests, without debug info or LTO in this job.
+          CFLAGS: -O2 -g0
+        run: |
+          test "$(uname -s -m)" = 'Linux x86_64'
+          make -j2 -C vm BUILD=build/c4-ci-bootstrap BRIEF=1
+          test -f vm/build/c4-ci-bootstrap/.variant-platform
+          make -j2 -C vm BUILD=build/c4-ci-core NO_PLATFORM=1 BRIEF=1
+          test -f vm/build/c4-ci-core/.variant-headless
+
+          # Same two bootstrap commands as make image, with an explicit platform VM.
+          boot/build-image.sh src "$OUT/seed.image" "$BOOTSTRAP_VM"
+          "$BOOTSTRAP_VM" "$OUT/seed.image" --headless --stage2 "$OUT/samaltak.image"
+
+          # Build a standard image from before the optional Interval special object.
+          old_rev=5596a561e14a45110ac7f673008b990001d9519d
+          git -c safe.directory="$PWD" fetch --no-tags --depth=1 origin "$old_rev"
+          mkdir -p "$OUT/compat-src"
+          git -c safe.directory="$PWD" archive "$old_rev" boot fonts src | tar -x -C "$OUT/compat-src"
+          bootstrap="$PWD/$BOOTSTRAP_VM"
+          old="$PWD/$OUT/old"
+          (
+            cd "$OUT/compat-src"
+            boot/build-image.sh src "$old/seed.image" "$bootstrap"
+            "$bootstrap" "$old/seed.image" --headless --stage2 "$old/samaltak.image"
+          )
+      - name: Native checks and interpreter fixtures
+        run: |
+          image="$OUT/samaltak.image"
+          old="$OUT/old/samaltak.image"
+          VM="$BOOTSTRAP_VM" tests/vm/c4-native/run.sh "$image"
+          tests/vm/c4-live/run-engine.sh
+          tests/vm/c4-live/run-stack-move.sh
+          VM="$BOOTSTRAP_VM" tests/vm/c4-live/run.sh
+          for fixture in context weak moving moving-general publish become pointer-forward enumeration cache; do
+            "tests/vm/c4-live/run-$fixture.sh" "$image" "$C4_VM"
+          done
+          OUT="$OUT/old" tests/vm/c4-live/run-context.sh "$old" "$C4_VM"
+          tests/vm/c4-live/run-interval.sh "$image" "$C4_VM"
+          tests/vm/c4-live/run-interval.sh "$old" "$C4_VM" old
+          tests/vm/c4-live/run-moving-forward.sh "$image" "$C4_VM"
+          tests/vm/c4-live/run-moving-forward.sh "$old" "$C4_VM" old
+      - name: C4 JIT and pressure
+        run: |
+          image="$OUT/samaltak.image"
+          tests/vm/c4-live/run-process.sh "$image" "$C4_VM"
+          tests/vm/c4-jit-live/run.sh "$image" "$C4_VM"
+          tests/vm/c4-jit-opt/run.sh "$image" "$C4_VM"
+          tests/vm/c4-jit-live/run-forward.sh "$image" "$C4_VM"
+          tests/vm/c4-live/run-span-pressure.sh "$image" "$C4_VM"
+          tests/vm/c4-jit-live/run-enumeration.sh "$image" "$C4_VM"
+          for mode in c4 c4-moving c4-moving-forward; do
+            tests/vm/c4-live/run-low-cap.sh "$image" "$C4_VM" "$mode"
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: c4-headless-logs
+          path: |
+            build/c4-ci/**/c4-*/*.log
+            build/c4-ci/**/c4-*/*.out
+            build/c4-ci/**/c4-*/*.err
+          if-no-files-found: ignore
+      - name: Checked-prefix optimizer slice (headless test builds)
+        id: opt-slice
+        run: |
+          image="$OUT/samaltak.image"
+          OUT=build/c4-ci-opt-slice JOBS=2 tests/vm/c4-opt-slice/run.sh "$image"
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.opt-slice.outcome == 'failure'
+        with:
+          name: c4-headless-opt-slice-logs
+          path: |
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.log
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.out
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.err
+          if-no-files-found: ignore

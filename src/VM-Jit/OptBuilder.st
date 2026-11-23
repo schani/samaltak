@@ -1,5 +1,5 @@
 OptModule subclass: #OptBuilder
-	instanceVariableNames: 'ir obCurBlock obBailed obVarTop obDefKeys obDefVals obDefCount obIncPhis obIncVars obIncCount obAnaMethods obAnaBases obAnaCount obAnaTop obAnaDepth obAnaFlag obAnaBack obPcBlocks obPcbTop obEntryBlock obRootMethod obInlined obDeps obDepCount obPrimKinds obPrimsKnown obNoInline obNoInlineCount obArgVals obArgFlags obUnitStart obOsrPc obParamSlots obValidSlots obSafeEpoch obAnaFloat obAnaInts obResident obChecked obCheckedCount obCheckedBlock obCheckedEpoch obFrame obSpecParam obSpecInfo obSpecCount obForeign obForeignM obForeignS obForeignDepth obNoForeignM obNoForeignS obNoForeignCount obPerformAct obPerformPc obPerformSlot obPerformCount obPerformVals obAnaLive obNilConst obConstVals obConstNodes'
+	instanceVariableNames: 'obSlice ir obCurBlock obBailed obVarTop obDefKeys obDefVals obDefCount obIncPhis obIncVars obIncCount obAnaMethods obAnaBases obAnaCount obAnaTop obAnaDepth obAnaFlag obAnaBack obPcBlocks obPcbTop obEntryBlock obRootMethod obInlined obDeps obDepCount obPrimKinds obPrimsKnown obNoInline obNoInlineCount obArgVals obArgFlags obUnitStart obOsrPc obParamSlots obValidSlots obSafeEpoch obAnaFloat obAnaInts obResident obChecked obCheckedCount obCheckedBlock obCheckedEpoch obFrame obSpecParam obSpecInfo obSpecCount obForeign obForeignM obForeignS obForeignDepth obNoForeignM obNoForeignS obNoForeignCount obPerformAct obPerformPc obPerformSlot obPerformCount obPerformVals obAnaLive obNilConst obConstVals obConstNodes'
 	classVariableNames: 'OA_BLOCK OA_LOOP OA_START OA_TARGET OPT_MAX_VARS OPT_MAX_NOINLINE OPT_MAX_PRIM OPK_AT OPK_FLOAT OPK_FSQRT OPK_NEW OPK_NEWSIZE OPK_CLOSURE OPK_ATPUT OPK_CLASS OPK_IDENTICAL OPK_INT OPK_SIZE OPK_STRINGAT OPK_STRINGATPUT OPT_INLINE_BUDGET OPT_INLINE_DEPTH OPT_INLINE_SIZE OPT_MAX_ANA OPT_MAX_DEPS OPT_MAX_INC OPK_CHARVALUE OPK_CHARFROM OPK_REPLACE OPK_STRHASH OPK_STRCMP'
 	package: 'VM-Jit'!
 
@@ -7,7 +7,7 @@ OptBuilder comment: 'Builds the IR (OptIR) of a method from its bytecodes: an ab
 
 !OptBuilder class methodsFor: 'declaring'!
 declarations
-	^#((ir OptIR) (obCurBlock int32_t) (obBailed bool) (obVarTop int32_t)
+	^#((obSlice bool) (ir OptIR) (obCurBlock int32_t) (obBailed bool) (obVarTop int32_t)
 		(obDefKeys 'int32_t[OPT_DEF_SIZE]') (obDefVals 'int32_t[OPT_DEF_SIZE]') (obDefCount int32_t)
 		(obIncPhis 'int32_t[OPT_MAX_INC]') (obIncVars 'int32_t[OPT_MAX_INC]') (obIncCount int32_t)
 		(obAnaMethods 'oop[OPT_MAX_ANA]') (obAnaBases 'int32_t[OPT_MAX_ANA]') (obAnaCount int32_t) (obAnaTop int32_t)
@@ -72,6 +72,22 @@ bail
 ! !
 
 !OptBuilder methodsFor: 'building'!
+buildSlice: m osr: pc
+	<function>
+	| ok |
+	obSlice := true.
+	obFrame := self null.
+	obForeign := false.
+	obResident := false.
+	obNoInlineCount := 0.
+	obNoForeignCount := 0.
+	obUnitStart := 0.
+	obOsrPc := pc > 0 ifTrue: [pc] ifFalse: [-1].
+	obValidSlots := obOsrPc >= 0 ifTrue: [10] ifFalse: [0].
+	ok := self buildOnce: m.
+	obSlice := false.
+	^ok
+!
 build: m start: s osr: t depth: d resident: res
 	"The IR of m (s 0), or of its block at startpc s, entered at its start (t -1) or at loop head t with d slots (res: in a married frame, the temps its closures reach stay in the frame); answer whether it could be built. A closure an inlined method makes that escapes would have to be made: build again without inlining that method. Marker methods (on:do:, ensure:) are not optimized: their frames, which the exception code reads and writes through their Contexts, stay plain."
 	<function>
@@ -1387,6 +1403,9 @@ superinstruction: pc act: a
 special: k pc: pc act: a rcvSlot: r
 	"Special selector k at pc, receiver in slot r: inline what needs no send, else send it."
 	| x y n argc fl |
+	obSlice ifTrue: [
+		(k = 0 or: [k = 1 or: [sliceTest loopEnabled and: [obOsrPc >= 0 and: [k = 3]]]]) ifFalse: [^self bail].
+		^self intArith: k x: (self read: (self var: a slot: r)) y: (self read: (self var: a slot: r + 1)) pc: pc act: a rcvSlot: r].
 	argc := analysis specialArgc: k.
 	x := self read: (self var: a slot: r).
 	argc > 0 ifTrue: [y := self read: (self var: a slot: r + 1)].

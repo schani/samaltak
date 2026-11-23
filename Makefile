@@ -69,16 +69,81 @@ test: test-core
 	$(MAKE) test-uefi
 	@echo "make test: all passed"
 PLATFORM_CHECK = @[ -f vm/build/.variant-platform ] || { echo "make test: FAILED: the VM was built without the platform layer (SDL3), UI tests would not run"; exit 1; }
-test-core: image test-vm
+test-core: image test-vm test-c4
 	$(PLATFORM_CHECK)
 	tests/vm/gen_test.sh $(OUT)/samaltak.image
 	tests/boot/layering_test.sh
 	tests/st_suite.sh $(OUT)/samaltak.image
-	SAMALTAK_VERIFY_GC=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
+	SAMALTAK_VERIFY_GC=1 SAMALTAK_VERIFY_MARK=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
 	$(MAKE) fresh-runtime
 	tests/st_suite.sh $(OUT)/runtime.image -- Weather --load apps/Weather
 	tests/st_suite.sh $(OUT)/runtime.image -- Agents --load apps/Agents
 	tests/st_suite.sh $(OUT)/runtime.image -- Wodify --load apps/Wodify
+
+test-c4: image
+	tests/st_suite.sh "$(OUT)/samaltak.image" -- C4HeapTest --load apps/C4Prototype
+	@log=$$(mktemp "$(OUT)/c4-mark.XXXXXX") || exit; trap 'rm -f "$$log"' 0; rc=0; \
+		SAMALTAK_VERIFY_GC=1 SAMALTAK_VERIFY_MARK=1 tests/st_suite.sh "$(OUT)/samaltak.image" --eden 1 -- C4-MarkTests --load tests/vm/C4MarkTest.st >"$$log" 2>&1 || rc=$$?; \
+		cat "$$log"; [ "$$rc" -eq 0 ] || exit "$$rc"; \
+		awk '$$0 == "samaltak: verify mark: full GC matched" { n++ } END { exit n != 1 }' "$$log" || { echo 'test-c4: expected exactly one native mark witness' >&2; exit 1; }
+ifeq ($(shell uname -s -m),Linux x86_64)
+	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-native/run.sh "$(OUT)/samaltak.image"
+	tests/vm/c4-live/run-engine.sh
+	OUT="$(OUT)" VM="$(VM)" tests/vm/c4-live/run.sh
+	OUT="$(OUT)" tests/vm/c4-live/run-weak.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-moving.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-moving-general.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-interval.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-live/run-context.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-bignums.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-low-cap.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-span-pressure.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-publish.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-become.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-enumeration.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-live/run-cache.sh "$(OUT)/samaltak.image"
+	OUT="$(OUT)" tests/vm/c4-jit-live/run.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-jit-opt/run.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-jit-live/run-forward.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+	OUT="$(OUT)" tests/vm/c4-jit-live/run-enumeration.sh "$(OUT)/samaltak.image" vm/build/c4/samaltak
+endif
+
+test-c4-live:
+	tests/vm/c4-live/run-engine.sh
+	tests/vm/c4-live/run-stack-move.sh
+	OUT="$(OUT)" tests/vm/c4-live/run.sh
+
+# No display tests: build the isolated files VM and a variant with a blocked-read witness.
+test-c4-platform-files: image
+	$(MAKE) -C vm BUILD=build/c4-platform-files C4_PLATFORM_FILES=1
+	tests/vm/c4-platform-files/run.sh "$(OUT)/samaltak.image"
+	@mkdir -p "$(OUT)"
+	$(CC) -std=c11 -O2 -c -o "$(OUT)/c4-platform-blocked.o" tests/vm/c4-platform-files/blocked_read.c
+	$(MAKE) -C vm BUILD=build/c4-platform-blocked C4_PLATFORM_FILES=1 CPPFLAGS=-DSAMALTAK_C4_TEST \
+		LDFLAGS=-Wl,--wrap=read EXTRA_OBJS="$(abspath $(OUT)/c4-platform-blocked.o)"
+	tests/vm/c4-platform-files/run.sh "$(OUT)/samaltak.image" blocked
+
+# SDL mode: never initialize a display here. The real presentation test is CI-only.
+.PHONY: test-c4-platform-sdl
+C4_SDL_OUT := $(OUT)/c4-sdl
+C4_SDL_BOOT := vm/build/c4-sdl-bootstrap/samaltak
+test-c4-platform-sdl:
+	$(MAKE) -C vm BUILD=build/c4-sdl-bootstrap NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=0
+	boot/build-image.sh src "$(C4_SDL_OUT)/seed.image" $(C4_SDL_BOOT)
+	$(C4_SDL_BOOT) "$(C4_SDL_OUT)/seed.image" --headless --stage2 "$(C4_SDL_OUT)/samaltak.image"
+	$(MAKE) -C vm BUILD=build/c4-sdl NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=1
+	$(CC) -std=gnu11 -D_GNU_SOURCE -DSAMALTAK_C4_PLATFORM_SDL -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
+		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/fixture.o"
+	$(MAKE) -C vm BUILD=build/c4-sdl-fixture NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=1 \
+		NO_LTO_SRCS=gen/scheduler.c \
+		LDFLAGS='-Wl,--wrap=platform_interface_poll -Wl,--wrap=SDL_Init' EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/fixture.o)"
+	$(CC) -std=gnu11 -D_GNU_SOURCE -Ivm -Ivm/gen $(shell pkg-config --cflags sdl3) \
+		-c tests/vm/c4-platform-sdl/headless.c -o "$(C4_SDL_OUT)/legacy.o"
+	$(MAKE) -C vm BUILD=build/c4-sdl-legacy NO_PLATFORM= C4_PLATFORM_FILES=0 C4_PLATFORM_SDL=0 \
+		NO_LTO_SRCS=gen/scheduler.c \
+		LDFLAGS=-Wl,--wrap=platform_interface_poll EXTRA_OBJS="$(abspath $(C4_SDL_OUT)/legacy.o)"
+	tests/vm/c4-platform-sdl/headless.sh "$(C4_SDL_OUT)/samaltak.image"
+
 test-tools: image
 	$(PLATFORM_CHECK)
 	$(MAKE) -C vm/platform test st-test
@@ -233,4 +298,4 @@ clean:
 	$(MAKE) -C vm clean
 	rm -rf build
 
-.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-tools test video mindblown-video jit-video clean
+.PHONY: all vm seed image fresh-image run translate uefi uefi-run uefi-boot uefi-ui uefi-control test-uefi test-uefi-nic test-vm test-jit test-jit-none test-jit-baseline test-jit-opt test-jit-deopt test-jit-cache test-core test-c4 test-c4-live test-c4-platform-files test-tools test video mindblown-video jit-video clean

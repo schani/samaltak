@@ -1,5 +1,5 @@
 VMModule subclass: #VMCoreModule
-	instanceVariableNames: 'memory gc interpreter scheduler imageFile primitives platform vmMain jit libc libm posix'
+	instanceVariableNames: 'memory gc interpreter scheduler imageFile primitives platform vmMain c4 jit libc libm posix'
 	classVariableNames: 'K_CONST K_JIT K_LEAF K_PRIM K_QUICK K_SETTER PS_FAIL PS_NONE PS_OK PS_RESEND PS_SWITCHED'
 	package: 'VM-Core'!
 
@@ -7,7 +7,7 @@ VMCoreModule comment: 'I am the abstract class of the VM core''s modules: I conn
 
 !VMCoreModule class methodsFor: 'declaring'!
 declarations
-	^#((memory ObjectMemory) (gc GarbageCollector) (interpreter Interpreter) (scheduler Scheduler) (imageFile ImageFile) (primitives PrimitiveTable) (platform PlatformInterface) (vmMain VMMain) (jit JitRuntime) (libc LibC) (libm LibM) (posix Posix))
+	^#((memory ObjectMemory) (gc GarbageCollector) (interpreter Interpreter) (scheduler Scheduler) (imageFile ImageFile) (primitives PrimitiveTable) (platform PlatformInterface) (vmMain VMMain) (c4 C4Heap) (jit JitRuntime) (libc LibC) (libm LibM) (posix Posix))
 !
 isAbstractModule
 	^self == VMCoreModule
@@ -62,11 +62,22 @@ bool: aBoolean
 ! !
 
 !VMCoreModule methodsFor: 'objects'!
+canonicalOop: o
+	"Resolve identity, not storage. Publish raw oops from root slots."
+	(self unlikely: (vmMain c4Enabled and: [c4 hasForwarding])) ifTrue: [^c4 canonical: o].
+	^o
+!
+objectAddress: o
+	"Import/bootstrap and the legacy heap use address-as-oop."
+	(self unlikely: (vmMain c4Enabled and: [vmMain c4Moving or: [c4 hasForwarding]]))
+		ifTrue: [^c4 address: o].
+	^o
+!
 header: o
-	^self uint64At: o
+	^self uint64At: (self objectAddress: o)
 !
 header: o put: h
-	self uint64At: o put: h
+	self uint64At: (self objectAddress: o) put: h
 !
 numSlots: o
 	^(self header: o) asUInt32
@@ -81,9 +92,12 @@ isImmutable: o
 	^((self header: o) bitAnd: H_IMMUTABLE) ~= 0
 !
 rawClass: o
-	^self uint64At: o + 8
+	^self uint64At: (self objectAddress: o) + 8
 !
 rawClass: o put: c
+	vmMain c4Enabled ifTrue: [
+		c4 storeClass: o value: c.
+		^self].
 	self uint64At: o + 8 put: c
 !
 objBytes: o
@@ -92,28 +106,63 @@ objBytes: o
 fmtHasPointers: f
 	^f >= 1 and: [f <= 4]
 !
+bodyAddress: o
+	"Resolve for a scalar access only. Escaping interior views must use pinnedBodyAddress:."
+	^(self objectAddress: o) + 16
+!
+pinnedBodyAddress: o
+	| owner |
+	owner := self canonicalOop: o.
+	(self unlikely: (vmMain c4Moving and: [c4 movable: owner])) ifTrue: [self fatal: 'raw body view of a movable object'].
+	(self unlikely: vmMain c4Enabled) ifTrue: [c4 notePinnedView: owner].
+	^owner + 16
+!
 slotsOf: o
-	"The body of o as oops."
-	^self cCoerce: o + 16 to: 'oop *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'oop *'
 !
 bytesOf: o
-	^self cCoerce: o + 16 to: 'uint8_t *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'uint8_t *'
 !
 words32Of: o
-	^self cCoerce: o + 16 to: 'uint32_t *'
+	^self cCoerce: (self pinnedBodyAddress: o) to: 'uint32_t *'
 !
 isYoung: o
 	^(o - gc youngLo) asUInt64 < (gc youngHi - gc youngLo)
 !
+contextPrefix: o
+	"C4 Context slots past this prefix can contain reclaimed addresses."
+	| sp slots |
+	slots := self numSlots: o.
+	slots < CTX_FIXED ifTrue: [^slots].
+	sp := (self slotsOf: o) at: CTX_STACKP.
+	((self isInt: sp) and: [(self intVal: sp) asUInt64 <= (slots - CTX_FIXED) asUInt64])
+		ifTrue: [^(CTX_FIXED + (self intVal: sp)) asUInt32].
+	^CTX_FIXED asUInt32
+!
 loadRef: o at: i
-	"Every load of an object pointer from the heap goes through here (the GC's load barrier, see docs/design.md)."
-	^self uint64At: o + 16 + (8 * i)
+	"The scalar heap body reference load."
+	((self unlikely: vmMain c4Enabled) and: [i >= CTX_FIXED or: [c4 hasForwarding or: [(self formatOf: o) = F_WEAK]]])
+		ifTrue: [^memory c4LoadRef: o at: i asUInt32].
+	^self uint64At: (self bodyAddress: o) + (8 * i)
 !
 storeRef: o at: i put: v
-	"Every store of an object pointer into the heap goes through here: the generational write barrier."
-	self uint64At: o + 16 + (8 * i) put: v.
+	"The scalar heap write barrier. For bulk copies see ObjectMemory's copyRefs: methods."
+	(self unlikely: vmMain c4Enabled) ifTrue: [
+		(self c4CodeStoreRejected: o at: i put: v) ifTrue: [self fatal: 'C4 cannot replace compiled method storage'].
+		(i = CTX_STACKP and: [(self rawClass: o) = memory clsContext])
+			ifTrue: [memory c4StoreContextStackp: o value: v]
+			ifFalse: [c4 storeRef: o at: i asUInt32 put: v].
+		^self].
+	(self slotsOf: o) at: i put: v.
 	((self isPtr: v) and: [(self isYoung: v) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]])
 		ifTrue: [gc remember: o]
+!
+c4CodeStoreRejected: o at: i put: v
+	"Even with frames above it, the heap base owns the code used to resume it."
+	(i = CTX_METHOD and: [o = interpreter activeCtx and: [(self rawClass: o) = memory clsContext]])
+		ifTrue: [^v ~= (self loadRef: o at: i)].
+	^(i = CM_LITERALS or: [i = CM_BYTECODES or: [i = SO_COMPILEDMETHOD]]) and: [
+		memory c4CannotReplaceCodeSlot: o at: i asUInt32 put: v]
 !
 ptr: anAddress
 	"An address as a void * (for the C library)."

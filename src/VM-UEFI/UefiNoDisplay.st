@@ -27,6 +27,22 @@ updatePollInterval
 ! !
 
 !UefiNoDisplay methodsFor: 'unsupported'!
+isLive: win
+	<function>
+	<var: #win type: 'int32_t'>
+	<returns: 'bool'>
+	^false
+!
+presentRGBA: win width: w height: h pixels: pixels
+	<function>
+	<var: #win type: 'int32_t'>
+	<var: #w type: 'int32_t'>
+	<var: #h type: 'int32_t'>
+	<var: #pixels type: 'uint8_t *'>
+	<returns: 'bool'>
+	common setError: 'not on UEFI'.
+	^false
+!
 dropped
 	<function>
 	<returns: 'int64_t'>

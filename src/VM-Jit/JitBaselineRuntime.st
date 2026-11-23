@@ -451,6 +451,8 @@ miss: f receiver: rcv ret: ret
 	s isNull ifTrue: [self fatal: 'baseline: no send site for %p' with: (self ptr: ret)].
 	opt := h mode = jit optMode.
 	kind := (s info >> 24) bitAnd: 3.
+	"The interpreter owns the intrinsic fallback semantics of the special send."
+	(vmMain c4Enabled and: [kind = 2]) ifTrue: [^1].
 	"an optimized super send: the runtime finds its class (the method it is in may be inlined)"
 	(opt and: [kind = 1]) ifTrue: [^jit optSendFrom: f ret: ret].
 	sel := self selectorOf: s in: h.
@@ -476,6 +478,8 @@ targetFor: cls selector: sel
 	e := interpreter entryFor: cls selector: sel.
 	e isNull ifTrue: [^self null].
 	m := e method.
+	"C4 uses interpreter primitive/quick dispatch and checked heap helpers."
+	(vmMain c4Enabled and: [(e kind ~= K_JIT) or: [(interpreter methodPrim: m) ~= 0]]) ifTrue: [^self null].
 	t := jit codeOf: m counting: true.
 	(jit hasCode: t) ifFalse: [^self null].
 	t mode = jit optMode ifTrue: [t := self cCoerce: t lower to: 'JitMethod *'].
@@ -827,9 +831,9 @@ entrySlow: f ret: ret callee: c
 				"a failed primitive's error code into the first temp, as the frame's code puts it"
 				g fp at: n put: jit state ecode asUInt64]].
 	jit resetStress.
-	jit clearInterrupt.
-	interpreter entrySafepoint.
-	(interpreter frameEpoch ~= moved or: [inv ~= jit invalidations]) ifTrue: [^1].
+	vmMain c4Enabled ifTrue: [jit c4NativeCheckpoint].
+	(vmMain c4Enabled not or: [scheduler interruptPendingRelaxed ~= 0]) ifTrue: [interpreter entrySafepoint].
+	(interpreter frameEpoch ~= moved or: [inv ~= jit invalidations or: [jit c4NativeBlocked]]) ifTrue: [^1].
 	c = 1 ifTrue: [nfp at: -1 put: (interpreter frames + (interpreter nframes - 1)) closure].
 	interpreter nframes: (f - interpreter frames) asInt32 + 1.
 	^0
@@ -919,6 +923,17 @@ returnSlow: f
 ! !
 
 !JitBaselineRuntime methodsFor: 'collector'!
+c4MaxCodeRoots
+	^BL_MAX_OOP_SLOTS
+!
+c4CodeRootCount
+	"In C4 only installed/failed method headers are registered. Code cache
+	mutation is excluded during root publication."
+	^oopSlotCount
+!
+c4CodeRootAt: i
+	^self uint64At: (oopSlots at: i)
+!
 setSlot: a to: v
 	"Store v into the registered word at a; a young v makes it a young root."
 	<function>
@@ -957,8 +972,12 @@ youngRoots: fn
 allRoots: fn
 	"Full GCs and become (writing enabled): every object in the code; the caches keyed by objects are cleared."
 	<function>
-	0 to: oopSlotCount - 1 do: [:i | fn call: (self cCoerce: (oopSlots at: i) to: 'oop *')].
+	self codeRoots: fn.
 	self clearCaches
+!
+codeRoots: fn
+	<function>
+	0 to: oopSlotCount - 1 do: [:i | fn call: (self cCoerce: (oopSlots at: i) to: 'oop *')]
 !
 afterGC
 	"Forget slots whose objects are old now; the caches keyed by objects are cleared (young ones moved)."

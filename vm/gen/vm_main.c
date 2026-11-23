@@ -5,7 +5,10 @@
 int32_t argc;
 int32_t args_start;
 char **argv;
-static bool headless;
+bool c4_enabled;
+bool c4_moving;
+bool c4_requested;
+bool headless;
 
 static bool jit_option(char **v, int32_t i, int n);
 static _Noreturn void vm_main_usage(void);
@@ -66,18 +69,34 @@ static bool jit_option(char **v, int32_t i, int n)
     return false;
 }
 
+#if defined(__x86_64__)
 /* VMMain>>main:argv: */
 int main(int n, char **v)
 {
+    bool moving_forward;
+    bool explicit_jit;
     uint64_t max_heap;
     uint64_t eden;
     int64_t i;
     char *image;
     int64_t k;
     oop o;
-    uint64_t proc;
-    uint64_t ctx;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop proc;
+    oop r_load_ref_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
+    oop ctx;
+    bool r_c4_code_store_rejected;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t owner;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
     defaults();
+    explicit_jit = moving_forward = false;
     max_heap = 4294967296ULL;
     eden = 16777216ULL;
     i = 1;
@@ -85,12 +104,22 @@ int main(int n, char **v)
         if ((strcmp(v[i], "--max-heap") == 0) && (i + 1 < n)) {
             i = i + 1;
             max_heap = ((uint64_t)atol(v[i])) << 20;
+        } else if (strcmp(v[i], "--c4") == 0) {
+            c4_requested = true;
+        } else if ((strcmp(v[i], "--c4-moving") == 0) || (strcmp(v[i], "--c4-moving-forward") == 0)) {
+            if (strcmp(v[i], "--c4-moving-forward") == 0) {
+                moving_forward = true;
+            }
+            c4_requested = c4_moving = true;
         } else if ((strcmp(v[i], "--eden") == 0) && (i + 1 < n)) {
             i = i + 1;
             eden = ((uint64_t)atol(v[i])) << 20;
         } else if (strcmp(v[i], "--headless") == 0) {
             headless = true;
         } else if (jit_option(v, (int32_t)i, n)) {
+            if (strcmp(v[i], "--jit") == 0) {
+                explicit_jit = true;
+            }
             i = i + 1;
         } else {
             vm_main_usage();
@@ -109,37 +138,506 @@ int main(int n, char **v)
             headless = true;
         }
     }
+    if (moving_forward) {
+        if (!(c4_heap_supported() && ((!c4_heap_platform_files()) && (!c4_heap_arm64_interpreter())))) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires --jit none");
+            fatal_end();
+        }
+    }
+    if (c4_heap_platform_sdl()) {
+        if (!c4_requested) {
+            fatal_begin();
+            fprintf(stderr, "C4_PLATFORM_SDL=1 requires --c4 or --c4-moving");
+            fatal_end();
+        }
+        if ((!explicit_jit) || (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 SDL requires --jit none explicitly");
+            fatal_end();
+        }
+        if (!headless) {
+            if (!((n - i == 3) && ((strcmp(v[i + 1], "--eval") == 0) && ((v[i + 2][0] != 0) && (!((v[i + 2][0] == 45) && (v[i + 2][1] == 45))))))) {
+                fatal_begin();
+                fprintf(stderr, "C4 SDL requires image --eval <expression> (World is not supported)");
+                fatal_end();
+            }
+        }
+    }
+    if (c4_heap_platform_files() && (!c4_heap_platform_sdl())) {
+        if (!c4_requested) {
+            fatal_begin();
+            fprintf(stderr, "C4_PLATFORM_FILES=1 requires --c4 or --c4-moving");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 platform files require --jit none");
+            fatal_end();
+        }
+    }
+    if (c4_requested) {
+        if (!c4_heap_supported()) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1");
+            fatal_end();
+        }
+        if (!(headless || c4_heap_platform_sdl())) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires --headless");
+            fatal_end();
+        }
+        if (c4_heap_arm64_interpreter() && ((!explicit_jit) || (jit_mode != 0))) {
+            fatal_begin();
+            fprintf(stderr, "C4 on ARM64 requires explicit --jit none");
+            fatal_end();
+        }
+        if (explicit_jit && ((jit_mode == JIT_OPT) && (!(headless && (c4_heap_supported() && (can_run_code() && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && ((!c4_heap_arm64_interpreter()) && (!c4_heap_moving_forward_enabled())))))))))) {
+            fatal_begin();
+            fprintf(stderr, "--c4 --jit opt requires Linux x86-64 with NO_PLATFORM=1 and --headless");
+            fatal_end();
+        }
+        if (eden == 0) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires a positive --eden threshold");
+            fatal_end();
+        }
+        if (!explicit_jit) {
+            jit_mode = 0;
+        }
+    }
     memory_init(eden, max_heap);
+    if (c4_requested) {
+        if (!(c4_moving ? c4_heap_init_moving((void *)old_lo, max_heap) : c4_heap_init((void *)old_lo, max_heap))) {
+            fatal_begin();
+            fprintf(stderr, "cannot initialize C4 heap");
+            fatal_end();
+        }
+        if (moving_forward && (!c4_heap_enable_moving_forward())) {
+            fatal_begin();
+            fprintf(stderr, "cannot enable C4 moving forwarding");
+            fatal_end();
+        }
+        c4_heap_set_threshold(eden);
+    }
     load_image(image);
+    if (c4_requested) {
+        if (!c4_heap_start()) {
+            fatal_begin();
+            fprintf(stderr, "cannot start C4 worker");
+            fatal_end();
+        }
+        c4_enabled = true;
+    }
     scheduler_init();
     jit_runtime_start();
     if (!headless) {
         platform_interface_init();
     }
     o = object_memory_special(SO_PROCESSOR);
-    proc = *(uint64_t *)(o + 16 + 8);
-    ctx = *(uint64_t *)(proc + 16 + 8);
+    proc = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(o, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
+    ctx = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(proc);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = proc;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(proc, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(proc);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = proc;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
     if ((!((ctx & 7) == 0)) || (ctx == nil_oop)) {
         fatal_begin();
         fprintf(stderr, "image has no active context");
         fatal_end();
     }
     active_ctx = ctx;
-    *(uint64_t *)(proc + 16 + 8) = nil_oop;
-    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!(proc - young_lo < young_hi - young_lo)) && (((*(uint64_t *)proc) & H_REMEMBERED) == 0)))) {
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    r_c4_code_store_rejected = false;
+    r_c4_code_store_rejected; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(proc, 1U, nil_oop);
+        goto exit_store_ref;
+    }
+    ((oop *)({
+    owner = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(proc);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = proc;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
+    r_pinned_body_address; }))[PROC_SUSPENDED] = nil_oop;
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(proc);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = proc;
+exit_object_address_5:;
+    r_object_address_5; })) & H_REMEMBERED) == 0)))) {
         remember(proc);
     }
-    if (((ctx & 7) == 0) && ((!(ctx - young_lo < young_hi - young_lo)) && (((*(uint64_t *)ctx) & H_REMEMBERED) == 0))) {
-        remember(ctx);
+exit_store_ref:;
+    if (!c4_enabled) {
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
+        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(ctx);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = ctx;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0))) {
+            remember(ctx);
+        }
+    exit_remember_if_old:;
     }
     interpret();
     return 0;
 }
 
+#else
+/* VMMain>>main:argv: */
+int main(int n, char **v)
+{
+    bool moving_forward;
+    bool explicit_jit;
+    uint64_t max_heap;
+    uint64_t eden;
+    int64_t i;
+    char *image;
+    int64_t k;
+    oop o;
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop proc;
+    oop r_load_ref_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
+    oop ctx;
+    bool r_c4_code_store_rejected;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t owner;
+    uint64_t r_object_address_5;
+    uint64_t r_object_address_6;
+    defaults();
+    explicit_jit = moving_forward = false;
+    max_heap = 4294967296ULL;
+    eden = 16777216ULL;
+    i = 1;
+    while ((i < n) && (v[i][0] == 45)) {
+        if ((strcmp(v[i], "--max-heap") == 0) && (i + 1 < n)) {
+            i = i + 1;
+            max_heap = ((uint64_t)atol(v[i])) << 20;
+        } else if (strcmp(v[i], "--c4") == 0) {
+            c4_requested = true;
+        } else if ((strcmp(v[i], "--c4-moving") == 0) || (strcmp(v[i], "--c4-moving-forward") == 0)) {
+            if (strcmp(v[i], "--c4-moving-forward") == 0) {
+                moving_forward = true;
+            }
+            c4_requested = c4_moving = true;
+        } else if ((strcmp(v[i], "--eden") == 0) && (i + 1 < n)) {
+            i = i + 1;
+            eden = ((uint64_t)atol(v[i])) << 20;
+        } else if (strcmp(v[i], "--headless") == 0) {
+            headless = true;
+        } else if (jit_option(v, (int32_t)i, n)) {
+            if (strcmp(v[i], "--jit") == 0) {
+                explicit_jit = true;
+            }
+            i = i + 1;
+        } else {
+            vm_main_usage();
+        }
+        i = i + 1;
+    }
+    if (i >= n) {
+        vm_main_usage();
+    }
+    image = v[i];
+    argc = n;
+    argv = v;
+    args_start = (int32_t)(i + 1);
+    for (k = i + 1; k <= n - 1; k++) {
+        if (strcmp(v[k], "--headless") == 0) {
+            headless = true;
+        }
+    }
+    if (moving_forward) {
+        if (!(c4_heap_supported() && ((!c4_heap_platform_files()) && (!c4_heap_arm64_interpreter())))) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "--c4-moving-forward requires --jit none");
+            fatal_end();
+        }
+    }
+    if (c4_heap_platform_sdl()) {
+        if (!c4_requested) {
+            fatal_begin();
+            fprintf(stderr, "C4_PLATFORM_SDL=1 requires --c4 or --c4-moving");
+            fatal_end();
+        }
+        if ((!explicit_jit) || (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 SDL requires --jit none explicitly");
+            fatal_end();
+        }
+        if (!headless) {
+            if (!((n - i == 3) && ((strcmp(v[i + 1], "--eval") == 0) && ((v[i + 2][0] != 0) && (!((v[i + 2][0] == 45) && (v[i + 2][1] == 45))))))) {
+                fatal_begin();
+                fprintf(stderr, "C4 SDL requires image --eval <expression> (World is not supported)");
+                fatal_end();
+            }
+        }
+    }
+    if (c4_heap_platform_files() && (!c4_heap_platform_sdl())) {
+        if (!c4_requested) {
+            fatal_begin();
+            fprintf(stderr, "C4_PLATFORM_FILES=1 requires --c4 or --c4-moving");
+            fatal_end();
+        }
+        if (explicit_jit && (jit_mode != 0)) {
+            fatal_begin();
+            fprintf(stderr, "C4 platform files require --jit none");
+            fatal_end();
+        }
+    }
+    if (c4_requested) {
+        if (!c4_heap_supported()) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1");
+            fatal_end();
+        }
+        if (!(headless || c4_heap_platform_sdl())) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires --headless");
+            fatal_end();
+        }
+        if (c4_heap_arm64_interpreter() && ((!explicit_jit) || (jit_mode != 0))) {
+            fatal_begin();
+            fprintf(stderr, "C4 on ARM64 requires explicit --jit none");
+            fatal_end();
+        }
+        if (explicit_jit && ((jit_mode == JIT_OPT) && (!(headless && (c4_heap_supported() && false))))) {
+            fatal_begin();
+            fprintf(stderr, "--c4 --jit opt requires Linux x86-64 with NO_PLATFORM=1 and --headless");
+            fatal_end();
+        }
+        if (eden == 0) {
+            fatal_begin();
+            fprintf(stderr, "--c4 requires a positive --eden threshold");
+            fatal_end();
+        }
+        if (!explicit_jit) {
+            jit_mode = 0;
+        }
+    }
+    memory_init(eden, max_heap);
+    if (c4_requested) {
+        if (!(c4_moving ? c4_heap_init_moving((void *)old_lo, max_heap) : c4_heap_init((void *)old_lo, max_heap))) {
+            fatal_begin();
+            fprintf(stderr, "cannot initialize C4 heap");
+            fatal_end();
+        }
+        if (moving_forward && (!c4_heap_enable_moving_forward())) {
+            fatal_begin();
+            fprintf(stderr, "cannot enable C4 moving forwarding");
+            fatal_end();
+        }
+        c4_heap_set_threshold(eden);
+    }
+    load_image(image);
+    if (c4_requested) {
+        if (!c4_heap_start()) {
+            fatal_begin();
+            fprintf(stderr, "cannot start C4 worker");
+            fatal_end();
+        }
+        c4_enabled = true;
+    }
+    scheduler_init();
+    jit_runtime_start();
+    if (!headless) {
+        platform_interface_init();
+    }
+    o = object_memory_special(SO_PROCESSOR);
+    proc = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(o);
+        goto exit_object_address;
+    }
+    r_object_address = o;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(o, 1U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(o);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = o;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 8);
+exit_load_ref:;
+    r_load_ref; });
+    ctx = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(proc);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = proc;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(proc, 1U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(proc);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = proc;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 8);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    if ((!((ctx & 7) == 0)) || (ctx == nil_oop)) {
+        fatal_begin();
+        fprintf(stderr, "image has no active context");
+        fatal_end();
+    }
+    active_ctx = ctx;
+    if (__builtin_expect(c4_enabled, 0)) {
+        if (({
+    r_c4_code_store_rejected = false;
+    r_c4_code_store_rejected; })) {
+            fatal_begin();
+            fprintf(stderr, "C4 cannot replace compiled method storage");
+            fatal_end();
+        }
+        c4_heap_store_ref(proc, 1U, nil_oop);
+        goto exit_store_ref;
+    }
+    ((oop *)({
+    owner = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(proc);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = proc;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
+    r_pinned_body_address; }))[PROC_SUSPENDED] = nil_oop;
+    if (((nil_oop & 7) == 0) && (((uint64_t)(nil_oop - young_lo) < young_hi - young_lo) && ((!((uint64_t)(proc - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(proc);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = proc;
+exit_object_address_5:;
+    r_object_address_5; })) & H_REMEMBERED) == 0)))) {
+        remember(proc);
+    }
+exit_store_ref:;
+    if (!c4_enabled) {
+        if (c4_enabled) {
+            goto exit_remember_if_old;
+        }
+        if (((ctx & 7) == 0) && ((!((uint64_t)(ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(ctx);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = ctx;
+exit_object_address_6:;
+    r_object_address_6; })) & H_REMEMBERED) == 0))) {
+            remember(ctx);
+        }
+    exit_remember_if_old:;
+    }
+    interpret();
+    return 0;
+}
+
+#endif
 /* VMMain>>usage */
 static void vm_main_usage(void)
 {
-    fputs("usage: samaltak [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
+    fputs("usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]\n\t[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]\n  --c4              experimental headless heap (Linux x86-64)\n                    NO_PLATFORM=1 supports --jit baseline and --jit opt (checked arithmetic)\n                    C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only\n                    C4_PLATFORM_SDL=1 adds SDL software presentation for --eval clients; explicit --jit none\n  --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances\n  --c4-moving-forward  --c4-moving with exact two-slot handle forwarding; headless interpreter only\n  --jit-threshold N  activations before a method is compiled (0: the first one)\n  --jit-osr N        backward jumps before a running method is compiled and entered\n  --jit-opt N        with --jit opt: entries and backward jumps in compiled code before a method is optimized\n  --jit-flags        ablations: baseline: ic pic mega regs arith fuse float access prims blocks quick\n                     barrier; opt: inline blocks prims unbox calls alloc gvn hoist live; listings: notes;\n                     stress: eager deopt (-name turns one off)\n", stderr);
     exit(64);
 }
 

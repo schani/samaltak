@@ -1,5 +1,5 @@
 Arm64Module subclass: #JitCompiler
-	instanceVariableNames: 'asm runtime analysis stubs cache brt'
+	instanceVariableNames: 'asm runtime analysis stubs cache brt scheduler'
 	classVariableNames: ''
 	package: 'VM-Jit'!
 
@@ -9,7 +9,7 @@ x19 the Frame, x20 its slots (fp: slot k at [x20, #8k], the receiver at [x20, #-
 
 !JitCompiler class methodsFor: 'declaring'!
 declarations
-	^#((asm JitAssembler) (runtime JitRuntime) (analysis BytecodeAnalysis) (stubs JitStubs) (cache CodeCache) (brt JitBaselineRuntime))
+	^#((asm JitAssembler) (runtime JitRuntime) (analysis BytecodeAnalysis) (stubs JitStubs) (cache CodeCache) (brt JitBaselineRuntime) (scheduler Scheduler))
 !
 isAbstractModule
 	^self == JitCompiler
@@ -43,9 +43,6 @@ trueOffset
 !
 falseOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #falseOop) to: 'int64_t'
-!
-interruptOffset
-	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #interrupt) to: 'int64_t'
 !
 framesOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #frames) to: 'int64_t'
@@ -103,13 +100,16 @@ emitSync: pc depth: d
 	asm str: X16 base: X19 offset: self pcOffset
 !
 emitInterruptTestTo: aLabel
-	"Branch to aLabel if an interrupt is pending (the JitState's interrupt word)."
+	"Relaxed read of the scheduler's request. Only the handler consumes it, with an atomic exchange before polling sources."
+	| address |
+	address := scheduler interruptPendingAddress.
 	asm isX64
 		ifTrue: [
-			asm cmpStateWord32At: self interruptOffset imm: 0.
+			asm cmpWord32At: address imm: 0.
 			asm b: aLabel if: COND_NE]
 		ifFalse: [
-			asm ldr: W16 base: X22 offset: self interruptOffset.
+			asm adrp: X16 label: (asm labelAt: address).
+			asm ldr: W16 base: X16 offset: (address bitAnd: 16rFFF) asInt64.
 			asm cbnz: W16 to: aLabel]
 !
 emitReloadReceiver

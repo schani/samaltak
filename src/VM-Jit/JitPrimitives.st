@@ -10,6 +10,7 @@ primJitParameters
 	"Smalltalk vm jitParameters [: anArray]: {mode. flags. threshold. osr. cache MB. CPU}, mode, flags and CPU as Strings ('baseline', 'arith,fuse,barrier', 'arm64'). With anArray {mode. flags. threshold. osr} (nil keeps one; flags are changes, as --jit-flags) set them; answer the parameters before. A new mode or new flags drop all machine code."
 	<vmPrimitive: 180 name: 'jitParameters'>
 	| r old p m saved s |
+	c4 platformSDL ifTrue: [^self fail].
 	r := self local: 'oop'.
 	r value: (memory allocObj: memory clsArray format: F_VAR slots: 6).
 	memory pushRoot: r.
@@ -119,6 +120,7 @@ primJitCode
 	"aCompiledMethod jitCode: modeName (nil: the current compiler, baseline under --jit none): {address. code (ByteArray). map {pc. offset ...}. notes {offset. text or nil (a bytecode). value ...}. symbols {address. name ...}. mode} of its machine code with the compiler's notes. Installed code with notes is answered as it is; otherwise the method is compiled for this and the code dropped. Answers nil if the compiler does not compile it."
 	<vmPrimitive: 181 name: 'jitCode'>
 	| m md p h scratch top |
+	vmMain c4Enabled ifTrue: [^self fail].
 	m := self receiver.
 	((self isPtr: m) and: [(self rawClass: m) = (memory special: SO_COMPILEDMETHOD)]) ifFalse: [^self fail].
 	md := jit mode = 0 ifTrue: [jit baselineMode] ifFalse: [jit mode].

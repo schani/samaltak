@@ -1,5 +1,5 @@
 VMCoreModule subclass: #GarbageCollector
-	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo'
+	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo verifyMark markSpaces markWork markWorkCount markWorkCap markCurrent markField markLimit markSeen'
 	classVariableNames: 'MIN_BUDGET TENURE_AGE'
 	package: 'VM-Core'!
 
@@ -16,7 +16,10 @@ declarations
 		(startBits 'uint8_t *') (vlo uint64_t) (verify int32_t -1)
 		(toLo uint64_t) (toTop uint64_t) (toHi uint64_t)
 		(weakList 'oop *') (weakCount size_t) (weakCap size_t) (finalizationPending bool) (statWeakCleared uint64_t)
-		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop))
+		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop)
+		(verifyMark int32_t -1) (markSpaces 'MarkVerifySpace[3]')
+		(markWork 'oop *') (markWorkCount size_t) (markWorkCap size_t)
+		(markCurrent oop) (markField uint32_t) (markLimit uint32_t) (markSeen size_t))
 !
 initialize
 	MIN_BUDGET := 64 << 20.
@@ -117,6 +120,9 @@ finalizationPending: aBoolean
 !
 statWeakCleared
 	^statWeakCleared
+!
+statWeakCleared: n
+	statWeakCleared := n
 ! !
 
 !GarbageCollector methodsFor: 'spaces'!
@@ -158,6 +164,13 @@ discard: p size: n
 init: edenBytes maxHeap: maxHeap
 	<function>
 	| surv young |
+	vmMain c4Requested ifTrue: [
+		maxHeap = 0 ifTrue: [self fatal: '--c4 requires a positive --max-heap'].
+		maxHeapBytes := maxHeap.
+		oldLo := oldTop := self reserve: maxHeap.
+		oldHi := oldLo + maxHeap.
+		oldBudget := maxHeap.
+		^self].
 	surv := edenBytes quo: 4.
 	young := edenBytes + (2 * surv).
 	youngLo := self reserve: young.
@@ -191,12 +204,17 @@ remember: o
 	remsetCount := remsetCount + 1
 !
 rememberIfOld: o
+	vmMain c4Enabled ifTrue: [^self].
 	((self isPtr: o) and: [(self isYoung: o) not and: [((self header: o) bitAnd: H_REMEMBERED) = 0]]) ifTrue: [self remember: o]
 ! !
 
 !GarbageCollector methodsFor: 'roots'!
 forEachRoot: fn
-	"The VM's roots: the variables holding oops (through a copy in memory, so fn gets pointers to them), the temporary roots, the scheduler's ledger, the pushed roots and the interpreter's frames."
+	<function>
+	self visitRoots: fn updating: true
+!
+visitRoots: fn updating: updating
+	"The VM's roots: oop variables (copied so fn gets pointers), temporary roots, scheduler ledger, pushed roots, and interpreter frames."
 	<function>
 	| r |
 	r := self local: 'oop[6]'.
@@ -207,12 +225,13 @@ forEachRoot: fn
 	r at: 4 put: interpreter primResult.
 	r at: 5 put: interpreter resendSelector.
 	0 to: 5 do: [:i | fn call: r + i].
-	memory specialsOop: (r at: 0).
-	interpreter activeCtx: (r at: 1).
-	scheduler lastPreempted: (r at: 2).
-	scheduler allocSampleClass: (r at: 3).
-	interpreter primResult: (r at: 4).
-	interpreter resendSelector: (r at: 5).
+	updating ifTrue: [
+		memory specialsOop: (r at: 0).
+		interpreter activeCtx: (r at: 1).
+		scheduler lastPreempted: (r at: 2).
+		scheduler allocSampleClass: (r at: 3).
+		interpreter primResult: (r at: 4).
+		interpreter resendSelector: (r at: 5)].
 	0 to: 3 do: [:i | fn call: interpreter tmpRoots + i].
 	0 to: scheduler ledgerN - 1 do: [:i | fn call: scheduler ledgerProcs + i].
 	0 to: memory rootCount - 1 do: [:i | fn call: (memory rootAt: i)].
@@ -325,27 +344,37 @@ isContext: o
 	ctx := memory clsContext.
 	^c = ctx or: [((self header: ctx) bitAnd: H_FORWARDED) ~= 0 and: [c = (self rawClass: ctx)]]
 !
-tracedSlots: o
-	"Number of leading slots the collector traces. A context's slots above stackp are stale and are cleared (the interpreter writes back stackp before anything can allocate); a weak object's indexable slots are left for clearWeakSlots."
-	<function>
-	| f sp n live |
-	f := self formatOf: o.
-	(self fmtHasPointers: f) ifFalse: [^0].
-	(f = F_FIXVAR and: [self isContext: o]) ifTrue: [
+strongSlots: o format: f context: isCtx
+	"Pure strong prefix. For a weak object the class must be readable at its current address."
+	| sp n |
+	(self fmtHasPointers: f) ifFalse: [^0 asUInt32].
+	f = F_WEAK ifTrue: [^memory fixedFields: o].
+	n := self numSlots: o.
+	(f = F_FIXVAR and: [isCtx and: [n >= CTX_FIXED]]) ifTrue: [
 		sp := (self slotsOf: o) at: CTX_STACKP.
-		n := self numSlots: o.
-		((self isInt: sp) not or: [(self intVal: sp) < 0 or: [(self intVal: sp) > (n - CTX_FIXED) asInt64]]) ifTrue: [^n].
-		live := (CTX_FIXED + (self intVal: sp)) asUInt32.
-		live to: n asInt64 - 1 do: [:i | (self slotsOf: o) at: i put: memory nilOop].
-		^live].
-	f ~= F_WEAK ifTrue: [^self numSlots: o].
+		((self isInt: sp) and: [(self intVal: sp) >= 0 and: [(self intVal: sp) <= (n - CTX_FIXED) asInt64]]) ifTrue: [
+			^(CTX_FIXED + (self intVal: sp)) asUInt32]].
+	^n
+!
+tracedSlots: o
+	"Copying scan only: clear stale Context slots and register weak objects for clearWeakSlots."
+	<function>
+	| f isCtx count |
+	f := self formatOf: o.
+	isCtx := f = F_FIXVAR and: [self isContext: o].
+	count := self strongSlots: o format: f context: isCtx.
+	isCtx ifTrue: [count to: (self numSlots: o) asInt64 - 1 do: [:i | (self slotsOf: o) at: i put: memory nilOop]].
+	f = F_WEAK ifTrue: [self recordWeak: o].
+	^count
+!
+recordWeak: o
+	<function>
 	weakCount = weakCap ifTrue: [
 		weakCap := weakCap = 0 ifTrue: [256] ifFalse: [weakCap * 2].
 		weakList := self cCoerce: (libc realloc: weakList size: weakCap * 8) to: 'oop *'.
 		weakList isNull ifTrue: [self fatal: 'out of memory growing the weak object list to %zu entries' with: weakCap]].
 	weakList at: weakCount put: o.
-	weakCount := weakCount + 1.
-	^memory fixedFields: o
+	weakCount := weakCount + 1
 !
 refersToYoung: o
 	<function>
@@ -401,6 +430,7 @@ scavScan: o
 scavenge
 	<function>
 	| t0 tenureScan kept o scan w |
+	vmMain c4Enabled ifTrue: [self fatal: 'legacy scavenge entered in C4 mode'].
 	interpreter beforeGC.
 	t0 := scheduler workClockHeldUs.
 	statScavenges := statScavenges + 1.
@@ -443,9 +473,108 @@ scavenge
 	statScavengeUs := statScavengeUs + (scheduler workClockHeldUs - t0) asUInt64
 ! !
 
+!GarbageCollector methodsFor: 'frozen mark verification'!
+markSpace: space from: lo to: top
+	<function>
+	<var: #space type: 'MarkVerifySpace *'>
+	<var: #lo type: 'uint64_t'>
+	<var: #top type: 'uint64_t'>
+	| bytes |
+	space lo: lo.
+	space top: top.
+	bytes := (top - lo + 63) quo: 64.
+	bytes = 0 ifTrue: [space bits: self null. ^self].
+	space bits: (self cCoerce: (libc calloc: bytes size: 1) to: 'uint8_t *').
+	space bits isNull ifTrue: [self fatal: 'verify mark: out of memory for mark bits']
+!
+markEnqueue: o
+	"Shade before pushing, so each object is queued at most once."
+	<function>
+	| space word index mask bits |
+	((self isPtr: o) and: [o ~= 0]) ifFalse: [^self].
+	space := markSpaces.
+	[space < (markSpaces + 3) and: [o < space lo or: [o >= space top]]] whileTrue: [space := space + 1].
+	space = (markSpaces + 3) ifTrue: [self fatal: 'verify mark: reference outside from-space: %p' with: (self ptr: o)].
+	word := (o - space lo) quo: 8.
+	index := word quo: 8.
+	mask := 1 << (word rem: 8).
+	bits := space bits.
+	((bits at: index) bitAnd: mask) ~= 0 ifTrue: [^self].
+	bits at: index put: ((bits at: index) bitOr: mask) asUInt8.
+	markSeen := markSeen + 1.
+	markWorkCount = markWorkCap ifTrue: [
+		markWorkCap := markWorkCap = 0 ifTrue: [1024] ifFalse: [markWorkCap * 2].
+		markWork := self cCoerce: (libc realloc: markWork size: markWorkCap * (self sizeof: 'oop')) to: 'oop *'.
+		markWork isNull ifTrue: [self fatal: 'verify mark: out of memory for worklist']].
+	markWork at: markWorkCount put: o.
+	markWorkCount := markWorkCount + 1
+!
+markRoot: p
+	<function>
+	self markEnqueue: p value
+!
+markStep
+	"One class edge (starting an object), or one strong field of the current object."
+	<function>
+	| cls f |
+	markCurrent = 0
+		ifTrue: [
+			markWorkCount = 0 ifTrue: [^false].
+			markWorkCount := markWorkCount - 1.
+			markCurrent := markWork at: markWorkCount.
+			cls := self rawClass: markCurrent.
+			self markEnqueue: cls.
+			f := self formatOf: markCurrent.
+			markLimit := (self strongSlots: markCurrent format: f context: cls = memory clsContext) asUInt32.
+			markField := 0]
+		ifFalse: [
+			self markEnqueue: ((self slotsOf: markCurrent) at: markField).
+			markField := markField + 1].
+	markField = markLimit ifTrue: [markCurrent := 0].
+	^true
+!
+markFrozenHeap
+	"Runs on the mutator thread, before the first full copy. No VM allocations or writes to roots, code or heap."
+	<function>
+	self markSpace: markSpaces from: oldLo to: oldTop.
+	self markSpace: markSpaces + 1 from: survLo to: survTop.
+	self markSpace: markSpaces + 2 from: edenLo to: self edenTop.
+	markSeen := 0.
+	self markEnqueue: memory nilOop.
+	self visitRoots: (self functionPointer: #markRoot:) updating: false.
+	jit readRoots: (self functionPointer: #markRoot:).
+	[self markStep] whileTrue.
+	libc free: markWork.
+	markWork := self null.
+	markWorkCap := 0
+!
+compareMarkWithForwarding
+	"Copying only replaced the class word and set H_FORWARDED on sources; size still permits a linear walk. Catch marks at non-start addresses too."
+	<function>
+	| space p word marked forwarded matched |
+	matched := 0 asUInt64.
+	0 to: 2 do: [:i |
+		space := markSpaces + i.
+		p := space lo.
+		[p < space top] whileTrue: [
+			word := (p - space lo) quo: 8.
+			marked := ((space bits at: (word quo: 8)) bitAnd: 1 << (word rem: 8)) ~= 0.
+			forwarded := ((self header: p) bitAnd: H_FORWARDED) ~= 0.
+			marked ~= forwarded ifTrue: [
+				self fatal: 'verify mark: %p marked=%d (forwarding bit differs)' with: (self ptr: p) with: (marked ifTrue: [1] ifFalse: [0])].
+			marked ifTrue: [matched := matched + 1].
+			p := p + (self objBytes: p)].
+		libc free: space bits.
+		space bits: self null].
+	matched ~= markSeen ifTrue: [self fatal: 'verify mark: marked reference is not an object start'].
+	verifyMark = 1 ifTrue: [
+		libc fputs: 'samaltak: verify mark: full GC matched
+' to: libc stderr.
+		verifyMark := 2]
+! !
+
 !GarbageCollector methodsFor: 'full GC'!
 fullCopy: o
-	<function>
 	| h bytes dst |
 	h := self header: o.
 	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [^self rawClass: o].
@@ -460,6 +589,10 @@ fullCopy: o
 !
 fullRoot: p
 	<function>
+	self forwardFullSlot: p
+!
+forwardFullSlot: p
+	"Expand in the copying loop rather than calling the root visitor for every slot."
 	| v |
 	v := p value.
 	((self isPtr: v) and: [v ~= 0]) ifTrue: [p value: (self fullCopy: v)]
@@ -473,11 +606,14 @@ fullDead: v
 fullGC
 	<function>
 	| t0 oldUsed scan s lo hi live classSlot nl |
+	vmMain c4Enabled ifTrue: [self fatal: 'legacy full GC entered in C4 mode'].
 	interpreter beforeGC.
 	t0 := scheduler workClockHeldUs.
 	statFullGcs := statFullGcs + 1.
 	statAllocated := statAllocated + (self edenTop - edenLo).
 	oldUsed := oldTop - oldLo.
+	verifyMark < 0 ifTrue: [verifyMark := (libc getenv: 'SAMALTAK_VERIFY_MARK') notNull ifTrue: [1] ifFalse: [0]].
+	verifyMark ~= 0 ifTrue: [self markFrozenHeap].
 	ftTop := oldAltLo.
 	weakCount := 0.
 	nl := self local: 'oop'.
@@ -491,8 +627,9 @@ fullGC
 		classSlot := self cCoerce: scan + 8 to: 'oop *'.
 		self fullRoot: classSlot.
 		s := self slotsOf: scan.
-		0 to: (self tracedSlots: scan) asInt64 - 1 do: [:i | self fullRoot: s + i].
+		0 to: (self tracedSlots: scan) asInt64 - 1 do: [:i | self forwardFullSlot: s + i].
 		scan := scan + (self objBytes: scan)].
+	verifyMark ~= 0 ifTrue: [self compareMarkWithForwarding].
 	self clearWeakSlots: (self functionPointer: #fullDead:).
 	self discard: oldLo size: oldUsed.
 	lo := oldLo.
@@ -585,4 +722,14 @@ walkOldSpace: fn data: data
 	[p < end] whileTrue: [
 		fn call: p with: data.
 		p := p + (self objBytes: p)]
+! !
+
+VMStruct subclass: #MarkVerifySpace
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'VM-Core'!
+
+!MarkVerifySpace class methodsFor: 'declaring'!
+fields
+	^#((lo uint64_t) (top uint64_t) (bits 'uint8_t *'))
 ! !

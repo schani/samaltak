@@ -321,7 +321,17 @@ instVarIndexFor: aString
 allInstances
 	"Answer an Array of all my (direct) instances."
 	<primitive: 'allInstances'>
-	^self primitiveFailed
+	| done carrier |
+	done := Semaphore new.
+	carrier := Array new: 1.
+	(self c4AllInstancesSignal: done into: carrier) == self ifFalse: [^self primitiveFailed].
+	done wait.
+	^carrier first ifNil: [self primitiveFailed]
+!
+c4AllInstancesSignal: aSemaphore into: anArray
+	"Internal to allInstances; the scheduler fills the carrier before signaling."
+	<primitive: 94>
+	^nil
 !
 allInstancesDo: aBlock
 	self allInstances do: aBlock

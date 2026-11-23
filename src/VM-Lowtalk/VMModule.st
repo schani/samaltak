@@ -300,21 +300,27 @@ primitiveCount
 	^sim primitiveCount
 !
 atomicLoad: aSymbol
-	"Load my atomic variable named aSymbol (relaxed)."
+	"Load my atomic variable (or element zero of an atomic array), relaxed."
 	<intrinsic>
-	^self instVarAt: (sim indexOfVariable: aSymbol in: self class)
+	| old |
+	old := self instVarAt: (sim indexOfVariable: aSymbol in: self class).
+	^(old isKindOf: CPointer) ifTrue: [old at: 0] ifFalse: [old]
 !
 atomicStore: aSymbol value: aValue
-	"Store into my atomic variable named aSymbol (relaxed)."
-	<intrinsic>
-	^self instVarAt: (sim indexOfVariable: aSymbol in: self class) put: aValue
-!
-atomicExchange: aSymbol value: aValue
-	"Store into my atomic variable and answer its previous value (sequentially consistent)."
+	"Store to my atomic variable (or element zero of an atomic array), relaxed."
 	<intrinsic>
 	| i old |
 	i := sim indexOfVariable: aSymbol in: self class.
 	old := self instVarAt: i.
-	self instVarAt: i put: aValue.
+	^(old isKindOf: CPointer)
+		ifFalse: [self instVarAt: i put: aValue]
+		ifTrue: [old at: 0 put: aValue]
+!
+atomicExchange: aSymbol value: aValue
+	"Store to my atomic variable (or element zero of an atomic array) and answer its previous value (sequentially consistent)."
+	<intrinsic>
+	| old |
+	old := self atomicLoad: aSymbol.
+	self atomicStore: aSymbol value: aValue.
 	^old
 ! !

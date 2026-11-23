@@ -6,7 +6,11 @@
 # macOS: Homebrew sdl3 and openssl@3, clang. Linux: sdl3, shaderc (GLSL → SPIR-V for SDL_GPU on Vulkan) and OpenSSL 3, gcc
 # or clang.
 # Profile-guided: pgo.profdata (if present) steers optimization; `make pgo IMAGE=...` retrains it. NO_PGO=1 skips it.
+# C4_ARM64_INTERPRETER=1 opts into draft C4 on Linux arm64 (NO_PLATFORM=1; separate BUILD).
+# C4_PLATFORM_FILES=1 builds an interpreter-only C4 VM with audited platform file primitives (Linux x86-64).
+# C4_PLATFORM_SDL=1 adds audited SDL windows, input and CPU presentation (Linux x86-64).
 # BRIEF=1 prints one line per file instead of the commands.
+VM_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S := $(shell uname -s)
 OS := $(shell echo $(UNAME_S) | tr a-z A-Z)
 ARCH := $(if $(filter x86_64 amd64,$(shell uname -m)),X86_64,ARM64)
@@ -21,7 +25,7 @@ else
   CFLAGS ?= -O2 -g -flto=auto
   CFLAGS += -Wno-type-limits -Wno-parentheses -Wno-maybe-uninitialized -Wno-format-truncation
 endif
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP -Igen -I"$(VM_DIR)"
 ifeq ($(UNAME_S),Darwin)
   CFLAGS += -D_DARWIN_C_SOURCE
   OS_PLATFORM_LIBS := -framework CoreVideo -lobjc
@@ -32,7 +36,14 @@ else
 endif
 LDLIBS += -lm -lpthread
 
-BUILD := build
+ifeq ($(C4_PLATFORM_SDL),1)
+  BUILD := build/c4-sdl
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_PLATFORM_SDL=1 cannot use the default build directory)
+  endif
+else
+  BUILD := build
+endif
 PGO_PROFILE := pgo.profdata
 LLVM_PROFDATA := $(shell xcrun -f llvm-profdata 2>/dev/null || command -v llvm-profdata)
 ifneq ($(IS_CLANG),yes)
@@ -74,18 +85,75 @@ ifneq ($(and $(PLATFORM_SRCS),$(SDL_LIBS),$(if $(NO_PLATFORM),,yes)),)
   SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
   CFLAGS += $(SDL_CFLAGS) $(SSL_CFLAGS)
   LDLIBS += $(SDL_LIBS) $(SSL_LIBS) $(OS_PLATFORM_LIBS)
+  ifeq ($(C4_PLATFORM_SDL),1)
+    VARIANT := c4-platform-sdl
+    CFLAGS += -DSAMALTAK_C4_PLATFORM_SDL
+  else ifeq ($(C4_PLATFORM_FILES),1)
+    VARIANT := c4-platform-files
+    CFLAGS += -DSAMALTAK_C4_PLATFORM_FILES
+  endif
 else
   VARIANT := headless
   SRCS := $(CORE_SRCS) $(HEADLESS_SRCS)
   CFLAGS += -DSAMALTAK_NO_PLATFORM
 endif
 
+ifeq ($(C4_PLATFORM_FILES),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT),LINUX/X86_64/c4-platform-files)
+    $(error C4_PLATFORM_FILES=1 requires Linux x86-64 and the platform build dependencies)
+  endif
+endif
+ifeq ($(C4_PLATFORM_SDL),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT),LINUX/X86_64/c4-platform-sdl)
+    $(error C4_PLATFORM_SDL=1 requires Linux x86-64 and the platform build dependencies)
+  endif
+endif
+ifeq ($(C4_ARM64_INTERPRETER),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/ARM64/headless/1)
+    $(error C4_ARM64_INTERPRETER=1 requires Linux arm64 and NO_PLATFORM=1)
+  endif
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_ARM64_INTERPRETER=1 requires a separate BUILD directory)
+  endif
+  VARIANT := c4-arm64-interpreter
+  # Keep the guard active even when CFLAGS is set on the make command line.
+  override CFLAGS += -DSAMALTAK_C4_ARM64_INTERPRETER
+  SRCS += c4_heap.c
+  vpath c4_heap.c $(VM_DIR)
+endif
+
+ifeq ($(OS)/$(ARCH),LINUX/X86_64)
+  ifneq ($(filter headless c4-platform-files c4-platform-sdl,$(VARIANT)),)
+    SRCS += c4_heap.c
+    vpath c4_heap.c $(VM_DIR)
+  endif
+endif
+
+# Standalone draft test build only. Never reuse the normal headless objects.
+ifneq ($(filter 1,$(C4_OPT_SLICE_TEST) $(C4_OPT_LOOP_TEST)),)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/X86_64/headless/1)
+    $(error C4_OPT_SLICE_TEST=1 requires Linux x86-64 and NO_PLATFORM=1)
+  endif
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_OPT_SLICE_TEST=1 requires a separate BUILD directory)
+  endif
+  VARIANT := c4-opt-slice-test
+  override CPPFLAGS += -DSAMALTAK_OPT_SLICE_TEST
+endif
+ifeq ($(C4_OPT_LOOP_TEST),1)
+  VARIANT := c4-opt-loop-test
+  override CPPFLAGS += -DSAMALTAK_OPT_LOOP_TEST
+endif
+
 OBJDIR := $(BUILD)/obj-$(VARIANT)
-OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
+# Fixture callers of GNU ld --wrap need native, undefined references even with LTO enabled.
+# A separate object name prevents reuse of a previously built LTO caller.
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(filter-out $(NO_LTO_SRCS),$(SRCS))) \
+        $(patsubst %.c,$(OBJDIR)/%.no-lto.o,$(filter $(NO_LTO_SRCS),$(SRCS)))
 STAMP := $(BUILD)/.variant-$(VARIANT)
 
-$(BUILD)/samaltak: $(OBJS) $(STAMP)
-	$(if $(BRIEF),@echo "link $@";) $(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
+$(BUILD)/samaltak: $(OBJS) $(EXTRA_OBJS) $(STAMP)
+	$(if $(BRIEF),@echo "link $@";) $(CC) $(CFLAGS) -o $@ $(OBJS) $(EXTRA_OBJS) $(LDFLAGS) $(LDLIBS)
 
 $(STAMP):
 	@mkdir -p $(BUILD)
@@ -94,7 +162,11 @@ $(STAMP):
 
 $(OBJDIR)/%.o: %.c $(PGO_DEP)
 	@mkdir -p $(dir $@)
-	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CFLAGS) -c -o $@ $<
+	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/%.no-lto.o: %.c $(PGO_DEP)
+	@mkdir -p $(dir $@)
+	$(if $(BRIEF),@echo "cc   $<";) $(CC) $(CPPFLAGS) $(CFLAGS) -fno-lto -c -o $@ $<
 
 # Retrain the profile: an instrumented VM runs the benchmarks (also under the baseline JIT) and the kernel/compiler tests on IMAGE.
 pgo:

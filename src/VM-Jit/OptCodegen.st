@@ -1,5 +1,5 @@
 OptModule subclass: #OptCodegen
-	instanceVariableNames: 'cgHeldSlot cgHeldReg cgHeldCount cgScanPc cgBinds ir passes regalloc cgCodeStart cgBcSize cgValidSlots cgEntryPc cgSlotTop cgRawBase cgMaxOut cgNeed cgExitPlainLabel cgExitSyncLabel cgDeoptLabel cgReturnLabel cgHeaderLabel cgChecksLabel cgBodyLabel cgInterruptLabel cgBarrierLabel cgDeoptReturnLabel cgStackFullLabel cgOuts cgOutCount cgPoolOops cgPoolLabels cgPoolCount cgMetaWords cgMetaCount cgSpOffsets cgSpCount cgMoveSrc cgMoveDst cgMoveLoc cgMoveCount cgRootAct cgLastPc cgLastAct builder cgDeps cgDepCount cgSunk cgSunkCount cgChainActs cgChainCount cgDoubles cgSiteBl cgSiteLit cgSiteInfo cgSiteIndex cgSiteSel cgSiteCount cgRetOff cgRetIndex cgRetArgc cgRetCount cgOrder cgPlaced'
+	instanceVariableNames: 'cgHeldSlot cgHeldReg cgHeldCount cgScanPc cgBinds ir passes regalloc cgCodeStart cgBcSize cgValidSlots cgEntryPc cgSlotTop cgRawBase cgMaxOut cgNeed cgExitPlainLabel cgExitSyncLabel cgDeoptLabel cgReturnLabel cgHeaderLabel cgChecksLabel cgBodyLabel cgInterruptLabel cgBarrierLabel cgDeoptReturnLabel cgStackFullLabel cgOuts cgOutCount cgPoolOops cgPoolLabels cgPoolCount cgMetaWords cgMetaCount cgSpOffsets cgSpCount cgMoveSrc cgMoveDst cgMoveLoc cgMoveCount cgRootAct cgLastPc cgLastAct builder cgDeps cgDepCount cgSunk cgSunkCount cgChainActs cgChainCount cgDoubles cgSiteBl cgSiteLit cgSiteInfo cgSiteIndex cgSiteSel cgSiteCount cgRetOff cgRetIndex cgRetArgc cgRetCount cgOrder cgPlaced cgSlice'
 	classVariableNames: 'CG_MAX_META CG_MAX_MOVES CG_MAX_OUT CG_MAX_POOL CG_MAX_RETS CG_MAX_HELD CG_MAX_SITES CG_MAX_SP OUT_ARRAY OUT_BARRIER OUT_BOTTOM OUT_DEOPT OUT_INTERRUPT OUT_LAZY OUT_NOTMADE OUT_RESUME OUT_SENT OUT_SITE OUT_STACK OUT_WIDOW'
 	package: 'VM-Jit'!
 
@@ -23,7 +23,7 @@ declarations
 		(cgSunk 'int32_t[64]') (cgSunkCount int32_t) (cgDoubles bool) (cgChainActs 'int32_t[512]') (cgChainCount int32_t)
 		(cgSiteBl 'uint32_t[CG_MAX_SITES]') (cgSiteLit 'int32_t[CG_MAX_SITES]') (cgSiteInfo 'uint32_t[CG_MAX_SITES]') (cgSiteIndex 'int32_t[CG_MAX_SITES]') (cgSiteSel 'int32_t[CG_MAX_SITES]') (cgSiteCount int32_t)
 		(cgRetOff 'uint32_t[CG_MAX_RETS]') (cgRetIndex 'int32_t[CG_MAX_RETS]') (cgRetArgc 'int32_t[CG_MAX_RETS]') (cgRetCount int32_t)
-		(cgOrder 'int32_t[OPT_MAX_BLOCKS]') (cgPlaced 'uint8_t[OPT_MAX_BLOCKS]'))
+		(cgOrder 'int32_t[OPT_MAX_BLOCKS]') (cgPlaced 'uint8_t[OPT_MAX_BLOCKS]') (cgSlice bool))
 !
 initialize
 	CG_MAX_OUT := 4096.
@@ -131,6 +131,14 @@ dregPairs
 ! !
 
 !OptCodegen methodsFor: 'generating'!
+generateSlice: m
+	<function>
+	| ok |
+	cgSlice := true.
+	ok := self generate: m act: 0.
+	cgSlice := false.
+	^ok
+!
 generate: m act: a
 	"Emit the code at the assembler's pc; answer whether it could."
 	<function>
@@ -173,8 +181,14 @@ generate: m act: a
 	cgChecksLabel := asm newLabel.
 	cgBodyLabel := asm newLabel.
 	0 to: passes orderCount - 1 do: [:i | (ir block: (passes orderAt: i)) label: asm newLabel].
-	builder isEntryUnit ifTrue: [self emitBaselineEntry].
-	self emitEntry.
+	cgSlice
+		ifTrue: [
+			(cgRawBase = cgSlotTop and: [cgSlotTop <= 32 and: [cgNeed <= 32 and: [cgMaxOut = 0]]]) ifFalse: [^false].
+			"jit_enter already supplied the native record, FP and receiver."
+			asm mov: X0 with: X21]
+		ifFalse: [
+			builder isEntryUnit ifTrue: [self emitBaselineEntry].
+			self emitEntry].
 	self order.
 	0 to: passes orderCount - 1 do: [:i |
 		b := cgOrder at: i.
@@ -1609,6 +1623,7 @@ emitOuterSlot: n
 !
 emitReturn: n
 	| nd x s back w |
+	cgSlice ifTrue: [^asm b: (self sliceExitFor: n reason: 3)].
 	nd := ir node: n.
 	x := self src: nd a into: self scratchA.
 	asm comment: 'the bottom frame returns into a Context: the interpreter does it'.
@@ -1633,6 +1648,10 @@ emitReturn: n
 !
 emitCheckInterrupt: n
 	| s back |
+	cgSlice ifTrue: [
+		(sliceTest loopEnabled and: [(ir node: n) aux = SP_LOOP]) ifTrue: [
+			^self emitLoopCheckpoint: n].
+		^self emitInterruptTestTo: (self sliceExitFor: n reason: 0)].
 	back := asm newLabel.
 	s := self out: OUT_INTERRUPT node: n index: 0.
 	(cgOuts + (cgOutCount - 1)) resume: back.
@@ -1640,6 +1659,17 @@ emitCheckInterrupt: n
 	self emitInterruptTestTo: s.
 	self emitStressAt: n label: s.
 	asm bind: back
+!
+emitLoopCheckpoint: n
+	"Before phi copies: the interpreter replays the unexecuted jump."
+	<function>
+	| slow |
+	slow := self sliceExitFor: n reason: 4.
+	self emitInterruptTestTo: slow.
+	asm ldr: X16 base: X22 offset: self stressOffset.
+	asm subs: X16 with: X16 imm: 1.
+	asm str: X16 base: X22 offset: self stressOffset.
+	asm b: slow if: COND_EQ
 !
 emitStressAt: n label: l
 	"--jit-flags deopt: every so often take the slow path anyway."
@@ -1776,7 +1806,7 @@ subFp: off
 !
 emitReplace: n slow: slow done: done
 	"replaceFrom:to:with:startingAt: (NF_REPLACE: the receiver's elements bytes, NF_W32 32-bit words, NF_PTRS pointers) as its primitive does it (JitBaselineCompiler>>emitReplacePrimitive:), in x16, x17 and the scratch registers, its arguments read again where needed: the copy stub, the receiver the result; anything else the call (slow)."
-	| nd s args d e young old skip r fail fused |
+	| nd s args d e skip r fail fused |
 	fused := self isFusedReplace: n.
 	fail := fused ifTrue: [asm newLabel] ifFalse: [slow].
 	nd := ir node: n.
@@ -1796,20 +1826,7 @@ emitReplace: n slow: slow done: done
 	asm b: fail if: COND_NE.
 	asm ubfx: X16 with: self scratchB lsb: H_FMT_SHIFT width: 5.
 	self emitKindCheck: X16 shift: s slow: fail.
-	s = 3 ifTrue: [
-		asm comment: 'young or remembered'.
-		young := asm newLabel.
-		old := asm newLabel.
-		asm ldr: X16 base: X22 offset: self youngLoOffset.
-		asm cmp: d with: X16.
-		asm b: old if: COND_LO.
-		asm ldr: X16 base: X22 offset: self youngHiOffset.
-		asm cmp: d with: X16.
-		asm b: young if: COND_LO.
-		asm bind: old.
-		asm tst: self scratchB imm: H_REMEMBERED.
-		asm b: fail if: COND_EQ.
-		asm bind: young].
+	s = 3 ifTrue: [stubs emitBulkRefCopyGuardFor: d asInt32 header: self scratchB slow: fail].
 	self emitElementsOf: d shift: s into: self scratchB temp: X16.
 	asm cmp: X17 with: self scratchB.
 	asm b: fail if: COND_GT.
@@ -2382,10 +2399,43 @@ out: kind node: n index: i
 deoptLabelFor: n
 	"The label of a guard's failure: its metadata recorded with the registers as they are here."
 	| k l |
+	cgSlice ifTrue: [^self sliceExitFor: n reason: ((ir node: n) op asInt32 = O_GUARDINT ifTrue: [1] ifFalse: [2])].
 	k := self recordGuard: n.
 	l := self out: OUT_DEOPT node: n index: k.
 	self emitStressAt: n label: l.
 	^l
+!
+sliceExitFor: n reason: why
+	<function>
+	"An admitted pre-effect state. Interval endpoints are inclusive; the
+	checked instructions branch before def and clobber only scratch."
+	| nd st k v d op l idx |
+	nd := ir node: n.
+	st := ir state: nd state.
+	k := cgSpCount.
+	(k >= 64 or: [st depth < 0 or: [st depth > 16]]) ifTrue: [
+		asm fail: ASM_ERR_OPERAND.
+		^asm newLabel].
+	cgSpCount := k + 1.
+	cgSpOffsets at: k put: cgMetaCount.
+	self meta: why.
+	self meta: st pc.
+	self meta: st depth.
+	0 to: st depth do: [:i |
+		v := ir operand: st vals + i.
+		d := ir node: v.
+		op := d op asInt32.
+		l := self locOf: v inSlots: false.
+		idx := l >> 3.
+		(d rep asInt32 = R_OOP and: [
+			op = O_CONST or: [d pos < nd pos and: [d lstart <= nd pos and: [d lend >= nd pos]]]]) ifFalse: [asm fail: ASM_ERR_OPERAND].
+		(l bitAnd: 7) = LOC_SLOT ifTrue: [
+			(idx >= 0 and: [idx < cgRawBase and: [
+				(d flags bitAnd: NF_LAZY) = 0 and: [d reg < 0]]]) ifFalse: [asm fail: ASM_ERR_OPERAND]].
+		(l bitAnd: 7) = LOC_REG ifTrue: [
+			((idx between: 0 and: 5) or: [idx = X9 or: [idx = X21]]) ifFalse: [asm fail: ASM_ERR_OPERAND]].
+		self meta: l].
+	^self out: OUT_DEOPT node: n index: k
 !
 emitOuts
 	| o |
@@ -2395,7 +2445,7 @@ emitOuts
 		o kind = OUT_DEOPT ifTrue: [
 			asm comment: 'guard failed: deoptimize'.
 			asm mov: W17 imm: o index.
-			asm b: cgDeoptLabel].
+			asm b: (cgSlice ifTrue: [asm labelAt: stubs optSliceExitAddress] ifFalse: [cgDeoptLabel])].
 		o kind = OUT_INTERRUPT ifTrue: [
 			asm comment: 'interrupt: call the runtime'.
 			self saveAcross: o node.

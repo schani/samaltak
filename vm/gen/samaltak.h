@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include "c4_heap.h"
 #define guest_display_open(w, h, cell) ((void)(w), (void)(h), (void)(cell), false)
 #define guest_display_fill(x, y, w, h, rule) ((void)(x), (void)(y), (void)(w), (void)(h), (void)(rule))
 #define guest_display_copy(x, y, w, h, to_x, to_y) ((void)(x), (void)(y), (void)(w), (void)(h), (void)(to_x), (void)(to_y))
@@ -17,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "opt_slice_test.h"
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <time.h>
@@ -46,6 +48,7 @@
 #ifdef __APPLE__
 #define st_mtim st_mtimespec
 #endif
+#include "c4_platform_files.h"
 #include <spawn.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
@@ -64,6 +67,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <SDL3/SDL.h>
+#include "c4_sdl.h"
 #ifdef __APPLE__
 #include <CoreVideo/CoreVideo.h>
 #include <crt_externs.h>
@@ -147,6 +151,7 @@ typedef void (*prim_fn)(void);
 #define BL_PIC_JMP_X64 10
 #define BL_SITE_MEGA 1073741824
 #define BL_UENTRY 20
+#define C4_FRAME_ROOTS 196608
 #define CACHE_SIZE 4096
 #define CACHE_SPACE 134234112
 #define CD_INSTVARS 3
@@ -536,6 +541,7 @@ typedef void (*prim_fn)(void);
 #define PF_PRIM_POINTS 4
 #define PF_PRIM_TRIANGLES 0
 #define PF_PRIM_TRIANGLE_STRIP 1
+#define PF_SDL_MAX_SIDE 4096
 #define PF_STAGE_FRAGMENT 1
 #define PF_STAGE_VERTEX 0
 #define PF_TEXUSE_COLOR_TARGET 2
@@ -649,10 +655,11 @@ typedef void (*prim_fn)(void);
 #define SO_CHARACTER 6
 #define SO_COMPILEDMETHOD 14
 #define SO_CONTEXT 15
-#define SO_COUNT 37
+#define SO_COUNT 38
 #define SO_EXTERNAL_OBJECTS 32
 #define SO_FALSE 1
 #define SO_FINALIZATION_SEMAPHORE 35
+#define SO_INTERVAL 37
 #define SO_LARGENEG 21
 #define SO_LARGEPOS 20
 #define SO_MESSAGE 22
@@ -818,6 +825,7 @@ typedef void (*prim_fn)(void);
 
 typedef struct baseline_pic baseline_pic;
 typedef struct baseline_site baseline_site;
+typedef struct c4_jit_version c4_jit_version;
 typedef struct cache_entry cache_entry;
 typedef struct feedback_site feedback_site;
 typedef struct frame frame;
@@ -825,6 +833,7 @@ typedef struct image_header image_header;
 typedef struct jit_method jit_method;
 typedef struct jit_state jit_state;
 typedef struct large_operand large_operand;
+typedef struct mark_verify_space mark_verify_space;
 typedef struct opt_act opt_act;
 typedef struct opt_block opt_block;
 typedef struct opt_edge opt_edge;
@@ -865,6 +874,17 @@ struct baseline_site {
     uint64_t pic;
 };
 _Static_assert(sizeof(baseline_site) == 32, "the simulator lays out BaselineSite as C does");
+
+struct c4_jit_version {
+    int32_t args;
+    int32_t temps;
+    int32_t capacity;
+    int32_t bc_size;
+    int32_t n_lits;
+    uint8_t bytes[64];
+    uint64_t literals[64];
+};
+_Static_assert(sizeof(c4_jit_version) == 600, "the simulator lays out C4JitVersion as C does");
 
 struct cache_entry {
     oop cls;
@@ -964,22 +984,21 @@ struct jit_method {
     uint32_t stamp;
     uint32_t signature;
     uint32_t raw_base;
+    jit_method *checked;
+    c4_jit_version *checked_version;
 };
-_Static_assert(sizeof(jit_method) == 240, "the simulator lays out JitMethod as C does");
+_Static_assert(sizeof(jit_method) == 256, "the simulator lays out JitMethod as C does");
 
 struct jit_state {
     oop nil_oop;
     oop true_oop;
     oop false_oop;
-    int32_t interrupt;
-    int32_t pad;
     uint64_t frames;
     uint64_t exit_sp;
     uint64_t young_lo;
     uint64_t young_hi;
     oop array_class;
     oop point_class;
-    uint64_t stack_limit;
     uint64_t stack_limit_normal;
     uint64_t base_frame;
     uint64_t base_record;
@@ -1003,8 +1022,9 @@ struct jit_state {
     uint64_t cstack_limit;
     int64_t stress;
     uint64_t dump[64];
+    uint64_t c4_budget;
 };
-_Static_assert(sizeof(jit_state) == 832, "the simulator lays out JitState as C does");
+_Static_assert(sizeof(jit_state) == 824, "the simulator lays out JitState as C does");
 
 struct large_operand {
     uint64_t *limbs;
@@ -1013,6 +1033,13 @@ struct large_operand {
     uint64_t small[1];
 };
 _Static_assert(sizeof(large_operand) == 32, "the simulator lays out LargeOperand as C does");
+
+struct mark_verify_space {
+    uint64_t lo;
+    uint64_t top;
+    uint8_t *bits;
+};
+_Static_assert(sizeof(mark_verify_space) == 24, "the simulator lays out MarkVerifySpace as C does");
 
 struct opt_act {
     oop method;
@@ -1311,6 +1338,12 @@ extern uint64_t young_hi;
 extern uint64_t young_lo;
 extern char *image_path;
 extern oop active_ctx;
+extern int64_t c4_code_limit;
+extern int64_t c4_code_next;
+extern size_t c4_frame_limit;
+extern size_t c4_frame_next;
+extern size_t c4_stack_limit;
+extern size_t c4_stack_next;
 extern oop cstack[65536];
 extern size_t cstack_used;
 extern uint64_t frame_epoch;
@@ -1341,6 +1374,7 @@ extern int32_t site_count;
 extern uint64_t block_table[4096];
 extern uint64_t mega_table[16384];
 extern int64_t oop_slot_count;
+extern uint64_t oop_slots[262144];
 extern uint64_t stat_block_misses;
 extern uint64_t stat_links;
 extern uint64_t stat_megas;
@@ -1367,6 +1401,8 @@ extern int32_t opt_counts[65536];
 extern prim_fn perform_args_fn;
 extern prim_fn perform_fn;
 extern int32_t send_pushed;
+extern bool slice_loop;
+extern uint64_t slice_name_size;
 extern uint64_t stat_bytecodes;
 extern uint64_t stat_cache_flushes;
 extern uint64_t stat_code_bytes;
@@ -1407,6 +1443,7 @@ extern uint64_t opt_deopt_return_stub;
 extern uint64_t opt_deopt_stub;
 extern uint64_t opt_make_array_stub;
 extern uint64_t opt_return_stub;
+extern uint64_t opt_slice_exit;
 extern uint64_t opt_stack_full_stub;
 extern uint64_t symbol_addrs[48];
 extern int32_t symbol_count;
@@ -1419,6 +1456,7 @@ extern oop cls_boxedfloat;
 extern oop cls_bytearray;
 extern oop cls_bytestring;
 extern oop cls_char;
+extern oop cls_compiledmethod;
 extern oop cls_context;
 extern oop cls_message;
 extern oop cls_point;
@@ -1432,6 +1470,8 @@ extern oop *root_stack[1024];
 extern oop specials_oop;
 extern oop true_oop;
 extern bool word_hash;
+extern int16_t ob_ana_depth[65536];
+extern uint8_t ob_ana_flag[65536];
 extern int32_t ob_dep_count;
 extern oop ob_deps[256];
 extern int32_t ob_entry_block;
@@ -1461,16 +1501,19 @@ extern int32_t cg_site_lit[4096];
 extern int32_t cg_site_sel[4096];
 extern int32_t cg_slot_top;
 extern int32_t cg_sp_count;
+extern int32_t cg_sp_offsets[4096];
 extern int32_t opt_act_count;
 extern opt_act opt_acts[512];
 extern int32_t opt_block_count;
 extern opt_block opt_blocks[2048];
 extern int32_t opt_cur_act;
 extern int32_t opt_cur_pc;
+extern int32_t opt_edge_count;
 extern opt_edge opt_edges[8192];
 extern bool opt_full;
 extern int32_t opt_node_count;
 extern opt_node opt_nodes[16384];
+extern int32_t opt_operand_count;
 extern int32_t opt_operands[131072];
 extern int32_t opt_osr_entry;
 extern uint64_t opt_osr_floats;
@@ -1509,7 +1552,7 @@ extern int64_t alloc_sample_interval;
 extern int32_t alloc_sample_sema;
 extern int64_t alloc_sample_size;
 extern bool alloc_sample_unread;
-extern atomic_int interrupt_pending;
+extern atomic_int interrupt_pending[1];
 extern oop last_preempted;
 extern bool last_preempted_at_entry;
 extern int32_t ledger_n;
@@ -1520,6 +1563,10 @@ extern uint64_t stat_reconciles;
 extern int32_t argc;
 extern int32_t args_start;
 extern char **argv;
+extern bool c4_enabled;
+extern bool c4_moving;
+extern bool c4_requested;
+extern bool headless;
 #ifdef __APPLE__
 #endif
 #ifdef __linux__
@@ -1671,7 +1718,7 @@ void prim_display_flush(void);
 void prim_display_next_event(void);
 void prim_display_open(void);
 void prim_display_text(void);
-void become_forward(oop from, oop to);
+void become_forward(uint64_t from, uint64_t to);
 void collect_garbage(uint64_t need);
 void full_gc(void);
 void garbage_collector_init(uint64_t eden_bytes, uint64_t max_heap);
@@ -1692,27 +1739,30 @@ void activate_block(int32_t n);
 void activate_block_with_array(void);
 int64_t active_capacity(void);
 void active_set_stackp(int64_t n);
+void active_slot(int64_t k, oop v);
 oop *active_slots(void);
 int64_t active_stackp(void);
 void interpreter_after_gc(void);
 void before_gc(void);
+void c4_poll(void);
+void c4_stack_slot(oop *p, oop v);
 int32_t call_primitive(prim_fn fn, oop *b, int32_t n);
-bool interpreter_context(oop c, int64_t k, oop v);
+bool interpreter_context(uint64_t c, int64_t k, uint64_t v);
 oop interpreter_context_field(int64_t i, oop c);
-oop context_slot(int64_t k, oop c);
+oop context_slot(int64_t k, uint64_t c);
 int64_t ctx_stackp(oop ctx);
 cache_entry *entry_for(oop a_class, oop a_selector);
 void entry_safepoint(void);
 void fatal_begin(void);
 _Noreturn void fatal_end(void);
-void flush_if_married(oop o);
+void flush_if_married(uint64_t o);
 void flush_method_cache(void);
-void flush_method_cache_selector(oop a_selector);
+void flush_method_cache_selector(uint64_t a_selector);
 bool frames_valid(bool (*valid)(oop));
 void interpret(void);
 void interrupt_safepoint(void);
 bool is_married(oop o);
-uint64_t lookup_method(oop a_class, oop a_selector);
+oop lookup_method(oop a_class, oop a_selector);
 oop marry(frame *f);
 void materialize_all(void);
 void prim_commit(oop a_result);
@@ -1723,11 +1773,11 @@ frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode);
 frame *push_frame_entry(cache_entry *e, int32_t n);
 void interpreter_roots(void (*fn)(oop *));
 int selector_argc(oop a_selector);
-oop sender_of(oop c, int64_t p, oop stop);
+oop sender_of(uint64_t c, int64_t p, oop stop);
 void set_prim_base(int32_t n);
 cache_entry *site_entry(uint8_t *site, uint64_t a_class, oop a_selector);
 void sync_frame(frame *f);
-bool terminate(oop c, oop target);
+bool terminate(uint64_t c, uint64_t target);
 frame *thaw_for(uint64_t code);
 void interpreter_widow(frame *f);
 bool jit_baseline_compiler_compile(oop m);
@@ -1738,19 +1788,20 @@ void jit_baseline_runtime_all_roots(void (*fn)(oop *));
 uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret);
 oop box(frame *f, uint64_t b);
 void canonicalize_below(frame *f);
+void code_roots(void (*fn)(oop *));
 uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c);
 int64_t feedback_cases_of(oop m, int64_t i);
 oop feedback_class_of(oop m, int64_t i, int64_t j);
 int64_t feedback_pc_of(oop m, int64_t i);
 uint64_t feedback_selector_of(oop m, int64_t i);
-int64_t feedback_sites_of(oop m);
+int64_t feedback_sites_of(uint64_t m);
 int64_t feedback_state_of(oop m, int64_t i);
 oop feedback_target_of(oop m, int64_t i, int64_t j);
 void jit_baseline_runtime_flushed(void);
 void forget_slots_from(uint64_t address);
 uint64_t leaf_prim(uint64_t fp, uint64_t fn, uint64_t n);
 uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret);
-void nil_tests_changed(oop sel);
+void nil_tests_changed(uint64_t sel);
 bool nil_tests_inlinable(void);
 uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info);
 uint64_t jit_baseline_runtime_prim(frame *f, uint64_t fp, uint64_t fn, uint64_t info);
@@ -1761,7 +1812,7 @@ void register_slot(uint64_t a);
 void jit_baseline_runtime_release(void);
 uint64_t return_slow(frame *f);
 void unlink_all(void);
-void unlink_selector(oop sel);
+void unlink_selector(uint64_t sel);
 void jit_baseline_runtime_young_roots(void (*fn)(oop *));
 void jit_feedback_all_roots(void (*fn)(oop *));
 uint32_t flags_at(oop m, int64_t pc);
@@ -1779,12 +1830,16 @@ void jit_runtime_after_gc(void);
 void jit_runtime_all_roots(void (*fn)(oop *));
 void jit_runtime_back_jump(frame *f);
 uint64_t baseline_stat(int32_t i);
-void become_method(oop from);
+void become_method(uint64_t from);
 uint64_t jit_runtime_block_code_for(oop m);
-uint64_t cache_code_for(uint64_t m);
+void c4_bytecode_will_write(oop obj);
+bool c4_candidate(oop m);
+void c4_forwarding_installed(void);
+void c4_native_checkpoint(void);
+uint64_t cache_code_for(oop m);
 void class_changed(void);
 uint64_t jit_runtime_closure(frame *f);
-bool code_address_of(uint64_t m);
+bool code_address_of(oop m);
 void code_changed(oop m);
 jit_method *code_of(oop m, bool counting);
 jit_method *jit_runtime_compile(oop m, int32_t md, bool want_notes);
@@ -1796,6 +1851,7 @@ bool ensure_open(void);
 uint64_t entry_of_top(void);
 uint64_t exit_sync(frame *f);
 char *flag_name(uint32_t bit);
+void flush_code(void);
 bool headers_valid(bool (*valid)(oop));
 uint64_t interrupt(frame *f);
 uint64_t interrupt_at_entry(frame *f);
@@ -1806,28 +1862,37 @@ uint64_t jit_runtime_make_array(frame *f);
 int64_t map_offset_of(jit_method *h, int64_t pc);
 void materialize_opt(frame *f);
 void methods_changed(void);
-void methods_changed_for(oop sel);
+void methods_changed_for(uint64_t sel);
 char *mode_name(int32_t m);
 int mode_named(char *name);
 void move(uint64_t dst, uint64_t src, uint64_t n);
 oop new_array(uint32_t n, oop *p);
+bool no_opt_frames(void);
 void opt_methods_changed(oop sel);
 int64_t opt_stat(int32_t i);
 bool parse_flags(char *s);
 void perf_map_at(uint64_t start, uint64_t n, const char *name);
 int64_t primitive_number_named(char *name);
 uint64_t push_context(frame *f);
+void read_roots(void (*fn)(oop *));
 void release_memory(void);
+void report_c4(void);
 void jit_runtime_resume(frame *f);
 void resume_context(bool looping);
 void set_flags(uint32_t f);
 bool set_mode(int32_t m);
+bool slice_loop_candidate(frame *f);
+oop slice_method_literal(oop m, uint32_t i);
+oop slice_method_storage(oop m, uint32_t i);
 oop special_fast(int32_t k, oop *base);
 void jit_runtime_start(void);
 uint64_t jit_runtime_tier_up(frame *f, int64_t loop);
+bool jit_runtime_try_slice(frame *f);
+bool try_slice_loop(frame *f);
 uint64_t jit_runtime_widow(frame *f);
 uint64_t write_barrier(oop o, oop v);
 void jit_runtime_young_roots(void (*fn)(oop *));
+void emit_bulk_ref_copy_guard_for(int32_t o, int32_t h, int32_t slow);
 bool jit_stubs_generate(void);
 void prim_large_add(void);
 void prim_large_bit_and(void);
@@ -1892,14 +1957,23 @@ uint64_t alloc_context(uint32_t n);
 uint64_t alloc_obj(oop cls, int32_t fmt, uint32_t n);
 uint64_t alloc_obj_try(oop cls, int32_t fmt, uint64_t n);
 uint64_t alloc_old(oop cls, int32_t fmt, uint32_t n);
+uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n);
 oop alloc_slots(oop cls, uint32_t n);
 uint64_t alloc_unfilled_try(oop cls, int32_t fmt, uint64_t n);
 size_t byte_size(oop o);
+bool c4_cannot_replace_code_slot(oop o, uint32_t i, oop v);
+uint32_t c4_fixed_fields_for(oop cls, int expected, uint32_t n);
+oop c4_load_ref(oop o, uint32_t i);
+void c4_store_context_stackp(oop o, oop v);
+bool c4_try_store_context_stackp(oop o, oop v);
 oop class_of(oop o);
+void copy_c4_context(oop dst, oop src);
+void object_memory_copy_refs_at_from_at_count(oop dst, size_t di, oop src, size_t si, size_t n);
+void object_memory_copy_refs_at_from_buffer_count(oop dst, size_t di, oop *src, size_t n);
 uint32_t fixed_fields(oop o);
 uint64_t float_oop(double d);
 double float_val(oop o);
-size_t indexable_size(oop o);
+size_t indexable_size(uint64_t o);
 oop instantiate(oop cls, uint64_t n, int *err);
 bool int64_of(oop o, int64_t *out);
 uint64_t int64_oop(int64_t v);
@@ -1914,7 +1988,7 @@ void reset_alloc_limit(void);
 oop object_memory_special(int index);
 uint32_t string_char_at(oop s, uint64_t i);
 uint64_t string_from_utf8(const char *str, size_t n);
-uint32_t string_hash(oop s);
+uint32_t string_hash(uint64_t s);
 size_t string_size(oop s);
 bool u64_of(oop o, uint64_t *out);
 char *utf8_bytes_of(oop s, size_t *size);
@@ -1938,6 +2012,7 @@ void prim_bytes_uint16_big_endian_at(void);
 void prim_bytes_uint32_at(void);
 void prim_bytes_uint32_at_put(void);
 void prim_bytes_uint32_big_endian_at(void);
+void prim_c4_all_instances_request(void);
 void prim_change_class_to(void);
 void prim_class(void);
 void prim_identical(void);
@@ -1958,9 +2033,15 @@ void prim_string_compare(void);
 void prim_string_hash(void);
 void prim_string_index_of(void);
 void prim_string_index_of_substring(void);
+bool build_envelope(oop m);
+bool loop_envelope(oop m);
+int64_t opt_admission_verify(oop m);
+bool verify_loop(oop m);
 bool build(oop m, int32_t s, int32_t t, int32_t d, bool res);
+bool build_slice(oop m, int pc);
 bool inlinable_closure(oop c);
 bool opt_codegen_generate(oop m, int a);
+bool generate_slice(oop m);
 int32_t add_pred(int32_t from, int32_t to);
 int32_t alloc_operands(int32_t n);
 void append(int32_t n, int32_t b);
@@ -1980,9 +2061,10 @@ void opt_ir_unlink(int32_t n);
 void cleanup(int32_t entry);
 bool opt_regalloc_allocate(int32_t num_args, int32_t n);
 void opt_regalloc_release(void);
-void opt_runtime_all_roots(void (*fn)(oop *));
-uint64_t opt_runtime_block_code_for(uint64_t m, int32_t s);
+void opt_runtime_all_roots(void (*fn)(oop *), bool updating);
+uint64_t opt_runtime_block_code_for(oop m, int32_t s);
 bool opt_runtime_compile(oop m);
+bool opt_runtime_compile_slice(oop m, int pc);
 uint64_t deopt_guard(frame *f, int64_t k);
 uint64_t deopt_return(frame *f, int64_t k, int64_t not_made);
 void opt_runtime_flushed(void);
@@ -1994,34 +2076,42 @@ uint64_t opt_runtime_leave(frame *f, bool after);
 oop opt_runtime_make_array(frame *f, uint64_t n);
 void materialize(frame *f);
 void opt_runtime_release(void);
+int32_t replay_slice(jit_method *h, frame *f, int32_t k, uint64_t *dump, bool trace);
 uint64_t opt_runtime_resume(frame *f);
 uint64_t return_bottom(frame *f, int64_t k);
 oop send_from(frame *f, uint64_t ret);
+bool slice_envelope(oop m, int pc);
 uint64_t stack_full(frame *f);
 uint64_t opt_runtime_tier_up(frame *f, int64_t loop);
-uint64_t unit_entry_of(uint64_t m, int64_t s);
+uint64_t unit_entry_of(oop m, int64_t s);
+bool valid_slice(jit_method *h, uint64_t end, int32_t cap);
+void write_slice(jit_method *h, uint64_t p);
 void opt_runtime_young_roots(void (*fn)(oop *));
 bool is_leaf(int64_t n);
 bool is_tryable(int64_t n);
 prim_fn primitive_table_lookup(int64_t n);
 oop names_array(void);
-uint64_t active_process(void);
+oop active_process(void);
 void alloc_sample_hit(oop a_class, uint64_t bytes);
+void c4_collect_weak_clears(void);
+void c4_enum_poll(void);
+bool c4_enum_request(uint64_t cls, uint64_t sem, uint64_t carrier);
+void c4_enum_roots(void);
 void handle_interrupts(void);
 void scheduler_init(void);
 int64_t scheduler_now_ms(void);
 int64_t now_us(void);
 int64_t pause_charging(void);
-int64_t process_cpu_time_us(oop proc);
+int64_t process_cpu_time_us(uint64_t proc);
 void processor_yield(void);
 void relinquish(int64_t microseconds);
-bool remove_link(oop link, uint64_t list);
+bool remove_link(uint64_t link, oop list);
 void request_interrupt_check(void);
 void request_periodic_poll(int64_t interval_us);
 int64_t resume_charging(void);
 void resume_process(oop proc);
 void scheduler_semaphore_signal(oop sem);
-void scheduler_semaphore_wait(oop sem);
+void scheduler_semaphore_wait(uint64_t sem);
 void set_sampler(int64_t interval_us, int32_t sema);
 void set_time_slice(int64_t us);
 void set_timer(int64_t ms);
@@ -2102,12 +2192,15 @@ int32_t platform_common_table_add_pointer(pf_table *t, int kind, void *ptr);
 pf_obj *platform_common_table_at_kind(pf_table *t, int32_t h, int kind);
 int32_t platform_common_table_count(pf_table *t, int kind);
 void platform_common_table_remove(pf_table *t, int32_t h);
+void discard_all(void);
 int64_t dropped(void);
+bool input_ready(void);
 bool platform_events_next(pf_event *out);
 void pump(void);
 void platform_events_push(pf_event *e);
 void set_semaphore(int32_t index);
 void signal_ready(void);
+void translate(SDL_Event *e);
 void update_poll_interval(void);
 bool platform_files_close(int32_t f);
 char *platform_files_cwd(void);
@@ -2282,19 +2375,21 @@ void prim_window_display_scale(void);
 void prim_window_hide(void);
 void prim_window_open(void);
 void prim_window_pixel_size(void);
+void prim_window_present_rgba(void);
 void prim_window_refresh_rate(void);
 void prim_window_set_size(void);
 void prim_window_set_text_input_area(void);
 void prim_window_set_title(void);
 void prim_window_show(void);
 void prim_window_size(void);
+uint8_t *stage_rgba(uint64_t o, size_t n);
 bool platform_ptys_close(int32_t p);
 pid_t foreground(int32_t p);
 bool resize(int32_t p, int32_t rows, int32_t cols);
 int32_t platform_ptys_spawn(char **argv, char **envp, char *cwd, int32_t rows, int32_t cols, int64_t *pid_out);
 bool platform_ptys_wait(int32_t p, bool block, int *status, bool *done);
 void blit_pixels(uint8_t *src, int64_t src_w, int64_t src_h, int32_t src_fmt, int64_t *sr, uint8_t *dst, int64_t dst_w, int64_t dst_h, int32_t dst_fmt, int64_t *dr, bool linear);
-void copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode);
+void platform_raster_copy(uint8_t *dst, int64_t dst_stride, uint8_t *src, int64_t src_stride, int64_t w, int64_t h, int64_t bpp, int64_t mode);
 void platform_raster_fill(uint8_t *pixels, int64_t n, int bpp, uint32_t v);
 void rasterize(raster_state *st, uint8_t *base, int64_t first, int64_t count);
 int32_t platform_sockets_accept(int32_t s, bool *would_block);
@@ -2340,8 +2435,10 @@ void free_clipboard_data(void *data);
 int32_t from_sdl_id(SDL_WindowID id);
 int32_t platform_windows_handle_count(void);
 bool is_hidden(int32_t win);
+bool is_live(int32_t win);
 int32_t platform_windows_open(int32_t w, int32_t h, char *title, int32_t flags);
 bool pixel_size(int32_t win, int *w, int *h);
+bool present_rgba(int32_t win, int32_t w, int32_t h, uint8_t *pixels);
 double refresh_rate(int32_t win);
 SDL_Window *sdl_window(int32_t win);
 bool set_cursor(int32_t kind);

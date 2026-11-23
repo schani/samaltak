@@ -295,6 +295,30 @@ Causes:
 
 Tried, and Samaltak won: large heaps, old→young stores, large objects, weak arrays, tenuring; strings, streams, sorting, deep copies; polymorphic sends to 4–8 classes, non-local returns, unwinding, context walks, reflection, LargeInteger hashing arithmetic.
 
+## GC mutator progress
+
+From the repository root, with a built VM and image:
+
+```sh
+vm/build/samaltak --eden 1 --jit none build/samaltak.image --headless \
+    --eval "$(cat vm/tests/bench/gc-mutator-progress.st)"
+```
+
+After tenuring a 16,384-node ring and warming up, the benchmark runs 10,000
+batches of 256 updates on a 1 MiB eden. Each update replaces a retained record
+and allocates a scratch array that does not escape. The `mutator` line reports
+completed batches, elapsed wall time and max/p99/p99.9 completion gaps (nearest
+rank, in µs). The timed loop takes one monotonic clock reading per batch and
+writes to a preallocated array; stats snapshots bracket the loop and reporting
+follows both measurements.
+
+Gaps include mutator work, any GC, and OS scheduling; they are not GC pause
+measurements. Each line reports separate deltas for scavenge/full GC counts and
+VM GC time counters. The `explicit_full_gc` line times a synchronous full GC
+with the ring still live, outside the batch samples. A run without collections
+in the batch window is invalid. For comparisons, use the same image, flags
+and host, and repeat runs. This is observational, not a CI timing threshold.
+
 ## Extremem
 
 [Extremem](https://github.com/corretto/heapothesys/tree/master/Extremem) (Amazon, Apache-2.0, `extremem/NOTICE`) is a GC workload modelled on an in-memory store. Simulated customers search 20 000 products by keyword, ponder a randomly written review of each match for 200 s, then buy (40 %), save for later (40 %, kept 10 minutes) or abandon. Server threads transact the sales, expire the saved products and every minute or so replace customers and products, which mutates the old generation. With its defaults, the 1440 customers' pending reviews are the bulk of a live set of ~110 MB (Java), refreshed at ~0.5–1 GB/s of allocation.

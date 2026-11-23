@@ -1,6 +1,6 @@
 VMCoreModule subclass: #Interpreter
-	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
-	classVariableNames: 'CACHE_SIZE CSTACK_SLOTS ICACHE_SIZE MAX_FRAMES'
+	instanceVariableNames: 'sliceTest activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4CacheTags c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
+	classVariableNames: 'C4_FRAME_ROOTS CACHE_SIZE CSTACK_SLOTS ICACHE_SIZE MAX_FRAMES'
 	package: 'VM-Core'!
 
 Interpreter class instanceVariableNames: 'handlers'!
@@ -13,7 +13,7 @@ interpret is one C function: the bytecode handlers (<bytecode:>) and the labels 
 
 !Interpreter class methodsFor: 'declaring'!
 declarations
-	^#((activeCtx oop) (tmpRoots 'oop[4]')
+	^#((sliceTest OptSliceTest) (activeCtx oop) (tmpRoots 'oop[4]')
 		(primStatus int32_t) (primErrorCode int32_t) (primNargs int32_t) (primBase 'oop *') (primBaseIndex int64_t)
 		(primResult oop) (resendSelector oop) (resendArgc int32_t)
 		(cstack 'oop[CSTACK_SLOTS]') (frames 'Frame[MAX_FRAMES]') (nframes int32_t) (cstackUsed size_t)
@@ -21,6 +21,10 @@ declarations
 		(stackLimit int64_t 1000000) (stackCheckAt uint64_t) (stackCheckDue bool) (stackCheckHash uint32_t) (safepointAtEntry bool)
 		(statMaterialized uint64_t) (statFlushes uint64_t) (frameEpoch uint64_t)
 		(cache 'CacheEntry[CACHE_SIZE]') (icache 'CacheEntry[ICACHE_SIZE]')
+		(c4Entry 'CacheEntry[1]') (c4CacheTags 'uint64_t[CACHE_SIZE]') (c4Countdown int32_t)
+		(c4FrameNext size_t) (c4FrameLimit size_t) (c4StackNext size_t) (c4StackLimit size_t) (c4CodeNext int64_t) (c4CodeLimit int64_t)
+		(c4SavedFrames 'oop[C4_FRAME_ROOTS]') (c4SavedStack 'oop[CSTACK_SLOTS]')
+		(c4SavedFrameBits 'bool[MAX_FRAMES]') (c4SavedStackBits 'bool[CSTACK_SLOTS]')
 		(specialArgc 'int32_t[32]')
 		(ip 'uint8_t *') (sp 'oop *') (fp 'oop *') (lits 'oop *') (fr 'Frame *') (sel oop) (cls oop) (argc int32_t) (result oop) (epoch uint64_t)
 		(newMethod oop) (newBcs 'uint8_t *') (newLits 'oop *') (newTemps int32_t) (newFsize int32_t) (newEcode int32_t) (newFp 'oop *') (newCode uint64_t))
@@ -34,6 +38,7 @@ typedefs
 initialize
 	CSTACK_SLOTS := 64 * 1024.
 	MAX_FRAMES := CSTACK_SLOTS.
+	C4_FRAME_ROOTS := MAX_FRAMES * 3.
 	CACHE_SIZE := 4096.
 	ICACHE_SIZE := 4096
 !
@@ -132,6 +137,178 @@ safepointAtEntry: aBoolean
 	safepointAtEntry := aBoolean
 ! !
 
+!Interpreter methodsFor: 'C4 roots'!
+c4Publishing
+	"Native frame and stack stores do not preserve undiscovered snapshot roots."
+	^c4FrameNext < c4FrameLimit or: [c4StackNext < c4StackLimit or: [c4CodeNext < c4CodeLimit]]
+!
+c4CanonicalCheckpoint
+	"No borrowed movable address or unreported native root may cross this call."
+	vmMain c4Moving ifTrue: [
+		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 relocation checkpoint'].
+		c4 movePoll].
+	self c4Poll
+!
+c4CheckpointAt: pcPointer stack: stackTop base: stackBase frame: frame
+	<function>
+	<var: #pcPointer type: 'uint8_t *'>
+	<var: #stackTop type: 'oop *'>
+	<var: #stackBase type: 'oop *'>
+	<var: #frame type: 'Frame *'>
+	frame isNull
+		ifTrue: [self saveCtxAt: pcPointer stack: stackTop base: stackBase]
+		ifFalse: [self saveFrame: frame at: pcPointer stack: stackTop base: stackBase].
+	self c4CanonicalCheckpoint
+!
+c4EnumRequest: cls excluding: sem and: carrier
+	"The mapping is reused across requests, including tier switches."
+	^c4 enumRequest: cls maxRoots: C4_FRAME_ROOTS + CSTACK_SLOTS + jit c4MaxCodeRoots + 40 + scheduler ledgerCapacity
+		excluding: sem and: carrier
+!
+c4Poll
+	"Only between bytecodes, after externalize. Native calls that borrow oops or
+	push C-local roots finish before this point. A pressure assist never arms."
+	<function>
+	| budget f i k w |
+	c4 finishPoll.
+	scheduler c4CollectWeakClears.
+	scheduler c4EnumPoll.
+	jit c4PrepareOutsideNative.
+	budget := 64.
+	self c4Publishing ifFalse: [
+		c4 shouldCollect ifFalse: [^self].
+		(memory rootCount ~= 0) ifTrue: [self fatal: 'native roots escaped to a C4 dispatch poll'].
+		(nframes < 0 or: [nframes > MAX_FRAMES or: [cstackUsed > CSTACK_SLOTS]])
+			ifTrue: [self fatal: 'invalid interpreter root extent'].
+		c4 beginCycle ifFalse: [^self].
+		c4FrameNext := 0.
+		c4FrameLimit := nframes asUInt64.
+		c4StackNext := 0.
+		c4StackLimit := cstackUsed.
+		"Publish the raw slots, including saved SATB roots. A raw alias
+		still resident in a slot needs its own cell to survive."
+		"Both cuts freeze the dense code slots until sealing. The
+		collector routes each cut to its own trace."
+		c4CodeNext := 0.
+		c4CodeLimit := jit c4CodeRootCount.
+		c4 root: memory specialsOop.
+		c4 root: activeCtx.
+		c4 root: scheduler lastPreempted.
+		c4 root: scheduler allocSampleClass.
+		c4 root: primResult.
+		c4 root: resendSelector.
+		0 to: 3 do: [:j | c4 root: (tmpRoots at: j)].
+		"The special objects table is mutable; cached values remain VM roots."
+		c4 root: memory nilOop.
+		c4 root: memory trueOop.
+		c4 root: memory falseOop.
+		c4 root: memory clsSmallint.
+		c4 root: memory clsChar.
+		c4 root: memory clsSmallfloat.
+		c4 root: memory clsBoxedfloat.
+		c4 root: memory clsArray.
+		c4 root: memory clsContext.
+		c4 root: memory clsBlock.
+		c4 root: memory clsPoint.
+		c4 root: memory clsBytestring.
+		c4 root: memory clsBytearray.
+		c4 root: memory clsMessage.
+		scheduler c4EnumRoots.
+		"The ledger is mutable but bounded; capture its raw oops at the cut."
+		0 to: scheduler ledgerN - 1 do: [:j | c4 root: (scheduler ledgerProcs at: j)].
+		budget := budget - 26 - scheduler ledgerN].
+	[c4FrameNext < c4FrameLimit and: [budget >= 3]] whileTrue: [
+		i := c4FrameNext.
+		(c4SavedFrameBits at: i)
+			ifTrue: [
+				k := i * 3.
+				c4 root: (c4SavedFrames at: k).
+				c4 root: (c4SavedFrames at: k + 1).
+				c4 root: (c4SavedFrames at: k + 2).
+				c4SavedFrameBits at: i put: false]
+			ifFalse: [
+				f := frames + i.
+				c4 root: f method.
+				c4 root: f closure.
+				c4 root: f ctx].
+		c4FrameNext := i + 1.
+		budget := budget - 3].
+	[c4StackNext < c4StackLimit and: [budget > 0]] whileTrue: [
+		w := c4StackNext.
+		(c4SavedStackBits at: w)
+			ifTrue: [
+				c4 root: (c4SavedStack at: w).
+				c4SavedStackBits at: w put: false]
+			ifFalse: [c4 root: (cstack at: w)].
+		c4StackNext := w + 1.
+		budget := budget - 1].
+	[c4CodeNext < c4CodeLimit and: [budget > 0]] whileTrue: [
+		c4 root: (jit c4CodeRootAt: c4CodeNext).
+		c4CodeNext := c4CodeNext + 1.
+		budget := budget - 1].
+	self c4Publishing ifFalse: [c4 endRoots]
+!
+preserveFrameRoots: f
+	"Save the three arm-time values once, before overwriting an undiscovered
+	frame. Popping alone leaves its physical storage intact."
+	| i k |
+	(self unlikely: c4FrameNext < c4FrameLimit) ifTrue: [
+		i := (f - frames) asUInt64.
+		(i >= c4FrameNext and: [i < c4FrameLimit and: [(c4SavedFrameBits at: i) not]]) ifTrue: [
+			k := i * 3.
+			c4SavedFrames at: k put: f method.
+			c4SavedFrames at: k + 1 put: f closure.
+			c4SavedFrames at: k + 2 put: f ctx.
+			c4SavedFrameBits at: i put: true]]
+!
+preserveStackRoot: p
+	"Physical C-stack oop slot. In C4 no frame has untagged slots."
+	| i |
+	i := (p - cstack) asUInt64.
+	(i >= c4StackNext and: [i < c4StackLimit and: [(c4SavedStackBits at: i) not]]) ifTrue: [
+		c4SavedStack at: i put: p value.
+		c4SavedStackBits at: i put: true]
+!
+cstackSlot: p put: v
+	<var: #p type: 'oop *'>
+	<var: #v type: #oop>
+	(self unlikely: c4StackNext < c4StackLimit) ifTrue: [self preserveStackRoot: p].
+	p value: (self canonicalOop: v)
+!
+c4StackSlot: p put: v
+	<function>
+	<var: #p type: 'oop *'>
+	<var: #v type: #oop>
+	| i |
+	i := (self cCoerce: p to: 'uintptr_t') - (self cCoerce: cstack to: 'uintptr_t').
+	i < (CSTACK_SLOTS * 8) ifTrue: [^self cstackSlot: p put: v].
+	c4 storeRef: activeCtx at: (p - (self slotsOf: activeCtx)) asUInt32 put: v
+!
+stackSlot: p put: v
+	"Store to a slot of the active stack, which may be a heap Context."
+	<var: #p type: 'oop *'>
+	<var: #v type: #oop>
+	(self unlikely: vmMain c4Enabled)
+		ifTrue: [self c4StackSlot: p put: v]
+		ifFalse: [p value: v]
+!
+activeSlot: k put: v
+	<function>
+	<var: #k type: 'int64_t'>
+	<var: #v type: #oop>
+	self stackSlot: self activeSlots + k put: v
+!
+heapSlot: o at: k put: v
+	"Internal activation store. Stackp growth exposes slots initialized by
+	the interpreter. The legacy paths manage the remembered set separately."
+	<var: #o type: #oop>
+	<var: #k type: 'int64_t'>
+	<var: #v type: #oop>
+	(self unlikely: vmMain c4Enabled)
+		ifTrue: [c4 storeRef: o at: k asUInt32 put: v]
+		ifFalse: [(self slotsOf: o) at: k put: v]
+! !
+
 !Interpreter methodsFor: 'frames'!
 roots: fn
 	"The frames' methods, closures and Contexts and the live C stack slots are GC roots (not optimized frames' raw slots: doubles' IEEE bits)."
@@ -161,8 +338,34 @@ roots: fn
 			w := w + 1].
 		w := w max: hi]
 !
+methodStorage: m at: i
+	"C4 borrows pinned storage across dispatch; literal entries are logical
+	oops, including movable Associations. The rooted method's initialized
+	storage cannot be replaced. No weak or Context view."
+	| o f |
+	vmMain c4Enabled ifTrue: [
+		((self isPtr: m) and: [m ~= 0 and: [(c4 movable: m) not and: [(self rawClass: m) = memory clsCompiledmethod and: [
+			(self formatOf: m) = F_FIXED and: [(self numSlots: m) > i]]]]])
+			ifFalse: [self fatal: 'bad C4 CompiledMethod layout']].
+	o := self loadRef: m at: i.
+	vmMain c4Enabled ifTrue: [
+		((self isPtr: o) and: [o ~= 0 and: [o ~= memory nilOop and: [(c4 movable: o) not]]])
+			ifFalse: [self fatal: 'invalid C4 method storage'].
+		f := self formatOf: o.
+		(i = CM_LITERALS
+			ifTrue: [f = F_VAR or: [f = F_FIXED]]
+			ifFalse: [f >= F_BYTES]) ifFalse: [self fatal: 'bad C4 method storage layout'].
+		"Only an exact ByteString could become; a rooted oop alone does
+		not protect the physical bytecodes borrowed by the interpreter."
+		(i = CM_BYTECODES and: [(self rawClass: o) = memory clsBytestring])
+			ifTrue: [c4 forbidBecome: o]].
+	^o
+!
+methodLits: m
+	^self slotsOf: (self methodStorage: m at: CM_LITERALS)
+!
 methodBcs: m
-	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
+	^self bytesOf: (self methodStorage: m at: CM_BYTECODES)
 !
 beforeGC
 	"Frames hold raw pointers into their methods' bytecodes and literals: offsets while objects move."
@@ -191,7 +394,7 @@ afterGC
 	0 to: nframes - 1 do: [:i |
 		f := frames + i.
 		f ip: (self methodBcs: f method) + f pc.
-		f lits: (self slotsOf: (self loadRef: f method at: CM_LITERALS))]
+		f lits: (self methodLits: f method)]
 !
 frameSize: f
 	"frameSize of a frame's method or block (at least its args and temps)."
@@ -245,7 +448,7 @@ framesValid: valid
 materializeAll
 	"Flush every frame into a Context (bottom up, so senders exist first; a married frame fills its own); afterwards activeCtx is the top one. The caller has externalized the top frame."
 	<function>
-	| n ctx f s byHeap |
+	| n ctx f byHeap |
 	nframes ~= 0 ifTrue: [
 		statFlushes := statFlushes + 1.
 		frameEpoch := frameEpoch + 1].
@@ -260,15 +463,13 @@ materializeAll
 					n := (self frameSize: f) + CTX_SLACK.
 					n < f sp ifTrue: [n := f sp].
 					ctx := memory allocContext: n asUInt32].
-				s := self slotsOf: ctx.
-				s at: CTX_SENDER put: activeCtx.
-				s at: CTX_PC put: (self intOop: f ip - (self methodBcs: f method)).
-				s at: CTX_STACKP put: (self intOop: f sp).
-				s at: CTX_METHOD put: f method.
-				s at: CTX_CLOSURE put: f closure.
-				s at: CTX_RECEIVER put: (f fp at: -1).
-				libc memcpy: s + CTX_FIXED from: f fp size: f sp asUInt64 * 8.
-				gc rememberIfOld: ctx.
+				self heapSlot: ctx at: CTX_SENDER put: activeCtx.
+				self heapSlot: ctx at: CTX_PC put: (self intOop: f ip - (self methodBcs: f method)).
+				self heapSlot: ctx at: CTX_STACKP put: (self intOop: f sp).
+				self heapSlot: ctx at: CTX_METHOD put: f method.
+				self heapSlot: ctx at: CTX_CLOSURE put: f closure.
+				self heapSlot: ctx at: CTX_RECEIVER put: (f fp at: -1).
+				memory copyRefs: ctx at: CTX_FIXED fromBuffer: f fp count: f sp asUInt64.
 				activeCtx := ctx]].
 	nframes := 0.
 	cstackUsed := 0.
@@ -284,18 +485,18 @@ materializeAll
 marry: f
 	"Frame f's Context, created if it has none: method, closure and receiver set, sender f's index (the mark of a married Context), stackp 0; pc, temps and stack stay in the frame. The caller has externalized."
 	<function>
-	| n ctx s |
+	| n ctx |
 	f ctx ~= memory nilOop ifTrue: [^f ctx].
 	n := (self frameSize: f) + CTX_SLACK.
 	n < f sp ifTrue: [n := f sp].
 	ctx := memory allocContext: n asUInt32.
-	s := self slotsOf: ctx.
-	s at: CTX_SENDER put: (self intOop: f - frames).
-	s at: CTX_STACKP put: (self intOop: 0).
-	s at: CTX_METHOD put: f method.
-	s at: CTX_CLOSURE put: f closure.
-	s at: CTX_RECEIVER put: (f fp at: -1).
+	self heapSlot: ctx at: CTX_SENDER put: (self intOop: f - frames).
+	self heapSlot: ctx at: CTX_STACKP put: (self intOop: 0).
+	self heapSlot: ctx at: CTX_METHOD put: f method.
+	self heapSlot: ctx at: CTX_CLOSURE put: f closure.
+	self heapSlot: ctx at: CTX_RECEIVER put: (f fp at: -1).
 	gc rememberIfOld: ctx.
+	self preserveFrameRoots: f.
 	f ctx: ctx.
 	^ctx
 !
@@ -312,18 +513,17 @@ flushIfMarried: o
 widow: f
 	"Married frame f returns: its Context becomes a dead Context with the frame's slots (blocks that outlive it use them), as many as it holds: an optimized frame (a loop's unit entered married) may have more."
 	<function>
-	| ctx s n |
+	| ctx n |
 	ctx := f ctx.
-	s := self slotsOf: ctx.
 	n := (self numSlots: ctx) asInt64 - CTX_FIXED.
 	f sp < n ifTrue: [n := f sp].
 	"not an optimized frame's raw slots (doubles' IEEE bits)"
 	((jit isOptFrame: f) and: [(jit rawBaseOf: f) < (jit rawTopOf: f)]) ifTrue: [n := n min: (jit rawBaseOf: f)].
-	libc memcpy: s + CTX_FIXED from: f fp size: n asUInt64 * 8.
-	s at: CTX_SENDER put: memory nilOop.
-	s at: CTX_PC put: memory nilOop.
-	s at: CTX_STACKP put: (self intOop: n).
-	gc rememberIfOld: ctx.
+	self heapSlot: ctx at: CTX_SENDER put: memory nilOop.
+	self heapSlot: ctx at: CTX_PC put: memory nilOop.
+	self heapSlot: ctx at: CTX_STACKP put: (self intOop: n).
+	memory copyRefs: ctx at: CTX_FIXED fromBuffer: f fp count: n asUInt64.
+	self preserveFrameRoots: f.
 	f ctx: memory nilOop
 !
 widowFrom: k to: n
@@ -336,7 +536,7 @@ contextField: i of: c
 	"Field i (sender, pc or stackp) of Context c as Smalltalk sees it: a married one answers from its frame, its sender being the caller frame's Context, married now (activeCtx for frame 0). 0 if that would look into an optimized frame (the caller's; c's own for pc and stackp): the frames are flushed instead, and c holds the answer. The caller has externalized."
 	<function>
 	| f |
-	(self isMarried: c) ifFalse: [^(self slotsOf: c) at: i].
+	(self isMarried: c) ifFalse: [^self loadRef: c at: i].
 	f := frames + (self intVal: (self loadRef: c at: CTX_SENDER)).
 	i = CTX_SENDER ifTrue: [
 		f = frames ifTrue: [^activeCtx].
@@ -369,7 +569,7 @@ context: c slot: k put: v
 	((jit isOptFrame: f) or: [k >= f sp asInt64]) ifTrue: [
 		self materializeAll.
 		^false].
-	f fp at: k put: v.
+	self cstackSlot: f fp + k put: v.
 	^true
 !
 senderOf: c marker: p upTo: stop
@@ -419,16 +619,42 @@ terminate: c to: target
 	j + 1 < t ifTrue: [self moveTop: t to: j + 1].
 	^true
 !
+moveStackDown: dst from: src count: count
+	"dst < src in cstack. In the unpublished part of the root cut, save the
+	raw old word at each existing copy. Copy low to high for overlap."
+	<function>
+	<var: #dst type: 'oop *'>
+	<var: #src type: 'oop *'>
+	<var: #count type: 'size_t'>
+	| start lo hi prefix suffix |
+	(self unlikely: c4StackNext < c4StackLimit) ifTrue: [
+		start := (dst - cstack) asUInt64.
+		lo := start max: c4StackNext.
+		hi := start + count min: c4StackLimit.
+		lo < hi ifTrue: [
+			prefix := lo - start.
+			prefix > 0 ifTrue: [libc memmove: dst from: src size: prefix * 8].
+			lo asInt64 to: hi asInt64 - 1 do: [:i |
+				(c4SavedStackBits at: i) ifFalse: [
+					c4SavedStack at: i put: (cstack at: i).
+					c4SavedStackBits at: i put: true].
+				cstack at: i put: (src at: i - start)].
+			suffix := hi - start.
+			suffix < count ifTrue: [libc memmove: dst + suffix from: src + suffix size: (count - suffix) * 8].
+			^self]].
+	libc memmove: dst from: src size: count * 8
+!
 moveTop: t to: k
 	"Top frame t becomes frame k (k < t; the frames between are dropped): its receiver and slots move to where frame k's are, its Context follows."
 	| f g nfp |
 	f := frames + t.
 	g := frames + k.
 	nfp := g fp.
-	libc memmove: nfp - 1 from: f fp - 1 size: (f sp asUInt64 + 1) * 8.
+	self moveStackDown: nfp - 1 from: f fp - 1 count: f sp asUInt64 + 1.
+	self preserveFrameRoots: g.
 	g copyStructFrom: f.
 	g fp: nfp.
-	g ctx ~= memory nilOop ifTrue: [(self slotsOf: g ctx) at: CTX_SENDER put: (self intOop: k)].
+	g ctx ~= memory nilOop ifTrue: [self heapSlot: g ctx at: CTX_SENDER put: (self intOop: k)].
 	nframes := (k + 1) asInt32.
 	cstackUsed := (nfp + g sp - cstack) asUInt64.
 	self refreshPrimBase.
@@ -462,12 +688,14 @@ icacheIndexOf: site
 !
 flushMethodCache
 	<function>
+	vmMain c4Enabled ifTrue: [^c4 invalidateCache].
 	libc memset: cache value: 0 size: (self sizeof: 'CacheEntry') * CACHE_SIZE.
 	libc memset: icache value: 0 size: (self sizeof: 'CacheEntry') * ICACHE_SIZE
 !
 flushMethodCacheSelector: aSelector
 	<function>
 	| e |
+	vmMain c4Enabled ifTrue: [^c4 invalidateCache].
 	0 to: CACHE_SIZE - 1 do: [:i |
 		e := cache + i.
 		e sel = aSelector ifTrue: [
@@ -475,10 +703,39 @@ flushMethodCacheSelector: aSelector
 			e sel: 0]].
 	libc memset: icache value: 0 size: (self sizeof: 'CacheEntry') * ICACHE_SIZE
 !
+c4EntryFor: aClass selector: aSelector
+	<function>
+	| e index generation hit m |
+	index := self cacheIndexOf: aClass selector: aSelector.
+	generation := c4 cacheGeneration.
+	e := cache + index.
+	hit := (c4CacheTags at: index) = generation and: [e cls = aClass and: [e sel = aSelector]].
+	hit
+		ifTrue: [
+			m := e method.
+			c4 useCachedMethod: m]
+		ifFalse: [
+			m := self lookupMethod: aClass selector: aSelector.
+			m = 0 ifTrue: [^self null]].
+	"Native activation gets a fresh transient entry: do not retain code
+	headers or change which methods get quick-dispatched or compiled."
+	jit enabled ifTrue: [
+		hit ifFalse: [
+			e cls: aClass.
+			e sel: aSelector.
+			e method: m.
+			c4CacheTags at: index put: generation].
+		^self fillEntry: c4Entry + 0 method: m class: aClass selector: aSelector].
+	hit ifTrue: [^e].
+	self fillEntry: e method: m class: aClass selector: aSelector.
+	c4CacheTags at: index put: generation.
+	^e
+!
 lookupMethod: aClass selector: aSelector
 	<function>
-	| h c md keys vals cap mask i k n |
-	h := self hashOf: aSelector.
+	| h c md keys vals cap mask i k n selector |
+	selector := self canonicalOop: aSelector.
+	h := self hashOf: selector.
 	c := aClass.
 	[(self isPtr: c) and: [c ~= memory nilOop]] whileTrue: [
 		md := self loadRef: c at: BEH_METHODDICT.
@@ -492,7 +749,7 @@ lookupMethod: aClass selector: aSelector
 				n := 0.
 				[n < cap] whileTrue: [
 					k := self loadRef: keys at: i.
-					k = aSelector ifTrue: [^self loadRef: vals at: i].
+					k = selector ifTrue: [^self loadRef: vals at: i].
 					k = memory nilOop
 						ifTrue: [n := cap]
 						ifFalse: [
@@ -508,10 +765,16 @@ methodPrim: m
 !
 fillCache: aClass selector: aSelector
 	<function>
-	| m e p pf bc na nt b n ok qc qv litsOop size |
+	| m |
 	m := self lookupMethod: aClass selector: aSelector.
 	m = 0 ifTrue: [^self null].
-	e := cache + (self cacheIndexOf: aClass selector: aSelector).
+	^self fillEntry: cache + (self cacheIndexOf: aClass selector: aSelector)
+		method: m class: aClass selector: aSelector
+!
+fillEntry: e method: m class: aClass selector: aSelector
+	<function>
+	<var: #e type: 'CacheEntry *'>
+	| p pf bc na nt b n ok qc qv litsOop size |
 	e cls: aClass.
 	e sel: aSelector.
 	e method: m.
@@ -519,14 +782,23 @@ fillCache: aClass selector: aSelector
 	pf := (p ~= 0 and: [p ~= PRIM_ENSURE_MARKER and: [p ~= PRIM_ONDO_MARKER]])
 		ifTrue: [primitives lookup: p]
 		ifFalse: [self null].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self methodStorage: m at: CM_BYTECODES.
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
 	e bcs: (self bytesOf: bc).
-	e lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	e lits: (self methodLits: m).
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
 	e fsize < ((self intVal: na) + e ntemps) ifTrue: [e fsize: ((self intVal: na) + e ntemps) asInt32].
+	"Do not cache decisions based on writable bytecodes or values from
+	writable literals. The C4 entry only borrows the pinned storage."
+	(self unlikely: (vmMain c4Enabled and: [jit enabled not])) ifTrue: [
+		e quick: -1.
+		e nset: 0.
+		e prim: pf.
+		e kind: (pf isNull ifTrue: [0] ifFalse: [
+			(primitives isLeaf: p) ifTrue: [K_PRIM bitOr: K_LEAF] ifFalse: [K_PRIM]]) asUInt8.
+		^e].
 	"Quick methods (as in Smalltalk-80 and Squeak): a unary method whose bytecodes are exactly push inst var i, return top answers the receiver's slot i without activating a frame."
 	e quick: -1.
 	e nset: 0.
@@ -600,7 +872,7 @@ selectorArgc: aSelector
 interruptSafepoint
 	"At an interrupt check (registers externalized), before handleInterrupts can switch processes: if a depth check of the active process is due and it is too deep, its frames are flushed and the top Context sends stackOverflow: depth, as if its next instruction did (an activation above it; its own stack unchanged). The pending interrupts are then handled at the next safepoint."
 	<function>
-	| depth sel m ntemps fsize ctx s |
+	| depth sel m ntemps fsize ctx |
 	depth := (stackCheckDue and: [(self hashOf: scheduler activeProcess) = stackCheckHash]) ifTrue: [self stackOverflowDepth] ifFalse: [0].
 	depth = 0 ifTrue: [^scheduler handleInterrupts].
 	self materializeAll.
@@ -615,13 +887,12 @@ interruptSafepoint
 	fsize < (1 + ntemps) ifTrue: [fsize := 1 + ntemps].
 	tmpRoots at: 0 put: m.
 	ctx := memory allocContext: (fsize + CTX_SLACK) asUInt32.
-	s := self slotsOf: ctx.
-	s at: CTX_SENDER put: activeCtx.
-	s at: CTX_RECEIVER put: activeCtx.
-	s at: CTX_PC put: (self intOop: 0).
-	s at: CTX_STACKP put: (self intOop: 1 + ntemps).
-	s at: CTX_METHOD put: (tmpRoots at: 0).
-	s at: CTX_FIXED put: (self intOop: depth).
+	self heapSlot: ctx at: CTX_SENDER put: activeCtx.
+	self heapSlot: ctx at: CTX_RECEIVER put: activeCtx.
+	self heapSlot: ctx at: CTX_PC put: (self intOop: 0).
+	self heapSlot: ctx at: CTX_STACKP put: (self intOop: 1 + ntemps).
+	self heapSlot: ctx at: CTX_METHOD put: (tmpRoots at: 0).
+	self heapSlot: ctx at: CTX_FIXED put: (self intOop: depth).
 	tmpRoots at: 0 put: memory nilOop.
 	activeCtx := ctx
 !
@@ -640,7 +911,7 @@ ctxStackp: ctx
 !
 ctx: ctx setStackp: n
 	<function>
-	(self slotsOf: ctx) at: CTX_STACKP put: (self intOop: n)
+	self heapSlot: ctx at: CTX_STACKP put: (self intOop: n)
 !
 ctxHome: aContext
 	<function>
@@ -683,10 +954,10 @@ primArgc
 	^primNargs
 !
 primReceiver
-	^primBase at: 0
+	^self canonicalOop: (primBase at: 0)
 !
 primArg: i
-	^primBase at: 1 + i
+	^self canonicalOop: (primBase at: 1 + i)
 !
 primStackBase
 	"The receiver slot in the active activation."
@@ -722,7 +993,7 @@ primFailed
 primCommit: aResult
 	"Pop receiver and arguments, push aResult now, mark switched."
 	<function>
-	primBase at: 0 put: aResult.
+	self stackSlot: primBase put: aResult.
 	self activeSetStackp: self activeStackp - primNargs.
 	primNargs := 0.
 	primStatus := PS_SWITCHED
@@ -764,17 +1035,18 @@ blockActivate: n fromArray: fromArray
 				self materializeAll.
 				^self blockActivate: (fromArray ifTrue: [0] ifFalse: [count]) fromArray: fromArray].
 			(frames + (nframes - 1)) sp: base asInt32.
-			b at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
-			fromArray ifTrue: [0 to: count - 1 do: [:i | nfp at: i put: (self loadRef: arr at: i)]]]
+			self cstackSlot: b put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			fromArray ifTrue: [0 to: count - 1 do: [:i | self cstackSlot: nfp + i put: (self loadRef: arr at: i)]]]
 		ifFalse: [
-			cstack at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
-			0 to: count - 1 do: [:i | cstack at: 1 + i put: (fromArray ifTrue: [self loadRef: arr at: i] ifFalse: [b at: 1 + i])].
+			self cstackSlot: cstack put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			0 to: count - 1 do: [:i | self cstackSlot: cstack + 1 + i put: (fromArray ifTrue: [self loadRef: arr at: i] ifFalse: [b at: 1 + i])].
 			self ctx: activeCtx setStackp: base.
 			nfp := cstack + 1].
 	outer := self loadRef: cl at: BC_OUTER.
 	m := self loadRef: outer at: CTX_METHOD.
 	f := frames + nframes.
 	nframes := nframes + 1.
+	self preserveFrameRoots: f.
 	f method: m.
 	f closure: cl.
 	f ctx: memory nilOop.
@@ -782,9 +1054,9 @@ blockActivate: n fromArray: fromArray
 	f fp: nfp.
 	f pc: (self intVal: (self loadRef: cl at: BC_STARTPC)) asInt32.
 	f ip: (self methodBcs: m) + (self intVal: (self loadRef: cl at: BC_STARTPC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self methodLits: m).
 	f sp: (count + ntemps) asInt32.
-	count to: count + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
+	count to: count + ntemps - 1 do: [:i | self cstackSlot: nfp + i put: memory nilOop].
 	cstackUsed := (nfp + count + ntemps - cstack) asUInt64
 !
 activateBlock: n
@@ -858,7 +1130,7 @@ pushFrame: m argc: n code: c ecode: ecode
 	g code: c.
 	g fp: nfp.
 	g ip: (self methodBcs: m).
-	g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	g lits: (self methodLits: m).
 	g sp: (n + ntemps) asInt32.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	ecode >= 0 ifTrue: [nfp at: n put: (self intOop: ecode)].
@@ -896,7 +1168,7 @@ thawFor: code
 	c := activeCtx.
 	s := self slotsOf: c.
 	sender := s at: CTX_SENDER.
-	(nframes = 0 and: [(self isPtr: sender) and: [sender ~= memory nilOop and: [(self rawClass: sender) = memory clsContext and: [self isInt: ((self slotsOf: sender) at: CTX_PC)]]]]) ifFalse: [^self null].
+	(nframes = 0 and: [(self isPtr: sender) and: [sender ~= memory nilOop and: [(self rawClass: sender) = memory clsContext and: [self isInt: (self loadRef: sender at: CTX_PC)]]]]) ifFalse: [^self null].
 	n := self intVal: (s at: CTX_STACKP).
 	m := s at: CTX_METHOD.
 	f := frames + 0.
@@ -908,10 +1180,13 @@ thawFor: code
 	f code: code.
 	f fp: cstack + 1.
 	f ip: (self methodBcs: m) + (self intVal: (s at: CTX_PC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self methodLits: m).
 	f sp: n asInt32.
-	s at: CTX_SENDER put: (self intOop: 0).
-	s at: CTX_STACKP put: (self intOop: 0).
+	"Keep C4's shadow of the marriage and the retired heap prefix in
+	step with the real Context. Its closure can read these through a
+	checked load after destructive forwarding."
+	self heapSlot: c at: CTX_SENDER put: (self intOop: 0).
+	self heapSlot: c at: CTX_STACKP put: (self intOop: 0).
 	activeCtx := sender.
 	nframes := 1.
 	cstackUsed := (n + 1) asUInt64.
@@ -937,6 +1212,7 @@ entryFor: aClass selector: aSelector
 	"The global method cache's entry for aClass and aSelector, filled if need be; null if aClass does not understand it."
 	<function>
 	| g |
+	vmMain c4Enabled ifTrue: [^self c4EntryFor: aClass selector: aSelector].
 	g := cache + (self cacheIndexOf: aClass selector: aSelector).
 	(g cls = aClass and: [g sel = aSelector]) ifTrue: [^g].
 	^self fillCache: aClass selector: aSelector
@@ -1073,9 +1349,11 @@ readInt16: p
 !Interpreter methodsFor: 'interpreter registers'!
 loadCtx
 	| s m |
+	(vmMain c4Enabled and: [(self isPtr: activeCtx) not or: [activeCtx = 0 or: [(self rawClass: activeCtx) ~= memory clsContext]]])
+		ifTrue: [self fatal: 'bad C4 active Context'].
 	s := self slotsOf: activeCtx.
 	m := s at: CTX_METHOD.
-	lits := self slotsOf: ((self slotsOf: m) at: CM_LITERALS).
+	lits := self methodLits: m.
 	fp := s + CTX_FIXED.
 	sp := fp + (self intVal: (s at: CTX_STACKP)) - 1.
 	(self isInt: (s at: CTX_PC)) ifFalse: [self fatal: 'resuming a dead context'].
@@ -1083,10 +1361,13 @@ loadCtx
 	fr := self null
 !
 saveCtx
+	self saveCtxAt: ip stack: sp base: fp
+!
+saveCtxAt: pcPointer stack: stackTop base: stackBase
 	| s |
 	s := self slotsOf: activeCtx.
-	s at: CTX_PC put: (self intOop: ip - (self methodBcs: (s at: CTX_METHOD))).
-	s at: CTX_STACKP put: (self intOop: sp - fp + 1)
+	self heapSlot: activeCtx at: CTX_PC put: (self intOop: pcPointer - (self methodBcs: (s at: CTX_METHOD))).
+	self ctx: activeCtx setStackp: stackTop - stackBase + 1
 !
 loadFrame
 	fr := frames + (nframes - 1).
@@ -1096,10 +1377,13 @@ loadFrame
 	ip := fr ip
 !
 saveFrame
-	nframes := (fr - frames) asInt32 + 1.
-	fr ip: ip.
-	fr sp: (sp - fp + 1) asInt32.
-	cstackUsed := (sp + 1 - cstack) asUInt64
+	self saveFrame: fr at: ip stack: sp base: fp
+!
+saveFrame: frame at: pcPointer stack: stackTop base: stackBase
+	nframes := (frame - frames) asInt32 + 1.
+	frame ip: pcPointer.
+	frame sp: (stackTop - stackBase + 1) asInt32.
+	cstackUsed := (stackTop + 1 - cstack) asUInt64
 !
 externalize
 	fr notNull ifTrue: [self saveFrame] ifFalse: [self saveCtx]
@@ -1114,9 +1398,15 @@ toContext
 		self materializeAll.
 		self loadCtx]
 !
+copyFromStack: src to: dst count: n
+	"The interpreter's stack can be a C frame or the active heap Context."
+	fr isNull
+		ifTrue: [memory copyRefs: dst at: 0 from: activeCtx at: (CTX_FIXED + (src - fp)) asUInt64 count: n asUInt64]
+		ifFalse: [memory copyRefs: dst at: 0 fromBuffer: src count: n asUInt64]
+!
 push: v
 	sp := sp + 1.
-	sp value: v
+	self stackSlot: sp put: v
 !
 checkInterrupts
 	(self unlikely: scheduler interruptPendingRelaxed ~= 0) ifTrue: [
@@ -1186,7 +1476,7 @@ pushFused: b
 						ip := ip + o.
 						o < 0 ifTrue: [self jumpedBack]].
 					^self].
-				sp value: (self bool: c).
+				self stackSlot: sp put: (self bool: c).
 				^self]].
 	self push: b
 !
@@ -1196,11 +1486,11 @@ fusedStore: r
 	ip := ip + 1.
 	n := ip value.
 	(n bitAnd: 16rF8) = 16r60 ifTrue: [
-		fp at: (n bitAnd: 7) put: r asUInt64.
+		self stackSlot: fp + (n bitAnd: 7) put: r asUInt64.
 		sp := sp - 1.
 		ip := ip + 1.
 		^self].
-	sp value: r asUInt64
+	self stackSlot: sp put: r asUInt64
 !
 boolResult: c
 	"A comparison followed by a conditional jump branches directly (the Boolean is never pushed)."
@@ -1215,19 +1505,19 @@ boolResult: c
 			o < 0 ifTrue: [self jumpedBack]].
 		^self].
 	sp := sp - 1.
-	sp value: (self bool: c)
+	self stackSlot: sp put: (self bool: c)
 !
 ret1: v
 	"Replace the two operands by v; r := a op b stores into the temp directly."
 	| nx |
 	nx := ip value.
 	(nx bitAnd: 16rF8) = 16r60 ifTrue: [
-		fp at: (nx bitAnd: 7) put: v.
+		self stackSlot: fp + (nx bitAnd: 7) put: v.
 		sp := sp - 2.
 		ip := ip + 1.
 		^self].
 	sp := sp - 1.
-	sp value: v
+	self stackSlot: sp put: v
 ! !
 
 !Interpreter methodsFor: 'interpreter loop'!
@@ -1248,6 +1538,11 @@ dispatchLoop
 	[true] whileTrue: [self dispatch: self nextBytecode]
 !
 nextBytecode
+	(self unlikely: vmMain c4Enabled) ifTrue: [
+		c4Countdown := c4Countdown - 1.
+		(self unlikely: c4Countdown <= 0) ifTrue: [
+			c4Countdown := 64.
+			self c4CheckpointAt: ip stack: sp base: fp frame: fr]].
 	ip := ip + 1.
 	^(ip - 1) value
 !
@@ -1275,7 +1570,7 @@ pushTemp
 pushInstVar
 	<bytecodes: #(16r10 16r1F)>
 	<specialize>
-	self push: ((self slotsOf: (fp at: -1)) at: (self currentBytecode bitAnd: 15))
+	self push: (self loadRef: (fp at: -1) at: (self currentBytecode bitAnd: 15))
 !
 pushLiteral
 	<bytecodes: #(16r20 16r3F)>
@@ -1285,12 +1580,12 @@ pushLiteral
 pushLiteralVariable
 	<bytecodes: #(16r40 16r5F)>
 	<specialize>
-	self push: ((self slotsOf: (lits at: self currentBytecode - 16r40)) at: ASSOC_VALUE)
+	self push: (self loadRef: (lits at: self currentBytecode - 16r40) at: ASSOC_VALUE)
 !
 popStoreTemp
 	<bytecodes: #(16r60 16r67)>
 	<specialize>
-	fp at: (self currentBytecode bitAnd: 7) put: sp value.
+	self stackSlot: fp + (self currentBytecode bitAnd: 7) put: sp value.
 	sp := sp - 1
 !
 pushSelf
@@ -1328,7 +1623,7 @@ pushThisContext
 !
 dup
 	<bytecode: 16r77>
-	sp at: 1 put: sp value.
+	self stackSlot: sp + 1 put: sp value.
 	sp := sp + 1
 !
 pop
@@ -1350,9 +1645,9 @@ pushInstVarX
 		self externalize.
 		v := self contextField: i of: (fp at: -1).
 		self reload.
-		v = 0 ifTrue: [v := (self slotsOf: (fp at: -1)) at: i].
+		v = 0 ifTrue: [v := self loadRef: (fp at: -1) at: i].
 		^self push: v].
-	self push: ((self slotsOf: (fp at: -1)) at: i)
+	self push: (self loadRef: (fp at: -1) at: i)
 !
 pushLiteralX
 	<bytecode: 16r82>
@@ -1361,12 +1656,12 @@ pushLiteralX
 !
 pushLiteralVariableX
 	<bytecode: 16r83>
-	self push: ((self slotsOf: (lits at: ip value)) at: ASSOC_VALUE).
+	self push: (self loadRef: (lits at: ip value) at: ASSOC_VALUE).
 	ip := ip + 1
 !
 storeTempX
 	<bytecode: 16r84>
-	fp at: ip value put: sp value.
+	self stackSlot: fp + ip value put: sp value.
 	ip := ip + 1
 !
 storeInstVarX
@@ -1377,7 +1672,7 @@ storeInstVarX
 	r := fp at: -1.
 	(self isImmutable: r) ifTrue: [
 		v := sp value.
-		sp value: r.
+		self stackSlot: sp put: r.
 		self push: v.
 		self push: (self intOop: i + 1).
 		sel := memory special: SO_SEL_ATTEMPTTOASSIGN.
@@ -1398,7 +1693,7 @@ storeLiteralVariableX
 !
 popStoreTempX
 	<bytecode: 16r87>
-	fp at: ip value put: sp value.
+	self stackSlot: fp + ip value put: sp value.
 	ip := ip + 1.
 	sp := sp - 1
 !
@@ -1424,7 +1719,7 @@ outerTemp
 		op = 16r8A
 			ifTrue: [self push: ((frames + (self intVal: k)) fp at: i)]
 			ifFalse: [
-				(frames + (self intVal: k)) fp at: i put: sp value.
+				self cstackSlot: (frames + (self intVal: k)) fp + i put: sp value.
 				op = 16r8C ifTrue: [sp := sp - 1]].
 		^self].
 	op = 16r8A
@@ -1449,13 +1744,12 @@ makeArray
 	a := memory allocObj: memory clsArray format: F_VAR slots: n.
 	self reload.
 	sp := sp - n.
-	libc memcpy: (self slotsOf: a) from: sp + 1 size: n asUInt64 * 8.
-	gc rememberIfOld: a.
+	self copyFromStack: sp + 1 to: a count: n.
 	self push: a
 !
 closure
 	<bytecode: 16r8F>
-	| na nt fs size bc isize b s |
+	| na nt fs size bc isize b |
 	na := ip at: 0.
 	nt := ip at: 1.
 	fs := ip at: 2.
@@ -1467,12 +1761,11 @@ closure
 	isize := (self intVal: (self loadRef: bc at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK.
 	b := memory allocObj: bc format: F_FIXED slots: (isize < 5 ifTrue: [5] ifFalse: [isize]) asUInt32.
 	self reload.
-	s := self slotsOf: b.
-	s at: BC_OUTER put: (fr notNull ifTrue: [fr ctx] ifFalse: [activeCtx]).
-	s at: BC_STARTPC put: (self intOop: ip - (self methodBcs: (fr notNull ifTrue: [fr method] ifFalse: [self loadRef: activeCtx at: CTX_METHOD]))).
-	s at: BC_NUMARGS put: (self intOop: na).
-	s at: BC_NUMTEMPS put: (self intOop: nt).
-	s at: BC_FRAMESIZE put: (self intOop: fs).
+	self heapSlot: b at: BC_OUTER put: (fr notNull ifTrue: [fr ctx] ifFalse: [activeCtx]).
+	self heapSlot: b at: BC_STARTPC put: (self intOop: ip - (self methodBcs: (fr notNull ifTrue: [fr method] ifFalse: [self loadRef: activeCtx at: CTX_METHOD]))).
+	self heapSlot: b at: BC_NUMARGS put: (self intOop: na).
+	self heapSlot: b at: BC_NUMTEMPS put: (self intOop: nt).
+	self heapSlot: b at: BC_FRAMESIZE put: (self intOop: fs).
 	gc rememberIfOld: b.
 	self push: b.
 	ip := ip + size
@@ -1484,7 +1777,12 @@ jump
 	| o |
 	o := self readInt16: ip.
 	ip := ip + 2 + o.
-	o < 0 ifTrue: [self jumpedBack]
+	o < 0 ifTrue: [
+		self jumpedBack.
+		(sliceTest loopEnabled and: [fr notNull and: [self unlikely: (jit sliceLoopCandidate: fr)]]) ifTrue: [
+			self saveFrame.
+			jit trySliceLoop: fr.
+			self reload]]
 !
 conditionalJump
 	"jump if true (91), jump if false (92)"
@@ -1513,24 +1811,24 @@ conditionalJump
 pushTempTempSend
 	"push temp a, push temp b, then the special-selector bytecode op (97 a b op)"
 	<bytecode: 16r97>
-	sp at: 1 put: (fp at: (ip at: 0)).
-	sp at: 2 put: (fp at: (ip at: 1)).
+	self stackSlot: sp + 1 put: (fp at: (ip at: 0)).
+	self stackSlot: sp + 2 put: (fp at: (ip at: 1)).
 	sp := sp + 2.
 	ip := ip + 3.
 	^self dispatch: (ip at: -1)
 !
 pushTempLiteralSend
 	<bytecode: 16r98>
-	sp at: 1 put: (fp at: (ip at: 0)).
-	sp at: 2 put: (lits at: (ip at: 1)).
+	self stackSlot: sp + 1 put: (fp at: (ip at: 0)).
+	self stackSlot: sp + 2 put: (lits at: (ip at: 1)).
 	sp := sp + 2.
 	ip := ip + 3.
 	^self dispatch: (ip at: -1)
 !
 pushTempIntegerSend
 	<bytecode: 16r99>
-	sp at: 1 put: (fp at: (ip at: 0)).
-	sp at: 2 put: (self intOop: (ip at: 1) asInt8).
+	self stackSlot: sp + 1 put: (fp at: (ip at: 0)).
+	self stackSlot: sp + 2 put: (self intOop: (ip at: 1) asInt8).
 	sp := sp + 2.
 	ip := ip + 3.
 	^self dispatch: (ip at: -1)
@@ -1554,8 +1852,8 @@ fusedArithmetic
 				ifTrue: [a asInt64 < b asInt64]
 				ifFalse: [k = 3 ifTrue: [a asInt64 > b asInt64] ifFalse: [k = 4 ifTrue: [a asInt64 <= b asInt64] ifFalse: [a asInt64 >= b asInt64]]].
 			^self fusedCompareResult: c]].
-	sp at: 1 put: a.
-	sp at: 2 put: b.
+	self stackSlot: sp + 1 put: a.
+	self stackSlot: sp + 2 put: b.
 	sp := sp + 2.
 	ip := ip + 2.
 	k = 0 ifTrue: [^self add].
@@ -1569,7 +1867,7 @@ fusedArithmeticResult: r
 	| n |
 	n := ip at: 2.
 	(n bitAnd: 16rF8) = 16r60 ifTrue: [
-		fp at: (n bitAnd: 7) put: r asUInt64.
+		self stackSlot: fp + (n bitAnd: 7) put: r asUInt64.
 		ip := ip + 3.
 		^self].
 	self push: r asUInt64.
@@ -1744,11 +2042,11 @@ bitOr
 !
 identical
 	<bytecode: 16rB3>
-	^self boolResult: (sp at: -1) = sp value
+	^self boolResult: (self canonicalOop: (sp at: -1)) = (self canonicalOop: sp value)
 !
 notIdentical
 	<bytecode: 16rB4>
-	^self boolResult: (sp at: -1) ~= sp value
+	^self boolResult: (self canonicalOop: (sp at: -1)) ~= (self canonicalOop: sp value)
 !
 bcAt
 	<bytecode: 16rB0>
@@ -1759,7 +2057,7 @@ bcAt
 		c := self rawClass: a.
 		k := ((self intVal: b) - 1) asUInt64.
 		c = memory clsArray
-			ifTrue: [k < (self numSlots: a) ifTrue: [^self ret1: ((self slotsOf: a) at: k)]]
+			ifTrue: [k < (self numSlots: a) ifTrue: [^self ret1: (self loadRef: a at: k)]]
 			ifFalse: [
 				c = memory clsBytestring
 					ifTrue: [k < (memory byteSize: a) ifTrue: [^self ret1: (self charOop: ((self bytesOf: a) at: k))]]
@@ -1781,16 +2079,18 @@ bcAtPut
 			self storeRef: o at: k put: v.
 			^self atPutAnswer: v].
 		(c = memory clsBytestring and: [(self isChar: v) and: [(self charVal: v) < 256 and: [k < (memory byteSize: o)]]]) ifTrue: [
+			jit c4BytecodeWillWrite: o.
 			(self bytesOf: o) at: k put: (self charVal: v) asUInt8.
 			^self atPutAnswer: v].
 		(c = memory clsBytearray and: [(self isInt: v) and: [(self intVal: v) asUInt64 < 256 and: [k < (memory byteSize: o)]]]) ifTrue: [
+			jit c4BytecodeWillWrite: o.
 			(self bytesOf: o) at: k put: (self intVal: v) asUInt8.
 			^self atPutAnswer: v]].
 	^self specialSend
 !
 atPutAnswer: v
 	sp := sp - 2.
-	sp value: v
+	self stackSlot: sp put: v
 !
 bcSize
 	<bytecode: 16rB2>
@@ -1799,10 +2099,10 @@ bcSize
 	(self isPtr: b) ifTrue: [
 		c := self rawClass: b.
 		c = memory clsArray ifTrue: [
-			sp value: (self intOop: (self numSlots: b)).
+			self stackSlot: sp put: (self intOop: (self numSlots: b)).
 			^self].
 		(c = memory clsBytestring or: [c = memory clsBytearray]) ifTrue: [
-			sp value: (self intOop: (memory byteSize: b) asInt64).
+			self stackSlot: sp put: (self intOop: (memory byteSize: b) asInt64).
 			^self]].
 	^self specialSend
 !
@@ -1832,7 +2132,7 @@ bcPoint
 	| b |
 	b := sp value.
 	((self isPtr: b) and: [(self rawClass: b) = memory clsPoint]) ifTrue: [
-		sp value: ((self slotsOf: b) at: self currentBytecode - 16rBB).
+		self stackSlot: sp put: (self loadRef: b at: self currentBytecode - 16rBB).
 		^self].
 	^self specialSend
 !
@@ -1840,7 +2140,7 @@ bcClass
 	<bytecode: 16rBD>
 	| r |
 	r := sp value.
-	sp value: ((r bitAnd: 7) = 0 ifTrue: [self rawClass: r] ifFalse: [(r bitAnd: 1) ~= 0 ifTrue: [memory clsSmallint] ifFalse: [memory classOf: r]])
+	self stackSlot: sp put: ((r bitAnd: 7) = 0 ifTrue: [self rawClass: r] ifFalse: [(r bitAnd: 1) ~= 0 ifTrue: [memory clsSmallint] ifFalse: [memory classOf: r]])
 ! !
 
 !Interpreter methodsFor: 'bytecodes: sends'!
@@ -1881,6 +2181,7 @@ doSiteLookup
 	"Monomorphic inline caches, one per send site (direct-mapped by the site's address), filled from the global cache."
 	<label>
 	| e g |
+	(self unlikely: vmMain c4Enabled) ifTrue: [^self doLookup].
 	e := icache + (self icacheIndexOf: ip).
 	(self unlikely: (e cls ~= cls or: [e sel ~= (self cCoerce: ip to: 'oop')])) ifTrue: [
 		g := cache + (self cacheIndexOf: cls selector: sel).
@@ -1900,6 +2201,10 @@ doSendGlobal
 doLookup
 	<label>
 	| e |
+	(self unlikely: vmMain c4Enabled) ifTrue: [
+		e := self c4EntryFor: cls selector: sel.
+		e isNull ifTrue: [^self sendDoesNotUnderstand].
+		^self haveEntry: e].
 	e := cache + (self cacheIndexOf: cls selector: sel).
 	(self unlikely: (e cls ~= cls or: [e sel ~= sel])) ifTrue: [
 		e := self fillCache: cls selector: sel.
@@ -1928,7 +2233,7 @@ haveEntry: e
 		e prim call.
 		(self likely: primStatus = PS_OK) ifTrue: [
 			sp := sp - argc.
-			sp value: primResult.
+			self stackSlot: sp put: primResult.
 			primResult := memory nilOop.
 			^self].
 		(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode].
@@ -1936,7 +2241,7 @@ haveEntry: e
 	(e kind bitAnd: K_CONST) ~= 0 ifTrue: [
 		v := e qconst ~= 0 ifTrue: [e qconst] ifFalse: [sp at: argc negated].
 		sp := sp - argc.
-		sp value: v.
+		self stackSlot: sp put: v.
 		self checkInterrupts.
 		^self].
 	(e nset = argc and: [argc ~= 0]) ifTrue: [
@@ -1948,13 +2253,13 @@ haveEntry: e
 			ok ifTrue: [
 				0 to: argc - 1 do: [:k | self storeRef: r at: (e setIvar at: k) put: (sp at: argc negated + 1 + k)].
 				sp := sp - argc.
-				sp value: r.
+				self stackSlot: sp put: r.
 				self checkInterrupts.
 				^self]]].
 	(e quick >= 0 and: [argc = 0]) ifTrue: [
 		r := sp value.
 		((self isPtr: r) and: [(memory formatOf: r) <= F_FIXVAR and: [(self numSlots: r) > e quick asUInt32]]) ifTrue: [
-			sp value: (self loadRef: r at: e quick).
+			self stackSlot: sp put: (self loadRef: r at: e quick).
 			self checkInterrupts.
 			^self]].
 	primStatus := PS_NONE.
@@ -1970,7 +2275,7 @@ haveEntry: e
 			[PS_OK] -> [
 				gc gcEpoch ~= epoch ifTrue: [self reload].
 				sp := sp - argc.
-				sp value: primResult.
+				self stackSlot: sp put: primResult.
 				primResult := memory nilOop.
 				tmpRoots at: 0 put: memory nilOop.
 				^self].
@@ -1990,7 +2295,7 @@ haveEntry: e
 				newMethod := tmpRoots at: 0.
 				tmpRoots at: 0 put: memory nilOop.
 				newBcs := self methodBcs: newMethod.
-				newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+				newLits := self methodLits: newMethod.
 				(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode]]].
 	^self activate
 !
@@ -2007,7 +2312,7 @@ activate
 		newMethod := tmpRoots at: 0.
 		tmpRoots at: 0 put: memory nilOop.
 		newBcs := self methodBcs: newMethod.
-		newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+		newLits := self methodLits: newMethod.
 		self loadCtx.
 		^self activateFromContext].
 	fr ip: ip.
@@ -2019,8 +2324,8 @@ activateFromContext
 	<label>
 	| src |
 	src := sp - argc.
-	cstack at: 0 put: (src at: 0).
-	1 to: argc do: [:k | cstack at: k put: (src at: k)].
+	self cstackSlot: cstack put: (src at: 0).
+	1 to: argc do: [:k | self cstackSlot: cstack + k put: (src at: k)].
 	sp := src - 1.
 	self saveCtx.
 	newFp := cstack + 1.
@@ -2029,6 +2334,7 @@ activateFromContext
 !
 enterFrame
 	<label>
+	self preserveFrameRoots: fr.
 	fr method: newMethod.
 	fr closure: memory nilOop.
 	fr ctx: memory nilOop.
@@ -2040,7 +2346,11 @@ enterFrame
 	fr lits: newLits.
 	sp := newFp + argc - 1.
 	1 to: newTemps do: [:k | self push: memory nilOop].
-	(self unlikely: newEcode >= 0) ifTrue: [newFp at: argc put: (self intOop: newEcode)].
+	(self unlikely: newEcode >= 0) ifTrue: [self cstackSlot: newFp + argc put: (self intOop: newEcode)].
+	(sliceTest enabled and: [self unlikely: jit sliceEnabled]) ifTrue: [
+		self externalize.
+		(jit trySlice: fr) ifTrue: [self reload. ^self].
+		self reload].
 	(self unlikely: newCode ~= 0) ifTrue: [
 		"machine code checks interrupts itself"
 		self externalize.
@@ -2068,8 +2378,7 @@ sendDoesNotUnderstand
 	tmpRoots at: 2 put: cls.
 	args := memory allocObj: memory clsArray format: F_VAR slots: argc asUInt32.
 	self reload.
-	libc memcpy: (self slotsOf: args) from: sp - argc + 1 size: argc asUInt64 * 8.
-	gc rememberIfOld: args.
+	self copyFromStack: sp - argc + 1 to: args count: argc.
 	tmpRoots at: 3 put: args.
 	mc := memory clsMessage.
 	isize := (self intVal: (self loadRef: mc at: BEH_FORMAT)) bitAnd: CLS_INSTSIZE_MASK.
@@ -2106,7 +2415,7 @@ returnTop
 		fr > (frames + 0) ifTrue: [
 			self widowIfMarried.
 			sp := fr fp - 1.
-			sp value: result.
+			self stackSlot: sp put: result.
 			fr := fr - 1.
 			lits := fr lits.
 			fp := fr fp.
@@ -2135,9 +2444,10 @@ contextReturn
 	| s sender |
 	s := self slotsOf: activeCtx.
 	sender := s at: CTX_SENDER.
-	(sender = memory nilOop or: [(self isInt: ((self slotsOf: sender) at: CTX_PC)) not]) ifTrue: [^self cannotReturn].
-	s at: CTX_PC put: memory nilOop.
-	s at: CTX_SENDER put: memory nilOop.
+	(sender = memory nilOop or: [(self isInt: (self loadRef: sender at: CTX_PC)) not]) ifTrue: [^self cannotReturn].
+	(self unlikely: vmMain c4Enabled) ifTrue: [self ctx: activeCtx setStackp: sp - fp + 1].
+	self heapSlot: activeCtx at: CTX_PC put: memory nilOop.
+	self heapSlot: activeCtx at: CTX_SENDER put: memory nilOop.
 	activeCtx := sender.
 	gc rememberIfOld: sender.
 	self loadCtx.
@@ -2170,7 +2480,7 @@ nonLocalReturn
 		nframes := h.
 		fr := frames + h.
 		sp := fr fp - 1.
-		sp value: result.
+		self stackSlot: sp put: result.
 		fr := fr - 1.
 		lits := fr lits.
 		fp := fr fp.
@@ -2194,8 +2504,8 @@ nonLocalReturn
 	cstackUsed := 0.
 	c := activeCtx.
 	[next := self loadRef: c at: CTX_SENDER.
-	 (self slotsOf: c) at: CTX_PC put: memory nilOop.
-	 (self slotsOf: c) at: CTX_SENDER put: memory nilOop.
+	 self heapSlot: c at: CTX_PC put: memory nilOop.
+	 self heapSlot: c at: CTX_SENDER put: memory nilOop.
 	 c ~= home] whileTrue: [c := next].
 	activeCtx := hs.
 	gc rememberIfOld: hs.
@@ -2218,7 +2528,7 @@ frameNonLocalReturnThrough: marked
 	tmpRoots at: 1 put: memory nilOop.
 	self loadFrame.
 	result := sp value.
-	sp value: rcv.
+	self stackSlot: sp put: rcv.
 	self push: result.
 	mk = memory nilOop ifTrue: [
 		sel := memory special: SO_SEL_CANNOTRETURN.
@@ -2242,16 +2552,17 @@ contextNonLocalReturn
 	 (marked = 0 and: [((self methodPrim: (self loadRef: c at: CTX_METHOD)) bitAnd: CM_PRIM_MASK) = PRIM_ENSURE_MARKER]) ifTrue: [marked := c].
 	 c ~= home] whileTrue: [c := self loadRef: c at: CTX_SENDER].
 	marked ~= 0 ifTrue: [
-		sp value: activeCtx.
+		self stackSlot: sp put: activeCtx.
 		self push: result.
 		self push: marked.
 		sel := memory special: SO_SEL_ABOUTTORETURN.
 		argc := 2.
 		^self doSendGlobal].
+	(self unlikely: vmMain c4Enabled) ifTrue: [self ctx: activeCtx setStackp: sp - fp + 1].
 	c := activeCtx.
 	[next := self loadRef: c at: CTX_SENDER.
-	 (self slotsOf: c) at: CTX_PC put: memory nilOop.
-	 (self slotsOf: c) at: CTX_SENDER put: memory nilOop.
+	 self heapSlot: c at: CTX_PC put: memory nilOop.
+	 self heapSlot: c at: CTX_SENDER put: memory nilOop.
 	 c ~= home] whileTrue: [c := next].
 	activeCtx := hs.
 	gc rememberIfOld: hs.
@@ -2261,7 +2572,7 @@ contextNonLocalReturn
 !
 cannotReturn
 	<label>
-	sp value: activeCtx.
+	self stackSlot: sp put: activeCtx.
 	self push: result.
 	sel := memory special: SO_SEL_CANNOTRETURN.
 	argc := 1.

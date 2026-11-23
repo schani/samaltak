@@ -1,5 +1,5 @@
 JitCompiler subclass: #OptModule
-	instanceVariableNames: 'memory interpreter gc libc feedback'
+	instanceVariableNames: 'sliceTest memory interpreter gc libc feedback'
 	classVariableNames: 'BF_DEOPT BF_LIVE BF_LOOP BF_SEALED SI_PERFORMED LOC_CONST LOC_DREG LOC_INT LOC_RAW LOC_REG LOC_SLOT LOC_SMI LOC_SUNK NF_ALLOC NF_BLOCKCALL NF_REPLACE NF_W32 NF_PTRS NF_DEAD NF_EQONLY NF_GUARD NF_HOISTED NF_LAZY NF_INRANGE NF_MUTABLE NF_NOBOUNDS NF_PURE O_BRANCH O_CALL O_CAST O_CHECKINT O_CLASSIS O_CLASSOF O_CLOSURE O_CONST O_OUTERLOAD O_OUTERSTORE O_UNBOXF O_BOXF O_FARITH O_FCMP O_BOTHINT O_FSQRT O_IMOD O_IDIV O_ISHIFT O_IXOR O_NOTINTS O_HOMESLOT O_LOADSLOT O_STORESLOT O_CHARCONV O_MKARRAY O_DEOPT O_EQ O_GOTO O_GUARDCLASS O_GUARDCLOSURE O_GUARDEQ O_GUARDINT O_GUARDLE O_GUARDMUTABLE E_BYTE E_CHAR E_PTR O_IADD O_IAND O_ICMP O_INDEXLOAD O_INDEXSTORE O_SIZE O_IMUL O_IOR O_ISUB O_LOADFIELD O_NE O_NOP O_OUTERSLOT O_PARAM O_PHI O_RETURN O_SEND O_STOREFIELD O_STRCMP O_STRHASH O_LAST OPT_ANA_MAX OPT_DEF_SIZE OPT_MAX_ACTS OPT_MAX_BLOCKS OPT_MAX_EDGES OPT_MAX_NODES OPT_MAX_OPERANDS OPT_MAX_STATES OPT_PCB_MAX R_DBL R_INT R_NONE R_OOP SP_ALLOC SP_CALL SP_ENTRY SP_GUARD SP_LOOP T_ANY T_BOOL T_CHAR T_FLOAT T_NIL T_OBJ T_SMI'
 	package: 'VM-Jit'!
 
@@ -9,7 +9,7 @@ The IR (OptIR): a control flow graph of blocks of SSA nodes. A node has an opcod
 
 !OptModule class methodsFor: 'declaring'!
 declarations
-	^#((memory ObjectMemory) (interpreter Interpreter) (gc GarbageCollector) (libc LibC) (feedback JitFeedback))
+	^#((sliceTest OptSliceTest) (memory ObjectMemory) (interpreter Interpreter) (gc GarbageCollector) (libc LibC) (feedback JitFeedback))
 !
 isAbstractModule
 	^self == OptModule
@@ -210,12 +210,19 @@ classOf: o
 	^memory nilOop
 !
 methodBytecodes: m
-	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
+	^self bytesOf: (self methodBytesObject: m)
 !
 methodSize: m
-	^(memory byteSize: (self loadRef: m at: CM_BYTECODES)) asInt32
+	^(memory byteSize: (self methodBytesObject: m)) asInt32
+!
+methodBytesObject: m
+	(sliceTest enabled and: [runtime c4Baseline]) ifTrue: [
+		^runtime sliceMethodStorage: m at: CM_BYTECODES].
+	^self loadRef: m at: CM_BYTECODES
 !
 methodLiteral: m at: i
+	(sliceTest enabled and: [runtime c4Baseline]) ifTrue: [
+		^runtime sliceMethodLiteral: m at: i asUInt32].
 	^self loadRef: (self loadRef: m at: CM_LITERALS) at: i
 !
 methodPrimitive: m

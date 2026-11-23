@@ -18,7 +18,7 @@ imagePath
 !ImageFile methodsFor: 'loading'!
 loadImage: path
 	<function>
-	| f h delta p o s budget |
+	| f h delta p o s budget bytes |
 	f := libc fopen: path mode: 'rb'.
 	f isNull ifTrue: [self fatal: 'cannot open image %s' with: path].
 	h := self local: 'ImageHeader'.
@@ -26,6 +26,8 @@ loadImage: path
 		or: [(libc memcmp: h magic with: 'SAMALTK1' size: 8) ~= 0 or: [h version ~= 1]])
 		ifTrue: [self fatal: '%s is not a Samaltak image' with: path].
 	h heapBytes > gc maxHeapBytes ifTrue: [self fatal: 'image too large for heap limit'].
+	(vmMain c4Moving and: [h heapBytes > c4 pinnedCapacity])
+		ifTrue: [self fatal: 'image and C4 moving region pool exceed heap limit'].
 	libc fseek: f offset: h headerSize asInt64 whence: libc SEEK_SET.
 	(libc fread: (self ptr: gc oldLo) size: 1 count: h heapBytes file: f) ~= h heapBytes ifTrue: [
 		self fatal: 'truncated image %s' with: path].
@@ -35,14 +37,22 @@ loadImage: path
 	p := gc oldLo.
 	[p < gc oldTop] whileTrue: [
 		o := p.
+		(vmMain c4Requested and: [gc oldTop - p < 16]) ifTrue: [self fatal: 'truncated C4 image object header'].
+		bytes := self objBytes: o.
+		(vmMain c4Requested and: [bytes > (gc oldTop - p)]) ifTrue: [self fatal: 'bad C4 image object extent'].
 		self header: o put: ((self header: o) bitClear: H_GCBITS).
 		self rawClass: o put: ((self rawClass: o) + delta) asUInt64.
 		(self fmtHasPointers: (self formatOf: o)) ifTrue: [
 			s := self slotsOf: o.
 			0 to: (self numSlots: o) asInt64 - 1 do: [:i |
 				((self isPtr: (s at: i)) and: [(s at: i) ~= 0]) ifTrue: [s at: i put: ((s at: i) + delta) asUInt64]]].
-		p := p + (self objBytes: o)].
-	memory specialsOop: (h specials + delta) asUInt64.
+		p := p + bytes].
+	p := (h specials + delta) asUInt64.
+	vmMain c4Requested ifTrue: [
+		(p >= gc oldLo and: [p < gc oldTop and: [gc oldTop - p >= 16 and: [(p bitAnd: 7) = 0 and: [
+			(self formatOf: p) = F_VAR and: [(self numSlots: p) > SO_COMPILEDMETHOD and: [(self objBytes: p) <= (gc oldTop - p)]]]]]])
+			ifFalse: [self fatal: 'bad C4 image special objects array']].
+	memory specialsOop: p.
 	memory hashSeed: h hashSeed.
 	"its hashed collections are by the String hash it was saved with (0: FNV-1a, images from before the other)"
 	memory wordHash: h stringHash = 1.
@@ -51,13 +61,97 @@ loadImage: path
 	imagePath := posix realpath: path into: self null.
 	imagePath isNull ifTrue: [imagePath := libc strdup: path].
 	imagePath isNull ifTrue: [self fatal: 'out of memory'].
-	memory refreshSpecials
+	memory refreshSpecials.
+	(vmMain c4Moving and: [(memory special: SO_INTERVAL) ~= memory nilOop]) ifTrue: [
+		(c4 prepareInterval: h heapBytes)
+			ifFalse: [self fatal: 'image and C4 Interval bank exceed heap limit']].
+	vmMain c4Requested ifTrue: [self importC4]
+!
+importC4
+	"Startup only: all image references have been relocated."
+	<function>
+	| p fmt bytes slots refs sp cls first association |
+	c4 contextClass: memory clsContext.
+	c4 methodClass: memory clsCompiledmethod.
+	vmMain c4Moving ifTrue: [
+		association := memory special: SO_ASSOCIATION.
+		c4 plainPoint: memory clsPoint message: memory clsMessage association: association].
+	c4 forwardByteClass: memory clsBytestring wideClass: (memory special: SO_WIDESTRING).
+	c4 nilOop: memory nilOop.
+	p := gc oldLo.
+	[p < gc oldTop] whileTrue: [
+		fmt := self formatOf: p.
+		cls := self rawClass: p.
+		slots := self numSlots: p.
+		bytes := self objBytes: p.
+		refs := (self fmtHasPointers: fmt) ifTrue: [slots] ifFalse: [0].
+		first := 16rFFFFFFFF asUInt32. "C4_NO_WEAK"
+		(fmt = F_WEAK or: [cls = memory clsContext]) ifTrue: [
+			(cls >= gc oldLo and: [cls < gc oldTop and: [gc oldTop - cls >= 16 and: [(cls bitAnd: 7) = 0 and: [
+				(self objBytes: cls) <= (gc oldTop - cls)]]]]) ifFalse: [self fatal: 'bad C4 image layout class'].
+			fmt = F_WEAK ifTrue: [
+				first := memory c4FixedFieldsFor: cls spec: F_WEAK slots: slots.
+				first = 16rFFFFFFFF ifTrue: [self fatal: 'bad C4 image weak layout']]].
+		cls = memory clsContext ifTrue: [
+			(fmt = F_FIXVAR and: [(memory c4FixedFieldsFor: cls spec: F_FIXVAR slots: slots) = CTX_FIXED])
+				ifFalse: [self fatal: 'bad C4 image Context layout'].
+			sp := self loadRef: p at: CTX_STACKP.
+			((self isInt: sp) and: [(sp >> 1) <= (slots - CTX_FIXED)]) ifFalse: [
+				self fatal: 'bad C4 image Context stack pointer']].
+		(c4 import: p bytes: bytes refs: refs weakStart: first asUInt32) ifFalse: [self fatal: 'cannot import object into C4 heap'].
+		p := p + bytes].
+	vmMain c4Moving ifTrue: [c4 intervalClass: self auditedIntervalClass].
+	c4 platformFiles ifFalse: [
+		c4 forwardPoint: (self auditedPinnedClass: memory clsPoint named: 'Point' length: 5 slots: 2)
+			message: (self auditedPinnedClass: memory clsMessage named: 'Message' length: 7 slots: 2)
+			association: (self auditedPinnedClass: (memory special: SO_ASSOCIATION) named: 'Association' length: 11 slots: 2)]
+!
+auditedPinnedClass: cls named: name length: n slots: slots
+	"Exact special descriptor, not a subclass or a same-sized lookalike.
+	Check imported starts before dereferencing layout metadata."
+	<function>
+	<var: #name type: 'char *'>
+	<var: #n type: 'size_t'>
+	<var: #slots type: 'uint32_t'>
+	| meta |
+	(cls = memory nilOop or: [(c4 isImported: cls) not]) ifTrue: [^0].
+	((self formatOf: cls) = F_FIXED and: [(self numSlots: cls) > CLS_NAME])
+		ifFalse: [^0].
+	(memory c4FixedFieldsFor: cls spec: F_FIXED slots: slots) = slots ifFalse: [^0].
+	meta := self rawClass: cls.
+	((c4 isImported: meta) and: [(self formatOf: meta) = F_FIXED and: [
+		(self numSlots: meta) > META_THISCLASS and: [(self loadRef: meta at: META_THISCLASS) = cls]]])
+		ifFalse: [^0].
+	(self classLayoutName: (self loadRef: cls at: CLS_NAME) is: name length: n) ifFalse: [^0].
+	^cls
+!
+auditedIntervalClass
+	"Optional appended special. Older images pin it."
+	<function>
+	| cls names |
+	cls := self auditedPinnedClass: (memory special: SO_INTERVAL) named: 'Interval' length: 8 slots: 3.
+	cls = 0 ifTrue: [^0].
+	names := self loadRef: cls at: CD_INSTVARS.
+	((c4 isImported: names) and: [(self formatOf: names) = F_VAR and: [(self numSlots: names) = 3]])
+		ifFalse: [^0].
+	((self classLayoutName: (self loadRef: names at: 0) is: 'start' length: 5) and: [
+		(self classLayoutName: (self loadRef: names at: 1) is: 'stop' length: 4) and: [
+		(self classLayoutName: (self loadRef: names at: 2) is: 'step' length: 4)]])
+		ifFalse: [^0].
+	^cls
+!
+classLayoutName: obj is: name length: n
+	<var: #name type: 'char *'>
+	<var: #n type: 'size_t'>
+	^((c4 isImported: obj) and: [(self formatOf: obj) >= F_BYTES and: [
+		(memory byteSize: obj) = n and: [(libc memcmp: (self bytesOf: obj) with: name size: n) = 0]]])
 ! !
 
 !ImageFile methodsFor: 'saving'!
 writeSnapshot: path
 	<function>
 	| h f ok |
+	vmMain c4Enabled ifTrue: [^false].
 	gc fullGC.
 	h := self local: 'ImageHeader'.
 	h version: 1.

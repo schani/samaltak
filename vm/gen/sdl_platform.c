@@ -36,6 +36,19 @@ static void drain_pipe(void)
 /* SDLPlatform>>init */
 void platform_interface_init(void)
 {
+    char *a;
+    if (c4_heap_platform_sdl()) {
+        if (!video_init()) {
+            a = last_error_string();
+            fatal_begin();
+            fprintf(stderr, "C4 SDL display unavailable: %s", a);
+            fatal_end();
+        }
+        return;
+    }
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (init_done) {
         return;
     }
@@ -54,6 +67,16 @@ void platform_interface_init(void)
 /* SDLPlatform>>poll */
 void platform_interface_poll(void)
 {
+    if (c4_heap_platform_sdl()) {
+        if (video_inited() && (SDL_GetTicksNS() - last_pump_ns >= 1000000)) {
+            pump();
+        }
+        signal_ready();
+        return;
+    }
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (video_inited() && (SDL_GetTicksNS() - last_pump_ns >= 1000000)) {
         pump();
     }
@@ -66,6 +89,17 @@ void platform_interface_poll(void)
 /* SDLPlatform>>shutdown */
 void platform_interface_shutdown(void)
 {
+    if (c4_heap_platform_sdl()) {
+        platform_windows_shutdown();
+        if (video_inited()) {
+            SDL_Quit();
+        }
+        discard_all();
+        return;
+    }
+    if (c4_heap_platform_files()) {
+        return;
+    }
     platform_gpu_shutdown();
     platform_windows_shutdown();
     if (video_inited()) {
@@ -82,6 +116,28 @@ void platform_interface_wait(int64_t timeout_us)
     struct pollfd local[129];
     struct pollfd *p;
     int n;
+    if (c4_heap_platform_sdl()) {
+        if (video_inited()) {
+            pump();
+            if ((!input_ready()) && (timeout_us != 0)) {
+                ms = (timeout_us < 0) || (timeout_us > 10000) ? 10 : (int32_t)((timeout_us + 999) / 1000);
+                SDL_WaitEventTimeout((SDL_Event *)NULL, ms);
+                pump();
+            }
+            signal_ready();
+            return;
+        }
+        signal_ready();
+    }
+    if (c4_heap_platform_files()) {
+        if (timeout_us < 0) {
+            fatal_begin();
+            fprintf(stderr, "deadlock: no runnable process and no pending timer");
+            fatal_end();
+        }
+        usleep((uint32_t)(timeout_us > 1000000 ? 1000000 : timeout_us));
+        return;
+    }
     platform_interface_init();
     pump();
     if (video_inited() && (atomic_load_explicit(&wake_event, memory_order_relaxed) == 0)) {
@@ -123,6 +179,9 @@ void wake(void)
     atomic_int t;
     SDL_Event local;
     SDL_Event *e;
+    if (c4_heap_platform_files()) {
+        return;
+    }
     if (!atomic_load_explicit(&in_wait, memory_order_relaxed)) {
         return;
     }

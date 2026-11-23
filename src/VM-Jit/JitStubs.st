@@ -1,5 +1,5 @@
 JitCompiler subclass: #JitStubs
-	instanceVariableNames: 'exitPlainAddr interruptStub entryInterruptStub closureStub contextStub contextFieldStub makeArrayStub widowStub barrierStub tierUpStub optDeoptStub optDeoptReturnStub optStackFullStub optMakeArrayStub optReturnStub blEnter blExitSync blMiss blBlock blMega blPerform blEntrySlow blPrim blRemember blReturnSlow blBox blSent blCopy blStrHash blStrCmp blStrEq symbolAddrs symbolNames symbolCount'
+	instanceVariableNames: 'sliceTest exitPlainAddr interruptStub entryInterruptStub closureStub contextStub contextFieldStub makeArrayStub widowStub barrierStub tierUpStub optDeoptStub optDeoptReturnStub optStackFullStub optMakeArrayStub optReturnStub optSliceExit blEnter blExitSync blMiss blBlock blMega blPerform blEntrySlow blPrim blRemember blReturnSlow blBox blSent blCopy blStrHash blStrCmp blStrEq symbolAddrs symbolNames symbolCount'
 	classVariableNames: 'STUB_MAX_SYMBOLS'
 	package: 'VM-Jit'!
 
@@ -11,9 +11,9 @@ One stub per runtime function (ldr x16, =function; br x16), so that compiled cod
 
 !JitStubs class methodsFor: 'declaring'!
 declarations
-	^#((exitPlainAddr uint64_t)
+	^#((sliceTest OptSliceTest) (exitPlainAddr uint64_t)
 		(interruptStub uint64_t) (entryInterruptStub uint64_t) (closureStub uint64_t) (contextStub uint64_t) (contextFieldStub uint64_t) (makeArrayStub uint64_t)
-		(widowStub uint64_t) (barrierStub uint64_t) (tierUpStub uint64_t) (optDeoptStub uint64_t) (optDeoptReturnStub uint64_t) (optStackFullStub uint64_t) (optMakeArrayStub uint64_t) (optReturnStub uint64_t)
+		(widowStub uint64_t) (barrierStub uint64_t) (tierUpStub uint64_t) (optDeoptStub uint64_t) (optDeoptReturnStub uint64_t) (optStackFullStub uint64_t) (optMakeArrayStub uint64_t) (optReturnStub uint64_t) (optSliceExit uint64_t)
 		(blEnter uint64_t) (blExitSync uint64_t) (blMiss uint64_t) (blBlock uint64_t) (blMega uint64_t) (blPerform uint64_t) (blEntrySlow uint64_t) (blPrim uint64_t) (blRemember uint64_t) (blReturnSlow uint64_t) (blBox uint64_t) (blSent uint64_t) (blCopy uint64_t) (blStrHash uint64_t) (blStrCmp uint64_t) (blStrEq uint64_t)
 		(symbolAddrs 'uint64_t[STUB_MAX_SYMBOLS]') (symbolNames 'const char *[STUB_MAX_SYMBOLS]') (symbolCount int32_t))
 !
@@ -27,6 +27,9 @@ blEnterAddress
 !
 blExitSyncAddress
 	^blExitSync
+!
+optSliceExitAddress
+	^optSliceExit
 !
 exitPlainAddress
 	^exitPlainAddr
@@ -159,6 +162,40 @@ emitReloadPinned
 	"Baseline code keeps nil, true and false in x23, x24, x25."
 	asm ldp: X23 with: X24 base: X22 offset: self nilOffset.
 	asm ldr: X25 base: X22 offset: self falseOffset
+! !
+
+!JitStubs methodsFor: 'barriers'!
+emitBulkRefCopyGuardFor: o header: h slow: slow
+	"The native fast path of ObjectMemory's heap-to-heap copyRefs:. Only young or already remembered destinations can use the copy stub; otherwise the primitive performs the copy and remembers the destination. h = -1 means the header is not live and X10/X17 are scratch."
+	<function>
+	<var: #o type: 'int32_t'>
+	<var: #h type: 'int32_t'>
+	<var: #slow type: 'int32_t'>
+	| young old hdr |
+	asm comment: 'bulk reference copy: young or already remembered destination'.
+	young := asm newLabel.
+	hdr := h.
+	h = -1
+		ifTrue: [
+			asm ldp: X16 with: X17 base: X22 offset: self youngLoOffset.
+			asm sub: X10 with: o with: X16.
+			asm sub: X17 with: X17 with: X16.
+			asm cmp: X10 with: X17.
+			asm b: young if: COND_LO.
+			hdr := X16.
+			asm ldr: hdr base: o offset: 0]
+		ifFalse: [
+			old := asm newLabel.
+			asm ldr: X16 base: X22 offset: self youngLoOffset.
+			asm cmp: o with: X16.
+			asm b: old if: COND_LO.
+			asm ldr: X16 base: X22 offset: self youngHiOffset.
+			asm cmp: o with: X16.
+			asm b: young if: COND_LO.
+			asm bind: old].
+	asm tst: hdr imm: H_REMEMBERED.
+	asm b: slow if: COND_EQ.
+	asm bind: young
 ! !
 
 !JitStubs methodsFor: 'generating'!
@@ -297,6 +334,7 @@ generateX64
 	optMakeArrayStub := self stubX64: runtime optMakeArrayFunction named: 'make an Array'.
 	optDeoptStub := self dumpingStubX64: runtime optDeoptFunction named: 'deoptimize'.
 	optReturnStub := self dumpingStubX64: runtime optReturnFunction named: 'return from the bottom frame'.
+	((runtime c4Baseline and: [runtime allowsC4Opt]) or: [sliceTest enabled and: [runtime sliceRequested]]) ifTrue: [self generateSliceExitX64].
 	asm finish = ASM_OK ifFalse: [^false].
 	cache allocate: asm codeSize.
 	cache endWritingFrom: start size: asm codeSize.
@@ -310,6 +348,20 @@ stubX64: function named: name
 	asm callC: function.
 	asm ret.
 	^a
+!
+generateSliceExitX64
+	<arch: #x86_64>
+	<function>
+	| dump |
+	optSliceExit := self symbol: 'checked opt prefix exit'.
+	dump := self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #dump) to: 'int64_t'.
+	"Same indices as dumpingStubX64:, but only the eight allocatable
+	GPRs. W17 is scratch; word 31 is the selector of the replay row."
+	0 to: 5 do: [:r | asm str: r base: X22 offset: dump + (8 * r)].
+	asm str: X9 base: X22 offset: dump + (8 * X9).
+	asm str: X21 base: X22 offset: dump + (8 * X21).
+	asm str: X17 base: X22 offset: dump + (8 * 31).
+	asm b: (asm labelAt: exitPlainAddr)
 !
 dumpingStubX64: fn named: name
 	"x86: as dumpingStub:named:, the registers by their arm64 numbers (the words of those without an x86 register, xmm0-xmm15 as d0-d15)."

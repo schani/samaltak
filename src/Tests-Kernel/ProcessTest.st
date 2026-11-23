@@ -238,11 +238,41 @@ testRegistryHasEveryProcess
 	self assert: (live includes: Processor activeProcess).
 	procs do: [:p | p terminate]
 !
+testRegistryKeepsRunnableAndSuspendedProcesses
+	| runnable suspended ticks finalizers finalized all |
+	runnable := Array new: 3.
+	suspended := Array new: runnable size.
+	ticks := Array new: runnable size withAll: 0.
+	runnable withIndexDo: [:unused :i |
+		suspended at: i put: (self track: [nil] newProcess).
+		runnable at: i put: (self fork: [[true] whileTrue: [
+			self spin: 1000.
+			ticks at: i put: (ticks at: i) + 1.
+			Processor yield]] at: Processor activePriority - 1)].
+	finalizers := WeakRegistry new.
+	finalized := Semaphore new.
+	finalizers add: Object new executor: [finalized signal].
+	self collectUntil: [(finalized waitTimeoutMSecs: 50) not].
+	self assert: finalizers size equals: 0.
+	self assert: (self waitFor: [ticks allSatisfy: [:n | n > 0]]) description: [ticks printString].
+	all := Processor allProcesses asIdentitySet.
+	self assert: (all includes: Processor activeProcess).
+	runnable do: [:p |
+		self assert: (all includes: p).
+		self assert: p isRunnable description: 'Worker was not runnable'.
+		self assert: p cpuMicroseconds > 0 description: 'Worker CPU time was not charged'].
+	suspended do: [:p |
+		self assert: (all includes: p).
+		self assert: p isSuspended description: 'Suspended process changed state'.
+		self assert: p cpuMicroseconds equals: 0]
+!
 testRegistryReusesCollectedSlots
-	| capacity procs |
+	| capacity procs weak |
 	procs := (1 to: 2000) collect: [:i | [nil] newProcess].
+	weak := WeakArray new: procs size.
+	weak replaceFrom: 1 to: procs size with: procs startingAt: 1.
 	procs := nil.
-	Smalltalk vm garbageCollect.
+	self collectUntil: [weak allSatisfy: [:p | p isNil]].
 	capacity := self registryCapacity.
 	procs := (1 to: 2000) collect: [:i | [nil] newProcess].
 	self assert: self registryCapacity equals: capacity.
@@ -258,13 +288,13 @@ testRegistryStaysSmall
 !
 testRegistryShrinksAfterABurst
 	"A burst of processes gone and collected, the next allProcesses compacts the registry; it still has every process, and registers the next ones."
-	| kept sem later all |
+	| kept sem burst later all |
 	kept := (1 to: 100) collect: [:i | [nil] newProcess].
 	sem := Semaphore new.
-	5000 timesRepeat: [[sem wait] forkAt: Processor activePriority + 1].
+	burst := self waitingProcesses: 5000 on: sem.
 	self assert: self registryCapacity >= 8192.
 	5000 timesRepeat: [sem signal].
-	Smalltalk vm garbageCollect.
+	self collectBurst: burst.
 	Processor allProcesses.
 	self assert: self registryCapacity < 5000.
 	self assert: self registryCapacity <= (64 max: self registered * 4).
@@ -278,19 +308,19 @@ testRegistryShrinksAfterABurst
 !
 testRegistryShrinksWhileProcessesRegister
 	"A process of higher priority goes on registering processes while bursts come and go and the registry is compacted: none is lost."
-	| made done finished sem all |
+	| made done finished sem burst all |
 	made := OrderedCollection new.
 	done := false.
 	finished := Semaphore new.
-	[[done] whileFalse: [
+	self fork: [[done] whileFalse: [
 		made add: [nil] newProcess.
 		(Delay forMilliseconds: 1) wait].
-	 finished signal] forkAt: Processor activePriority + 1.
+		finished signal] at: Processor activePriority + 1.
 	5 timesRepeat: [
 		sem := Semaphore new.
-		2000 timesRepeat: [[sem wait] forkAt: Processor activePriority + 1].
+		burst := self waitingProcesses: 2000 on: sem.
 		2000 timesRepeat: [sem signal].
-		Smalltalk vm garbageCollect.
+		self collectBurst: burst.
 		Processor allProcesses.
 		self assert: self registryCapacity <= (64 max: self registered * 4)].
 	done := true.
@@ -303,8 +333,7 @@ testRegistryShrinksWhileProcessesRegister
 testRegistryAnswersNoCollectedProcess
 	| weak |
 	weak := self unreferencedProcesses: 100.
-	Smalltalk vm garbageCollect.
-	self assert: (weak allSatisfy: [:p | p isNil]).
+	self collectUntil: [weak allSatisfy: [:p | p isNil]].
 	self assert: (Processor allProcesses allSatisfy: [:p | p notNil and: [p isTerminated not]])
 !
 testCpuTimeAddsUp
@@ -392,6 +421,32 @@ unreferencedProcesses: anInteger
 	weak := WeakArray new: anInteger.
 	1 to: anInteger do: [:i | weak at: i put: [nil] newProcess].
 	^weak
+!
+waitingProcesses: count on: semaphore
+	| weak |
+	weak := WeakArray new: count.
+	1 to: count do: [:i |
+		weak at: i put: ([semaphore wait] forkAt: Processor activePriority + 1)].
+	^weak
+!
+collectBurst: weak
+	"Terminated processes can still be scheduler roots (e.g. the charging
+	ledger). Observe loss of the bulk of the burst, not of every last entry."
+	self collectUntil: [(weak count: [:p | p isNil]) >= (weak size * 9 // 10)]
+!
+collectUntil: cleared
+	"The copying collector supports explicit collection. C4 does not: drive
+	natural cycles with bounded pressure and check the actual targets. Check
+	sparsely: a weak read before close may keep an object for that cycle."
+	| fullGCs |
+	fullGCs := Smalltalk vm statistics fullGCs.
+	Smalltalk vm garbageCollect.
+	Smalltalk vm statistics fullGCs = fullGCs ifTrue: [
+		32 timesRepeat: [
+			ByteArray new: 4 * 1024 * 1024.
+			(Delay forMilliseconds: 25) wait.
+			cleared value ifTrue: [^self]]].
+	self assert: cleared description: 'Expected collection was not observed'
 !
 registered
 	"How many processes the registry holds."

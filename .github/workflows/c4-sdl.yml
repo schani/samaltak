@@ -1,0 +1,36 @@
+name: C4 SDL
+on:
+  push:
+    branches: [main, wip/c4-concurrent-gc]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sdl:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.head_ref != 'wip/c4-concurrent-gc' ||
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    container: debian:bookworm-slim
+    timeout-minutes: 30
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      SDL_VIDEO_DRIVER: x11
+      SDL_VIDEO_X11_SCALING_FACTOR: '1'
+    steps:
+      - name: Install build and display-test dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git build-essential nodejs python3 perl less \
+            xvfb xauth xdotool mesa-vulkan-drivers \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+      - uses: actions/checkout@v6
+      - name: Install SDL3 and shaderc
+        run: .agents/setup
+      - name: Headless contracts
+        run: make -j2 test-c4-platform-sdl
+      - name: Real X11 surface and input
+        run: xvfb-run -a -s '-screen 0 1280x1024x24' tests/vm/c4-platform-sdl/ci.sh build/c4-sdl/samaltak.image

@@ -40,7 +40,7 @@ intArg: i
 	<function>
 	| v |
 	v := self local: 'int64_t'.
-	(memory int64Of: (self arg: i) into: v) ifFalse: [bad := true].
+	(memory int64Of: (self arg: i) into: v) ifFalse: [bad := true. ^0].
 	^v value
 !
 floatArg: i
@@ -72,7 +72,9 @@ stringArg: i
 	<function>
 	| o s |
 	o := self arg: i.
+	c4 platformFiles ifTrue: [c4 enterRawRead].
 	s := (self isText: o) ifTrue: [memory utf8Of: o] ifFalse: [self null].
+	c4 platformFiles ifTrue: [c4 leaveRawRead].
 	s isNull ifTrue: [bad := true].
 	^s
 !
@@ -102,7 +104,7 @@ rangeArgs: writable handle: h count: count
 	count value: (self intArg: 3).
 	len := self local: 'size_t'.
 	p := self bytesOf: (self arg: 1) size: len writable: writable.
-	(bad or: [p isNull or: [start < 1 or: [count value < 0 or: [(start - 1 + count value) asUInt64 > len value]]]]) ifTrue: [^self null].
+	(bad or: [p isNull or: [start < 1 or: [count value < 0 or: [((start - 1) asUInt64 + count value asUInt64) > len value]]]]) ifTrue: [^self null].
 	^p + (start - 1)
 !
 numberOf: o into: d
@@ -206,6 +208,50 @@ answerPair: ok first: a second: b
 ! !
 
 !PlatformPrimitives methodsFor: 'window and input'!
+windowHandleArg: i
+	<function>
+	| v |
+	v := self intArg: i.
+	(c4 platformSDL and: [v <= 0 or: [v > 16r7FFFFFFF]]) ifTrue: [bad := true].
+	^v asInt32
+!
+stageRGBA: o size: n
+	"The argument remains rooted by the primitive. Only native memory leaves this borrow."
+	<export>
+	<var: #n type: 'size_t'>
+	<returns: 'uint8_t *'>
+	| pixels len src ok |
+	pixels := self cCoerce: (libc malloc: n) to: 'uint8_t *'.
+	pixels isNull ifTrue: [^self null].
+	len := self local: 'size_t'.
+	c4 enterRawRead.
+	src := self bytesOf: o size: len writable: false.
+	ok := src notNull and: [len value = n].
+	ok ifTrue: [libc memcpy: pixels from: src size: n].
+	c4 leaveRawRead.
+	ok ifFalse: [
+		libc free: pixels.
+		^self null].
+	^pixels
+!
+primWindowPresentRGBA
+	"win width height bytes: tightly packed RGBA8, one frame, presented synchronously."
+	<vmPrimitive: 422 name: 'windowPresentRGBA'>
+	| win w h pixels ok |
+	((self args: 4) and: [vmMain headless not]) ifFalse: [^self fail].
+	win := self windowHandleArg: 0.
+	w := self intArg: 1.
+	h := self intArg: 2.
+	(bad or: [w < 1 or: [h < 1 or: [w > PF_SDL_MAX_SIDE or: [h > PF_SDL_MAX_SIDE]]]]) ifTrue: [^self fail].
+	(windows isLive: win) ifFalse: [^self fail].
+	pixels := self stageRGBA: (self arg: 3) size: (w * h * 4) asUInt64.
+	pixels isNull ifTrue: [
+		common setError: 'bad RGBA byte count or no staging memory'.
+		^self fail].
+	ok := windows presentRGBA: win width: w asInt32 height: h asInt32 pixels: pixels.
+	libc free: pixels.
+	self answerOk: ok
+!
 primWindowOpen
 	"w h (points) title flags (1 hidden 2 resizable 4 highDensity) -> win"
 	<vmPrimitive: 400 name: 'windowOpen'>
@@ -214,7 +260,9 @@ primWindowOpen
 	w := self intArg: 0.
 	h := self intArg: 1.
 	flags := self intArg: 3.
-	t := self stringArg: 2.
+	c4 platformSDL ifTrue: [
+		(vmMain headless or: [bad or: [w < 1 or: [h < 1 or: [w > PF_SDL_MAX_SIDE or: [h > PF_SDL_MAX_SIDE or: [flags < 0 or: [flags > 7]]]]]]]) ifTrue: [^self fail]].
+	t := c4 platformSDL ifTrue: [self c4WindowTitle: (self arg: 2)] ifFalse: [self stringArg: 2].
 	bad ifTrue: [
 		libc free: t.
 		^self fail].
@@ -222,11 +270,22 @@ primWindowOpen
 	libc free: t.
 	self answerHandle: r
 !
+c4WindowTitle: title
+	"Validate and convert in one raw-read scope. utf8Of answers malloc'd native memory."
+	<function>
+	| copy |
+	c4 enterRawRead.
+	copy := ((memory isKindOfString: title) and: [(memory stringSize: title) <= 1024])
+		ifTrue: [memory utf8Of: title] ifFalse: [self null].
+	c4 leaveRawRead.
+	copy isNull ifTrue: [bad := true].
+	^copy
+!
 primWindowClose
 	<vmPrimitive: 401 name: 'windowClose'>
 	| w |
 	(self args: 1) ifFalse: [^self fail].
-	w := self intArg: 0.
+	w := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	self answerOk: (windows close: w asInt32)
 !
@@ -235,7 +294,7 @@ primWindowSize
 	<vmPrimitive: 402 name: 'windowSize'>
 	| win w h ok |
 	(self args: 1) ifFalse: [^self fail].
-	win := self intArg: 0.
+	win := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	w := self local: 'int'.
 	h := self local: 'int'.
@@ -247,7 +306,7 @@ primWindowPixelSize
 	<vmPrimitive: 403 name: 'windowPixelSize'>
 	| win w h ok |
 	(self args: 1) ifFalse: [^self fail].
-	win := self intArg: 0.
+	win := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	w := self local: 'int'.
 	h := self local: 'int'.
@@ -259,7 +318,7 @@ primWindowDisplayScale
 	<vmPrimitive: 404 name: 'windowDisplayScale'>
 	| w |
 	(self args: 1) ifFalse: [^self fail].
-	w := self intArg: 0.
+	w := self windowHandleArg: 0.
 	bad ifTrue: [^self fail].
 	self answerNonNegative: (windows displayScale: w asInt32)
 !
@@ -449,7 +508,7 @@ primInputSemaphore
 	| i |
 	(self args: 1) ifFalse: [^self fail].
 	i := self intArg: 0.
-	bad ifTrue: [^self fail].
+	(bad or: [c4 platformSDL and: [i < 0 or: [i > 16r7FFFFFFF]]]) ifTrue: [^self fail].
 	events setSemaphore: i asInt32.
 	self answerSelf
 !
@@ -926,6 +985,58 @@ primGpuFenceElapsed
 ! !
 
 !PlatformPrimitives methodsFor: 'files and processes'!
+fileInt32Arg: i
+	<function>
+	| v |
+	v := self intArg: i.
+	(c4 platformFiles and: [v < 0 or: [v > 16r7FFFFFFF]]) ifTrue: [bad := true].
+	^v asInt32
+!
+prepareFileTransfer: reading handle: h count: count
+	"Check the range and stage write input. Only the malloc'd buffer escapes the borrow."
+	<function>
+	<var: #h type: 'int64_t *'>
+	<var: #count type: 'int64_t *'>
+	<returns: 'uint8_t *'>
+	| p buf |
+	buf := self cCoerce: self null to: 'uint8_t *'.
+	c4 enterRawRead.
+	p := self rangeArgs: reading handle: h count: count.
+	(p notNull and: [h value > 0 and: [h value <= 16r7FFFFFFF]]) ifTrue: [
+		buf := self cCoerce: (libc malloc: (count value = 0 ifTrue: [1] ifFalse: [count value asUInt64])) to: 'uint8_t *'.
+		(buf notNull and: [reading not]) ifTrue: [libc memcpy: buf from: p size: count value asUInt64]].
+	c4 leaveRawRead.
+	buf isNull ifTrue: [common setError: 'invalid file transfer or no native buffer'].
+	^buf
+!
+copyFileRead: buf count: n
+	"The same rooted arguments, re-resolved after the syscall. No checkpoint or callback runs between the borrows."
+	<function>
+	<var: #buf type: 'uint8_t *'>
+	<var: #n type: 'int64_t'>
+	| h count p |
+	h := self local: 'int64_t'.
+	count := self local: 'int64_t'.
+	c4 enterRawRead.
+	p := self rangeArgs: true handle: h count: count.
+	(p isNull or: [n > count value]) ifTrue: [self fatal: 'C4 file read range changed'].
+	libc memcpy: p from: buf size: n asUInt64.
+	c4 leaveRawRead
+!
+fileTransfer: reading
+	<function>
+	| h count buf n |
+	h := self local: 'int64_t'.
+	count := self local: 'int64_t'.
+	buf := self prepareFileTransfer: reading handle: h count: count.
+	buf isNull ifTrue: [^self fail].
+	n := reading
+		ifTrue: [files read: h value asInt32 into: buf count: count value asUInt64]
+		ifFalse: [files write: h value asInt32 bytes: buf count: count value asUInt64].
+	(reading and: [n > 0]) ifTrue: [self copyFileRead: buf count: n].
+	libc free: buf.
+	self answerSize: n
+!
 pathOp: aBlock
 	"A primitive of one path argument: aBlock answers whether the operation on the path (a C string) succeeded."
 	| p ok |
@@ -941,8 +1052,8 @@ primFileOpen
 	| p m h |
 	(self args: 2) ifFalse: [^self fail].
 	p := self stringArg: 0.
-	m := self intArg: 1.
-	h := bad ifTrue: [0] ifFalse: [files open: p mode: m asInt32].
+	m := self fileInt32Arg: 1.
+	h := bad ifTrue: [0] ifFalse: [files open: p mode: m].
 	libc free: p.
 	self answerHandle: h
 !
@@ -951,14 +1062,15 @@ primFileClose
 	<vmPrimitive: 501 name: 'fileClose'>
 	| f |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	self answerOk: (files close: f asInt32)
+	self answerOk: (files close: f)
 !
 primFileRead
 	"file bytes start count -> count (0 = EOF)"
 	<vmPrimitive: 502 name: 'fileRead'>
 	| h n p |
+	c4 platformFiles ifTrue: [^self fileTransfer: true].
 	h := self local: 'int64_t'.
 	n := self local: 'int64_t'.
 	p := self rangeArgs: true handle: h count: n.
@@ -968,6 +1080,7 @@ primFileWrite
 	"file bytes start count -> count"
 	<vmPrimitive: 503 name: 'fileWrite'>
 	| h n p |
+	c4 platformFiles ifTrue: [^self fileTransfer: false].
 	h := self local: 'int64_t'.
 	n := self local: 'int64_t'.
 	p := self rangeArgs: false handle: h count: n.
@@ -978,9 +1091,9 @@ primFileSize
 	<vmPrimitive: 504 name: 'fileSize'>
 	| f r |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	r := files size: f asInt32.
+	r := files size: f.
 	r < 0 ifTrue: [^self fail].
 	self answer: (memory int64Oop: r)
 !
@@ -989,9 +1102,9 @@ primFilePosition
 	<vmPrimitive: 505 name: 'filePosition'>
 	| f r |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	r := files position: f asInt32.
+	r := files position: f.
 	r < 0 ifTrue: [^self fail].
 	self answer: (memory int64Oop: r)
 !
@@ -1000,19 +1113,19 @@ primFileSeek
 	<vmPrimitive: 506 name: 'fileSeek'>
 	| f pos |
 	(self args: 2) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	pos := self intArg: 1.
 	bad ifTrue: [^self fail].
-	self answerOk: (pos >= 0 and: [files seek: f asInt32 to: pos])
+	self answerOk: (pos >= 0 and: [files seek: f to: pos])
 !
 primFileFlush
 	"file"
 	<vmPrimitive: 507 name: 'fileFlush'>
 	| f |
 	(self args: 1) ifFalse: [^self fail].
-	f := self intArg: 0.
+	f := self fileInt32Arg: 0.
 	bad ifTrue: [^self fail].
-	self answerOk: (files flush: f asInt32)
+	self answerOk: (files flush: f)
 !
 primFileDelete
 	"path"
