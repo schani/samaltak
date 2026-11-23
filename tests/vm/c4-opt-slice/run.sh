@@ -120,6 +120,9 @@ for msg in 'physical=17 ' 'sealed watched_roots=1 code_roots=2 partial=[1-9]' \
     grep -Eq "^opt-slice witness $msg" "$out/$log.err"
 done
 exit_rows 0 3
+# The explicit request belongs to the first entry, not a later timer tick.
+grep -m1 '^slice probe: native return reason=' "$out/$log.err" |
+    grep -Fxq 'slice probe: native return reason=0'
 
 for bin in off on; do
     for mode in none baseline opt; do

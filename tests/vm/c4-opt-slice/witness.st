@@ -6,7 +6,10 @@ worker := fixture new.
 weak := WeakArray new: 2.
 weak at: 1 put: (41 @ 67); at: 2 put: (53 @ 83).
 run := [:n | worker sliceSub: n keep: (weak at: 1)].
-check value: (run value: 112.5) = -28.0 value: 'warm up entry interrupt'.
+"Cancel the idle timer and request an interrupt check synchronously. Send directly:
+ an intervening block or method entry could consume the request."
+Delay primSignal: nil atMilliseconds: 0.
+check value: (worker sliceSub: 112.5 keep: nil) = -28.0 value: 'entry interrupt result'.
 "Deep ordinary frames keep the 64-root publication budget from sealing at entry."
 hold := [:n :again | n = 0
 	ifTrue: [
