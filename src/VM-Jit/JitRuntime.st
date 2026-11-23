@@ -1323,7 +1323,7 @@ dispatch: e frame: f argc: n
 			^0].
 		^self activate: m frame: f argc: n ecode: (self errorCodeFor: m) code: 0].
 	(kind bitAnd: K_CONST) ~= 0 ifTrue: [
-		(gc forwardersExist and: [self isLiteralConstant: e qconst]) ifTrue: [^self activate: m frame: f argc: n ecode: -1 code: 0].
+		(gc forwardersExist and: [e lits ~= (self slotsOf: (self literalsOf: e method))]) ifTrue: [^self activate: m frame: f argc: n ecode: -1 code: 0].
 		e qconst ~= 0 ifTrue: [base at: 0 put: e qconst].
 		^0].
 	(e nset = n and: [n ~= 0]) ifTrue: [

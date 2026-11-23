@@ -4251,28 +4251,33 @@ void interpret(void)
     uint8_t r_next_bytecode_251;
     int64_t r_method_prim_5;
     uint64_t p_282;
-    oop q_3;
+    oop m_245;
+    uint64_t r_literals_of_124;
+    uint64_t l_124;
+    uint64_t r_follow_250;
+    uint64_t p_283;
+    uint64_t o_980;
     oop v_525;
     oop *s_243;
-    oop m_245;
-    uint64_t o_980;
+    oop m_246;
+    uint64_t o_981;
     int64_t v_526;
     int64_t v_527;
     oop *s_244;
-    oop o_981;
-    oop r_follow_250;
-    oop p_283;
+    oop o_982;
+    oop r_follow_251;
+    oop p_284;
     oop v_528;
-    oop m_246;
-    uint64_t r_literals_of_124;
-    uint64_t l_124;
-    uint64_t r_follow_251;
-    uint64_t p_284;
-    uint64_t o_982;
-    oop o_983;
+    oop m_247;
+    uint64_t r_literals_of_125;
+    uint64_t l_125;
+    uint64_t r_follow_252;
+    uint64_t p_285;
+    uint64_t o_983;
     oop o_984;
-    uint64_t o_985;
-    oop o_986;
+    oop o_985;
+    uint64_t o_986;
+    oop o_987;
     uint8_t r_next_bytecode_252;
     oop r_39;
     uint32_t ns;
@@ -4282,217 +4287,217 @@ void interpret(void)
     uint8_t i_7;
     oop v_529;
     oop *s_245;
-    oop m_247;
-    uint64_t o_987;
+    oop m_248;
+    uint64_t o_988;
     int64_t v_530;
     int64_t v_531;
     oop *s_246;
-    oop o_988;
-    oop r_follow_252;
-    oop p_285;
+    oop o_989;
+    oop r_follow_253;
+    oop p_286;
     oop v_532;
-    oop m_248;
-    uint64_t r_literals_of_125;
-    uint64_t l_125;
-    uint64_t r_follow_253;
-    uint64_t p_286;
-    uint64_t o_989;
-    oop o_990;
+    oop m_249;
+    uint64_t r_literals_of_126;
+    uint64_t l_126;
+    uint64_t r_follow_254;
+    uint64_t p_287;
+    uint64_t o_990;
     oop o_991;
-    uint64_t o_992;
-    oop o_993;
+    oop o_992;
+    uint64_t o_993;
+    oop o_994;
     uint8_t r_next_bytecode_253;
     int8_t i_8;
     oop *s_247;
-    oop m_249;
-    uint64_t o_994;
+    oop m_250;
+    uint64_t o_995;
     int64_t v_533;
     int64_t v_534;
     oop *s_248;
-    oop o_995;
-    oop r_follow_254;
-    oop p_287;
+    oop o_996;
+    oop r_follow_255;
+    oop p_288;
     oop v_535;
-    oop m_250;
-    uint64_t r_literals_of_126;
-    uint64_t l_126;
-    uint64_t r_follow_255;
-    uint64_t p_288;
-    uint64_t o_996;
-    oop o_997;
+    oop m_251;
+    uint64_t r_literals_of_127;
+    uint64_t l_127;
+    uint64_t r_follow_256;
+    uint64_t p_289;
+    uint64_t o_997;
     oop o_998;
-    uint64_t o_999;
-    oop o_1000;
+    oop o_999;
+    uint64_t o_1000;
+    oop o_1001;
     uint8_t r_next_bytecode_254;
     oop *s_249;
-    oop m_251;
-    uint64_t o_1001;
+    oop m_252;
+    uint64_t o_1002;
     int64_t v_536;
     int64_t v_537;
     oop *s_250;
-    oop o_1002;
-    oop r_follow_256;
-    oop p_289;
+    oop o_1003;
+    oop r_follow_257;
+    oop p_290;
     oop v_538;
-    oop m_252;
-    uint64_t r_literals_of_127;
-    uint64_t l_127;
-    uint64_t r_follow_257;
-    uint64_t p_290;
-    uint64_t o_1003;
-    oop o_1004;
-    oop o_1005;
-    uint64_t o_1006;
-    oop o_1007;
-    uint8_t r_next_bytecode_255;
-    oop *s_251;
-    oop o_1008;
-    oop r_follow_258;
-    oop p_291;
-    oop v_539;
     oop m_253;
     uint64_t r_literals_of_128;
     uint64_t l_128;
-    uint64_t r_follow_259;
-    uint64_t p_292;
-    uint64_t o_1009;
-    oop o_1010;
-    oop o_1011;
-    uint64_t o_1012;
-    oop o_1013;
-    oop *s_252;
+    uint64_t r_follow_258;
+    uint64_t p_291;
+    uint64_t o_1004;
+    oop o_1005;
+    oop o_1006;
+    uint64_t o_1007;
+    oop o_1008;
+    uint8_t r_next_bytecode_255;
+    oop *s_251;
+    oop o_1009;
+    oop r_follow_259;
+    oop p_292;
+    oop v_539;
     oop m_254;
-    uint64_t o_1014;
+    uint64_t r_literals_of_129;
+    uint64_t l_129;
+    uint64_t r_follow_260;
+    uint64_t p_293;
+    uint64_t o_1010;
+    oop o_1011;
+    oop o_1012;
+    uint64_t o_1013;
+    oop o_1014;
+    oop *s_252;
+    oop m_255;
+    uint64_t o_1015;
     int64_t v_540;
     int64_t v_541;
     oop *s_253;
-    oop o_1015;
-    oop r_follow_260;
-    oop p_293;
+    oop o_1016;
+    oop r_follow_261;
+    oop p_294;
     oop v_542;
-    oop m_255;
-    uint64_t r_literals_of_129;
-    uint64_t l_129;
-    uint64_t r_follow_261;
-    uint64_t p_294;
-    uint64_t o_1016;
-    oop o_1017;
+    oop m_256;
+    uint64_t r_literals_of_130;
+    uint64_t l_130;
+    uint64_t r_follow_262;
+    uint64_t p_295;
+    uint64_t o_1017;
     oop o_1018;
-    uint64_t o_1019;
-    oop o_1020;
+    oop o_1019;
+    uint64_t o_1020;
+    oop o_1021;
     uint64_t c_40;
     oop *s_254;
-    oop m_256;
-    uint64_t o_1021;
+    oop m_257;
+    uint64_t o_1022;
     int64_t v_543;
     int64_t v_544;
     oop *s_255;
-    oop o_1022;
-    oop r_follow_262;
-    oop p_295;
+    oop o_1023;
+    oop r_follow_263;
+    oop p_296;
     oop v_545;
-    oop m_257;
-    uint64_t r_literals_of_130;
-    uint64_t l_130;
-    uint64_t r_follow_263;
-    uint64_t p_296;
-    uint64_t o_1023;
-    oop o_1024;
-    oop o_1025;
-    uint64_t o_1026;
-    oop o_1027;
-    uint8_t r_next_bytecode_256;
-    oop *s_256;
-    oop o_1028;
-    oop r_follow_264;
-    oop p_297;
-    oop v_546;
     oop m_258;
     uint64_t r_literals_of_131;
     uint64_t l_131;
-    uint64_t r_follow_265;
-    uint64_t p_298;
-    uint64_t o_1029;
-    oop o_1030;
-    oop o_1031;
-    uint64_t o_1032;
-    oop o_1033;
-    oop *s_257;
-    oop o_1034;
-    oop r_follow_266;
-    oop p_299;
-    oop v_547;
+    uint64_t r_follow_264;
+    uint64_t p_297;
+    uint64_t o_1024;
+    oop o_1025;
+    oop o_1026;
+    uint64_t o_1027;
+    oop o_1028;
+    uint8_t r_next_bytecode_256;
+    oop *s_256;
+    oop o_1029;
+    oop r_follow_265;
+    oop p_298;
+    oop v_546;
     oop m_259;
     uint64_t r_literals_of_132;
     uint64_t l_132;
-    uint64_t r_follow_267;
-    uint64_t p_300;
-    uint64_t o_1035;
-    oop o_1036;
-    oop o_1037;
-    uint64_t o_1038;
-    oop o_1039;
-    uint64_t o_1040;
+    uint64_t r_follow_266;
+    uint64_t p_299;
+    uint64_t o_1030;
+    oop o_1031;
+    oop o_1032;
+    uint64_t o_1033;
+    oop o_1034;
+    oop *s_257;
+    oop o_1035;
+    oop r_follow_267;
+    oop p_300;
+    oop v_547;
+    oop m_260;
     uint64_t r_literals_of_133;
     uint64_t l_133;
     uint64_t r_follow_268;
     uint64_t p_301;
+    uint64_t o_1036;
+    oop o_1037;
+    oop o_1038;
+    uint64_t o_1039;
+    oop o_1040;
     uint64_t o_1041;
-    int64_t r_method_prim_6;
+    uint64_t r_literals_of_134;
+    uint64_t l_134;
+    uint64_t r_follow_269;
     uint64_t p_302;
-    oop o_1042;
-    oop r_follow_269;
-    oop p_303;
+    uint64_t o_1042;
+    int64_t r_method_prim_6;
+    uint64_t p_303;
+    oop o_1043;
+    oop r_follow_270;
+    oop p_304;
     oop r_40;
     oop dnu;
     oop *s_258;
-    oop m_260;
-    uint64_t o_1043;
+    oop m_261;
+    uint64_t o_1044;
     int64_t v_548;
     int64_t v_549;
     oop msg;
     oop *s_259;
-    oop m_261;
-    uint64_t o_1044;
+    oop m_262;
+    uint64_t o_1045;
     int64_t v_550;
     int64_t v_551;
     uint64_t args;
     oop *s_260;
-    oop o_1045;
-    oop r_follow_270;
-    oop p_304;
+    oop o_1046;
+    oop r_follow_271;
+    oop p_305;
     oop v_552;
-    oop m_262;
-    uint64_t r_literals_of_134;
-    uint64_t l_134;
-    uint64_t r_follow_271;
-    uint64_t p_305;
-    uint64_t o_1046;
-    oop o_1047;
-    oop o_1048;
-    uint64_t o_1049;
-    oop o_1050;
-    oop mc;
-    uint64_t o_1051;
-    int64_t isize_2;
-    oop *s_261;
-    oop o_1052;
-    oop r_follow_272;
-    oop p_306;
-    oop v_553;
     oop m_263;
     uint64_t r_literals_of_135;
     uint64_t l_135;
-    uint64_t r_follow_273;
-    uint64_t p_307;
-    uint64_t o_1053;
-    oop o_1054;
+    uint64_t r_follow_272;
+    uint64_t p_306;
+    uint64_t o_1047;
+    oop o_1048;
+    oop o_1049;
+    uint64_t o_1050;
+    oop o_1051;
+    oop mc;
+    uint64_t o_1052;
+    int64_t isize_2;
+    oop *s_261;
+    oop o_1053;
+    oop r_follow_273;
+    oop p_307;
+    oop v_553;
+    oop m_264;
+    uint64_t r_literals_of_136;
+    uint64_t l_136;
+    uint64_t r_follow_274;
+    uint64_t p_308;
+    uint64_t o_1054;
     oop o_1055;
-    uint64_t o_1056;
-    oop o_1057;
+    oop o_1056;
+    uint64_t o_1057;
+    oop o_1058;
     oop v_554;
     oop v_555;
-    oop o_1058;
+    oop o_1059;
     ss = object_memory_special(SO_SPECIAL_SELECTORS);
     for (i = 0; i <= 31; i++) {
         special_argc[i] = ((ss & 7) == 0) && ((uint32_t)i < (uint32_t)*(uint64_t *)ss) ? selector_argc(*(uint64_t *)(ss + 16 + 8 * i)) : 0;
@@ -16238,8 +16243,21 @@ have_entry:;
     }
     if ((e_6->kind & K_CONST) != 0) {
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0) && ({
-    q_3 = e_6->qconst;
-    ((q_3 & 7) == 0) && ((q_3 != 0) && ((q_3 != nil_oop) && ((q_3 != true_oop) && (q_3 != false_oop)))); })) {
+    m_245 = e_6->method;
+    o_980 = ({
+    l_124 = *(uint64_t *)(m_245 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_124 = ({
+    p_283 = l_124;
+    while (((p_283 & 7) == 0) && (((*(uint64_t *)p_283) & H_FORWARDED) != 0)) {
+        p_283 = (*(uint64_t *)(p_283 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_250 = p_283;
+    r_follow_250; });
+    }
+    r_literals_of_124 = l_124;
+    r_literals_of_124; });
+    e_6->lits != (oop *)(o_980 + 16); })) {
             goto activate;
         }
         v_525 = e_6->qconst != 0 ? e_6->qconst : sp[-argc];
@@ -16253,9 +16271,9 @@ have_entry:;
                 cstack_used = (uint64_t)(sp + 1 - cstack);
             } else {
                 s_243 = (oop *)(active_ctx + 16);
-                m_245 = s_243[CTX_METHOD];
-                o_980 = *(uint64_t *)(m_245 + 16 + 24);
-                v_526 = ip - (uint8_t *)(o_980 + 16);
+                m_246 = s_243[CTX_METHOD];
+                o_981 = *(uint64_t *)(m_246 + 16 + 24);
+                v_526 = ip - (uint8_t *)(o_981 + 16);
                 s_243[CTX_PC] = (uint64_t)((v_526 << 1) | 1);
                 v_527 = sp - fp + 1;
                 s_243[CTX_STACKP] = (uint64_t)((v_527 << 1) | 1);
@@ -16270,46 +16288,46 @@ have_entry:;
             } else {
                 s_244 = (oop *)(active_ctx + 16);
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                    o_981 = s_244[CTX_RECEIVER];
+                    o_982 = s_244[CTX_RECEIVER];
                     v_528 = ({
-    p_283 = o_981;
-    while (((p_283 & 7) == 0) && (((*(uint64_t *)p_283) & H_FORWARDED) != 0)) {
-        p_283 = (*(uint64_t *)(p_283 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_250 = p_283;
-    r_follow_250; });
-                    *(uint64_t *)(active_ctx + 16 + 40) = v_528;
-                    if (((v_528 & 7) == 0) && (((uint64_t)(v_528 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                        remember(active_ctx);
-                    }
-                }
-                m_246 = s_244[CTX_METHOD];
-                o_982 = ({
-    l_124 = *(uint64_t *)(m_246 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_124 = ({
-    p_284 = l_124;
+    p_284 = o_982;
     while (((p_284 & 7) == 0) && (((*(uint64_t *)p_284) & H_FORWARDED) != 0)) {
         p_284 = (*(uint64_t *)(p_284 + 8)) & 18446744073709551609ULL;
     }
     r_follow_251 = p_284;
     r_follow_251; });
+                    *(uint64_t *)(active_ctx + 16 + 40) = v_528;
+                    if (((v_528 & 7) == 0) && (((uint64_t)(v_528 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                        remember(active_ctx);
+                    }
+                }
+                m_247 = s_244[CTX_METHOD];
+                o_983 = ({
+    l_125 = *(uint64_t *)(m_247 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_125 = ({
+    p_285 = l_125;
+    while (((p_285 & 7) == 0) && (((*(uint64_t *)p_285) & H_FORWARDED) != 0)) {
+        p_285 = (*(uint64_t *)(p_285 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_124 = l_124;
-    r_literals_of_124; });
-                lits = (oop *)(o_982 + 16);
+    r_follow_252 = p_285;
+    r_follow_252; });
+    }
+    r_literals_of_125 = l_125;
+    r_literals_of_125; });
+                lits = (oop *)(o_983 + 16);
                 fp = s_244 + CTX_FIXED;
-                o_983 = s_244[CTX_STACKP];
-                sp = fp + (((int64_t)o_983) >> 1) - 1;
-                o_984 = s_244[CTX_PC];
-                if (!((o_984 & 1) != 0)) {
+                o_984 = s_244[CTX_STACKP];
+                sp = fp + (((int64_t)o_984) >> 1) - 1;
+                o_985 = s_244[CTX_PC];
+                if (!((o_985 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_985 = *(uint64_t *)(m_246 + 16 + 24);
-                o_986 = s_244[CTX_PC];
-                ip = (uint8_t *)(o_985 + 16) + (((int64_t)o_986) >> 1);
+                o_986 = *(uint64_t *)(m_247 + 16 + 24);
+                o_987 = s_244[CTX_PC];
+                ip = (uint8_t *)(o_986 + 16) + (((int64_t)o_987) >> 1);
                 fr = (frame *)NULL;
             }
         }
@@ -16345,9 +16363,9 @@ have_entry:;
                         cstack_used = (uint64_t)(sp + 1 - cstack);
                     } else {
                         s_245 = (oop *)(active_ctx + 16);
-                        m_247 = s_245[CTX_METHOD];
-                        o_987 = *(uint64_t *)(m_247 + 16 + 24);
-                        v_530 = ip - (uint8_t *)(o_987 + 16);
+                        m_248 = s_245[CTX_METHOD];
+                        o_988 = *(uint64_t *)(m_248 + 16 + 24);
+                        v_530 = ip - (uint8_t *)(o_988 + 16);
                         s_245[CTX_PC] = (uint64_t)((v_530 << 1) | 1);
                         v_531 = sp - fp + 1;
                         s_245[CTX_STACKP] = (uint64_t)((v_531 << 1) | 1);
@@ -16362,46 +16380,46 @@ have_entry:;
                     } else {
                         s_246 = (oop *)(active_ctx + 16);
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                            o_988 = s_246[CTX_RECEIVER];
+                            o_989 = s_246[CTX_RECEIVER];
                             v_532 = ({
-    p_285 = o_988;
-    while (((p_285 & 7) == 0) && (((*(uint64_t *)p_285) & H_FORWARDED) != 0)) {
-        p_285 = (*(uint64_t *)(p_285 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_252 = p_285;
-    r_follow_252; });
-                            *(uint64_t *)(active_ctx + 16 + 40) = v_532;
-                            if (((v_532 & 7) == 0) && (((uint64_t)(v_532 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                                remember(active_ctx);
-                            }
-                        }
-                        m_248 = s_246[CTX_METHOD];
-                        o_989 = ({
-    l_125 = *(uint64_t *)(m_248 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_125 = ({
-    p_286 = l_125;
+    p_286 = o_989;
     while (((p_286 & 7) == 0) && (((*(uint64_t *)p_286) & H_FORWARDED) != 0)) {
         p_286 = (*(uint64_t *)(p_286 + 8)) & 18446744073709551609ULL;
     }
     r_follow_253 = p_286;
     r_follow_253; });
+                            *(uint64_t *)(active_ctx + 16 + 40) = v_532;
+                            if (((v_532 & 7) == 0) && (((uint64_t)(v_532 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                                remember(active_ctx);
+                            }
+                        }
+                        m_249 = s_246[CTX_METHOD];
+                        o_990 = ({
+    l_126 = *(uint64_t *)(m_249 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_126 = ({
+    p_287 = l_126;
+    while (((p_287 & 7) == 0) && (((*(uint64_t *)p_287) & H_FORWARDED) != 0)) {
+        p_287 = (*(uint64_t *)(p_287 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_125 = l_125;
-    r_literals_of_125; });
-                        lits = (oop *)(o_989 + 16);
+    r_follow_254 = p_287;
+    r_follow_254; });
+    }
+    r_literals_of_126 = l_126;
+    r_literals_of_126; });
+                        lits = (oop *)(o_990 + 16);
                         fp = s_246 + CTX_FIXED;
-                        o_990 = s_246[CTX_STACKP];
-                        sp = fp + (((int64_t)o_990) >> 1) - 1;
-                        o_991 = s_246[CTX_PC];
-                        if (!((o_991 & 1) != 0)) {
+                        o_991 = s_246[CTX_STACKP];
+                        sp = fp + (((int64_t)o_991) >> 1) - 1;
+                        o_992 = s_246[CTX_PC];
+                        if (!((o_992 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_992 = *(uint64_t *)(m_248 + 16 + 24);
-                        o_993 = s_246[CTX_PC];
-                        ip = (uint8_t *)(o_992 + 16) + (((int64_t)o_993) >> 1);
+                        o_993 = *(uint64_t *)(m_249 + 16 + 24);
+                        o_994 = s_246[CTX_PC];
+                        ip = (uint8_t *)(o_993 + 16) + (((int64_t)o_994) >> 1);
                         fr = (frame *)NULL;
                     }
                 }
@@ -16425,9 +16443,9 @@ have_entry:;
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
                     s_247 = (oop *)(active_ctx + 16);
-                    m_249 = s_247[CTX_METHOD];
-                    o_994 = *(uint64_t *)(m_249 + 16 + 24);
-                    v_533 = ip - (uint8_t *)(o_994 + 16);
+                    m_250 = s_247[CTX_METHOD];
+                    o_995 = *(uint64_t *)(m_250 + 16 + 24);
+                    v_533 = ip - (uint8_t *)(o_995 + 16);
                     s_247[CTX_PC] = (uint64_t)((v_533 << 1) | 1);
                     v_534 = sp - fp + 1;
                     s_247[CTX_STACKP] = (uint64_t)((v_534 << 1) | 1);
@@ -16442,46 +16460,46 @@ have_entry:;
                 } else {
                     s_248 = (oop *)(active_ctx + 16);
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                        o_995 = s_248[CTX_RECEIVER];
+                        o_996 = s_248[CTX_RECEIVER];
                         v_535 = ({
-    p_287 = o_995;
-    while (((p_287 & 7) == 0) && (((*(uint64_t *)p_287) & H_FORWARDED) != 0)) {
-        p_287 = (*(uint64_t *)(p_287 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_254 = p_287;
-    r_follow_254; });
-                        *(uint64_t *)(active_ctx + 16 + 40) = v_535;
-                        if (((v_535 & 7) == 0) && (((uint64_t)(v_535 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                            remember(active_ctx);
-                        }
-                    }
-                    m_250 = s_248[CTX_METHOD];
-                    o_996 = ({
-    l_126 = *(uint64_t *)(m_250 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_126 = ({
-    p_288 = l_126;
+    p_288 = o_996;
     while (((p_288 & 7) == 0) && (((*(uint64_t *)p_288) & H_FORWARDED) != 0)) {
         p_288 = (*(uint64_t *)(p_288 + 8)) & 18446744073709551609ULL;
     }
     r_follow_255 = p_288;
     r_follow_255; });
+                        *(uint64_t *)(active_ctx + 16 + 40) = v_535;
+                        if (((v_535 & 7) == 0) && (((uint64_t)(v_535 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                            remember(active_ctx);
+                        }
+                    }
+                    m_251 = s_248[CTX_METHOD];
+                    o_997 = ({
+    l_127 = *(uint64_t *)(m_251 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_127 = ({
+    p_289 = l_127;
+    while (((p_289 & 7) == 0) && (((*(uint64_t *)p_289) & H_FORWARDED) != 0)) {
+        p_289 = (*(uint64_t *)(p_289 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_126 = l_126;
-    r_literals_of_126; });
-                    lits = (oop *)(o_996 + 16);
+    r_follow_256 = p_289;
+    r_follow_256; });
+    }
+    r_literals_of_127 = l_127;
+    r_literals_of_127; });
+                    lits = (oop *)(o_997 + 16);
                     fp = s_248 + CTX_FIXED;
-                    o_997 = s_248[CTX_STACKP];
-                    sp = fp + (((int64_t)o_997) >> 1) - 1;
-                    o_998 = s_248[CTX_PC];
-                    if (!((o_998 & 1) != 0)) {
+                    o_998 = s_248[CTX_STACKP];
+                    sp = fp + (((int64_t)o_998) >> 1) - 1;
+                    o_999 = s_248[CTX_PC];
+                    if (!((o_999 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_999 = *(uint64_t *)(m_250 + 16 + 24);
-                    o_1000 = s_248[CTX_PC];
-                    ip = (uint8_t *)(o_999 + 16) + (((int64_t)o_1000) >> 1);
+                    o_1000 = *(uint64_t *)(m_251 + 16 + 24);
+                    o_1001 = s_248[CTX_PC];
+                    ip = (uint8_t *)(o_1000 + 16) + (((int64_t)o_1001) >> 1);
                     fr = (frame *)NULL;
                 }
             }
@@ -16500,9 +16518,9 @@ have_entry:;
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
             s_249 = (oop *)(active_ctx + 16);
-            m_251 = s_249[CTX_METHOD];
-            o_1001 = *(uint64_t *)(m_251 + 16 + 24);
-            v_536 = ip - (uint8_t *)(o_1001 + 16);
+            m_252 = s_249[CTX_METHOD];
+            o_1002 = *(uint64_t *)(m_252 + 16 + 24);
+            v_536 = ip - (uint8_t *)(o_1002 + 16);
             s_249[CTX_PC] = (uint64_t)((v_536 << 1) | 1);
             v_537 = sp - fp + 1;
             s_249[CTX_STACKP] = (uint64_t)((v_537 << 1) | 1);
@@ -16529,46 +16547,46 @@ have_entry:;
                 } else {
                     s_250 = (oop *)(active_ctx + 16);
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                        o_1002 = s_250[CTX_RECEIVER];
+                        o_1003 = s_250[CTX_RECEIVER];
                         v_538 = ({
-    p_289 = o_1002;
-    while (((p_289 & 7) == 0) && (((*(uint64_t *)p_289) & H_FORWARDED) != 0)) {
-        p_289 = (*(uint64_t *)(p_289 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_256 = p_289;
-    r_follow_256; });
-                        *(uint64_t *)(active_ctx + 16 + 40) = v_538;
-                        if (((v_538 & 7) == 0) && (((uint64_t)(v_538 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                            remember(active_ctx);
-                        }
-                    }
-                    m_252 = s_250[CTX_METHOD];
-                    o_1003 = ({
-    l_127 = *(uint64_t *)(m_252 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_127 = ({
-    p_290 = l_127;
+    p_290 = o_1003;
     while (((p_290 & 7) == 0) && (((*(uint64_t *)p_290) & H_FORWARDED) != 0)) {
         p_290 = (*(uint64_t *)(p_290 + 8)) & 18446744073709551609ULL;
     }
     r_follow_257 = p_290;
     r_follow_257; });
+                        *(uint64_t *)(active_ctx + 16 + 40) = v_538;
+                        if (((v_538 & 7) == 0) && (((uint64_t)(v_538 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                            remember(active_ctx);
+                        }
+                    }
+                    m_253 = s_250[CTX_METHOD];
+                    o_1004 = ({
+    l_128 = *(uint64_t *)(m_253 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_128 = ({
+    p_291 = l_128;
+    while (((p_291 & 7) == 0) && (((*(uint64_t *)p_291) & H_FORWARDED) != 0)) {
+        p_291 = (*(uint64_t *)(p_291 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_127 = l_127;
-    r_literals_of_127; });
-                    lits = (oop *)(o_1003 + 16);
+    r_follow_258 = p_291;
+    r_follow_258; });
+    }
+    r_literals_of_128 = l_128;
+    r_literals_of_128; });
+                    lits = (oop *)(o_1004 + 16);
                     fp = s_250 + CTX_FIXED;
-                    o_1004 = s_250[CTX_STACKP];
-                    sp = fp + (((int64_t)o_1004) >> 1) - 1;
-                    o_1005 = s_250[CTX_PC];
-                    if (!((o_1005 & 1) != 0)) {
+                    o_1005 = s_250[CTX_STACKP];
+                    sp = fp + (((int64_t)o_1005) >> 1) - 1;
+                    o_1006 = s_250[CTX_PC];
+                    if (!((o_1006 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_1006 = *(uint64_t *)(m_252 + 16 + 24);
-                    o_1007 = s_250[CTX_PC];
-                    ip = (uint8_t *)(o_1006 + 16) + (((int64_t)o_1007) >> 1);
+                    o_1007 = *(uint64_t *)(m_253 + 16 + 24);
+                    o_1008 = s_250[CTX_PC];
+                    ip = (uint8_t *)(o_1007 + 16) + (((int64_t)o_1008) >> 1);
                     fr = (frame *)NULL;
                 }
             }
@@ -16591,54 +16609,54 @@ have_entry:;
             } else {
                 s_251 = (oop *)(active_ctx + 16);
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                    o_1008 = s_251[CTX_RECEIVER];
+                    o_1009 = s_251[CTX_RECEIVER];
                     v_539 = ({
-    p_291 = o_1008;
-    while (((p_291 & 7) == 0) && (((*(uint64_t *)p_291) & H_FORWARDED) != 0)) {
-        p_291 = (*(uint64_t *)(p_291 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_258 = p_291;
-    r_follow_258; });
-                    *(uint64_t *)(active_ctx + 16 + 40) = v_539;
-                    if (((v_539 & 7) == 0) && (((uint64_t)(v_539 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                        remember(active_ctx);
-                    }
-                }
-                m_253 = s_251[CTX_METHOD];
-                o_1009 = ({
-    l_128 = *(uint64_t *)(m_253 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_128 = ({
-    p_292 = l_128;
+    p_292 = o_1009;
     while (((p_292 & 7) == 0) && (((*(uint64_t *)p_292) & H_FORWARDED) != 0)) {
         p_292 = (*(uint64_t *)(p_292 + 8)) & 18446744073709551609ULL;
     }
     r_follow_259 = p_292;
     r_follow_259; });
+                    *(uint64_t *)(active_ctx + 16 + 40) = v_539;
+                    if (((v_539 & 7) == 0) && (((uint64_t)(v_539 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                        remember(active_ctx);
+                    }
+                }
+                m_254 = s_251[CTX_METHOD];
+                o_1010 = ({
+    l_129 = *(uint64_t *)(m_254 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_129 = ({
+    p_293 = l_129;
+    while (((p_293 & 7) == 0) && (((*(uint64_t *)p_293) & H_FORWARDED) != 0)) {
+        p_293 = (*(uint64_t *)(p_293 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_128 = l_128;
-    r_literals_of_128; });
-                lits = (oop *)(o_1009 + 16);
+    r_follow_260 = p_293;
+    r_follow_260; });
+    }
+    r_literals_of_129 = l_129;
+    r_literals_of_129; });
+                lits = (oop *)(o_1010 + 16);
                 fp = s_251 + CTX_FIXED;
-                o_1010 = s_251[CTX_STACKP];
-                sp = fp + (((int64_t)o_1010) >> 1) - 1;
-                o_1011 = s_251[CTX_PC];
-                if (!((o_1011 & 1) != 0)) {
+                o_1011 = s_251[CTX_STACKP];
+                sp = fp + (((int64_t)o_1011) >> 1) - 1;
+                o_1012 = s_251[CTX_PC];
+                if (!((o_1012 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_1012 = *(uint64_t *)(m_253 + 16 + 24);
-                o_1013 = s_251[CTX_PC];
-                ip = (uint8_t *)(o_1012 + 16) + (((int64_t)o_1013) >> 1);
+                o_1013 = *(uint64_t *)(m_254 + 16 + 24);
+                o_1014 = s_251[CTX_PC];
+                ip = (uint8_t *)(o_1013 + 16) + (((int64_t)o_1014) >> 1);
                 fr = (frame *)NULL;
             }
             if (fr == NULL) {
                 if (__builtin_expect((fr == NULL) && (jit_mode != JIT_NONE), 0)) {
                     s_252 = (oop *)(active_ctx + 16);
-                    m_254 = s_252[CTX_METHOD];
-                    o_1014 = *(uint64_t *)(m_254 + 16 + 24);
-                    v_540 = ip - (uint8_t *)(o_1014 + 16);
+                    m_255 = s_252[CTX_METHOD];
+                    o_1015 = *(uint64_t *)(m_255 + 16 + 24);
+                    v_540 = ip - (uint8_t *)(o_1015 + 16);
                     s_252[CTX_PC] = (uint64_t)((v_540 << 1) | 1);
                     v_541 = sp - fp + 1;
                     s_252[CTX_STACKP] = (uint64_t)((v_541 << 1) | 1);
@@ -16652,46 +16670,46 @@ have_entry:;
                     } else {
                         s_253 = (oop *)(active_ctx + 16);
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                            o_1015 = s_253[CTX_RECEIVER];
+                            o_1016 = s_253[CTX_RECEIVER];
                             v_542 = ({
-    p_293 = o_1015;
-    while (((p_293 & 7) == 0) && (((*(uint64_t *)p_293) & H_FORWARDED) != 0)) {
-        p_293 = (*(uint64_t *)(p_293 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_260 = p_293;
-    r_follow_260; });
-                            *(uint64_t *)(active_ctx + 16 + 40) = v_542;
-                            if (((v_542 & 7) == 0) && (((uint64_t)(v_542 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                                remember(active_ctx);
-                            }
-                        }
-                        m_255 = s_253[CTX_METHOD];
-                        o_1016 = ({
-    l_129 = *(uint64_t *)(m_255 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_129 = ({
-    p_294 = l_129;
+    p_294 = o_1016;
     while (((p_294 & 7) == 0) && (((*(uint64_t *)p_294) & H_FORWARDED) != 0)) {
         p_294 = (*(uint64_t *)(p_294 + 8)) & 18446744073709551609ULL;
     }
     r_follow_261 = p_294;
     r_follow_261; });
+                            *(uint64_t *)(active_ctx + 16 + 40) = v_542;
+                            if (((v_542 & 7) == 0) && (((uint64_t)(v_542 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                                remember(active_ctx);
+                            }
+                        }
+                        m_256 = s_253[CTX_METHOD];
+                        o_1017 = ({
+    l_130 = *(uint64_t *)(m_256 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_130 = ({
+    p_295 = l_130;
+    while (((p_295 & 7) == 0) && (((*(uint64_t *)p_295) & H_FORWARDED) != 0)) {
+        p_295 = (*(uint64_t *)(p_295 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_129 = l_129;
-    r_literals_of_129; });
-                        lits = (oop *)(o_1016 + 16);
+    r_follow_262 = p_295;
+    r_follow_262; });
+    }
+    r_literals_of_130 = l_130;
+    r_literals_of_130; });
+                        lits = (oop *)(o_1017 + 16);
                         fp = s_253 + CTX_FIXED;
-                        o_1017 = s_253[CTX_STACKP];
-                        sp = fp + (((int64_t)o_1017) >> 1) - 1;
-                        o_1018 = s_253[CTX_PC];
-                        if (!((o_1018 & 1) != 0)) {
+                        o_1018 = s_253[CTX_STACKP];
+                        sp = fp + (((int64_t)o_1018) >> 1) - 1;
+                        o_1019 = s_253[CTX_PC];
+                        if (!((o_1019 & 1) != 0)) {
                             fatal_begin();
                             fprintf(stderr, "resuming a dead context");
                             fatal_end();
                         }
-                        o_1019 = *(uint64_t *)(m_255 + 16 + 24);
-                        o_1020 = s_253[CTX_PC];
-                        ip = (uint8_t *)(o_1019 + 16) + (((int64_t)o_1020) >> 1);
+                        o_1020 = *(uint64_t *)(m_256 + 16 + 24);
+                        o_1021 = s_253[CTX_PC];
+                        ip = (uint8_t *)(o_1020 + 16) + (((int64_t)o_1021) >> 1);
                         fr = (frame *)NULL;
                     }
                 }
@@ -16705,9 +16723,9 @@ have_entry:;
                     cstack_used = (uint64_t)(sp + 1 - cstack);
                 } else {
                     s_254 = (oop *)(active_ctx + 16);
-                    m_256 = s_254[CTX_METHOD];
-                    o_1021 = *(uint64_t *)(m_256 + 16 + 24);
-                    v_543 = ip - (uint8_t *)(o_1021 + 16);
+                    m_257 = s_254[CTX_METHOD];
+                    o_1022 = *(uint64_t *)(m_257 + 16 + 24);
+                    v_543 = ip - (uint8_t *)(o_1022 + 16);
                     s_254[CTX_PC] = (uint64_t)((v_543 << 1) | 1);
                     v_544 = sp - fp + 1;
                     s_254[CTX_STACKP] = (uint64_t)((v_544 << 1) | 1);
@@ -16722,46 +16740,46 @@ have_entry:;
                 } else {
                     s_255 = (oop *)(active_ctx + 16);
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                        o_1022 = s_255[CTX_RECEIVER];
+                        o_1023 = s_255[CTX_RECEIVER];
                         v_545 = ({
-    p_295 = o_1022;
-    while (((p_295 & 7) == 0) && (((*(uint64_t *)p_295) & H_FORWARDED) != 0)) {
-        p_295 = (*(uint64_t *)(p_295 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_262 = p_295;
-    r_follow_262; });
-                        *(uint64_t *)(active_ctx + 16 + 40) = v_545;
-                        if (((v_545 & 7) == 0) && (((uint64_t)(v_545 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                            remember(active_ctx);
-                        }
-                    }
-                    m_257 = s_255[CTX_METHOD];
-                    o_1023 = ({
-    l_130 = *(uint64_t *)(m_257 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_130 = ({
-    p_296 = l_130;
+    p_296 = o_1023;
     while (((p_296 & 7) == 0) && (((*(uint64_t *)p_296) & H_FORWARDED) != 0)) {
         p_296 = (*(uint64_t *)(p_296 + 8)) & 18446744073709551609ULL;
     }
     r_follow_263 = p_296;
     r_follow_263; });
+                        *(uint64_t *)(active_ctx + 16 + 40) = v_545;
+                        if (((v_545 & 7) == 0) && (((uint64_t)(v_545 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                            remember(active_ctx);
+                        }
+                    }
+                    m_258 = s_255[CTX_METHOD];
+                    o_1024 = ({
+    l_131 = *(uint64_t *)(m_258 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_131 = ({
+    p_297 = l_131;
+    while (((p_297 & 7) == 0) && (((*(uint64_t *)p_297) & H_FORWARDED) != 0)) {
+        p_297 = (*(uint64_t *)(p_297 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_130 = l_130;
-    r_literals_of_130; });
-                    lits = (oop *)(o_1023 + 16);
+    r_follow_264 = p_297;
+    r_follow_264; });
+    }
+    r_literals_of_131 = l_131;
+    r_literals_of_131; });
+                    lits = (oop *)(o_1024 + 16);
                     fp = s_255 + CTX_FIXED;
-                    o_1024 = s_255[CTX_STACKP];
-                    sp = fp + (((int64_t)o_1024) >> 1) - 1;
-                    o_1025 = s_255[CTX_PC];
-                    if (!((o_1025 & 1) != 0)) {
+                    o_1025 = s_255[CTX_STACKP];
+                    sp = fp + (((int64_t)o_1025) >> 1) - 1;
+                    o_1026 = s_255[CTX_PC];
+                    if (!((o_1026 & 1) != 0)) {
                         fatal_begin();
                         fprintf(stderr, "resuming a dead context");
                         fatal_end();
                     }
-                    o_1026 = *(uint64_t *)(m_257 + 16 + 24);
-                    o_1027 = s_255[CTX_PC];
-                    ip = (uint8_t *)(o_1026 + 16) + (((int64_t)o_1027) >> 1);
+                    o_1027 = *(uint64_t *)(m_258 + 16 + 24);
+                    o_1028 = s_255[CTX_PC];
+                    ip = (uint8_t *)(o_1027 + 16) + (((int64_t)o_1028) >> 1);
                     fr = (frame *)NULL;
                 }
             }
@@ -16780,46 +16798,46 @@ have_entry:;
             } else {
                 s_256 = (oop *)(active_ctx + 16);
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                    o_1028 = s_256[CTX_RECEIVER];
+                    o_1029 = s_256[CTX_RECEIVER];
                     v_546 = ({
-    p_297 = o_1028;
-    while (((p_297 & 7) == 0) && (((*(uint64_t *)p_297) & H_FORWARDED) != 0)) {
-        p_297 = (*(uint64_t *)(p_297 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_264 = p_297;
-    r_follow_264; });
-                    *(uint64_t *)(active_ctx + 16 + 40) = v_546;
-                    if (((v_546 & 7) == 0) && (((uint64_t)(v_546 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                        remember(active_ctx);
-                    }
-                }
-                m_258 = s_256[CTX_METHOD];
-                o_1029 = ({
-    l_131 = *(uint64_t *)(m_258 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_131 = ({
-    p_298 = l_131;
+    p_298 = o_1029;
     while (((p_298 & 7) == 0) && (((*(uint64_t *)p_298) & H_FORWARDED) != 0)) {
         p_298 = (*(uint64_t *)(p_298 + 8)) & 18446744073709551609ULL;
     }
     r_follow_265 = p_298;
     r_follow_265; });
+                    *(uint64_t *)(active_ctx + 16 + 40) = v_546;
+                    if (((v_546 & 7) == 0) && (((uint64_t)(v_546 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                        remember(active_ctx);
+                    }
+                }
+                m_259 = s_256[CTX_METHOD];
+                o_1030 = ({
+    l_132 = *(uint64_t *)(m_259 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_132 = ({
+    p_299 = l_132;
+    while (((p_299 & 7) == 0) && (((*(uint64_t *)p_299) & H_FORWARDED) != 0)) {
+        p_299 = (*(uint64_t *)(p_299 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_131 = l_131;
-    r_literals_of_131; });
-                lits = (oop *)(o_1029 + 16);
+    r_follow_266 = p_299;
+    r_follow_266; });
+    }
+    r_literals_of_132 = l_132;
+    r_literals_of_132; });
+                lits = (oop *)(o_1030 + 16);
                 fp = s_256 + CTX_FIXED;
-                o_1030 = s_256[CTX_STACKP];
-                sp = fp + (((int64_t)o_1030) >> 1) - 1;
-                o_1031 = s_256[CTX_PC];
-                if (!((o_1031 & 1) != 0)) {
+                o_1031 = s_256[CTX_STACKP];
+                sp = fp + (((int64_t)o_1031) >> 1) - 1;
+                o_1032 = s_256[CTX_PC];
+                if (!((o_1032 & 1) != 0)) {
                     fatal_begin();
                     fprintf(stderr, "resuming a dead context");
                     fatal_end();
                 }
-                o_1032 = *(uint64_t *)(m_258 + 16 + 24);
-                o_1033 = s_256[CTX_PC];
-                ip = (uint8_t *)(o_1032 + 16) + (((int64_t)o_1033) >> 1);
+                o_1033 = *(uint64_t *)(m_259 + 16 + 24);
+                o_1034 = s_256[CTX_PC];
+                ip = (uint8_t *)(o_1033 + 16) + (((int64_t)o_1034) >> 1);
                 fr = (frame *)NULL;
             }
             sel = resend_selector;
@@ -16836,55 +16854,22 @@ have_entry:;
                 } else {
                     s_257 = (oop *)(active_ctx + 16);
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-                        o_1034 = s_257[CTX_RECEIVER];
+                        o_1035 = s_257[CTX_RECEIVER];
                         v_547 = ({
-    p_299 = o_1034;
-    while (((p_299 & 7) == 0) && (((*(uint64_t *)p_299) & H_FORWARDED) != 0)) {
-        p_299 = (*(uint64_t *)(p_299 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_266 = p_299;
-    r_follow_266; });
-                        *(uint64_t *)(active_ctx + 16 + 40) = v_547;
-                        if (((v_547 & 7) == 0) && (((uint64_t)(v_547 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                            remember(active_ctx);
-                        }
-                    }
-                    m_259 = s_257[CTX_METHOD];
-                    o_1035 = ({
-    l_132 = *(uint64_t *)(m_259 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_132 = ({
-    p_300 = l_132;
+    p_300 = o_1035;
     while (((p_300 & 7) == 0) && (((*(uint64_t *)p_300) & H_FORWARDED) != 0)) {
         p_300 = (*(uint64_t *)(p_300 + 8)) & 18446744073709551609ULL;
     }
     r_follow_267 = p_300;
     r_follow_267; });
-    }
-    r_literals_of_132 = l_132;
-    r_literals_of_132; });
-                    lits = (oop *)(o_1035 + 16);
-                    fp = s_257 + CTX_FIXED;
-                    o_1036 = s_257[CTX_STACKP];
-                    sp = fp + (((int64_t)o_1036) >> 1) - 1;
-                    o_1037 = s_257[CTX_PC];
-                    if (!((o_1037 & 1) != 0)) {
-                        fatal_begin();
-                        fprintf(stderr, "resuming a dead context");
-                        fatal_end();
+                        *(uint64_t *)(active_ctx + 16 + 40) = v_547;
+                        if (((v_547 & 7) == 0) && (((uint64_t)(v_547 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                            remember(active_ctx);
+                        }
                     }
-                    o_1038 = *(uint64_t *)(m_259 + 16 + 24);
-                    o_1039 = s_257[CTX_PC];
-                    ip = (uint8_t *)(o_1038 + 16) + (((int64_t)o_1039) >> 1);
-                    fr = (frame *)NULL;
-                }
-            }
-            new_method = tmp_roots[0];
-            tmp_roots[0] = nil_oop;
-            o_1040 = *(uint64_t *)(new_method + 16 + 24);
-            new_bcs = (uint8_t *)(o_1040 + 16);
-            o_1041 = ({
-    l_133 = *(uint64_t *)(new_method + 16 + 16);
+                    m_260 = s_257[CTX_METHOD];
+                    o_1036 = ({
+    l_133 = *(uint64_t *)(m_260 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_133 = ({
     p_301 = l_133;
@@ -16896,10 +16881,43 @@ have_entry:;
     }
     r_literals_of_133 = l_133;
     r_literals_of_133; });
-            new_lits = (oop *)(o_1041 + 16);
+                    lits = (oop *)(o_1036 + 16);
+                    fp = s_257 + CTX_FIXED;
+                    o_1037 = s_257[CTX_STACKP];
+                    sp = fp + (((int64_t)o_1037) >> 1) - 1;
+                    o_1038 = s_257[CTX_PC];
+                    if (!((o_1038 & 1) != 0)) {
+                        fatal_begin();
+                        fprintf(stderr, "resuming a dead context");
+                        fatal_end();
+                    }
+                    o_1039 = *(uint64_t *)(m_260 + 16 + 24);
+                    o_1040 = s_257[CTX_PC];
+                    ip = (uint8_t *)(o_1039 + 16) + (((int64_t)o_1040) >> 1);
+                    fr = (frame *)NULL;
+                }
+            }
+            new_method = tmp_roots[0];
+            tmp_roots[0] = nil_oop;
+            o_1041 = *(uint64_t *)(new_method + 16 + 24);
+            new_bcs = (uint8_t *)(o_1041 + 16);
+            o_1042 = ({
+    l_134 = *(uint64_t *)(new_method + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_134 = ({
+    p_302 = l_134;
+    while (((p_302 & 7) == 0) && (((*(uint64_t *)p_302) & H_FORWARDED) != 0)) {
+        p_302 = (*(uint64_t *)(p_302 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_269 = p_302;
+    r_follow_269; });
+    }
+    r_literals_of_134 = l_134;
+    r_literals_of_134; });
+            new_lits = (oop *)(o_1042 + 16);
             if ((prim_error_code >= 0) && ((new_temps > 0) && ((({
-    p_302 = *(uint64_t *)(new_method + 16 + 56);
-    r_method_prim_6 = (p_302 & 1) != 0 ? ((int64_t)p_302) >> 1 : 0;
+    p_303 = *(uint64_t *)(new_method + 16 + 56);
+    r_method_prim_6 = (p_303 & 1) != 0 ? ((int64_t)p_303) >> 1 : 0;
     r_method_prim_6; }) & CM_PRIM_ERROR_FLAG) != 0))) {
                 new_ecode = prim_error_code;
             }
@@ -16909,14 +16927,14 @@ have_entry:;
     goto activate;
 send_does_not_understand:;
     if (__builtin_expect((cls & 7) == FWD_TAG, 0)) {
-        o_1042 = sp[-argc];
+        o_1043 = sp[-argc];
         sp[-argc] = ({
-    p_303 = o_1042;
-    while (((p_303 & 7) == 0) && (((*(uint64_t *)p_303) & H_FORWARDED) != 0)) {
-        p_303 = (*(uint64_t *)(p_303 + 8)) & 18446744073709551609ULL;
+    p_304 = o_1043;
+    while (((p_304 & 7) == 0) && (((*(uint64_t *)p_304) & H_FORWARDED) != 0)) {
+        p_304 = (*(uint64_t *)(p_304 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_269 = p_303;
-    r_follow_269; });
+    r_follow_270 = p_304;
+    r_follow_270; });
         r_40 = sp[-argc];
         cls = (r_40 & 7) != 0 ? tag_class[r_40 & 7] : *(uint64_t *)(r_40 + 8);
         goto do_lookup;
@@ -16930,9 +16948,9 @@ send_does_not_understand:;
             cstack_used = (uint64_t)(sp + 1 - cstack);
         } else {
             s_258 = (oop *)(active_ctx + 16);
-            m_260 = s_258[CTX_METHOD];
-            o_1043 = *(uint64_t *)(m_260 + 16 + 24);
-            v_548 = ip - (uint8_t *)(o_1043 + 16);
+            m_261 = s_258[CTX_METHOD];
+            o_1044 = *(uint64_t *)(m_261 + 16 + 24);
+            v_548 = ip - (uint8_t *)(o_1044 + 16);
             s_258[CTX_PC] = (uint64_t)((v_548 << 1) | 1);
             v_549 = sp - fp + 1;
             s_258[CTX_STACKP] = (uint64_t)((v_549 << 1) | 1);
@@ -16954,9 +16972,9 @@ send_does_not_understand:;
         cstack_used = (uint64_t)(sp + 1 - cstack);
     } else {
         s_259 = (oop *)(active_ctx + 16);
-        m_261 = s_259[CTX_METHOD];
-        o_1044 = *(uint64_t *)(m_261 + 16 + 24);
-        v_550 = ip - (uint8_t *)(o_1044 + 16);
+        m_262 = s_259[CTX_METHOD];
+        o_1045 = *(uint64_t *)(m_262 + 16 + 24);
+        v_550 = ip - (uint8_t *)(o_1045 + 16);
         s_259[CTX_PC] = (uint64_t)((v_550 << 1) | 1);
         v_551 = sp - fp + 1;
         s_259[CTX_STACKP] = (uint64_t)((v_551 << 1) | 1);
@@ -16973,46 +16991,46 @@ send_does_not_understand:;
     } else {
         s_260 = (oop *)(active_ctx + 16);
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-            o_1045 = s_260[CTX_RECEIVER];
+            o_1046 = s_260[CTX_RECEIVER];
             v_552 = ({
-    p_304 = o_1045;
-    while (((p_304 & 7) == 0) && (((*(uint64_t *)p_304) & H_FORWARDED) != 0)) {
-        p_304 = (*(uint64_t *)(p_304 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_270 = p_304;
-    r_follow_270; });
-            *(uint64_t *)(active_ctx + 16 + 40) = v_552;
-            if (((v_552 & 7) == 0) && (((uint64_t)(v_552 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                remember(active_ctx);
-            }
-        }
-        m_262 = s_260[CTX_METHOD];
-        o_1046 = ({
-    l_134 = *(uint64_t *)(m_262 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_134 = ({
-    p_305 = l_134;
+    p_305 = o_1046;
     while (((p_305 & 7) == 0) && (((*(uint64_t *)p_305) & H_FORWARDED) != 0)) {
         p_305 = (*(uint64_t *)(p_305 + 8)) & 18446744073709551609ULL;
     }
     r_follow_271 = p_305;
     r_follow_271; });
+            *(uint64_t *)(active_ctx + 16 + 40) = v_552;
+            if (((v_552 & 7) == 0) && (((uint64_t)(v_552 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                remember(active_ctx);
+            }
+        }
+        m_263 = s_260[CTX_METHOD];
+        o_1047 = ({
+    l_135 = *(uint64_t *)(m_263 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_135 = ({
+    p_306 = l_135;
+    while (((p_306 & 7) == 0) && (((*(uint64_t *)p_306) & H_FORWARDED) != 0)) {
+        p_306 = (*(uint64_t *)(p_306 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_134 = l_134;
-    r_literals_of_134; });
-        lits = (oop *)(o_1046 + 16);
+    r_follow_272 = p_306;
+    r_follow_272; });
+    }
+    r_literals_of_135 = l_135;
+    r_literals_of_135; });
+        lits = (oop *)(o_1047 + 16);
         fp = s_260 + CTX_FIXED;
-        o_1047 = s_260[CTX_STACKP];
-        sp = fp + (((int64_t)o_1047) >> 1) - 1;
-        o_1048 = s_260[CTX_PC];
-        if (!((o_1048 & 1) != 0)) {
+        o_1048 = s_260[CTX_STACKP];
+        sp = fp + (((int64_t)o_1048) >> 1) - 1;
+        o_1049 = s_260[CTX_PC];
+        if (!((o_1049 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_1049 = *(uint64_t *)(m_262 + 16 + 24);
-        o_1050 = s_260[CTX_PC];
-        ip = (uint8_t *)(o_1049 + 16) + (((int64_t)o_1050) >> 1);
+        o_1050 = *(uint64_t *)(m_263 + 16 + 24);
+        o_1051 = s_260[CTX_PC];
+        ip = (uint8_t *)(o_1050 + 16) + (((int64_t)o_1051) >> 1);
         fr = (frame *)NULL;
     }
     memcpy((oop *)(args + 16), sp - argc + 1, (uint64_t)argc * 8);
@@ -17021,8 +17039,8 @@ send_does_not_understand:;
     }
     tmp_roots[3] = args;
     mc = cls_message;
-    o_1051 = *(uint64_t *)(mc + 16 + 16);
-    isize_2 = (((int64_t)o_1051) >> 1) & CLS_INSTSIZE_MASK;
+    o_1052 = *(uint64_t *)(mc + 16 + 16);
+    isize_2 = (((int64_t)o_1052) >> 1) & CLS_INSTSIZE_MASK;
     msg = alloc_obj(mc, F_FIXED, (uint32_t)(isize_2 < 2 ? 2 : isize_2));
     if (nframes != 0) {
         fr = frames + (nframes - 1);
@@ -17033,46 +17051,46 @@ send_does_not_understand:;
     } else {
         s_261 = (oop *)(active_ctx + 16);
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-            o_1052 = s_261[CTX_RECEIVER];
+            o_1053 = s_261[CTX_RECEIVER];
             v_553 = ({
-    p_306 = o_1052;
-    while (((p_306 & 7) == 0) && (((*(uint64_t *)p_306) & H_FORWARDED) != 0)) {
-        p_306 = (*(uint64_t *)(p_306 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_272 = p_306;
-    r_follow_272; });
-            *(uint64_t *)(active_ctx + 16 + 40) = v_553;
-            if (((v_553 & 7) == 0) && (((uint64_t)(v_553 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
-                remember(active_ctx);
-            }
-        }
-        m_263 = s_261[CTX_METHOD];
-        o_1053 = ({
-    l_135 = *(uint64_t *)(m_263 + 16 + 16);
-    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_135 = ({
-    p_307 = l_135;
+    p_307 = o_1053;
     while (((p_307 & 7) == 0) && (((*(uint64_t *)p_307) & H_FORWARDED) != 0)) {
         p_307 = (*(uint64_t *)(p_307 + 8)) & 18446744073709551609ULL;
     }
     r_follow_273 = p_307;
     r_follow_273; });
+            *(uint64_t *)(active_ctx + 16 + 40) = v_553;
+            if (((v_553 & 7) == 0) && (((uint64_t)(v_553 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
+                remember(active_ctx);
+            }
+        }
+        m_264 = s_261[CTX_METHOD];
+        o_1054 = ({
+    l_136 = *(uint64_t *)(m_264 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_136 = ({
+    p_308 = l_136;
+    while (((p_308 & 7) == 0) && (((*(uint64_t *)p_308) & H_FORWARDED) != 0)) {
+        p_308 = (*(uint64_t *)(p_308 + 8)) & 18446744073709551609ULL;
     }
-    r_literals_of_135 = l_135;
-    r_literals_of_135; });
-        lits = (oop *)(o_1053 + 16);
+    r_follow_274 = p_308;
+    r_follow_274; });
+    }
+    r_literals_of_136 = l_136;
+    r_literals_of_136; });
+        lits = (oop *)(o_1054 + 16);
         fp = s_261 + CTX_FIXED;
-        o_1054 = s_261[CTX_STACKP];
-        sp = fp + (((int64_t)o_1054) >> 1) - 1;
-        o_1055 = s_261[CTX_PC];
-        if (!((o_1055 & 1) != 0)) {
+        o_1055 = s_261[CTX_STACKP];
+        sp = fp + (((int64_t)o_1055) >> 1) - 1;
+        o_1056 = s_261[CTX_PC];
+        if (!((o_1056 & 1) != 0)) {
             fatal_begin();
             fprintf(stderr, "resuming a dead context");
             fatal_end();
         }
-        o_1056 = *(uint64_t *)(m_263 + 16 + 24);
-        o_1057 = s_261[CTX_PC];
-        ip = (uint8_t *)(o_1056 + 16) + (((int64_t)o_1057) >> 1);
+        o_1057 = *(uint64_t *)(m_264 + 16 + 24);
+        o_1058 = s_261[CTX_PC];
+        ip = (uint8_t *)(o_1057 + 16) + (((int64_t)o_1058) >> 1);
         fr = (frame *)NULL;
     }
     v_554 = tmp_roots[1];
@@ -17096,8 +17114,8 @@ send_does_not_understand:;
     argc = 1;
     goto do_lookup;
 send_special:;
-    o_1058 = object_memory_special(SO_SPECIAL_SELECTORS);
-    sel = *(uint64_t *)(o_1058 + 16 + 8 * six);
+    o_1059 = object_memory_special(SO_SPECIAL_SELECTORS);
+    sel = *(uint64_t *)(o_1059 + 16 + 8 * six);
     argc = special_argc[six];
     goto do_send;
 }

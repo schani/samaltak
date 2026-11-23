@@ -2332,7 +2332,12 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t r_resend;
     uint64_t r_2;
     uint64_t r_sent;
-    oop o_9;
+    oop m_5;
+    uint64_t r_literals_of_4;
+    uint64_t l_4;
+    uint64_t r_follow_5;
+    uint64_t p_6;
+    uint64_t o_9;
     uint64_t r_sent_2;
     int8_t i_3;
     uint64_t r_sent_3;
@@ -2345,26 +2350,26 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t r_sent_4;
     bool r_call_leaf;
     uint64_t r_sent_5;
-    oop m_5;
-    uint64_t r_literals_of_4;
-    uint64_t l_4;
-    uint64_t r_follow_5;
-    uint64_t p_6;
+    oop m_6;
+    uint64_t r_literals_of_5;
+    uint64_t l_5;
+    uint64_t r_follow_6;
+    uint64_t p_7;
     uint64_t o_10;
     uint64_t r_perform;
     oop *base_3;
     oop sel_2;
     oop arr;
-    int32_t m_6;
+    int32_t m_7;
     oop r_3;
     cache_entry *v_5;
     cache_entry *g_3;
     uint64_t r_leave_before_2;
-    oop m_7;
-    uint64_t r_literals_of_5;
-    uint64_t l_5;
-    uint64_t r_follow_6;
-    uint64_t p_7;
+    oop m_8;
+    uint64_t r_literals_of_6;
+    uint64_t l_6;
+    uint64_t r_follow_7;
+    uint64_t p_8;
     uint64_t o_11;
     int32_t i_5;
     uint64_t r_resend_2;
@@ -2564,9 +2569,22 @@ exit_does_not_understand:;
     r_does_not_understand; });
         }
     }
-    if (((e->kind & K_CONST) != 0) && ((!(young_forwarders + old_forwarders != 0)) || ((e->qconst == 0) || ({
-    o_9 = e->qconst;
-    (!((o_9 & 7) == 0)) || ((e->qconst == nil_oop) || ((e->qconst == true_oop) || (e->qconst == false_oop))); })))) {
+    if (((e->kind & K_CONST) != 0) && ((!(young_forwarders + old_forwarders != 0)) || ({
+    m_5 = e->method;
+    o_9 = ({
+    l_4 = *(uint64_t *)(m_5 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_4 = ({
+    p_6 = l_4;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_6;
+    r_follow_5; });
+    }
+    r_literals_of_4 = l_4;
+    r_literals_of_4; });
+    e->lits == (oop *)(o_9 + 16); }))) {
         if (e->qconst != 0) {
             base[0] = e->qconst;
         }
@@ -2644,29 +2662,29 @@ exit_sent_5:;
         canonicalize_below(f);
     }
     sync_frame(f);
-    m_5 = f->method;
+    m_6 = f->method;
     o_10 = ({
-    l_4 = *(uint64_t *)(m_5 + 16 + 16);
+    l_5 = *(uint64_t *)(m_6 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_4 = ({
-    p_6 = l_4;
-    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
-        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+        l_5 = ({
+    p_7 = l_5;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_5 = p_6;
-    r_follow_5; });
+    r_follow_6 = p_7;
+    r_follow_6; });
     }
-    r_literals_of_4 = l_4;
-    r_literals_of_4; });
+    r_literals_of_5 = l_5;
+    r_literals_of_5; });
     f->lits = (oop *)(o_10 + 16);
     if (((e->kind & K_PRIM) != 0) && ((e->prim == perform_fn) || (e->prim == perform_args_fn))) {
         return ({
     base_3 = f->fp + (f->sp - n - 1);
     sel_2 = base_3[1];
     arr = n == 2 ? base_3[2] : nil_oop;
-    m_6 = ((e->kind & K_PRIM) != 0) && (e->prim == perform_args_fn) ? ((arr & 7) == 0) && (*(uint64_t *)(arr + 8) == cls_array) ? (int32_t)(uint32_t)*(uint64_t *)arr : -1 : n - 1;
+    m_7 = ((e->kind & K_PRIM) != 0) && (e->prim == perform_args_fn) ? ((arr & 7) == 0) && (*(uint64_t *)(arr + 8) == cls_array) ? (int32_t)(uint32_t)*(uint64_t *)arr : -1 : n - 1;
     g_3 = ({
-    if ((m_6 >= 0) && (selector_argc(sel_2) == m_6)) {
+    if ((m_7 >= 0) && (selector_argc(sel_2) == m_7)) {
         r_3 = base_3[0];
         v_5 = entry_for((r_3 & 7) != 0 ? tag_class[r_3 & 7] : *(uint64_t *)(r_3 + 8), sel_2);
     } else {
@@ -2680,36 +2698,36 @@ exit_sent_5:;
         canonicalize_below(f);
     }
     sync_frame(f);
-    m_7 = f->method;
+    m_8 = f->method;
     o_11 = ({
-    l_5 = *(uint64_t *)(m_7 + 16 + 16);
+    l_6 = *(uint64_t *)(m_8 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
-        l_5 = ({
-    p_7 = l_5;
-    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
-        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+        l_6 = ({
+    p_8 = l_6;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_6 = p_7;
-    r_follow_6; });
+    r_follow_7 = p_8;
+    r_follow_7; });
     }
-    r_literals_of_5 = l_5;
-    r_literals_of_5; });
+    r_literals_of_6 = l_6;
+    r_literals_of_6; });
     f->lits = (oop *)(o_11 + 16);
     r_leave_before_2 = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before_2; });
         goto exit_perform;
     }
     if (((e->kind & K_PRIM) != 0) && (e->prim == perform_args_fn)) {
-        for (i_5 = 0; i_5 <= m_6 - 1; i_5++) {
+        for (i_5 = 0; i_5 <= m_7 - 1; i_5++) {
             base_3[1 + i_5] = *(uint64_t *)(arr + 16 + 8 * i_5);
         }
     } else {
-        memmove(base_3 + 1, base_3 + 2, (uint64_t)m_6 * 8);
+        memmove(base_3 + 1, base_3 + 2, (uint64_t)m_7 * 8);
     }
-    active_set_stackp(f->sp - n + m_6);
+    active_set_stackp(f->sp - n + m_7);
     r_perform = ({
     send_pushed = 0;
-    r_4 = dispatch(g_3, f, m_6);
+    r_4 = dispatch(g_3, f, m_7);
     if (r_4 == 0) {
         r_resend_2 = ({
     if (state_block->interrupt == 0) {

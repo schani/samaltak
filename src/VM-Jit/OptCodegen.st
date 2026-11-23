@@ -861,14 +861,13 @@ conditionOf: n
 	^k caseOf: {[2] -> [COND_LT]. [3] -> [COND_GT]. [4] -> [COND_LE]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]
 !
 isPermanentlyEager: c
-	"c is never forwarded lazily, whatever happens later (special objects can change): a class or metaclass, a Symbol."
+	"c is never forwarded lazily, whatever happens later (special objects can change): a class or metaclass."
 	| m |
 	m := self rawClass: (self rawClass: c).
-	m = (self rawClass: (self rawClass: m)) ifTrue: [^true].
-	^(self rawClass: c) = (memory special: SO_BYTESYMBOL) or: [(self rawClass: c) = (memory special: SO_WIDESYMBOL)]
+	^m = (self rawClass: (self rawClass: m))
 !
 isNoForwarderTarget: v
-	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false, a constant class or Symbol."
+	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false, a constant class."
 	| k |
 	k := (ir node: v) tkind asInt32.
 	((ir node: v) op asInt32 = O_CONST and: [(self isPtr: (ir node: v) aux asUInt64) not or: [self isPermanentlyEager: (ir node: v) aux asUInt64]]) ifTrue: [^true].

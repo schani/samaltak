@@ -214,15 +214,18 @@ testForwardedLiteralArray
 	mode := Smalltalk vm jitMode: #none.
 	BecomeTestSubject compile: 'quickLiteral ^#old' classified: 'tests'.
 	BecomeTestSubject compile: 'literal ^#(#old) first' classified: 'tests'.
+	BecomeTestSubject compile: 'quickInteger ^40000' classified: 'tests'.
 	[subject := BecomeTestSubject new.
-	3 timesRepeat: [subject quickLiteral. subject literal].
-	#(#quickLiteral #literal) do: [:sel |
+	3 timesRepeat: [subject quickLiteral. subject literal. subject quickInteger].
+	#(#quickLiteral #literal #quickInteger) do: [:sel |
 		literals := (BecomeTestSubject >> sel) literals.
-		literals becomeForward: (literals collect: [:each | each == #old ifTrue: [#new] ifFalse: [each = #(#old) ifTrue: [#(#new)] ifFalse: [each]]])].
+		literals becomeForward: (literals collect: [:each |
+			each == #old ifTrue: [#new] ifFalse: [each = #(#old) ifTrue: [#(#new)] ifFalse: [each = 40000 ifTrue: [40001] ifFalse: [each]]]])].
 	self assert: subject quickLiteral == #new.
-	self assert: subject literal == #new]
+	self assert: subject literal == #new.
+	self assert: subject quickInteger = 40001]
 		ensure: [
-			BecomeTestSubject removeSelector: #quickLiteral; removeSelector: #literal.
+			BecomeTestSubject removeSelector: #quickLiteral; removeSelector: #literal; removeSelector: #quickInteger.
 			Smalltalk vm jitMode: mode]
 !
 testEagerKinds

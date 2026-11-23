@@ -2005,7 +2005,7 @@ haveEntry: e
 		^self activate].
 	(e kind bitAnd: K_CONST) ~= 0 ifTrue: [
 		"(the entry has no primitive: its constant takes that place)"
-		((self unlikely: gc forwardersExist) and: [self isLiteralConstant: e qconst]) ifTrue: [^self activate].
+		((self unlikely: gc forwardersExist) and: [e lits ~= (self slotsOf: (self literalsOf: e method))]) ifTrue: [^self activate].
 		v := e qconst ~= 0 ifTrue: [e qconst] ifFalse: [sp at: argc negated].
 		sp := sp - argc.
 		sp value: v.

@@ -903,7 +903,12 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t o_2;
     int64_t r_method_prim;
     uint64_t p;
-    oop q;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p_2;
+    uint64_t o_3;
     oop r;
     uint32_t ns;
     bool ok;
@@ -915,22 +920,22 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t moved;
     uint64_t inv;
     oop v;
-    oop m_2;
-    uint64_t o_3;
+    oop m_3;
+    uint64_t o_4;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
-    oop m_3;
-    uint64_t o_4;
+    oop m_4;
+    uint64_t o_5;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
-    uint64_t o_5;
+    uint64_t o_6;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    uint64_t p_3;
     kind = e->kind;
     base = f->fp + (f->sp - n - 1);
     m = e->method;
@@ -986,8 +991,21 @@ exit_error_code_for:;
     }
     if ((kind & K_CONST) != 0) {
         if ((young_forwarders + old_forwarders != 0) && ({
-    q = e->qconst;
-    ((q & 7) == 0) && ((q != 0) && ((q != nil_oop) && ((q != true_oop) && (q != false_oop)))); })) {
+    m_2 = e->method;
+    o_3 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    e->lits != (oop *)(o_3 + 16); })) {
             return activate(m, f, n, -1, 0);
         }
         if (e->qconst != 0) {
@@ -1042,9 +1060,9 @@ exit_error_code_for:;
         }
         base[0] = v;
         if (inv != invalidations) {
-            m_2 = f->method;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
-            pc = f->ip - (uint8_t *)(o_3 + 16);
+            m_3 = f->method;
+            o_4 = *(uint64_t *)(m_3 + 16 + 24);
+            pc = f->ip - (uint8_t *)(o_4 + 16);
             n_2 = f->sp - n;
             return ({
     c_2 = f->code;
@@ -1066,9 +1084,9 @@ exit_leave_after:;
             return entry_of_top();
         }
         if (inv != invalidations) {
-            m_3 = f->method;
-            o_4 = *(uint64_t *)(m_3 + 16 + 24);
-            pc_2 = f->ip - (uint8_t *)(o_4 + 16);
+            m_4 = f->method;
+            o_5 = *(uint64_t *)(m_4 + 16 + 24);
+            pc_2 = f->ip - (uint8_t *)(o_5 + 16);
             n_3 = f->sp;
             return ({
     c_3 = f->code;
@@ -1094,10 +1112,10 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = *(uint64_t *)(m + 16 + 40);
-    ((((int64_t)o_5) >> 1) > 0) && ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
-    r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
+    o_6 = *(uint64_t *)(m + 16 + 40);
+    ((((int64_t)o_6) >> 1) > 0) && ((({
+    p_3 = *(uint64_t *)(m + 16 + 56);
+    r_method_prim_2 = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for_2 = prim_error_code;
         goto exit_error_code_for_2;
@@ -1125,7 +1143,12 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t o_2;
     int64_t r_method_prim;
     uint64_t p;
-    oop q;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p_2;
+    uint64_t o_3;
     oop r;
     uint32_t ns;
     bool ok;
@@ -1137,22 +1160,22 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t moved;
     uint64_t inv;
     oop v;
-    oop m_2;
-    uint64_t o_3;
+    oop m_3;
+    uint64_t o_4;
     int64_t pc;
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
-    oop m_3;
-    uint64_t o_4;
+    oop m_4;
+    uint64_t o_5;
     int64_t pc_2;
     int32_t n_3;
     uint64_t r_leave_after_2;
     uint64_t c_3;
     int32_t r_error_code_for_2;
-    uint64_t o_5;
+    uint64_t o_6;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    uint64_t p_3;
     kind = e->kind;
     base = f->fp + (f->sp - n - 1);
     m = e->method;
@@ -1208,8 +1231,21 @@ exit_error_code_for:;
     }
     if ((kind & K_CONST) != 0) {
         if ((young_forwarders + old_forwarders != 0) && ({
-    q = e->qconst;
-    ((q & 7) == 0) && ((q != 0) && ((q != nil_oop) && ((q != true_oop) && (q != false_oop)))); })) {
+    m_2 = e->method;
+    o_3 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    e->lits != (oop *)(o_3 + 16); })) {
             return activate(m, f, n, -1, 0);
         }
         if (e->qconst != 0) {
@@ -1264,9 +1300,9 @@ exit_error_code_for:;
         }
         base[0] = v;
         if (inv != invalidations) {
-            m_2 = f->method;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
-            pc = f->ip - (uint8_t *)(o_3 + 16);
+            m_3 = f->method;
+            o_4 = *(uint64_t *)(m_3 + 16 + 24);
+            pc = f->ip - (uint8_t *)(o_4 + 16);
             n_2 = f->sp - n;
             return ({
     c_2 = f->code;
@@ -1288,9 +1324,9 @@ exit_leave_after:;
             return entry_of_top();
         }
         if (inv != invalidations) {
-            m_3 = f->method;
-            o_4 = *(uint64_t *)(m_3 + 16 + 24);
-            pc_2 = f->ip - (uint8_t *)(o_4 + 16);
+            m_4 = f->method;
+            o_5 = *(uint64_t *)(m_4 + 16 + 24);
+            pc_2 = f->ip - (uint8_t *)(o_5 + 16);
             n_3 = f->sp;
             return ({
     c_3 = f->code;
@@ -1316,10 +1352,10 @@ exit_leave_after_2:;
     }
     return activate(m, f, n, ({
     if ((prim_error_code >= 0) && ({
-    o_5 = *(uint64_t *)(m + 16 + 40);
-    ((((int64_t)o_5) >> 1) > 0) && ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
-    r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
+    o_6 = *(uint64_t *)(m + 16 + 40);
+    ((((int64_t)o_6) >> 1) > 0) && ((({
+    p_3 = *(uint64_t *)(m + 16 + 56);
+    r_method_prim_2 = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0); })) {
         r_error_code_for_2 = prim_error_code;
         goto exit_error_code_for_2;

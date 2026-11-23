@@ -93,10 +93,6 @@ literalsOf: m
 	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
 	^l
 !
-isLiteralConstant: q
-	"A quick method's cached constant q came from its literals (not ^self, nil, true, false or a SmallInteger): while forwarders exist it may be stale (becomeForward: of the literal Array), so the method runs."
-	^(self isPtr: q) and: [q ~= 0 and: [q ~= memory nilOop and: [q ~= memory trueOop and: [q ~= memory falseOop]]]]
-!
 isForwarder: o
 	"o was forwarded by becomeForward: (outside a collection only forwarders have H_FORWARDED set)."
 	^(self isPtr: o) and: [((self header: o) bitAnd: H_FORWARDED) ~= 0]
