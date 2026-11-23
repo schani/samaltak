@@ -181,7 +181,7 @@ static struct {
     _Atomic uint32_t phase, epoch;
     _Atomic uint32_t inbox;         /* mutator push / worker exchange */
     _Atomic uint32_t top, occupied; /* words */
-    _Atomic uint32_t wake, has_weak, has_forwarding;
+    _Atomic uint32_t wake, has_weak;
     _Atomic uint64_t weak_pending, weak_cleared;
 
     /* Mutator-owned, apart from explicitly atomic publication above. */
@@ -313,10 +313,7 @@ static uint64_t forward_at(uint32_t at)
     return slot ? forward_target(acquire(slot)) : 0;
 }
 
-bool c4_heap_has_forwarding(void)
-{
-    return acquire(&heap.has_forwarding) != 0;
-}
+_Atomic uint32_t c4_heap_forwarding_published;
 
 static uint64_t canonical(uint64_t obj)
 {
@@ -559,7 +556,7 @@ static void publish_forward(c4_cell *source, uint32_t src, _Atomic uint64_t *slo
     uint64_t to, uint64_t cls, unsigned phase)
 {
     c4_heap_invalidate_cache();
-    if (!relaxed(&heap.has_forwarding)) release(&heap.has_forwarding, 1);
+    if (!relaxed(&c4_heap_forwarding_published)) release(&c4_heap_forwarding_published, 1);
     if (viewing(phase)) preserve_word(src, view_row(src), slot);
     if (view.cls == cls) view.identity_invalid = true;
     release(slot, to);

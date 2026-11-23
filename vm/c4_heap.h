@@ -55,6 +55,8 @@ enum c4_lane { C4_PINNED, C4_PLAIN, C4_INTERVAL };
 
 #if SAMALTAK_C4_SUPPORTED
 
+#include <stdatomic.h>
+
 /* All entry points are called by the sole mutator. The arena remains owned by
  * the VM and must stay mapped/writable for the process lifetime. */
 bool c4_heap_supported(void);
@@ -108,7 +110,13 @@ void c4_heap_note_pinned_view(uint64_t obj);
 bool c4_heap_become_forward(uint64_t from, uint64_t to);
 /* Sticky fast guard. Canonicalization gives a logical oop, not a body view.
  * Trace a raw alias unless the actual root slot has been normalized. */
-bool c4_heap_has_forwarding(void);
+/* Published only by the mutator. Keep the common negative test inline
+ * for scalar headers, classes and references in the dispatch loop. */
+extern _Atomic uint32_t c4_heap_forwarding_published;
+static inline bool c4_heap_has_forwarding(void)
+{
+    return atomic_load_explicit(&c4_heap_forwarding_published, memory_order_acquire) != 0;
+}
 uint64_t c4_heap_canonical(uint64_t obj);
 /* A live pinned object with a borrowed raw view cannot become until reused.
  * Do not pass an already-forwarded raw source here. */
