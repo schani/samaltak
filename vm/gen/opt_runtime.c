@@ -2806,6 +2806,10 @@ uint64_t opt_runtime_tier_up(frame *f, int64_t loop)
     bool r_makes_closures;
     uint64_t o_4;
     uint8_t *bcs;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     int32_t end;
     int32_t pc;
     bool closures;
@@ -2877,7 +2881,19 @@ exit_failed:;
     if ((k != 0) && ((f->ctx != nil_oop) && ({
     o_4 = *(uint64_t *)(m + 16 + 24);
     bcs = (uint8_t *)(o_4 + 16);
-    end = s == 0 ? (int32_t)byte_size(*(uint64_t *)(m + 16 + 24)) : s + (int32_t)((((int64_t)bcs[s - 2]) << 8) | bcs[s - 1]);
+    end = s == 0 ? (int32_t)byte_size(({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; })) : s + (int32_t)((((int64_t)bcs[s - 2]) << 8) | bcs[s - 1]);
     pc = s;
     closures = false;
     reach = false;

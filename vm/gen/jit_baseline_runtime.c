@@ -1637,6 +1637,10 @@ static void note_nil_test(uint64_t m, void *d)
     uint64_t cls;
     uint64_t root;
     int quick;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t bc;
     if (!(nil_inline && (*(uint64_t *)(m + 8) == object_memory_special(SO_COMPILEDMETHOD)))) {
         return;
@@ -1655,7 +1659,19 @@ static void note_nil_test(uint64_t m, void *d)
         return;
     }
     quick = k == 1 == (cls != root) ? 0x71 : 0x72;
-    bc = *(uint64_t *)(m + 16 + 24);
+    bc = ({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; });
     if (!(((bc & 7) == 0) && (((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES) && ((byte_size(bc) == 2) && ((((uint8_t *)(bc + 16))[0] == quick) && (((uint8_t *)(bc + 16))[1] == 0x79)))))) {
         nil_inline = false;
         return;

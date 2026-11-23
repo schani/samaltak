@@ -468,13 +468,17 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     uint64_t p_2;
     int64_t p;
     prim_fn pf;
+    uint64_t r_bytecodes_of;
+    uint64_t b_2;
+    uint64_t r_follow;
+    uint64_t p_3;
     uint64_t bc;
     uint64_t na;
     uint64_t nt;
     uint64_t r_literals_of;
     uint64_t l;
-    uint64_t r_follow;
-    uint64_t p_3;
+    uint64_t r_follow_2;
+    uint64_t p_4;
     uint64_t o;
     uint64_t o_2;
     uint8_t *b;
@@ -487,8 +491,8 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     size_t size;
     uint64_t r_literals_of_2;
     uint64_t l_2;
-    uint64_t r_follow_2;
-    uint64_t p_4;
+    uint64_t r_follow_3;
+    uint64_t p_5;
     uint64_t lits_oop;
     int v;
     oop v_2;
@@ -507,7 +511,19 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     r_method_prim = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK;
     pf = (p != 0) && ((p != PRIM_ENSURE_MARKER) && (p != PRIM_ONDO_MARKER)) ? primitive_table_lookup(p) : (prim_fn)NULL;
-    bc = *(uint64_t *)(m + 16 + 24);
+    bc = ({
+    b_2 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p_3 = b_2;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_3;
+    r_follow; });
+    }
+    r_bytecodes_of = b_2;
+    r_bytecodes_of; });
     na = *(uint64_t *)(m + 16 + 32);
     nt = *(uint64_t *)(m + 16 + 40);
     e->bcs = (uint8_t *)(bc + 16);
@@ -515,12 +531,12 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     l = *(uint64_t *)(m + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l = ({
-    p_3 = l;
-    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
-        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    p_4 = l;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
     }
-    r_follow = p_3;
-    r_follow; });
+    r_follow_2 = p_4;
+    r_follow_2; });
     }
     r_literals_of = l;
     r_literals_of; });
@@ -562,12 +578,12 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     l_2 = *(uint64_t *)(m + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_2 = ({
-    p_4 = l_2;
-    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
-        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    p_5 = l_2;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_2 = p_4;
-    r_follow_2; });
+    r_follow_3 = p_5;
+    r_follow_3; });
     }
     r_literals_of_2 = l_2;
     r_literals_of_2; });

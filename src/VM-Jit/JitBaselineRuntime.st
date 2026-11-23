@@ -297,7 +297,7 @@ noteNilTest: m data: d
 		^self].
 	"^true (16r71) or ^false (16r72), then returnTop"
 	quick := ((k = 1) = (cls ~= root)) ifTrue: [16r71] ifFalse: [16r72].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self bytecodesOf: m.
 	((self isPtr: bc) and: [(memory formatOf: bc) >= F_BYTES and: [(memory byteSize: bc) = 2 and: [((self bytesOf: bc) at: 0) = quick and: [((self bytesOf: bc) at: 1) = 16r79]]]]) ifFalse: [
 		nilInline := false.
 		^self].

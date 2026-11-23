@@ -183,6 +183,7 @@ frame: i holds: o
 	^false
 !
 methodBcs: m
+	"A forwarder's body keeps its bytes: no need to follow it."
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
 !
 refreshLiterals
@@ -549,7 +550,7 @@ fillCache: aClass selector: aSelector
 	pf := (p ~= 0 and: [p ~= PRIM_ENSURE_MARKER and: [p ~= PRIM_ONDO_MARKER]])
 		ifTrue: [primitives lookup: p]
 		ifFalse: [self null].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self bytecodesOf: m.
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
 	e bcs: (self bytesOf: bc).

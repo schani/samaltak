@@ -93,6 +93,13 @@ literalsOf: m
 	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
 	^l
 !
+bytecodesOf: m
+	"Method m's bytecodes, followed (as literalsOf:): a forwarder's body keeps its bytes, but not its size."
+	| b |
+	b := self loadRef: m at: CM_BYTECODES.
+	(self unlikely: gc forwardersExist) ifTrue: [b := memory follow: b].
+	^b
+!
 isForwarder: o
 	"o was forwarded by becomeForward: (outside a collection only forwarders have H_FORWARDED set)."
 	^(self isPtr: o) and: [((self header: o) bitAnd: H_FORWARDED) ~= 0]

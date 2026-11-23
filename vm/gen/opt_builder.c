@@ -1064,6 +1064,10 @@ exit_build_osr:;
 static bool can_inline(uint64_t m, int32_t a)
 {
     int32_t i;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p_2;
     int32_t size;
     int64_t depth;
     int64_t same;
@@ -1081,7 +1085,19 @@ static bool can_inline(uint64_t m, int32_t a)
             return false;
         }
     }
-    size = (int32_t)byte_size(*(uint64_t *)(m + 16 + 24));
+    size = (int32_t)byte_size(({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p_2 = b;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; }));
     if (size > OPT_INLINE_SIZE) {
         return false;
     }
@@ -1310,6 +1326,10 @@ static int32_t emit(int32_t pc, int32_t a)
     opt_act *ac;
     uint64_t r_live_slots_at;
     oop m_2;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     oop o_2;
     oop o_3;
     int32_t var;
@@ -1335,8 +1355,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_3;
     uint64_t r_literals_of;
     uint64_t l;
-    uint64_t r_follow;
-    uint64_t p;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t o_5;
     int32_t v_4;
     int32_t var_4;
@@ -1348,8 +1368,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_4;
     uint64_t r_literals_of_2;
     uint64_t l_2;
-    uint64_t r_follow_2;
-    uint64_t p_2;
+    uint64_t r_follow_3;
+    uint64_t p_3;
     uint64_t o_6;
     uint64_t assoc;
     int32_t r_global;
@@ -1360,8 +1380,8 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t n_13;
     int32_t v_5;
     uint64_t o_8;
-    uint64_t r_follow_3;
-    uint64_t p_3;
+    uint64_t r_follow_4;
+    uint64_t p_4;
     uint64_t c;
     bool r_is_behavior;
     uint64_t o_9;
@@ -1456,6 +1476,10 @@ static int32_t emit(int32_t pc, int32_t a)
     opt_act *ac_2;
     uint64_t r_live_slots_at_2;
     oop m_7;
+    uint64_t r_bytecodes_of_2;
+    uint64_t b_2;
+    uint64_t r_follow_5;
+    uint64_t p_5;
     oop o_12;
     oop o_13;
     int32_t pc_3;
@@ -1494,8 +1518,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_12;
     uint64_t r_literals_of_3;
     uint64_t l_3;
-    uint64_t r_follow_4;
-    uint64_t p_4;
+    uint64_t r_follow_6;
+    uint64_t p_6;
     uint64_t o_19;
     int32_t v_19;
     int32_t var_22;
@@ -1510,8 +1534,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_14;
     uint64_t r_literals_of_4;
     uint64_t l_4;
-    uint64_t r_follow_5;
-    uint64_t p_5;
+    uint64_t r_follow_7;
+    uint64_t p_7;
     uint64_t o_21;
     uint64_t assoc_2;
     int32_t r_global_2;
@@ -1522,8 +1546,8 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t n_65;
     int32_t v_20;
     uint64_t o_23;
-    uint64_t r_follow_6;
-    uint64_t p_6;
+    uint64_t r_follow_8;
+    uint64_t p_8;
     uint64_t c_2;
     bool r_is_behavior_2;
     uint64_t o_24;
@@ -1572,8 +1596,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_19;
     uint64_t r_literals_of_5;
     uint64_t l_5;
-    uint64_t r_follow_7;
-    uint64_t p_7;
+    uint64_t r_follow_9;
+    uint64_t p_9;
     uint64_t o_30;
     int32_t o_31;
     int32_t i_18;
@@ -1601,9 +1625,9 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t r_int16_at;
     oop m_21;
     uint64_t o_33;
-    uint8_t *p_8;
+    uint8_t *p_10;
     int32_t t;
-    int32_t b;
+    int32_t b_3;
     oop m_22;
     uint64_t o_34;
     int32_t d_2;
@@ -1621,7 +1645,7 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t r_int16_at_2;
     oop m_24;
     uint64_t o_36;
-    uint8_t *p_9;
+    uint8_t *p_11;
     int32_t t_2;
     int32_t d_4;
     int32_t i_21;
@@ -1634,7 +1658,7 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t k_3;
     int32_t n_87;
     uint64_t c_3;
-    int32_t b_2;
+    int32_t b_4;
     oop m_25;
     uint64_t o_37;
     int32_t d_5;
@@ -1651,7 +1675,7 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t r_add_35;
     int32_t n_92;
     int32_t n_93;
-    int32_t b_3;
+    int32_t b_5;
     oop m_26;
     uint64_t o_38;
     int32_t d_7;
@@ -1666,7 +1690,7 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t r_int16_at_3;
     oop m_27;
     uint64_t o_39;
-    uint8_t *p_10;
+    uint8_t *p_12;
     int32_t v_27;
     int32_t v_28;
     int32_t var_31;
@@ -1683,8 +1707,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_29;
     uint64_t r_literals_of_6;
     uint64_t l_6;
-    uint64_t r_follow_8;
-    uint64_t p_11;
+    uint64_t r_follow_10;
+    uint64_t p_13;
     uint64_t o_41;
     uint64_t sel;
     int32_t pc_15;
@@ -1697,13 +1721,13 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_32;
     uint64_t r_literals_of_7;
     uint64_t l_7;
-    uint64_t r_follow_9;
-    uint64_t p_12;
+    uint64_t r_follow_11;
+    uint64_t p_14;
     uint64_t o_44;
     int32_t r_3;
     bool r_is_value_selector;
     int64_t n_101;
-    uint8_t *b_4;
+    uint8_t *b_6;
     int64_t i_24;
     int32_t var_32;
     int32_t v_29;
@@ -1714,14 +1738,14 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t var_34;
     bool r_is_value_selector_2;
     int64_t n_103;
-    uint8_t *b_5;
+    uint8_t *b_7;
     int64_t i_25;
     int32_t var_35;
     int32_t d_9;
     int32_t var_36;
     bool r_is_value_selector_3;
     int64_t n_104;
-    uint8_t *b_6;
+    uint8_t *b_8;
     int64_t i_26;
     int32_t var_37;
     int32_t r_add_39;
@@ -1753,6 +1777,10 @@ static int32_t emit(int32_t pc, int32_t a)
     opt_act *ac_3;
     uint64_t r_live_slots_at_3;
     oop m_36;
+    uint64_t r_bytecodes_of_3;
+    uint64_t b_9;
+    uint64_t r_follow_12;
+    uint64_t p_15;
     oop o_48;
     oop o_49;
     int32_t pc_18;
@@ -1768,6 +1796,10 @@ static int32_t emit(int32_t pc, int32_t a)
     opt_act *ac_4;
     uint64_t r_live_slots_at_4;
     oop m_39;
+    uint64_t r_bytecodes_of_4;
+    uint64_t b_10;
+    uint64_t r_follow_13;
+    uint64_t p_16;
     oop o_52;
     oop o_53;
     int32_t pc_20;
@@ -1783,8 +1815,8 @@ static int32_t emit(int32_t pc, int32_t a)
     oop m_42;
     uint64_t r_literals_of_8;
     uint64_t l_8;
-    uint64_t r_follow_10;
-    uint64_t p_13;
+    uint64_t r_follow_14;
+    uint64_t p_17;
     uint64_t o_56;
     int32_t pc_22;
     oop m_43;
@@ -1803,7 +1835,7 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t n_115;
     oop m_44;
     uint64_t o_58;
-    uint8_t *p_14;
+    uint8_t *p_18;
     int32_t r_special_index_of;
     uint8_t op_6;
     int32_t k_4;
@@ -2019,7 +2051,7 @@ static int32_t emit(int32_t pc, int32_t a)
     uint64_t sel_2;
     bool r_is_value_selector_4;
     int64_t n_184;
-    uint8_t *b_7;
+    uint8_t *b_11;
     int64_t i_39;
     int32_t var_54;
     int32_t v_38;
@@ -2030,14 +2062,14 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t var_56;
     bool r_is_value_selector_5;
     int64_t n_186;
-    uint8_t *b_8;
+    uint8_t *b_12;
     int64_t i_40;
     int32_t var_57;
     int32_t d_15;
     int32_t var_58;
     bool r_is_value_selector_6;
     int64_t n_187;
-    uint8_t *b_9;
+    uint8_t *b_13;
     int64_t i_41;
     int32_t var_59;
     int32_t r_add_62;
@@ -2273,7 +2305,7 @@ static int32_t emit(int32_t pc, int32_t a)
     uint64_t sel_3;
     bool r_is_value_selector_7;
     int64_t n_261;
-    uint8_t *b_10;
+    uint8_t *b_14;
     int64_t i_49;
     int32_t var_72;
     int32_t v_46;
@@ -2284,14 +2316,14 @@ static int32_t emit(int32_t pc, int32_t a)
     int32_t var_74;
     bool r_is_value_selector_8;
     int64_t n_263;
-    uint8_t *b_11;
+    uint8_t *b_15;
     int64_t i_50;
     int32_t var_75;
     int32_t d_19;
     int32_t var_76;
     bool r_is_value_selector_9;
     int64_t n_264;
-    uint8_t *b_12;
+    uint8_t *b_16;
     int64_t i_51;
     int32_t var_77;
     int32_t r_add_83;
@@ -2511,7 +2543,19 @@ exit_length_of:;
         if (!(((jit_flags & JIT_FLAG_LIVE) != 0) && ((op >= ac->num_args) && ((op < ac->num_args + ac->num_temps) && ((op < 64) && ((({
     if ((pc < 0) || ({
     m_2 = (opt_acts + a)->method;
-    pc >= (int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24)); })) {
+    pc >= (int32_t)byte_size(({
+    b = *(uint64_t *)(m_2 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; })); })) {
         r_live_slots_at = 18446744073709551615ULL;
         goto exit_live_slots_at;
     }
@@ -2591,12 +2635,12 @@ exit_live_slots_at:;
     l = *(uint64_t *)(m_3 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l = ({
-    p = l;
-    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
-        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
     }
-    r_follow = p;
-    r_follow; });
+    r_follow_2 = p_2;
+    r_follow_2; });
     }
     r_literals_of = l;
     r_literals_of; });
@@ -2624,12 +2668,12 @@ exit_live_slots_at:;
     l_2 = *(uint64_t *)(m_4 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_2 = ({
-    p_2 = l_2;
-    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
-        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    p_3 = l_2;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_2 = p_2;
-    r_follow_2; });
+    r_follow_3 = p_3;
+    r_follow_3; });
     }
     r_literals_of_2 = l_2;
     r_literals_of_2; });
@@ -2648,12 +2692,12 @@ exit_live_slots_at:;
     r_load_field_2; });
     o_8 = *(uint64_t *)(assoc + 16 + 8);
     c = ({
-    p_3 = o_8;
-    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
-        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    p_4 = o_8;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_3 = p_3;
-    r_follow_3; });
+    r_follow_4 = p_4;
+    r_follow_4; });
     if (!(({
     if (!(((c & 7) == 0) && (!(((c & 7) == 0) && (((*(uint64_t *)c) & H_FORWARDED) != 0))))) {
         r_is_behavior = false;
@@ -2921,7 +2965,19 @@ exit_global:;
         if (!(((jit_flags & JIT_FLAG_LIVE) != 0) && ((i_8 >= ac_2->num_args) && ((i_8 < ac_2->num_args + ac_2->num_temps) && ((i_8 < 64) && ((({
     if ((pc < 0) || ({
     m_7 = (opt_acts + a)->method;
-    pc >= (int32_t)byte_size(*(uint64_t *)(m_7 + 16 + 24)); })) {
+    pc >= (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m_7 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p_5 = b_2;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_5;
+    r_follow_5; });
+    }
+    r_bytecodes_of_2 = b_2;
+    r_bytecodes_of_2; })); })) {
         r_live_slots_at_2 = 18446744073709551615ULL;
         goto exit_live_slots_at_2;
     }
@@ -3015,12 +3071,12 @@ exit_live_slots_at_2:;
     l_3 = *(uint64_t *)(m_12 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_3 = ({
-    p_4 = l_3;
-    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
-        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    p_6 = l_3;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_4 = p_4;
-    r_follow_4; });
+    r_follow_6 = p_6;
+    r_follow_6; });
     }
     r_literals_of_3 = l_3;
     r_literals_of_3; });
@@ -3051,12 +3107,12 @@ exit_live_slots_at_2:;
     l_4 = *(uint64_t *)(m_14 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_4 = ({
-    p_5 = l_4;
-    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
-        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    p_7 = l_4;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_5 = p_5;
-    r_follow_5; });
+    r_follow_7 = p_7;
+    r_follow_7; });
     }
     r_literals_of_4 = l_4;
     r_literals_of_4; });
@@ -3075,12 +3131,12 @@ exit_live_slots_at_2:;
     r_load_field_4; });
     o_23 = *(uint64_t *)(assoc_2 + 16 + 8);
     c_2 = ({
-    p_6 = o_23;
-    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
-        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    p_8 = o_23;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_6 = p_6;
-    r_follow_6; });
+    r_follow_8 = p_8;
+    r_follow_8; });
     if (!(({
     if (!(((c_2 & 7) == 0) && (!(((c_2 & 7) == 0) && (((*(uint64_t *)c_2) & H_FORWARDED) != 0))))) {
         r_is_behavior_2 = false;
@@ -3194,12 +3250,12 @@ exit_global_2:;
     l_5 = *(uint64_t *)(m_19 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_5 = ({
-    p_7 = l_5;
-    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
-        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    p_9 = l_5;
+    while (((p_9 & 7) == 0) && (((*(uint64_t *)p_9) & H_FORWARDED) != 0)) {
+        p_9 = (*(uint64_t *)(p_9 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_7 = p_7;
-    r_follow_7; });
+    r_follow_9 = p_9;
+    r_follow_9; });
     }
     r_literals_of_5 = l_5;
     r_literals_of_5; });
@@ -3263,10 +3319,10 @@ exit_global_2:;
         t = pc + 3 + ({
     m_21 = (opt_acts + a)->method;
     o_33 = *(uint64_t *)(m_21 + 16 + 24);
-    p_8 = (uint8_t *)(o_33 + 16);
-    r_int16_at = (int32_t)(int16_t)(p_8[pc_12] | (((int64_t)p_8[pc_12 + 1]) << 8));
+    p_10 = (uint8_t *)(o_33 + 16);
+    r_int16_at = (int32_t)(int16_t)(p_10[pc_12] | (((int64_t)p_10[pc_12 + 1]) << 8));
     r_int16_at; });
-        b = block_at(t, a);
+        b_3 = block_at(t, a);
         if (t <= pc) {
             m_22 = (opt_acts + a)->method;
             o_34 = *(uint64_t *)(m_22 + 16 + 24);
@@ -3292,9 +3348,9 @@ exit_global_2:;
                 (opt_nodes + n_83)->aux = SP_LOOP;
             }
         }
-        goto_(b);
+        goto_(b_3);
         if ((t <= pc) && (ob_ana_back[(opt_acts + a)->ana + t] == pc)) {
-            seal(b);
+            seal(b_3);
         }
         return next;
     }
@@ -3306,8 +3362,8 @@ exit_global_2:;
         t_2 = pc + 3 + ({
     m_24 = (opt_acts + a)->method;
     o_36 = *(uint64_t *)(m_24 + 16 + 24);
-    p_9 = (uint8_t *)(o_36 + 16);
-    r_int16_at_2 = (int32_t)(int16_t)(p_9[pc_13] | (((int64_t)p_9[pc_13 + 1]) << 8));
+    p_11 = (uint8_t *)(o_36 + 16);
+    r_int16_at_2 = (int32_t)(int16_t)(p_11[pc_13] | (((int64_t)p_11[pc_13 + 1]) << 8));
     r_int16_at_2; });
         d_4 = (int32_t)ob_ana_depth[(opt_acts + a)->ana + pc];
         i_21 = d_4 - 1;
@@ -3323,7 +3379,7 @@ exit_global_2:;
             c_3 = (uint64_t)(opt_nodes + n_87)->aux;
             if ((c_3 == true_oop) || (c_3 == false_oop)) {
                 if (c_3 == true_oop == (op_2 == 0x91)) {
-                    b_2 = block_at(t_2, a);
+                    b_4 = block_at(t_2, a);
                     if (t_2 <= pc) {
                         m_25 = (opt_acts + a)->method;
                         o_37 = *(uint64_t *)(m_25 + 16 + 24);
@@ -3349,9 +3405,9 @@ exit_global_2:;
                             (opt_nodes + n_90)->aux = SP_LOOP;
                         }
                     }
-                    goto_(b_2);
+                    goto_(b_4);
                     if ((t_2 <= pc) && (ob_ana_back[(opt_acts + a)->ana + t_2] == pc)) {
-                        seal(b_2);
+                        seal(b_4);
                     }
                 } else {
                     goto_(fall);
@@ -3390,7 +3446,7 @@ exit_global_2:;
         ob_cur_block = -1;
         if (back) {
             ob_cur_block = taken;
-            b_3 = block_at(t_2, a);
+            b_5 = block_at(t_2, a);
             if (t_2 <= pc) {
                 m_26 = (opt_acts + a)->method;
                 o_38 = *(uint64_t *)(m_26 + 16 + 24);
@@ -3416,9 +3472,9 @@ exit_global_2:;
                     (opt_nodes + n_96)->aux = SP_LOOP;
                 }
             }
-            goto_(b_3);
+            goto_(b_5);
             if ((t_2 <= pc) && (ob_ana_back[(opt_acts + a)->ana + t_2] == pc)) {
-                seal(b_3);
+                seal(b_5);
             }
         }
     exit_conditional_jump:;
@@ -3429,8 +3485,8 @@ exit_global_2:;
         v_27 = ({
     m_27 = (opt_acts + a)->method;
     o_39 = *(uint64_t *)(m_27 + 16 + 24);
-    p_10 = (uint8_t *)(o_39 + 16);
-    r_int16_at_3 = (int32_t)(int16_t)(p_10[pc_14] | (((int64_t)p_10[pc_14 + 1]) << 8));
+    p_12 = (uint8_t *)(o_39 + 16);
+    r_int16_at_3 = (int32_t)(int16_t)(p_12[pc_14] | (((int64_t)p_12[pc_14 + 1]) << 8));
     r_int16_at_3; });
         v_28 = constant((uint64_t)((((int64_t)v_27) << 1) | 1));
         var_31 = (opt_acts + a)->var_base + d;
@@ -3461,12 +3517,12 @@ exit_global_2:;
     l_6 = *(uint64_t *)(m_29 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_6 = ({
-    p_11 = l_6;
-    while (((p_11 & 7) == 0) && (((*(uint64_t *)p_11) & H_FORWARDED) != 0)) {
-        p_11 = (*(uint64_t *)(p_11 + 8)) & 18446744073709551609ULL;
+    p_13 = l_6;
+    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
+        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_8 = p_11;
-    r_follow_8; });
+    r_follow_10 = p_13;
+    r_follow_10; });
     }
     r_literals_of_6 = l_6;
     r_literals_of_6; });
@@ -3486,12 +3542,12 @@ exit_global_2:;
     l_7 = *(uint64_t *)(m_32 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_7 = ({
-    p_12 = l_7;
-    while (((p_12 & 7) == 0) && (((*(uint64_t *)p_12) & H_FORWARDED) != 0)) {
-        p_12 = (*(uint64_t *)(p_12 + 8)) & 18446744073709551609ULL;
+    p_14 = l_7;
+    while (((p_14 & 7) == 0) && (((*(uint64_t *)p_14) & H_FORWARDED) != 0)) {
+        p_14 = (*(uint64_t *)(p_14 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_9 = p_12;
-    r_follow_9; });
+    r_follow_11 = p_14;
+    r_follow_11; });
     }
     r_literals_of_7 = l_7;
     r_literals_of_7; });
@@ -3505,8 +3561,8 @@ exit_global_2:;
         goto exit_is_value_selector;
     }
     n_101 = (int64_t)byte_size(sel);
-    b_4 = (uint8_t *)(sel + 16);
-    if (!((n_101 >= 5) && ((b_4[0] == 118) && ((b_4[1] == 97) && ((b_4[2] == 108) && ((b_4[3] == 117) && (b_4[4] == 101))))))) {
+    b_6 = (uint8_t *)(sel + 16);
+    if (!((n_101 >= 5) && ((b_6[0] == 118) && ((b_6[1] == 97) && ((b_6[2] == 108) && ((b_6[3] == 117) && (b_6[4] == 101))))))) {
         r_is_value_selector = false;
         goto exit_is_value_selector;
     }
@@ -3519,7 +3575,7 @@ exit_global_2:;
         goto exit_is_value_selector;
     }
     for (i_24 = 0; i_24 <= n_101 / 6 - 1; i_24++) {
-        if (!((b_4[6 * i_24] == 118) && (b_4[6 * i_24 + 5] == 58))) {
+        if (!((b_6[6 * i_24] == 118) && (b_6[6 * i_24 + 5] == 58))) {
             r_is_value_selector = false;
             goto exit_is_value_selector;
         }
@@ -3545,8 +3601,8 @@ exit_is_value_selector:;
         goto exit_is_value_selector_2;
     }
     n_103 = (int64_t)byte_size(sel);
-    b_5 = (uint8_t *)(sel + 16);
-    if (!((n_103 >= 5) && ((b_5[0] == 118) && ((b_5[1] == 97) && ((b_5[2] == 108) && ((b_5[3] == 117) && (b_5[4] == 101))))))) {
+    b_7 = (uint8_t *)(sel + 16);
+    if (!((n_103 >= 5) && ((b_7[0] == 118) && ((b_7[1] == 97) && ((b_7[2] == 108) && ((b_7[3] == 117) && (b_7[4] == 101))))))) {
         r_is_value_selector_2 = false;
         goto exit_is_value_selector_2;
     }
@@ -3559,7 +3615,7 @@ exit_is_value_selector:;
         goto exit_is_value_selector_2;
     }
     for (i_25 = 0; i_25 <= n_103 / 6 - 1; i_25++) {
-        if (!((b_5[6 * i_25] == 118) && (b_5[6 * i_25 + 5] == 58))) {
+        if (!((b_7[6 * i_25] == 118) && (b_7[6 * i_25 + 5] == 58))) {
             r_is_value_selector_2 = false;
             goto exit_is_value_selector_2;
         }
@@ -3579,8 +3635,8 @@ exit_is_value_selector_2:;
         goto exit_is_value_selector_3;
     }
     n_104 = (int64_t)byte_size(sel);
-    b_6 = (uint8_t *)(sel + 16);
-    if (!((n_104 >= 5) && ((b_6[0] == 118) && ((b_6[1] == 97) && ((b_6[2] == 108) && ((b_6[3] == 117) && (b_6[4] == 101))))))) {
+    b_8 = (uint8_t *)(sel + 16);
+    if (!((n_104 >= 5) && ((b_8[0] == 118) && ((b_8[1] == 97) && ((b_8[2] == 108) && ((b_8[3] == 117) && (b_8[4] == 101))))))) {
         r_is_value_selector_3 = false;
         goto exit_is_value_selector_3;
     }
@@ -3593,7 +3649,7 @@ exit_is_value_selector_2:;
         goto exit_is_value_selector_3;
     }
     for (i_26 = 0; i_26 <= n_104 / 6 - 1; i_26++) {
-        if (!((b_6[6 * i_26] == 118) && (b_6[6 * i_26 + 5] == 58))) {
+        if (!((b_8[6 * i_26] == 118) && (b_8[6 * i_26 + 5] == 58))) {
             r_is_value_selector_3 = false;
             goto exit_is_value_selector_3;
         }
@@ -3727,7 +3783,19 @@ exit_length_of_2:;
         if (!(((jit_flags & JIT_FLAG_LIVE) != 0) && ((i_30 >= ac_3->num_args) && ((i_30 < ac_3->num_args + ac_3->num_temps) && ((i_30 < 64) && ((({
     if ((pc < 0) || ({
     m_36 = (opt_acts + a)->method;
-    pc >= (int32_t)byte_size(*(uint64_t *)(m_36 + 16 + 24)); })) {
+    pc >= (int32_t)byte_size(({
+    b_9 = *(uint64_t *)(m_36 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_9 = ({
+    p_15 = b_9;
+    while (((p_15 & 7) == 0) && (((*(uint64_t *)p_15) & H_FORWARDED) != 0)) {
+        p_15 = (*(uint64_t *)(p_15 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_12 = p_15;
+    r_follow_12; });
+    }
+    r_bytecodes_of_3 = b_9;
+    r_bytecodes_of_3; })); })) {
         r_live_slots_at_3 = 18446744073709551615ULL;
         goto exit_live_slots_at_3;
     }
@@ -3768,7 +3836,19 @@ exit_live_slots_at_3:;
             if (!(((jit_flags & JIT_FLAG_LIVE) != 0) && ((i_32 >= ac_4->num_args) && ((i_32 < ac_4->num_args + ac_4->num_temps) && ((i_32 < 64) && ((({
     if ((pc < 0) || ({
     m_39 = (opt_acts + a)->method;
-    pc >= (int32_t)byte_size(*(uint64_t *)(m_39 + 16 + 24)); })) {
+    pc >= (int32_t)byte_size(({
+    b_10 = *(uint64_t *)(m_39 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_10 = ({
+    p_16 = b_10;
+    while (((p_16 & 7) == 0) && (((*(uint64_t *)p_16) & H_FORWARDED) != 0)) {
+        p_16 = (*(uint64_t *)(p_16 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_13 = p_16;
+    r_follow_13; });
+    }
+    r_bytecodes_of_4 = b_10;
+    r_bytecodes_of_4; })); })) {
         r_live_slots_at_4 = 18446744073709551615ULL;
         goto exit_live_slots_at_4;
     }
@@ -3810,12 +3890,12 @@ exit_live_slots_at_4:;
     l_8 = *(uint64_t *)(m_42 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_8 = ({
-    p_13 = l_8;
-    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
-        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
+    p_17 = l_8;
+    while (((p_17 & 7) == 0) && (((*(uint64_t *)p_17) & H_FORWARDED) != 0)) {
+        p_17 = (*(uint64_t *)(p_17 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_10 = p_13;
-    r_follow_10; });
+    r_follow_14 = p_17;
+    r_follow_14; });
     }
     r_literals_of_8 = l_8;
     r_literals_of_8; });
@@ -3858,15 +3938,15 @@ exit_live_slots_at_4:;
     exit_write_24:;
         m_44 = (opt_acts + a)->method;
         o_58 = *(uint64_t *)(m_44 + 16 + 24);
-        p_14 = (uint8_t *)(o_58 + 16) + pc;
+        p_18 = (uint8_t *)(o_58 + 16) + pc;
         k_4 = ({
-    op_6 = p_14[0];
+    op_6 = p_18[0];
     if ((op_6 >= 0xA0) && (op_6 < 0xC0)) {
         r_special_index_of = (int32_t)(op_6 - 0xA0);
         goto exit_special_index_of;
     }
     if ((op_6 >= 0x97) && (op_6 <= 0x99)) {
-        r_special_index_of = (int32_t)(p_14[3] - 0xA0);
+        r_special_index_of = (int32_t)(p_18[3] - 0xA0);
         goto exit_special_index_of;
     }
     if ((op_6 >= 0x9A) && (op_6 < 0xA0)) {
@@ -5176,8 +5256,8 @@ exit_guard_int_4:;
         goto exit_is_value_selector_4;
     }
     n_184 = (int64_t)byte_size(sel_2);
-    b_7 = (uint8_t *)(sel_2 + 16);
-    if (!((n_184 >= 5) && ((b_7[0] == 118) && ((b_7[1] == 97) && ((b_7[2] == 108) && ((b_7[3] == 117) && (b_7[4] == 101))))))) {
+    b_11 = (uint8_t *)(sel_2 + 16);
+    if (!((n_184 >= 5) && ((b_11[0] == 118) && ((b_11[1] == 97) && ((b_11[2] == 108) && ((b_11[3] == 117) && (b_11[4] == 101))))))) {
         r_is_value_selector_4 = false;
         goto exit_is_value_selector_4;
     }
@@ -5190,7 +5270,7 @@ exit_guard_int_4:;
         goto exit_is_value_selector_4;
     }
     for (i_39 = 0; i_39 <= n_184 / 6 - 1; i_39++) {
-        if (!((b_7[6 * i_39] == 118) && (b_7[6 * i_39 + 5] == 58))) {
+        if (!((b_11[6 * i_39] == 118) && (b_11[6 * i_39 + 5] == 58))) {
             r_is_value_selector_4 = false;
             goto exit_is_value_selector_4;
         }
@@ -5216,8 +5296,8 @@ exit_is_value_selector_4:;
         goto exit_is_value_selector_5;
     }
     n_186 = (int64_t)byte_size(sel_2);
-    b_8 = (uint8_t *)(sel_2 + 16);
-    if (!((n_186 >= 5) && ((b_8[0] == 118) && ((b_8[1] == 97) && ((b_8[2] == 108) && ((b_8[3] == 117) && (b_8[4] == 101))))))) {
+    b_12 = (uint8_t *)(sel_2 + 16);
+    if (!((n_186 >= 5) && ((b_12[0] == 118) && ((b_12[1] == 97) && ((b_12[2] == 108) && ((b_12[3] == 117) && (b_12[4] == 101))))))) {
         r_is_value_selector_5 = false;
         goto exit_is_value_selector_5;
     }
@@ -5230,7 +5310,7 @@ exit_is_value_selector_4:;
         goto exit_is_value_selector_5;
     }
     for (i_40 = 0; i_40 <= n_186 / 6 - 1; i_40++) {
-        if (!((b_8[6 * i_40] == 118) && (b_8[6 * i_40 + 5] == 58))) {
+        if (!((b_12[6 * i_40] == 118) && (b_12[6 * i_40 + 5] == 58))) {
             r_is_value_selector_5 = false;
             goto exit_is_value_selector_5;
         }
@@ -5250,8 +5330,8 @@ exit_is_value_selector_5:;
         goto exit_is_value_selector_6;
     }
     n_187 = (int64_t)byte_size(sel_2);
-    b_9 = (uint8_t *)(sel_2 + 16);
-    if (!((n_187 >= 5) && ((b_9[0] == 118) && ((b_9[1] == 97) && ((b_9[2] == 108) && ((b_9[3] == 117) && (b_9[4] == 101))))))) {
+    b_13 = (uint8_t *)(sel_2 + 16);
+    if (!((n_187 >= 5) && ((b_13[0] == 118) && ((b_13[1] == 97) && ((b_13[2] == 108) && ((b_13[3] == 117) && (b_13[4] == 101))))))) {
         r_is_value_selector_6 = false;
         goto exit_is_value_selector_6;
     }
@@ -5264,7 +5344,7 @@ exit_is_value_selector_5:;
         goto exit_is_value_selector_6;
     }
     for (i_41 = 0; i_41 <= n_187 / 6 - 1; i_41++) {
-        if (!((b_9[6 * i_41] == 118) && (b_9[6 * i_41 + 5] == 58))) {
+        if (!((b_13[6 * i_41] == 118) && (b_13[6 * i_41 + 5] == 58))) {
             r_is_value_selector_6 = false;
             goto exit_is_value_selector_6;
         }
@@ -6686,8 +6766,8 @@ exit_guard_int_8:;
         goto exit_is_value_selector_7;
     }
     n_261 = (int64_t)byte_size(sel_3);
-    b_10 = (uint8_t *)(sel_3 + 16);
-    if (!((n_261 >= 5) && ((b_10[0] == 118) && ((b_10[1] == 97) && ((b_10[2] == 108) && ((b_10[3] == 117) && (b_10[4] == 101))))))) {
+    b_14 = (uint8_t *)(sel_3 + 16);
+    if (!((n_261 >= 5) && ((b_14[0] == 118) && ((b_14[1] == 97) && ((b_14[2] == 108) && ((b_14[3] == 117) && (b_14[4] == 101))))))) {
         r_is_value_selector_7 = false;
         goto exit_is_value_selector_7;
     }
@@ -6700,7 +6780,7 @@ exit_guard_int_8:;
         goto exit_is_value_selector_7;
     }
     for (i_49 = 0; i_49 <= n_261 / 6 - 1; i_49++) {
-        if (!((b_10[6 * i_49] == 118) && (b_10[6 * i_49 + 5] == 58))) {
+        if (!((b_14[6 * i_49] == 118) && (b_14[6 * i_49 + 5] == 58))) {
             r_is_value_selector_7 = false;
             goto exit_is_value_selector_7;
         }
@@ -6726,8 +6806,8 @@ exit_is_value_selector_7:;
         goto exit_is_value_selector_8;
     }
     n_263 = (int64_t)byte_size(sel_3);
-    b_11 = (uint8_t *)(sel_3 + 16);
-    if (!((n_263 >= 5) && ((b_11[0] == 118) && ((b_11[1] == 97) && ((b_11[2] == 108) && ((b_11[3] == 117) && (b_11[4] == 101))))))) {
+    b_15 = (uint8_t *)(sel_3 + 16);
+    if (!((n_263 >= 5) && ((b_15[0] == 118) && ((b_15[1] == 97) && ((b_15[2] == 108) && ((b_15[3] == 117) && (b_15[4] == 101))))))) {
         r_is_value_selector_8 = false;
         goto exit_is_value_selector_8;
     }
@@ -6740,7 +6820,7 @@ exit_is_value_selector_7:;
         goto exit_is_value_selector_8;
     }
     for (i_50 = 0; i_50 <= n_263 / 6 - 1; i_50++) {
-        if (!((b_11[6 * i_50] == 118) && (b_11[6 * i_50 + 5] == 58))) {
+        if (!((b_15[6 * i_50] == 118) && (b_15[6 * i_50 + 5] == 58))) {
             r_is_value_selector_8 = false;
             goto exit_is_value_selector_8;
         }
@@ -6760,8 +6840,8 @@ exit_is_value_selector_8:;
         goto exit_is_value_selector_9;
     }
     n_264 = (int64_t)byte_size(sel_3);
-    b_12 = (uint8_t *)(sel_3 + 16);
-    if (!((n_264 >= 5) && ((b_12[0] == 118) && ((b_12[1] == 97) && ((b_12[2] == 108) && ((b_12[3] == 117) && (b_12[4] == 101))))))) {
+    b_16 = (uint8_t *)(sel_3 + 16);
+    if (!((n_264 >= 5) && ((b_16[0] == 118) && ((b_16[1] == 97) && ((b_16[2] == 108) && ((b_16[3] == 117) && (b_16[4] == 101))))))) {
         r_is_value_selector_9 = false;
         goto exit_is_value_selector_9;
     }
@@ -6774,7 +6854,7 @@ exit_is_value_selector_8:;
         goto exit_is_value_selector_9;
     }
     for (i_51 = 0; i_51 <= n_264 / 6 - 1; i_51++) {
-        if (!((b_12[6 * i_51] == 118) && (b_12[6 * i_51 + 5] == 58))) {
+        if (!((b_16[6 * i_51] == 118) && (b_16[6 * i_51 + 5] == 58))) {
             r_is_value_selector_9 = false;
             goto exit_is_value_selector_9;
         }
@@ -8050,17 +8130,25 @@ bool inlinable_closure(oop c)
 {
     uint64_t ctx;
     uint64_t m;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o;
+    uint64_t r_bytecodes_of_2;
+    uint64_t b_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t o_2;
     uint64_t r_literals_of;
     uint64_t l;
-    uint64_t r_follow;
-    uint64_t p;
+    uint64_t r_follow_3;
+    uint64_t p_3;
     uint64_t o_3;
     uint64_t r_literals_of_2;
     uint64_t l_2;
-    uint64_t r_follow_2;
-    uint64_t p_2;
+    uint64_t r_follow_4;
+    uint64_t p_4;
     uint64_t o_4;
     uint64_t o_5;
     uint64_t o_6;
@@ -8068,10 +8156,18 @@ bool inlinable_closure(oop c)
     int32_t sp;
     uint64_t o_8;
     int64_t n;
+    uint64_t r_bytecodes_of_3;
+    uint64_t b_3;
+    uint64_t r_follow_5;
+    uint64_t p_5;
     uint64_t o_9;
     uint8_t *bcs;
     int32_t size;
     int32_t end;
+    uint64_t r_bytecodes_of_4;
+    uint64_t b_4;
+    uint64_t r_follow_6;
+    uint64_t p_6;
     int32_t pc;
     uint8_t op;
     int64_t r_length_of;
@@ -8087,9 +8183,33 @@ bool inlinable_closure(oop c)
     if (!(((m & 7) == 0) && (((int32_t)(((*(uint64_t *)m) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)m > CM_PRIMITIVE)))) {
         return false;
     }
-    o = *(uint64_t *)(m + 16 + 24);
+    o = ({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; });
     if (!(((o & 7) == 0) && ({
-    o_2 = *(uint64_t *)(m + 16 + 24);
+    o_2 = ({
+    b_2 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p_2 = b_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_bytecodes_of_2 = b_2;
+    r_bytecodes_of_2; });
     (int32_t)(((*(uint64_t *)o_2) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES; }))) {
         return false;
     }
@@ -8097,12 +8217,12 @@ bool inlinable_closure(oop c)
     l = *(uint64_t *)(m + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l = ({
-    p = l;
-    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
-        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    p_3 = l;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
     }
-    r_follow = p;
-    r_follow; });
+    r_follow_3 = p_3;
+    r_follow_3; });
     }
     r_literals_of = l;
     r_literals_of; });
@@ -8111,12 +8231,12 @@ bool inlinable_closure(oop c)
     l_2 = *(uint64_t *)(m + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_2 = ({
-    p_2 = l_2;
-    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
-        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    p_4 = l_2;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_2 = p_2;
-    r_follow_2; });
+    r_follow_4 = p_4;
+    r_follow_4; });
     }
     r_literals_of_2 = l_2;
     r_literals_of_2; });
@@ -8133,7 +8253,19 @@ bool inlinable_closure(oop c)
     sp = (int32_t)(((int64_t)o_7) >> 1);
     o_8 = *(uint64_t *)(c + 16 + 16);
     n = ((int64_t)o_8) >> 1;
-    if (!((sp >= 6) && (sp <= (int32_t)byte_size(*(uint64_t *)(m + 16 + 24))))) {
+    if (!((sp >= 6) && (sp <= (int32_t)byte_size(({
+    b_3 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_3 = ({
+    p_5 = b_3;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_5;
+    r_follow_5; });
+    }
+    r_bytecodes_of_3 = b_3;
+    r_bytecodes_of_3; }))))) {
         return false;
     }
     o_9 = *(uint64_t *)(m + 16 + 24);
@@ -8143,7 +8275,19 @@ bool inlinable_closure(oop c)
     }
     size = (int32_t)((((int64_t)bcs[sp - 2]) << 8) | bcs[sp - 1]);
     end = sp + size;
-    if ((size > OPT_INLINE_SIZE) || (end > (int32_t)byte_size(*(uint64_t *)(m + 16 + 24)))) {
+    if ((size > OPT_INLINE_SIZE) || (end > (int32_t)byte_size(({
+    b_4 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_4 = ({
+    p_6 = b_4;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_6 = p_6;
+    r_follow_6; });
+    }
+    r_bytecodes_of_4 = b_4;
+    r_bytecodes_of_4; })))) {
         return false;
     }
     pc = sp;
@@ -8247,6 +8391,10 @@ static void inline_body(int32_t c, int32_t d, oop m, int32_t ana, int32_t o, int
     bool r_alloc_pc_blocks;
     opt_act *ac_2;
     oop m_4;
+    uint64_t r_bytecodes_of;
+    uint64_t b_2;
+    uint64_t r_follow;
+    uint64_t p;
     int32_t n;
     int32_t i;
     int32_t i_2;
@@ -8331,7 +8479,19 @@ static void inline_body(int32_t c, int32_t d, oop m, int32_t ana, int32_t o, int
     if (!({
     ac_2 = opt_acts + b;
     m_4 = ac_2->method;
-    n = (int32_t)byte_size(*(uint64_t *)(m_4 + 16 + 24));
+    n = (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m_4 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p = b_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b_2;
+    r_bytecodes_of; }));
     if (ob_pcb_top + n > OPT_PCB_MAX) {
         if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
             fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
@@ -8813,6 +8973,10 @@ exit_guard:;
 static void inline_method(uint64_t m, oop cls, int32_t pc, int32_t a, int32_t r, int32_t argc)
 {
     int32_t b;
+    uint64_t r_bytecodes_of;
+    uint64_t b_2;
+    uint64_t r_follow;
+    uint64_t p;
     opt_act *ac;
     int32_t var;
     int32_t i;
@@ -8853,7 +9017,19 @@ static void inline_method(uint64_t m, oop cls, int32_t pc, int32_t a, int32_t r,
         ob_bailed = true;
         return;
     }
-    ob_inlined = ob_inlined + (int32_t)byte_size(*(uint64_t *)(m + 16 + 24));
+    ob_inlined = ob_inlined + (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p = b_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b_2;
+    r_bytecodes_of; }));
     ac = opt_acts + b;
     ac->parent = a;
     ac->send_pc = pc;
@@ -18253,9 +18429,17 @@ static int32_t new_act_for(oop m)
     uint64_t o_2;
     uint64_t o_3;
     int32_t fs;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     bool r_alloc_pc_blocks;
     opt_act *ac_2;
     oop m_2;
+    uint64_t r_bytecodes_of_2;
+    uint64_t b_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     int32_t n;
     int32_t i;
     ana = analysis_of(m);
@@ -18279,13 +18463,37 @@ static int32_t new_act_for(oop m)
     }
     ac->nslots = fs + 4;
     ac->startpc = 0;
-    ac->endpc = (int32_t)byte_size(*(uint64_t *)(m + 16 + 24));
+    ac->endpc = (int32_t)byte_size(({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; }));
     ac->ana = ana;
     ac->home = a;
     if (!({
     ac_2 = opt_acts + a;
     m_2 = ac_2->method;
-    n = (int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24));
+    n = (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m_2 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p_2 = b_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_bytecodes_of_2 = b_2;
+    r_bytecodes_of_2; }));
     if (ob_pcb_top + n > OPT_PCB_MAX) {
         if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
             fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
@@ -20515,6 +20723,10 @@ static int32_t state_act(int32_t a, int32_t pc, int32_t d, int32_t lp)
     int32_t v;
     uint64_t r_live_slots_at;
     oop m;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p_2;
     int32_t i;
     int32_t i_2;
     int32_t v_2;
@@ -20537,7 +20749,7 @@ static int32_t state_act(int32_t a, int32_t pc, int32_t d, int32_t lp)
     int32_t r_receiver_slot_at;
     oop m_3;
     uint64_t o_2;
-    uint8_t *p_2;
+    uint8_t *p_3;
     int r_pushes_of;
     uint8_t op_2;
     int32_t r_send_argc_of;
@@ -20560,7 +20772,19 @@ static int32_t state_act(int32_t a, int32_t pc, int32_t d, int32_t lp)
         live = ({
     if ((lp < 0) || ({
     m = (opt_acts + a)->method;
-    lp >= (int32_t)byte_size(*(uint64_t *)(m + 16 + 24)); })) {
+    lp >= (int32_t)byte_size(({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p_2 = b;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; })); })) {
         r_live_slots_at = 18446744073709551615ULL;
         goto exit_live_slots_at;
     }
@@ -20663,18 +20887,18 @@ exit_length_of:;
         d_2 = ({
     m_3 = (opt_acts + p)->method;
     o_2 = *(uint64_t *)(m_3 + 16 + 24);
-    p_2 = (uint8_t *)(o_2 + 16) + pc_4;
+    p_3 = (uint8_t *)(o_2 + 16) + pc_4;
     if (({
-    op_2 = p_2[0];
+    op_2 = p_3[0];
     r_pushes_of = ((op_2 >= 0x97) && (op_2 <= 0x9F)) || ((op_2 >= 0xF0) && (op_2 < 0xFC)) ? 2 : 0;
     r_pushes_of; }) > 0) {
         r_receiver_slot_at = (int32_t)ob_ana_depth[(opt_acts + p)->ana + pc_4];
         goto exit_receiver_slot_at;
     }
     r_receiver_slot_at = (int32_t)ob_ana_depth[(opt_acts + p)->ana + pc_4] - ({
-    op_3 = p_2[0];
+    op_3 = p_3[0];
     if ((op_3 == 0x8D) || (op_3 == 0x8E)) {
-        r_send_argc_of = (int32_t)p_2[2];
+        r_send_argc_of = (int32_t)p_3[2];
         goto exit_send_argc_of;
     }
     if (op_3 >= 0xC0) {
@@ -20691,7 +20915,7 @@ exit_length_of:;
         goto exit_send_argc_of;
     }
     if ((op_3 >= 0x97) && (op_3 <= 0x99)) {
-        k_2 = p_2[3] - 0xA0;
+        k_2 = p_3[3] - 0xA0;
         r_send_argc_of = (k_2 == 19) || (k_2 == 20) ? 1 : special_argc[k_2];
         goto exit_send_argc_of;
     }

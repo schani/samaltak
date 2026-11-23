@@ -215,7 +215,7 @@ methodBytecodes: m
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
 !
 methodSize: m
-	^(memory byteSize: (self loadRef: m at: CM_BYTECODES)) asInt32
+	^(memory byteSize: (self bytecodesOf: m)) asInt32
 !
 methodLiteral: m at: i
 	^self loadRef: (self literalsOf: m) at: i
@@ -226,6 +226,13 @@ literalsOf: m
 	l := self loadRef: m at: CM_LITERALS.
 	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
 	^l
+!
+bytecodesOf: m
+	"As VMCoreModule>>bytecodesOf:: method m's bytecodes, followed."
+	| b |
+	b := self loadRef: m at: CM_BYTECODES.
+	(self unlikely: gc forwardersExist) ifTrue: [b := memory follow: b].
+	^b
 !
 methodPrimitive: m
 	| p |

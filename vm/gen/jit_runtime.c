@@ -1509,6 +1509,10 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     int32_t i_3;
     uint64_t r_write_extra;
     oop m_2;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p_2;
     int64_t r_pool_offset;
     int32_t a_label;
     int32_t i_4;
@@ -1585,7 +1589,19 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->slots = (uint32_t)cg_slot_top;
     h->raw_base = (uint32_t)cg_raw_base;
     m_2 = h->method;
-    h->bc_size = (uint32_t)(int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24));
+    h->bc_size = (uint32_t)(int32_t)byte_size(({
+    b = *(uint64_t *)(m_2 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p_2 = b;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; }));
     h->pool_offset = (uint32_t)({
     if (cg_pool_count == 0) {
         r_pool_offset = 0LL;
@@ -1689,6 +1705,10 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     int32_t i_3;
     uint64_t r_write_extra;
     oop m_2;
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p_2;
     int64_t r_pool_offset;
     int32_t a_label;
     int32_t i_4;
@@ -1765,7 +1785,19 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->slots = (uint32_t)cg_slot_top;
     h->raw_base = (uint32_t)cg_raw_base;
     m_2 = h->method;
-    h->bc_size = (uint32_t)(int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24));
+    h->bc_size = (uint32_t)(int32_t)byte_size(({
+    b = *(uint64_t *)(m_2 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p_2 = b;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; }));
     h->pool_offset = (uint32_t)({
     if (cg_pool_count == 0) {
         r_pool_offset = 0LL;

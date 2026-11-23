@@ -22,8 +22,8 @@ disassemblyNotes
 	^#('interrupt check' 'guard: a SmallInteger' 'frame pc and sp' 'entry: x19')
 !
 stressed
-	"--jit-flags deopt: optimized code deoptimizes every so often anyway."
-	^((Smalltalk vm jitParameters at: 2) substrings: ',') includes: 'deopt'
+	"--jit-flags deopt: optimized code deoptimizes every so often anyway; under SAMALTAK_FORWARD_STRESS forwarders fail its guards."
+	^(((Smalltalk vm jitParameters at: 2) substrings: ',') includes: 'deopt') or: [(Smalltalk vm getenv: 'SAMALTAK_FORWARD_STRESS') notNil]
 ! !
 
 !JitOptRuntimeTest methodsFor: 'tests'!

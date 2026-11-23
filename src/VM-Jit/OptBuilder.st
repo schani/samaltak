@@ -327,7 +327,7 @@ inlinableClosure: c
 	((self isPtr: ctx) and: [(self rawClass: ctx) = memory clsContext]) ifFalse: [^false].
 	m := self loadRef: ctx at: CTX_METHOD.
 	((self isPtr: m) and: [(self formatOf: m) = F_FIXED and: [(self numSlots: m) > CM_PRIMITIVE]]) ifFalse: [^false].
-	((self isPtr: (self loadRef: m at: CM_BYTECODES)) and: [(self formatOf: (self loadRef: m at: CM_BYTECODES)) >= F_BYTES]) ifFalse: [^false].
+	((self isPtr: (self bytecodesOf: m)) and: [(self formatOf: (self bytecodesOf: m)) >= F_BYTES]) ifFalse: [^false].
 	((self isPtr: (self literalsOf: m)) and: [(self formatOf: (self literalsOf: m)) <= F_WEAK]) ifFalse: [^false].
 	((self isInt: (self loadRef: c at: BC_STARTPC)) and: [self isInt: (self loadRef: c at: BC_NUMARGS)]) ifFalse: [^false].
 	sp := (self intVal: (self loadRef: c at: BC_STARTPC)) asInt32.

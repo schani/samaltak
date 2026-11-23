@@ -122637,6 +122637,10 @@ exit_is_quiet:;
 /* OptCodegen>>generate:act: */
 bool opt_codegen_generate(oop m, int a)
 {
+    uint64_t r_bytecodes_of;
+    uint64_t b_2;
+    uint64_t r_follow;
+    uint64_t p;
     int32_t r_entry_pc;
     int32_t r_slot_count;
     int64_t r_max_outgoing;
@@ -122646,7 +122650,7 @@ bool opt_codegen_generate(oop m, int a)
     int32_t i_2;
     int32_t i_3;
     int32_t i_4;
-    int32_t b_2;
+    int32_t b_3;
     opt_act *ac;
     int32_t n_2;
     int64_t fb;
@@ -122952,7 +122956,7 @@ bool opt_codegen_generate(oop m, int a)
     int32_t i_7;
     int64_t n_62;
     int32_t i_8;
-    int32_t b_3;
+    int32_t b_4;
     int64_t r_back_edge_after;
     opt_block *bl;
     int32_t n_63;
@@ -122963,19 +122967,19 @@ bool opt_codegen_generate(oop m, int a)
     int32_t op;
     int32_t n_65;
     opt_node *nx;
-    int32_t b_4;
     int32_t b_5;
+    int32_t b_6;
     opt_block *c;
     int32_t n_66;
     int32_t s_2;
     bool r_is;
     opt_block *sb;
-    int32_t b_6;
+    int32_t b_7;
     int32_t n_67;
     int32_t s_3;
     bool r_is_2;
     opt_block *sb_2;
-    int32_t b_7;
+    int32_t b_8;
     int32_t n_68;
     int64_t t;
     int32_t i_9;
@@ -124163,7 +124167,19 @@ bool opt_codegen_generate(oop m, int a)
     cg_root_act = a;
     cg_last_pc = -1;
     cg_last_act = -1;
-    cg_bc_size = (int32_t)byte_size(*(uint64_t *)(m + 16 + 24));
+    cg_bc_size = (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p = b_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b_2;
+    r_bytecodes_of; }));
     cg_valid_slots = ob_valid_slots;
     cg_entry_pc = ({
     if (ob_osr_pc >= 0) {
@@ -124223,8 +124239,8 @@ exit_slot_count:;
     cg_checks_label = new_label();
     cg_body_label = new_label();
     for (i_4 = 0; i_4 <= ps_order_count - 1; i_4++) {
-        b_2 = ps_order[i_4];
-        (opt_blocks + b_2)->label = new_label();
+        b_3 = ps_order[i_4];
+        (opt_blocks + b_3)->label = new_label();
     }
     if (ob_osr_pc < 0) {
         ac = opt_acts + cg_root_act;
@@ -126323,13 +126339,13 @@ exit_b_9:;
     }
     n_62 = 0;
     for (i_8 = 0; i_8 <= ps_order_count - 1; i_8++) {
-        b_3 = ps_order[i_8];
-        if (cg_placed[b_3] == 0) {
-            cg_order[n_62] = b_3;
-            cg_placed[b_3] = 1;
+        b_4 = ps_order[i_8];
+        if (cg_placed[b_4] == 0) {
+            cg_order[n_62] = b_4;
+            cg_placed[b_4] = 1;
             n_62 = n_62 + 1;
             t = ({
-    bl = opt_blocks + b_3;
+    bl = opt_blocks + b_4;
     if (!((bl->succ1 >= 0) && (bl->last >= 0))) {
         r_back_edge_after = -1;
         goto exit_back_edge_after;
@@ -126363,9 +126379,9 @@ exit_b_9:;
         r_is_fused = false;
         goto exit_is_fused;
     }
-    b_4 = nd_2->block;
-    b_5 = (opt_blocks + b_4)->succ0;
-    c = opt_blocks + b_5;
+    b_5 = nd_2->block;
+    b_6 = (opt_blocks + b_5)->succ0;
+    c = opt_blocks + b_6;
     if (!((c->npreds == 1) && (c->first >= 0))) {
         r_is_fused = false;
         goto exit_is_fused;
@@ -126382,8 +126398,8 @@ exit_is_fused:;
     if (({
     sb = opt_blocks + s_2;
     r_is = (sb->npreds == 1) && ((sb->succ1 < 0) && ((sb->succ0 >= 0) && ({
-    b_6 = sb->succ0;
-    ((opt_blocks + b_6)->rpo <= (opt_blocks + b_3)->rpo) && ((sb->last >= 0) && ({
+    b_7 = sb->succ0;
+    ((opt_blocks + b_7)->rpo <= (opt_blocks + b_4)->rpo) && ((sb->last >= 0) && ({
     n_67 = sb->last;
     (int32_t)(opt_nodes + n_67)->op == O_GOTO; })); })));
     r_is; })) {
@@ -126394,8 +126410,8 @@ exit_is_fused:;
     if (({
     sb_2 = opt_blocks + s_3;
     r_is_2 = (sb_2->npreds == 1) && ((sb_2->succ1 < 0) && ((sb_2->succ0 >= 0) && ({
-    b_7 = sb_2->succ0;
-    ((opt_blocks + b_7)->rpo <= (opt_blocks + b_3)->rpo) && ((sb_2->last >= 0) && ({
+    b_8 = sb_2->succ0;
+    ((opt_blocks + b_8)->rpo <= (opt_blocks + b_4)->rpo) && ((sb_2->last >= 0) && ({
     n_68 = sb_2->last;
     (int32_t)(opt_nodes + n_68)->op == O_GOTO; })); })));
     r_is_2; })) {
@@ -133988,6 +134004,10 @@ exit_b_39:;
 /* OptCodegen>>generate:act: */
 bool opt_codegen_generate(oop m, int a)
 {
+    uint64_t r_bytecodes_of;
+    uint64_t b_2;
+    uint64_t r_follow;
+    uint64_t p;
     int32_t r_entry_pc;
     int32_t r_slot_count;
     int64_t r_max_outgoing;
@@ -133997,7 +134017,7 @@ bool opt_codegen_generate(oop m, int a)
     int32_t i_2;
     int32_t i_3;
     int32_t i_4;
-    int32_t b_2;
+    int32_t b_3;
     opt_act *ac;
     int32_t n_2;
     int64_t fb;
@@ -134095,7 +134115,7 @@ bool opt_codegen_generate(oop m, int a)
     int32_t i_7;
     int64_t n_3;
     int32_t i_8;
-    int32_t b_3;
+    int32_t b_4;
     int64_t r_back_edge_after;
     opt_block *bl;
     int32_t n_4;
@@ -134106,19 +134126,19 @@ bool opt_codegen_generate(oop m, int a)
     int32_t op;
     int32_t n_6;
     opt_node *nx;
-    int32_t b_4;
     int32_t b_5;
+    int32_t b_6;
     opt_block *c;
     int32_t n_7;
     int32_t s_8;
     bool r_is;
     opt_block *sb;
-    int32_t b_6;
+    int32_t b_7;
     int32_t n_8;
     int32_t s_9;
     bool r_is_2;
     opt_block *sb_2;
-    int32_t b_7;
+    int32_t b_8;
     int32_t n_9;
     int64_t t;
     int32_t i_9;
@@ -134546,7 +134566,19 @@ bool opt_codegen_generate(oop m, int a)
     cg_root_act = a;
     cg_last_pc = -1;
     cg_last_act = -1;
-    cg_bc_size = (int32_t)byte_size(*(uint64_t *)(m + 16 + 24));
+    cg_bc_size = (int32_t)byte_size(({
+    b_2 = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b_2 = ({
+    p = b_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b_2;
+    r_bytecodes_of; }));
     cg_valid_slots = ob_valid_slots;
     cg_entry_pc = ({
     if (ob_osr_pc >= 0) {
@@ -134606,8 +134638,8 @@ exit_slot_count:;
     cg_checks_label = new_label();
     cg_body_label = new_label();
     for (i_4 = 0; i_4 <= ps_order_count - 1; i_4++) {
-        b_2 = ps_order[i_4];
-        (opt_blocks + b_2)->label = new_label();
+        b_3 = ps_order[i_4];
+        (opt_blocks + b_3)->label = new_label();
     }
     if (ob_osr_pc < 0) {
         ac = opt_acts + cg_root_act;
@@ -135307,13 +135339,13 @@ exit_offset_to_6:;
     }
     n_3 = 0;
     for (i_8 = 0; i_8 <= ps_order_count - 1; i_8++) {
-        b_3 = ps_order[i_8];
-        if (cg_placed[b_3] == 0) {
-            cg_order[n_3] = b_3;
-            cg_placed[b_3] = 1;
+        b_4 = ps_order[i_8];
+        if (cg_placed[b_4] == 0) {
+            cg_order[n_3] = b_4;
+            cg_placed[b_4] = 1;
             n_3 = n_3 + 1;
             t = ({
-    bl = opt_blocks + b_3;
+    bl = opt_blocks + b_4;
     if (!((bl->succ1 >= 0) && (bl->last >= 0))) {
         r_back_edge_after = -1;
         goto exit_back_edge_after;
@@ -135347,9 +135379,9 @@ exit_offset_to_6:;
         r_is_fused = false;
         goto exit_is_fused;
     }
-    b_4 = nd_2->block;
-    b_5 = (opt_blocks + b_4)->succ0;
-    c = opt_blocks + b_5;
+    b_5 = nd_2->block;
+    b_6 = (opt_blocks + b_5)->succ0;
+    c = opt_blocks + b_6;
     if (!((c->npreds == 1) && (c->first >= 0))) {
         r_is_fused = false;
         goto exit_is_fused;
@@ -135366,8 +135398,8 @@ exit_is_fused:;
     if (({
     sb = opt_blocks + s_8;
     r_is = (sb->npreds == 1) && ((sb->succ1 < 0) && ((sb->succ0 >= 0) && ({
-    b_6 = sb->succ0;
-    ((opt_blocks + b_6)->rpo <= (opt_blocks + b_3)->rpo) && ((sb->last >= 0) && ({
+    b_7 = sb->succ0;
+    ((opt_blocks + b_7)->rpo <= (opt_blocks + b_4)->rpo) && ((sb->last >= 0) && ({
     n_8 = sb->last;
     (int32_t)(opt_nodes + n_8)->op == O_GOTO; })); })));
     r_is; })) {
@@ -135378,8 +135410,8 @@ exit_is_fused:;
     if (({
     sb_2 = opt_blocks + s_9;
     r_is_2 = (sb_2->npreds == 1) && ((sb_2->succ1 < 0) && ((sb_2->succ0 >= 0) && ({
-    b_7 = sb_2->succ0;
-    ((opt_blocks + b_7)->rpo <= (opt_blocks + b_3)->rpo) && ((sb_2->last >= 0) && ({
+    b_8 = sb_2->succ0;
+    ((opt_blocks + b_8)->rpo <= (opt_blocks + b_4)->rpo) && ((sb_2->last >= 0) && ({
     n_9 = sb_2->last;
     (int32_t)(opt_nodes + n_9)->op == O_GOTO; })); })));
     r_is_2; })) {
