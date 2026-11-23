@@ -1648,7 +1648,10 @@ emitReturn: n
 !
 emitCheckInterrupt: n
 	| s back |
-	(sliceTest enabled and: [cgSlice]) ifTrue: [^self emitInterruptTestTo: (self sliceExitFor: n reason: 0)].
+	(sliceTest enabled and: [cgSlice]) ifTrue: [
+		(sliceTest loopEnabled and: [(ir node: n) aux = SP_LOOP]) ifTrue: [
+			^self emitLoopCheckpoint: n].
+		^self emitInterruptTestTo: (self sliceExitFor: n reason: 0)].
 	back := asm newLabel.
 	s := self out: OUT_INTERRUPT node: n index: 0.
 	(cgOuts + (cgOutCount - 1)) resume: back.
@@ -1656,6 +1659,17 @@ emitCheckInterrupt: n
 	self emitInterruptTestTo: s.
 	self emitStressAt: n label: s.
 	asm bind: back
+!
+emitLoopCheckpoint: n
+	"Before phi copies: the interpreter replays the unexecuted jump."
+	<function>
+	| slow |
+	slow := self sliceExitFor: n reason: 4.
+	self emitInterruptTestTo: slow.
+	asm ldr: X16 base: X22 offset: self stressOffset.
+	asm subs: X16 with: X16 imm: 1.
+	asm str: X16 base: X22 offset: self stressOffset.
+	asm b: slow if: COND_EQ
 !
 emitStressAt: n label: l
 	"--jit-flags deopt: every so often take the slow path anyway."

@@ -13,3 +13,9 @@ enabled
 	<cMacro: 'bool OPT_SLICE_TEST_ENABLED'>
 	^false
 ! !
+
+!OptSliceTest methodsFor: 'loop configuration'!
+loopEnabled
+	<cMacro: 'bool OPT_LOOP_TEST_ENABLED'>
+	^false
+! !

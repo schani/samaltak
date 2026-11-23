@@ -214,10 +214,10 @@ bool opt_runtime_compile(oop m)
     return ok;
 }
 
-/* OptRuntime>>compileSlice: */
-bool opt_runtime_compile_slice(oop m)
+/* OptRuntime>>compileSlice:osr: */
+bool opt_runtime_compile_slice(oop m, int pc)
 {
-    if (!build_slice(m)) {
+    if (!build_slice(m, pc)) {
         return false;
     }
     if ((opt_node_count > 128) || ((opt_state_count > 64) || (opt_operand_count > 512))) {
@@ -226,7 +226,11 @@ bool opt_runtime_compile_slice(oop m)
     ps_unbox_off = true;
     cleanup(ob_entry_block);
     ps_unbox_off = false;
-    if (!(opt_admission_verify(m) == 0)) {
+    if (pc > 0) {
+        if (!verify_loop(m)) {
+            return false;
+        }
+    } else if (!(opt_admission_verify(m) == 0)) {
         return false;
     }
     if (!opt_regalloc_allocate(ob_param_slots, ob_valid_slots)) {
@@ -2878,10 +2882,10 @@ oop send_from(frame *f, uint64_t ret)
     return r;
 }
 
-/* OptRuntime>>sliceEnvelope: */
-bool slice_envelope(oop m)
+/* OptRuntime>>sliceEnvelope:osr: */
+bool slice_envelope(oop m, int pc)
 {
-    return build_envelope(m);
+    return pc > 0 ? loop_envelope(m) : build_envelope(m);
 }
 
 /* OptRuntime>>stackFull: */
@@ -3204,6 +3208,7 @@ bool valid_slice(jit_method *h, uint64_t end, int32_t cap)
     int32_t why;
     int32_t k;
     int32_t d;
+    bool v;
     int32_t j;
     int32_t l;
     if (!((h->mode == -1) && ((h->start == h->code_start) && ((h->code_size > 0) && ((h->code_size <= 8192) && ((h->slots == h->raw_base) && ((h->slots <= 32) && ((h->site_count == 0) && ((h->ret_count == 0) && (h->dep_count == 0)))))))))) {
@@ -3245,7 +3250,31 @@ bool valid_slice(jit_method *h, uint64_t end, int32_t cap)
         if ((k < 0) || ((k >= (int32_t)h->bytecodes) || ((d < 0) || ((d > cap) || (off + 4 + d > words))))) {
             return false;
         }
-        if (i_2 == 0) {
+        if (OPT_LOOP_TEST_ENABLED && (h->osr_pc > 0)) {
+            switch (why) {
+            case 1:
+                v = (d == 10) && ((k == 6) || ((k == 12) || (k == 17)));
+                break;
+            case 2:
+                v = (d == 10) && ((k == 12) || (k == 17));
+                break;
+            case 3:
+                v = (d == 11) && (k == 26);
+                break;
+            case 4:
+                v = (d == 10) && (k == 22);
+                break;
+            default:
+                v = false;
+                break;
+            }
+            if (!v) {
+                return false;
+            }
+            if (why == 4) {
+                count = count + 1;
+            }
+        } else if (i_2 == 0) {
             if (!((why == 0) && (k == 0))) {
                 return false;
             }
@@ -3271,7 +3300,7 @@ bool valid_slice(jit_method *h, uint64_t end, int32_t cap)
         }
         off = off + 4 + d;
     }
-    return (count > 0) && (off == words);
+    return (off == words) && (OPT_LOOP_TEST_ENABLED && (h->osr_pc > 0) ? count == 1 : count > 0);
 }
 
 /* OptRuntime>>variantOf:method:start:osr: */

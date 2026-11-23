@@ -1255,22 +1255,24 @@ invalidateAll
 ! !
 
 !OptRuntime methodsFor: 'checked prefix bridge'!
-compileSlice: m
+compileSlice: m osr: pc
 	<function>
-	(builder buildSlice: m) ifFalse: [^false].
+	(builder buildSlice: m osr: pc) ifFalse: [^false].
 	"One linear build, up to 64 bytes; at most 31 arithmetic bytecodes
 	can reach this point and no CFG expansion or inline retry is allowed."
 	(ir nodeCount > 128 or: [ir stateCount > 64 or: [ir operandCount > 512]]) ifTrue: [^false].
 	passes unboxOff: true.
 	passes cleanup: builder entryBlock.
 	passes unboxOff: false.
-	(admission verify: m) = 0 ifFalse: [^false].
+	pc > 0
+		ifTrue: [(admission verifyLoop: m) ifFalse: [^false]]
+		ifFalse: [(admission verify: m) = 0 ifFalse: [^false]].
 	(regalloc allocate: builder paramSlots valid: builder validSlots) ifFalse: [^false].
 	^codegen generateSlice: m
 !
-sliceEnvelope: m
+sliceEnvelope: m osr: pc
 	<function>
-	^admission buildEnvelope: m
+	^pc > 0 ifTrue: [admission loopEnvelope: m] ifFalse: [admission buildEnvelope: m]
 !
 sliceExtraBytes
 	^4 * (codegen spCount + codegen metaCount)
@@ -1322,14 +1324,19 @@ validSlice: h end: end frame: cap
 		k := row at: 1.
 		d := row at: 2.
 		(k < 0 or: [k >= h bytecodes asInt32 or: [d < 0 or: [d > cap or: [off + 4 + d > words]]]]) ifTrue: [^false].
-		i = 0
-			ifTrue: [(why = 0 and: [k = 0]) ifFalse: [^false]]
+		(sliceTest loopEnabled and: [h osrPc > 0])
+			ifTrue: [
+				(self loopStateAt: k depth: d reason: why) ifFalse: [^false].
+				why = 4 ifTrue: [count := count + 1]]
 			ifFalse: [
-				i = last
-					ifTrue: [(why = 3 and: [k = (h bytecodes asInt32 - 1)]) ifFalse: [^false]]
+				i = 0
+					ifTrue: [(why = 0 and: [k = 0]) ifFalse: [^false]]
 					ifFalse: [
-						(why = 1 or: [why = 2]) ifFalse: [^false].
-						why = 2 ifTrue: [count := count + 1]]].
+						i = last
+							ifTrue: [(why = 3 and: [k = (h bytecodes asInt32 - 1)]) ifFalse: [^false]]
+							ifFalse: [
+								(why = 1 or: [why = 2]) ifFalse: [^false].
+								why = 2 ifTrue: [count := count + 1]]]].
 		0 to: d do: [:j |
 			l := row at: 3 + j.
 			x := (l bitAnd: 7) asUInt64.
@@ -1339,7 +1346,15 @@ validSlice: h end: end frame: cap
 				(x = LOC_SLOT and: [n >= 0 and: [n < h slots asInt32]]) or: [
 				x = LOC_REG and: [(n between: 0 and: 5) or: [n = X9 or: [n = X21]]]]]]) ifFalse: [^false]].
 		off := off + 4 + d].
-	^count > 0 and: [off = words]
+	^off = words and: [(sliceTest loopEnabled and: [h osrPc > 0]) ifTrue: [count = 1] ifFalse: [count > 0]]
+!
+loopStateAt: pc depth: d reason: why
+	^why caseOf: {
+		[1] -> [d = 10 and: [pc = 6 or: [pc = 12 or: [pc = 17]]]].
+		[2] -> [d = 10 and: [pc = 12 or: [pc = 17]]].
+		[3] -> [d = 11 and: [pc = 26]].
+		[4] -> [d = 10 and: [pc = 22]]}
+		otherwise: [false]
 !
 replaySlice: h frame: f index: k dump: dump trace: trace
 	<function>

@@ -1099,8 +1099,8 @@ exit_build_osr:;
     return !(ob_bailed || opt_full);
 }
 
-/* OptBuilder>>buildSlice: */
-bool build_slice(oop m)
+/* OptBuilder>>buildSlice:osr: */
+bool build_slice(oop m, int pc)
 {
     bool ok;
     ob_slice = true;
@@ -1110,7 +1110,8 @@ bool build_slice(oop m)
     ob_no_inline_count = 0;
     ob_no_foreign_count = 0;
     ob_unit_start = 0;
-    ob_osr_pc = -1;
+    ob_osr_pc = pc > 0 ? pc : -1;
+    ob_valid_slots = ob_osr_pc >= 0 ? 10 : 0;
     ok = build_once(m);
     ob_slice = false;
     return ok;
@@ -4194,7 +4195,7 @@ exit_method_bytes_object_34:;
 exit_special_index_of:;
     r_special_index_of; });
         if (OPT_SLICE_TEST_ENABLED && ob_slice) {
-            if (!((k_4 == 0) || (k_4 == 1))) {
+            if (!((k_4 == 0) || ((k_4 == 1) || (OPT_LOOP_TEST_ENABLED && ((ob_osr_pc >= 0) && (k_4 == 3)))))) {
                 if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
                     fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
                 }
@@ -5869,7 +5870,7 @@ exit_length_of_3:;
         k_6 = op - 0xA0;
         r_4 = d - ((k_6 == 19) || (k_6 == 20) ? 1 : special_argc[k_6]) - 1;
         if (OPT_SLICE_TEST_ENABLED && ob_slice) {
-            if (!((k_5 == 0) || (k_5 == 1))) {
+            if (!((k_5 == 0) || ((k_5 == 1) || (OPT_LOOP_TEST_ENABLED && ((ob_osr_pc >= 0) && (k_5 == 3)))))) {
                 if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
                     fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
                 }

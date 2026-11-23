@@ -1777,7 +1777,12 @@ jump
 	| o |
 	o := self readInt16: ip.
 	ip := ip + 2 + o.
-	o < 0 ifTrue: [self jumpedBack]
+	o < 0 ifTrue: [
+		self jumpedBack.
+		(sliceTest loopEnabled and: [fr notNull and: [self unlikely: (jit sliceLoopCandidate: fr)]]) ifTrue: [
+			self saveFrame.
+			jit trySliceLoop: fr.
+			self reload]]
 !
 conditionalJump
 	"jump if true (91), jump if false (92)"

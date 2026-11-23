@@ -1,5 +1,5 @@
 OptModule subclass: #OptAdmission
-	instanceVariableNames: 'ir builder passes adSeen adAlias adSmi adParams adSlots adLive adReceiver adNil adArgs adLocals adCapacity adDepth adRemaining adNode adArith adPrefixNodes adReplayState'
+	instanceVariableNames: 'ir builder passes adSeen adAlias adSmi adParams adSlots adLive adReceiver adNil adArgs adLocals adCapacity adDepth adRemaining adNode adArith adPrefixNodes adReplayState adLoopBytes'
 	classVariableNames: ''
 	package: 'VM-Jit'!
 
@@ -12,7 +12,8 @@ declarations
 		(adParams 'int32_t[17]') (adSlots 'int32_t[16]') (adLive 'uint32_t[64]')
 		(adReceiver int32_t) (adNil int32_t) (adArgs int32_t) (adLocals int32_t) (adCapacity int32_t)
 		(adDepth int32_t) (adRemaining int32_t) (adNode int32_t)
-		(adArith int32_t) (adPrefixNodes int32_t) (adReplayState int32_t))
+		(adArith int32_t) (adPrefixNodes int32_t) (adReplayState int32_t)
+		(adLoopBytes 'const uint8_t[27]' #(0 135 8 1 135 9 249 8 0 146 13 0 246 9 1 135 9 247 8 1 135 8 144 237 255 9 121)))
 ! !
 
 !OptAdmission methodsFor: 'certificate'!
@@ -457,4 +458,56 @@ boundedLiteral: i method: m
 	| lits |
 	lits := self loadRef: m at: CM_LITERALS.
 	^i asUInt32 < (self numSlots: lits) and: [self constantAllowed: (self loadRef: lits at: i)]
+! !
+
+!OptAdmission methodsFor: 'checked loop'!
+loopEnvelope: m
+	"One stock compiler method with no mutable literal dependencies. Match
+	all bytes, not the selector alone; no other control flow reaches IR."
+	<function>
+	| p |
+	(sliceTest loopEnabled and: [(self methodSize: m) = 27 and: [
+		(self intVal: (self loadRef: m at: CM_NUMARGS)) = 8 and: [
+		(self intVal: (self loadRef: m at: CM_NUMTEMPS)) = 2 and: [
+		(self intVal: (self loadRef: m at: CM_FRAMESIZE)) = 12 and: [
+		(self numSlots: (self loadRef: m at: CM_LITERALS)) = 0]]]]]) ifFalse: [^false].
+	p := self methodBytecodes: m.
+	0 to: 26 do: [:i | (p at: i) = (adLoopBytes at: i) ifFalse: [^false]].
+	^true
+!
+verifyLoop: m
+	"Only the non-inlining stock optimizer on loopEnvelope's exact input.
+	Require a single checked cycle, and no call, raw slot, or body borrow."
+	<function>
+	| nd op rep checks head entry body exit bl |
+	(ir full or: [ir actCount ~= 1 or: [ir blockCount ~= 4 or: [passes orderCount ~= 4]]]) ifTrue: [^false].
+	((ir act: 0) method = m and: [builder entryPc = 6 and: [builder paramSlots = 10 and: [builder validSlots = 10]]]) ifFalse: [^false].
+	entry := builder entryBlock.
+	ir osrEntry = entry ifFalse: [^false].
+	head := (ir block: entry) succ0.
+	(head < 0 or: [head >= 4 or: [head = entry]]) ifTrue: [^false].
+	body := (ir block: head) succ0.
+	exit := (ir block: head) succ1.
+	(body < 0 or: [body >= 4 or: [exit < 0 or: [exit >= 4 or: [
+		body = exit or: [body = head or: [exit = head or: [body = entry or: [exit = entry]]]]]]]]) ifTrue: [^false].
+	((ir block: body) succ0 = head and: [(ir block: body) succ1 = -1 and: [
+		(ir block: entry) succ1 = -1 and: [(ir block: exit) succ0 = -1 and: [(ir block: exit) succ1 = -1]]]]) ifFalse: [^false].
+	checks := 0.
+	0 to: ir nodeCount - 1 do: [:i |
+		nd := ir node: i.
+		bl := nd block.
+		bl >= 0 ifTrue: [
+			op := nd op asInt32.
+			rep := nd rep asInt32.
+			(nd bcact ~= 0 or: [rep ~= R_NONE and: [rep ~= R_OOP]]) ifTrue: [^false].
+			op = O_CHECKINT ifTrue: [
+				(bl = body and: [nd aux = SP_LOOP and: [nd bcpc = 22 and: [nd next = (ir block: body) last and: [
+					(ir node: nd next) op asInt32 = O_GOTO]]]]) ifFalse: [^false].
+				checks := checks + 1].
+			op = O_CONST ifTrue: [(self constantAllowed: nd aux asUInt64) ifFalse: [^false]].
+			op = O_ICMP ifTrue: [(bl = head and: [nd aux = 3 and: [nd bcpc = 6]]) ifFalse: [^false]].
+			(op = O_PARAM or: [op = O_CONST or: [op = O_PHI or: [op = O_GUARDINT or: [
+				op = O_IADD or: [op = O_ISUB or: [op = O_ICMP or: [op = O_BRANCH or: [
+				op = O_GOTO or: [op = O_CHECKINT or: [op = O_RETURN]]]]]]]]]]) ifFalse: [^false]]].
+	^checks = 1
 ! !

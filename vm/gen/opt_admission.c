@@ -9,6 +9,7 @@ static int32_t ad_capacity;
 static int32_t ad_depth;
 static uint32_t ad_live[64];
 static int32_t ad_locals;
+static const uint8_t ad_loop_bytes[27] = {0U, 135U, 8U, 1U, 135U, 9U, 249U, 8U, 0U, 146U, 13U, 0U, 246U, 9U, 1U, 135U, 9U, 247U, 8U, 1U, 135U, 8U, 144U, 237U, 255U, 9U, 121U};
 static int32_t ad_nil;
 static int32_t ad_node;
 static int32_t ad_params[17];
@@ -537,6 +538,53 @@ exit_constant_id:;
     return 0;
 }
 
+/* OptAdmission>>loopEnvelope: */
+bool loop_envelope(oop m)
+{
+    oop r_method_bytes_object;
+    uint64_t o;
+    uint64_t o_2;
+    uint64_t o_3;
+    uint64_t o_4;
+    oop r_method_bytes_object_2;
+    oop o_5;
+    uint8_t *p;
+    int i;
+    if (!(OPT_LOOP_TEST_ENABLED && (((int32_t)byte_size(({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; })) == 27) && ({
+    o = *(uint64_t *)(m + 16 + 32);
+    ((((int64_t)o) >> 1) == 8) && ({
+    o_2 = *(uint64_t *)(m + 16 + 40);
+    ((((int64_t)o_2) >> 1) == 2) && ({
+    o_3 = *(uint64_t *)(m + 16 + 48);
+    ((((int64_t)o_3) >> 1) == 12) && ({
+    o_4 = *(uint64_t *)(m + 16 + 16);
+    (uint32_t)*(uint64_t *)o_4 == 0; }); }); }); })))) {
+        return false;
+    }
+    o_5 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_2 = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object_2;
+    }
+    r_method_bytes_object_2 = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object_2:;
+    r_method_bytes_object_2; });
+    p = (uint8_t *)(o_5 + 16);
+    for (i = 0; i <= 26; i++) {
+        if (!(p[i] == ad_loop_bytes[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /* OptAdmission>>push: */
 static void opt_admission_push(int64_t v)
 {
@@ -977,5 +1025,87 @@ exit_method_bytes_object_2:;
         return 13;
     }
     return 0;
+}
+
+/* OptAdmission>>verifyLoop: */
+bool verify_loop(oop m)
+{
+    int32_t r_entry_pc;
+    int32_t entry;
+    int32_t head;
+    int32_t body;
+    int32_t exit;
+    int64_t checks;
+    int32_t i;
+    opt_node *nd;
+    int32_t bl;
+    int32_t op;
+    int32_t rep;
+    int32_t n;
+    uint64_t v;
+    if (opt_full || ((opt_act_count != 1) || ((opt_block_count != 4) || (ps_order_count != 4)))) {
+        return false;
+    }
+    if (!(((opt_acts + 0)->method == m) && ((({
+    if (ob_osr_pc >= 0) {
+        r_entry_pc = ob_osr_pc;
+        goto exit_entry_pc;
+    }
+    r_entry_pc = ob_unit_start;
+exit_entry_pc:;
+    r_entry_pc; }) == 6) && ((ob_param_slots == 10) && (ob_valid_slots == 10))))) {
+        return false;
+    }
+    entry = ob_entry_block;
+    if (!(opt_osr_entry == entry)) {
+        return false;
+    }
+    head = (opt_blocks + entry)->succ0;
+    if ((head < 0) || ((head >= 4) || (head == entry))) {
+        return false;
+    }
+    body = (opt_blocks + head)->succ0;
+    exit = (opt_blocks + head)->succ1;
+    if ((body < 0) || ((body >= 4) || ((exit < 0) || ((exit >= 4) || ((body == exit) || ((body == head) || ((exit == head) || ((body == entry) || (exit == entry))))))))) {
+        return false;
+    }
+    if (!(((opt_blocks + body)->succ0 == head) && (((opt_blocks + body)->succ1 == -1) && (((opt_blocks + entry)->succ1 == -1) && (((opt_blocks + exit)->succ0 == -1) && ((opt_blocks + exit)->succ1 == -1)))))) {
+        return false;
+    }
+    checks = 0;
+    for (i = 0; i <= opt_node_count - 1; i++) {
+        nd = opt_nodes + i;
+        bl = nd->block;
+        if (bl >= 0) {
+            op = (int32_t)nd->op;
+            rep = (int32_t)nd->rep;
+            if ((nd->bcact != 0) || ((rep != R_NONE) && (rep != R_OOP))) {
+                return false;
+            }
+            if (op == O_CHECKINT) {
+                if (!((bl == body) && ((nd->aux == SP_LOOP) && ((nd->bcpc == 22) && ((nd->next == (opt_blocks + body)->last) && ({
+    n = nd->next;
+    (int32_t)(opt_nodes + n)->op == O_GOTO; })))))) {
+                    return false;
+                }
+                checks = checks + 1;
+            }
+            if (op == O_CONST) {
+                v = (uint64_t)nd->aux;
+                if (!(((v & 1) != 0) || ((v == nil_oop) || ((v == true_oop) || (v == false_oop))))) {
+                    return false;
+                }
+            }
+            if (op == O_ICMP) {
+                if (!((bl == head) && ((nd->aux == 3) && (nd->bcpc == 6)))) {
+                    return false;
+                }
+            }
+            if (!((op == O_PARAM) || ((op == O_CONST) || ((op == O_PHI) || ((op == O_GUARDINT) || ((op == O_IADD) || ((op == O_ISUB) || ((op == O_ICMP) || ((op == O_BRANCH) || ((op == O_GOTO) || ((op == O_CHECKINT) || (op == O_RETURN)))))))))))) {
+                return false;
+            }
+        }
+    }
+    return checks == 1;
 }
 

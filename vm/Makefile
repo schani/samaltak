@@ -130,7 +130,7 @@ ifeq ($(OS)/$(ARCH),LINUX/X86_64)
 endif
 
 # Standalone draft test build only. Never reuse the normal headless objects.
-ifeq ($(C4_OPT_SLICE_TEST),1)
+ifneq ($(filter 1,$(C4_OPT_SLICE_TEST) $(C4_OPT_LOOP_TEST)),)
   ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/X86_64/headless/1)
     $(error C4_OPT_SLICE_TEST=1 requires Linux x86-64 and NO_PLATFORM=1)
   endif
@@ -139,6 +139,10 @@ ifeq ($(C4_OPT_SLICE_TEST),1)
   endif
   VARIANT := c4-opt-slice-test
   override CPPFLAGS += -DSAMALTAK_OPT_SLICE_TEST
+endif
+ifeq ($(C4_OPT_LOOP_TEST),1)
+  VARIANT := c4-opt-loop-test
+  override CPPFLAGS += -DSAMALTAK_OPT_LOOP_TEST
 endif
 
 OBJDIR := $(BUILD)/obj-$(VARIANT)

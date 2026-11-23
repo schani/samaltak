@@ -11,5 +11,13 @@
 #else
 # define OPT_SLICE_TEST_ENABLED 0
 #endif
+#ifdef SAMALTAK_OPT_LOOP_TEST
+# if !OPT_SLICE_TEST_ENABLED
+#  error "SAMALTAK_OPT_LOOP_TEST requires the checked native replay bridge"
+# endif
+# define OPT_LOOP_TEST_ENABLED 1
+#else
+# define OPT_LOOP_TEST_ENABLED 0
+#endif
 
 #endif

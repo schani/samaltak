@@ -1,5 +1,5 @@
 VMCoreModule subclass: #JitRuntime
-	instanceVariableNames: 'sliceTest stubs baseline brt cache asm analysis jitMode jitFlags jitThreshold jitOsrThreshold jitCacheMB cacheOpened flushPending releasePending invalidations stateBlock methodTable tableCount methodCounts youngMethods youngCount youngOverflow mapPcs mapOffsets mapCount sendPushed performFn performArgsFn statCompiled statFailed statBytecodes statCompileUs statCodeBytes statCacheFlushes statEntries statExits statResumes statOsr feedback optimizer jitOptThreshold optCounts copying bottomReturned perfMap c4NativePolls c4NativeYields sliceSelector sliceNameSize sliceHeader sliceEnd sliceStamp sliceBytes sliceLiteral sliceNLits sliceArgs sliceTemps sliceCapacity sliceCacheGeneration'
+	instanceVariableNames: 'sliceTest stubs baseline brt cache asm analysis jitMode jitFlags jitThreshold jitOsrThreshold jitCacheMB cacheOpened flushPending releasePending invalidations stateBlock methodTable tableCount methodCounts youngMethods youngCount youngOverflow mapPcs mapOffsets mapCount sendPushed performFn performArgsFn statCompiled statFailed statBytecodes statCompileUs statCodeBytes statCacheFlushes statEntries statExits statResumes statOsr feedback optimizer jitOptThreshold optCounts copying bottomReturned perfMap c4NativePolls c4NativeYields sliceLoop sliceSelector sliceNameSize sliceHeader sliceEnd sliceStamp sliceBytes sliceLiteral sliceNLits sliceArgs sliceTemps sliceCapacity sliceCacheGeneration'
 	classVariableNames: 'JIT_BASELINE JIT_FLAG_ACCESS JIT_FLAG_ALLOC JIT_FLAG_ARITH JIT_FLAG_BARRIER JIT_FLAG_BLOCKS JIT_FLAG_CALLS JIT_FLAG_DEOPT JIT_FLAG_EAGER JIT_FLAG_FLOAT JIT_FLAG_FUSE JIT_FLAG_GVN JIT_FLAG_HOIST JIT_FLAG_IC JIT_FLAG_INLINE JIT_FLAG_LAST JIT_FLAG_LIVE JIT_FLAG_MEGA JIT_FLAG_NOTES JIT_FLAG_PIC JIT_FLAG_PRIMS JIT_FLAG_QUICK JIT_FLAG_REGS JIT_FLAG_UNBOX JIT_MAX_COUNT JIT_MAX_MAP JIT_MAX_YOUNG JIT_NONE JIT_OPT JIT_PROLOGUE_BYTES JIT_PROLOGUE_BYTES_X64 JIT_TABLE_SIZE JM_DEAD JM_ENTRY JM_FAILED JM_NOTES JM_OSR'
 	package: 'VM-Jit'!
 
@@ -22,7 +22,7 @@ declarations
 		(statCompiled uint64_t) (statFailed uint64_t) (statBytecodes uint64_t) (statCompileUs uint64_t) (statCodeBytes uint64_t) (statCacheFlushes uint64_t)
 		(statEntries uint64_t) (statExits uint64_t) (statResumes uint64_t) (statOsr uint64_t) (copying bool) (bottomReturned bool) (perfMap 'FILE *')
 		(c4NativePolls uint64_t) (c4NativeYields uint64_t)
-		(sliceSelector 'const char *') (sliceNameSize uint64_t)
+		(sliceLoop bool) (sliceSelector 'const char *') (sliceNameSize uint64_t)
 		(sliceHeader 'JitMethod *') (sliceEnd uint64_t) (sliceStamp uint64_t)
 		(sliceBytes 'uint8_t[64]') (sliceLiteral 'uint64_t[64]') (sliceNLits int32_t)
 		(sliceArgs int32_t) (sliceTemps int32_t) (sliceCapacity int32_t) (sliceCacheGeneration uint64_t))
@@ -1718,6 +1718,9 @@ configureSlice
 	sliceTest enabled ifFalse: [^self].
 	(asm isX64 and: [cache canRunCode]) ifTrue: [
 		sliceSelector := libc getenv: 'SAMALTAK_OPT_SLICE'.
+		(sliceTest loopEnabled and: [sliceSelector isNull and: [(libc getenv: 'SAMALTAK_OPT_LOOP') notNull]]) ifTrue: [
+			sliceLoop := true.
+			sliceSelector := 'loopCount:seed:keep:a:b:c:d:e:'].
 		sliceSelector notNull ifTrue: [sliceNameSize := libc strlen: sliceSelector]]
 !
 retireSlice
@@ -1733,7 +1736,17 @@ retireSlice
 sliceRequested
 	^sliceNameSize > 0 and: [sliceNameSize <= 64]
 !
+sliceLoopCandidate: f
+	<function>
+	^self sliceLoopEnabled and: [self sliceNamed: f method]
+!
+sliceLoopEnabled
+	^sliceTest loopEnabled and: [sliceLoop and: [self sliceLane and: [vmMain c4Enabled]]]
+!
 sliceEnabled
+	^sliceLoop not and: [self sliceLane]
+!
+sliceLane
 	^self sliceRequested and: [jitMode = JIT_NONE and: [
 		vmMain c4Enabled not or: [c4 movingForwardEnabled not and: [
 			c4 platformFiles not and: [c4 platformSDL not and: [c4 arm64Interpreter not]]]]]]
@@ -1810,7 +1823,7 @@ sliceVersion: m bytes: bc literals: lo record: record
 			ifFalse: [(sliceLiteral at: i) = x ifFalse: [^false]]].
 	^true
 !
-compileSlice: m
+compileSlice: m osr: pc
 	"Use the cache's write/finish/commit order, but no ordinary table,
 	tiering, call entries, notes or failed header. All failure is pre-commit."
 	<function>
@@ -1820,7 +1833,7 @@ compileSlice: m
 	cache beginWriting.
 	asm beginAt: start limit: cache limit.
 	asm recordNotes: false.
-	ok := optimizer compileSlice: m.
+	ok := optimizer compileSlice: m osr: pc.
 	(ok and: [asm isOK: asm finish]) ifFalse: [
 		cache endWritingFrom: start size: 0.
 		libc fputs: 'opt-slice compile rejected
@@ -1836,6 +1849,7 @@ compileSlice: m
 	h mode: -1.
 	h start: start.
 	h codeStart: start.
+	h osrPc: pc asUInt32.
 	h codeSize: (asm pc - start) asUInt32.
 	h bytecodes: analysis size asUInt32.
 	h methodHash: (self hashOf: m) asUInt32.
@@ -1881,8 +1895,16 @@ traceSlice: h
 !
 trySlice: f
 	<function>
-	| m bc lo h ret k reason base fp |
-	(sliceTest enabled and: [self sliceEnabled]) ifFalse: [^false].
+	^self trySlice: f osr: false
+!
+trySliceLoop: f
+	<function>
+	^self trySlice: f osr: true
+!
+trySlice: f osr: loop
+	<function>
+	| m bc lo h ret k reason base fp pc |
+	(sliceTest enabled and: [loop ifTrue: [self sliceLoopEnabled] ifFalse: [self sliceEnabled]]) ifFalse: [^false].
 	(stateBlock baseRecord ~= 0 or: [memory rootCount ~= 0 or: [
 		f code ~= 0 or: [f ctx ~= memory nilOop or: [f closure ~= memory nilOop]]]]) ifTrue: [^false].
 	(interpreter nframes <= 0 or: [f ~= (interpreter frames + (interpreter nframes - 1))]) ifTrue: [^false].
@@ -1898,7 +1920,8 @@ trySlice: f
 	(self sliceDescriptor: m) ifFalse: [^false].
 	bc := interpreter methodStorage: m at: CM_BYTECODES.
 	lo := interpreter methodStorage: m at: CM_LITERALS.
-	f ip = (self bytesOf: bc) ifFalse: [^false].
+	pc := loop ifTrue: [6] ifFalse: [0].
+	f ip = ((self bytesOf: bc) + pc) ifFalse: [^false].
 	f lits = (self slotsOf: lo) ifFalse: [^false].
 	(f sp = ((self intVal: (self loadRef: m at: CM_NUMARGS)) + (self intVal: (self loadRef: m at: CM_NUMTEMPS)))) ifFalse: [^false].
 	base := self cCoerce: interpreter cstackBase to: 'uint64_t'.
@@ -1907,9 +1930,9 @@ trySlice: f
 	sliceHeader isNull
 		ifTrue: [
 			(self sliceVersion: m bytes: bc literals: lo record: true) ifFalse: [^false].
-			(optimizer sliceEnvelope: m) ifFalse: [^false].
+			(optimizer sliceEnvelope: m osr: pc) ifFalse: [^false].
 			vmMain c4Enabled ifTrue: [c4 noteCodeBytes: bc].
-			(self compileSlice: m) ifFalse: [^false]]
+			(self compileSlice: m osr: pc) ifFalse: [^false]]
 		ifFalse: [
 			(sliceStamp = invalidations and: [
 				(vmMain c4Enabled not or: [sliceCacheGeneration = c4 cacheGeneration]) and: [
@@ -1919,6 +1942,7 @@ trySlice: f
 				^false]].
 	h := sliceHeader.
 	(optimizer validSlice: h end: sliceEnd frame: sliceCapacity) ifFalse: [^false].
+	loop ifTrue: [stateBlock stress: 4].
 	stateBlock dump at: 31 put: 16rFFFFFFFFFFFFFFFF asUInt64.
 	ret := (self cCoerce: stubs blEnterAddress to: 'int64_t (*)(Frame *, uint64_t)') call: f with: h start.
 	stateBlock baseRecord: 0.

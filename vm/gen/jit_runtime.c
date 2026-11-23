@@ -33,6 +33,7 @@ static int32_t slice_capacity;
 static uint64_t slice_end;
 static jit_method *slice_header;
 static uint64_t slice_literal[64];
+bool slice_loop;
 static int32_t slice_n_lits;
 uint64_t slice_name_size;
 static const char *slice_selector;
@@ -55,7 +56,7 @@ static jit_method *young_methods[4096];
 static bool young_overflow;
 
 static uint64_t activate(oop m, frame *f, int32_t n, int32_t ecode, uint64_t hint);
-static bool jit_runtime_compile_slice(oop m);
+static bool jit_runtime_compile_slice(oop m, int pc);
 static void configure_slice(void);
 static uint64_t context_entry(bool looping);
 static jit_method *failed_header_for(oop m);
@@ -70,6 +71,7 @@ static bool slice_named(oop m);
 static bool slice_version(oop m, oop bc, oop lo, bool record);
 static int64_t slot_of(oop m);
 static void trace_slice(jit_method *h);
+static bool jit_runtime_try_slice_osr(frame *f, bool loop);
 
 #if defined(__x86_64__)
 /* JitRuntime>>activate:frame:argc:ecode:code: */
@@ -1854,8 +1856,8 @@ exit_object_address_2:;
 }
 
 #if defined(__x86_64__)
-/* JitRuntime>>compileSlice: */
-static bool jit_runtime_compile_slice(oop m)
+/* JitRuntime>>compileSlice:osr: */
+static bool jit_runtime_compile_slice(oop m, int pc)
 {
     uint64_t start;
     bool ok;
@@ -1876,7 +1878,7 @@ static bool jit_runtime_compile_slice(oop m)
     begin_writing();
     begin_at(start, cache_limit);
     record_notes(false);
-    ok = opt_runtime_compile_slice(m);
+    ok = opt_runtime_compile_slice(m, pc);
     if (!(ok && ({
     a_code = amd64_assembler_finish();
     a_code == ASM_OK; }))) {
@@ -1897,6 +1899,7 @@ static bool jit_runtime_compile_slice(oop m)
     h->mode = -1;
     h->start = start;
     h->code_start = start;
+    h->osr_pc = (uint32_t)pc;
     h->code_size = (uint32_t)(asm_pc - start);
     h->bytecodes = (uint32_t)bc_size;
     h->method_hash = (uint32_t)(((*(uint64_t *)({
@@ -1945,8 +1948,8 @@ exit_object_address:;
 }
 
 #else
-/* JitRuntime>>compileSlice: */
-static bool jit_runtime_compile_slice(oop m)
+/* JitRuntime>>compileSlice:osr: */
+static bool jit_runtime_compile_slice(oop m, int pc)
 {
     uint64_t start;
     bool ok;
@@ -1967,7 +1970,7 @@ static bool jit_runtime_compile_slice(oop m)
     begin_writing();
     begin_at(start, cache_limit);
     record_notes(false);
-    ok = opt_runtime_compile_slice(m);
+    ok = opt_runtime_compile_slice(m, pc);
     if (!(ok && ({
     a_code = arm64_assembler_finish();
     a_code == ASM_OK; }))) {
@@ -1988,6 +1991,7 @@ static bool jit_runtime_compile_slice(oop m)
     h->mode = -1;
     h->start = start;
     h->code_start = start;
+    h->osr_pc = (uint32_t)pc;
     h->code_size = (uint32_t)(asm_pc - start);
     h->bytecodes = (uint32_t)bc_size;
     h->method_hash = (uint32_t)(((*(uint64_t *)({
@@ -2045,6 +2049,10 @@ static void configure_slice(void)
     }
     if (can_run_code()) {
         slice_selector = getenv("SAMALTAK_OPT_SLICE");
+        if (OPT_LOOP_TEST_ENABLED && ((slice_selector == NULL) && (getenv("SAMALTAK_OPT_LOOP") != NULL))) {
+            slice_loop = true;
+            slice_selector = "loopCount:seed:keep:a:b:c:d:e:";
+        }
         if (slice_selector != NULL) {
             slice_name_size = strlen(slice_selector);
         }
@@ -5617,6 +5625,12 @@ exit_load_ref_4:;
     return (a <= 16) && ((t <= 16) && ((c <= 16) && (a + t <= c)));
 }
 
+/* JitRuntime>>sliceLoopCandidate: */
+bool slice_loop_candidate(frame *f)
+{
+    return OPT_LOOP_TEST_ENABLED && (slice_loop && ((slice_name_size > 0) && (slice_name_size <= 64) && ((jit_mode == JIT_NONE) && ((!c4_enabled) || ((!c4_heap_moving_forward_enabled()) && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && (!c4_heap_arm64_interpreter())))))) && c4_enabled)) && slice_named(f->method);
+}
+
 /* JitRuntime>>sliceMethodLiteral:at: */
 oop slice_method_literal(oop m, uint32_t i)
 {
@@ -6862,7 +6876,13 @@ static void trace_slice(jit_method *h)
 }
 
 /* JitRuntime>>trySlice: */
-bool try_slice(frame *f)
+bool jit_runtime_try_slice(frame *f)
+{
+    return jit_runtime_try_slice_osr(f, false);
+}
+
+/* JitRuntime>>trySlice:osr: */
+static bool jit_runtime_try_slice_osr(frame *f, bool loop)
 {
     oop m;
     oop r_method_storage;
@@ -6888,6 +6908,7 @@ bool try_slice(frame *f)
     uint64_t r_object_address_13;
     int32_t f_3;
     oop lo;
+    int pc;
     uint64_t r_pinned_body_address;
     uint64_t r_canonical_oop;
     uint64_t owner;
@@ -6908,7 +6929,7 @@ bool try_slice(frame *f)
     int64_t ret;
     uint64_t k;
     int32_t reason;
-    if (!(OPT_SLICE_TEST_ENABLED && ((slice_name_size > 0) && (slice_name_size <= 64) && ((jit_mode == JIT_NONE) && ((!c4_enabled) || ((!c4_heap_moving_forward_enabled()) && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && (!c4_heap_arm64_interpreter()))))))))) {
+    if (!(OPT_SLICE_TEST_ENABLED && (loop ? OPT_LOOP_TEST_ENABLED && (slice_loop && ((slice_name_size > 0) && (slice_name_size <= 64) && ((jit_mode == JIT_NONE) && ((!c4_enabled) || ((!c4_heap_moving_forward_enabled()) && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && (!c4_heap_arm64_interpreter())))))) && c4_enabled)) : (!slice_loop) && ((slice_name_size > 0) && (slice_name_size <= 64) && ((jit_mode == JIT_NONE) && ((!c4_enabled) || ((!c4_heap_moving_forward_enabled()) && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && (!c4_heap_arm64_interpreter())))))))))) {
         return false;
     }
     if ((state_block->base_record != 0) || ((root_count != 0) || ((f->code != 0) || ((f->ctx != nil_oop) || (f->closure != nil_oop))))) {
@@ -7097,6 +7118,7 @@ exit_object_address_13:;
     }
     r_method_storage_2 = o_2;
     r_method_storage_2; });
+    pc = loop ? 6 : 0;
     if (!(f->ip == (uint8_t *)({
     owner = ({
     if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
@@ -7115,7 +7137,7 @@ exit_canonical_oop:;
         c4_heap_note_pinned_view(owner);
     }
     r_pinned_body_address = owner + 16;
-    r_pinned_body_address; }))) {
+    r_pinned_body_address; }) + pc)) {
         return false;
     }
     if (!(f->lits == (oop *)({
@@ -7195,13 +7217,13 @@ exit_load_ref_4:;
         if (!slice_version(m, bc, lo, true)) {
             return false;
         }
-        if (!slice_envelope(m)) {
+        if (!slice_envelope(m, pc)) {
             return false;
         }
         if (c4_enabled) {
             c4_heap_note_code_bytes(bc);
         }
-        if (!jit_runtime_compile_slice(m)) {
+        if (!jit_runtime_compile_slice(m, pc)) {
             return false;
         }
     } else if (!((slice_stamp == invalidations) && (((!c4_enabled) || (slice_cache_generation == c4_heap_cache_gen())) && slice_version(m, bc, lo, false)))) {
@@ -7219,6 +7241,9 @@ exit_load_ref_4:;
     h = slice_header;
     if (!valid_slice(h, slice_end, slice_capacity)) {
         return false;
+    }
+    if (loop) {
+        state_block->stress = 4;
     }
     state_block->dump[31] = 18446744073709551615ULL;
     ret = ((int64_t (*)(frame *, uint64_t))bl_enter)(f, h->start);
@@ -7247,6 +7272,12 @@ exit_load_ref_4:;
         entry_safepoint();
     }
     return true;
+}
+
+/* JitRuntime>>trySliceLoop: */
+bool try_slice_loop(frame *f)
+{
+    return jit_runtime_try_slice_osr(f, true);
 }
 
 /* JitRuntime>>widow: */
