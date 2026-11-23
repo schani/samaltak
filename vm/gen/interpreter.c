@@ -475,12 +475,13 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     uint64_t bc;
     uint64_t na;
     uint64_t nt;
+    uint64_t o;
     uint64_t r_literals_of;
     uint64_t l;
     uint64_t r_follow_2;
     uint64_t p_4;
-    uint64_t o;
     uint64_t o_2;
+    uint64_t o_3;
     uint8_t *b;
     int64_t n;
     bool ok;
@@ -526,8 +527,9 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     r_bytecodes_of; });
     na = *(uint64_t *)(m + 16 + 32);
     nt = *(uint64_t *)(m + 16 + 40);
-    e->bcs = (uint8_t *)(bc + 16);
-    o = ({
+    o = *(uint64_t *)(m + 16 + 24);
+    e->bcs = (uint8_t *)(o + 16);
+    o_2 = ({
     l = *(uint64_t *)(m + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l = ({
@@ -540,10 +542,10 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     }
     r_literals_of = l;
     r_literals_of; });
-    e->lits = (oop *)(o + 16);
+    e->lits = (oop *)(o_2 + 16);
     e->ntemps = (int32_t)(((int64_t)nt) >> 1);
-    o_2 = *(uint64_t *)(m + 16 + 48);
-    e->fsize = (int32_t)(((int64_t)o_2) >> 1);
+    o_3 = *(uint64_t *)(m + 16 + 48);
+    e->fsize = (int32_t)(((int64_t)o_3) >> 1);
     if (e->fsize < (((int64_t)na) >> 1) + e->ntemps) {
         e->fsize = (int32_t)((((int64_t)na) >> 1) + e->ntemps);
     }

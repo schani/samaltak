@@ -242,6 +242,23 @@ testForwardedLiteralArray
 			BecomeTestSubject removeSelector: #quickLiteral; removeSelector: #literal; removeSelector: #quickInteger.
 			Smalltalk vm jitMode: mode]
 !
+testForwardedBytecodes
+	"A method's bytecodes forwarded to a copy: an activation of it the method cache sets up afresh goes on where it was across collections (in the interpreter)."
+	| mode subject bytecodes |
+	mode := Smalltalk vm jitMode: #none.
+	BecomeTestSubject compile: 'collectTwice | a | a := 3. Smalltalk vm scavenge. a := a + 4. Smalltalk vm garbageCollect. ^a + 5' classified: 'tests'.
+	[subject := BecomeTestSubject new.
+	3 timesRepeat: [subject collectTwice].
+	bytecodes := (BecomeTestSubject >> #collectTwice) bytecodes.
+	bytecodes becomeForward: bytecodes copy.
+	"another method of that selector: the method cache forgets it"
+	BecomeTestSubject class compile: 'collectTwice ^0' classified: 'tests'.
+	3 timesRepeat: [self assert: subject collectTwice = 12]]
+		ensure: [
+			BecomeTestSubject removeSelector: #collectTwice.
+			BecomeTestSubject class removeSelector: #collectTwice.
+			Smalltalk vm jitMode: mode]
+!
 testEagerKinds
 	| assoc holder |
 	assoc := #a -> 1.

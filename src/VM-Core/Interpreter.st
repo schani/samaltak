@@ -183,7 +183,7 @@ frame: i holds: o
 	^false
 !
 methodBcs: m
-	"A forwarder's body keeps its bytes: no need to follow it."
+	"Unfollowed: a forwarder's body keeps its bytes, and pcs are offsets from this one address (frames' ip, the method cache's bcs)."
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
 !
 refreshLiterals
@@ -553,7 +553,7 @@ fillCache: aClass selector: aSelector
 	bc := self bytecodesOf: m.
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
-	e bcs: (self bytesOf: bc).
+	e bcs: (self methodBcs: m).
 	e lits: (self slotsOf: (self literalsOf: m)).
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
