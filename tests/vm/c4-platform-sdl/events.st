@@ -3,6 +3,11 @@ check := [:ok :why | ok ifFalse: [
     Smalltalk vm stderrWrite: why, (String with: Character lf).
     Smalltalk quit: 1]].
 legacy := (Smalltalk vm getenv: 'C4_SDL_LEGACY') notNil.
+legacy ifTrue: [
+    | names |
+    names := Smalltalk vm primitiveNames.
+    check value: ((names at: 421) = 'windowSetSize' and: [(names at: 422) isNil])
+        value: 'legacy resize aliases the C4 SDL presentation primitive'].
 event := Array new: 8.
 next := [:target | thisContext tryPrimitive: 412 receiver: Smalltalk vm args: {target}].
 sem := Semaphore new.

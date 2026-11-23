@@ -224,7 +224,7 @@ primitive_entry vm_primitive_table[] = {
     {421, 2, "windowSetSize", prim_window_set_size},
 #endif
 #if !defined(SAMALTAK_NO_PLATFORM) && defined(SAMALTAK_C4_PLATFORM_SDL)
-    {421, 2, "windowPresentRGBA", prim_window_present_rgba},
+    {422, 2, "windowPresentRGBA", prim_window_present_rgba},
 #endif
 #if !defined(SAMALTAK_NO_PLATFORM) && !defined(SAMALTAK_C4_PLATFORM_FILES) && !defined(SAMALTAK_C4_PLATFORM_SDL)
     {430, 2, "gpuCreateDevice", prim_gpu_create_device},

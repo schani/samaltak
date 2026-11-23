@@ -236,7 +236,7 @@ stageRGBA: o size: n
 !
 primWindowPresentRGBA
 	"win width height bytes: tightly packed RGBA8, one frame, presented synchronously."
-	<vmPrimitive: 421 name: 'windowPresentRGBA'>
+	<vmPrimitive: 422 name: 'windowPresentRGBA'>
 	| win w h pixels ok |
 	((self args: 4) and: [vmMain headless not]) ifFalse: [^self fail].
 	win := self windowHandleArg: 0.

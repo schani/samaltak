@@ -15,13 +15,13 @@ size := try value: 403 value: {win}.
 w := size first.
 h := size second.
 check value: (w = 128 and: [h = 96]) value: 'wrong pixel extent'.
-check value: (try value: 421 value: {win. w. h. #[0 0 0 0]}) == #primitiveFailed
+check value: (try value: 422 value: {win. w. h. #[0 0 0 0]}) == #primitiveFailed
     value: 'short input accepted'.
 pixels := ByteArray new: w * h * 4.
 paint := [:red :green :blue |
     1 to: pixels size by: 4 do: [:i |
         pixels at: i put: red; at: i + 1 put: green; at: i + 2 put: blue; at: i + 3 put: 255].
-    check value: (try value: 421 value: {win. w. h. pixels}) == Smalltalk vm value: 'present failed'].
+    check value: (try value: 422 value: {win. w. h. pixels}) == Smalltalk vm value: 'present failed'].
 event := Array new: 8.
 sem := Semaphore new.
 index := Smalltalk vm registerExternalSemaphore: sem.
@@ -49,7 +49,7 @@ Smalltalk vm unregisterExternalSemaphore: index.
 check value: (try value: 401 value: {win}) == Smalltalk vm value: 'window close failed'.
 again := try value: 400 value: {8. 8. 'C4 SDL replacement'. 1}.
 check value: (again isInteger and: [again ~= win]) value: 'window token recycled'.
-check value: (try value: 421 value: {win. w. h. pixels}) == #primitiveFailed value: 'stale present succeeded'.
+check value: (try value: 422 value: {win. w. h. pixels}) == #primitiveFailed value: 'stale present succeeded'.
 check value: (try value: 401 value: {again}) == Smalltalk vm value: 'replacement close failed'.
 stats := Smalltalk vm primStatistics.
 check value: (stats first = 0 and: [stats second = 0 and: [(stats at: 15) = 0 and: [(stats at: 20) = 0]]])

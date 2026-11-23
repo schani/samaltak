@@ -3,6 +3,8 @@ check := [:ok :why | ok ifFalse: [
     Smalltalk vm stderrWrite: why, (String with: Character lf).
     Smalltalk quit: 1]].
 names := Smalltalk vm primitiveNames.
+check value: ((names at: 421) isNil and: [(names at: 422) = 'windowPresentRGBA'])
+    value: 'SDL presentation aliases the legacy resize primitive'.
 actual := OrderedCollection new.
 400 to: (699 min: names size) do: [:i |
     (#(567 568 569 570 572 573 574 575 576 577 578) includes: i) ifFalse: [
@@ -26,7 +28,7 @@ check value: (try value: 514 value: {path}) == #primitiveFailed value: 'tryPrimi
 check value: (File exists: path) not value: 'mkfifo side effect'.
 check value: (try value: 400 value: {16. 16. 'must not open'. 0}) == #primitiveFailed
     value: 'headless opened a window'.
-check value: (try value: 421 value: {1. 1. 1. #[1 2 3 4]}) == #primitiveFailed
+check value: (try value: 422 value: {1. 1. 1. #[1 2 3 4]}) == #primitiveFailed
     value: 'headless presented'.
 check value: (try value: 414 value: {(1 bitShift: 32) + 1}) == #primitiveFailed
     value: 'semaphore index narrowed'.
