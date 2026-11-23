@@ -441,7 +441,7 @@ miss: f receiver: rcv ret: ret
 	<var: #rcv type: 'oop'>
 	<var: #ret type: 'uint64_t'>
 	<returns: 'uint64_t'>
-	| h s kind sel cls t opt fl |
+	| h s kind sel cls t opt fl r |
 	statMisses := statMisses + 1.
 	h := self cCoerce: f code to: 'JitMethod *'.
 	self setTop: f ret: ret mode: 0.
@@ -450,12 +450,19 @@ miss: f receiver: rcv ret: ret
 	s isNull ifTrue: [self fatal: 'baseline: no send site for %p' with: (self ptr: ret)].
 	opt := h mode = jit optMode.
 	kind := (s info >> 24) bitAnd: 3.
+	r := rcv.
+	(memory isForwarder: r) ifTrue: [
+		"a forwarder (becomeForward:) misses every class check: the send goes to its target (the stub reloads the receiver from its slot)"
+		r := memory follow: r.
+		opt
+			ifTrue: [(f fp + h slots asInt64) at: 0 put: r]
+			ifFalse: [(self calleeFp: f ret: ret) at: -1 put: r]].
 	"an optimized super send: the runtime finds its class (the method it is in may be inlined)"
 	(opt and: [kind = 1]) ifTrue: [^jit optSendFrom: f ret: ret].
 	sel := self selectorOf: s in: h.
 	cls := kind = 1
 		ifTrue: [self loadRef: (self loadRef: h method at: CM_CLASS) at: BEH_SUPERCLASS]
-		ifFalse: [interpreter receiverClass: rcv].
+		ifFalse: [interpreter receiverClass: r].
 	"--jit opt: what the site saw is type feedback"
 	(jit tiering and: [kind ~= 1 and: [opt not]]) ifTrue: [
 		feedback noteSend: h method pc: s pc asInt64 class: cls.

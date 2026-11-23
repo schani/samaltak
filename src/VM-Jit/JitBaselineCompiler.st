@@ -1,5 +1,5 @@
 JitCompiler subclass: #JitBaselineCompiler
-	instanceVariableNames: 'codeStart pcLabels pcMerge ssKind ssVal ssReg ssInSlot ssTop ssBase regOwner selfValid curArgs curTemps curFrameSize regionEnds regionArgs regionTemps regionSizes regionCount slKind slPc slDepth slLabel slCont slTarget slA slB slC slR slX slY slInfo slCount siteBl siteLit siteInfo sitePc siteDepth siteCount retOff retPc retDepth retInfo retCount poolLabels blockPcs blockLabels blockCount headerLabel missLabel blockLabel megaLabel performLabel exitSyncLabel exitPlainLabel interruptLabel closureLabel makeArrayLabel entrySlowLabel primLabel rememberLabel returnSlowLabel boxLabel fusedTarget uentryOffset dead curPc dregRefs tempD slDA slDB slSavedStart slSavedCount saved savedCount loopActive loopEnd loopId loopTable slLoop plainEntry tierUpLabel counterAddr curMethod'
+	instanceVariableNames: 'codeStart pcLabels pcMerge ssKind ssVal ssReg ssInSlot ssTop ssBase regOwner selfValid blockReadsSelf curArgs curTemps curFrameSize regionEnds regionArgs regionTemps regionSizes regionCount slKind slPc slDepth slLabel slCont slTarget slA slB slC slR slX slY slInfo slCount siteBl siteLit siteInfo sitePc siteDepth siteCount retOff retPc retDepth retInfo retCount poolLabels blockPcs blockLabels blockCount headerLabel missLabel blockLabel megaLabel performLabel exitSyncLabel exitPlainLabel interruptLabel closureLabel makeArrayLabel entrySlowLabel primLabel rememberLabel returnSlowLabel boxLabel fusedTarget uentryOffset dead curPc dregRefs tempD slDA slDB slSavedStart slSavedCount saved savedCount loopActive loopEnd loopId loopTable slLoop plainEntry tierUpLabel counterAddr curMethod'
 	classVariableNames: 'BL_MAX_BLOCKS BL_MAX_REGIONS BL_MAX_RETS BL_MAX_SITES BL_MAX_SLOW BL_PIC_CASE_X64 BL_PIC_HEAD_X64 BL_PIC_JMP_X64 BL_UENTRY SL_ACCESS SL_BARRIER SL_CLASS SL_ENTRY_IMM SL_ENTRY_SLOW SL_FLOAT SL_FUSED SL_INTERRUPT SL_MUSTBEBOOLEAN SL_RESUME SL_RETURN SL_SEND SL_START SL_TIERUP SL_FOLLOW SL_BOX SL_DOUBLES BL_MAX_SAVED BL_MAX_LOOPS SS_DREG SS_CONST SS_LIT SS_MAX SS_PINNED SS_REG SS_SELF SS_SLOT SS_TEMP'
 	package: 'VM-Jit'!
 
@@ -17,7 +17,7 @@ Under --jit opt (the optimizing tier''s lower tier) the code also counts method 
 declarations
 	^#((codeStart uint64_t) (pcLabels 'int32_t[ANA_MAX]') (pcMerge 'uint8_t[ANA_MAX]')
 		(ssKind 'uint8_t[SS_MAX]') (ssVal 'int64_t[SS_MAX]') (ssReg 'int8_t[SS_MAX]') (ssInSlot 'uint8_t[SS_MAX]') (ssTop int32_t) (ssBase int32_t)
-		(regOwner 'int32_t[32]') (selfValid bool)
+		(regOwner 'int32_t[32]') (selfValid bool) (blockReadsSelf bool)
 		(curArgs int32_t) (curTemps int32_t) (curFrameSize int32_t)
 		(regionEnds 'int32_t[BL_MAX_REGIONS]') (regionArgs 'int32_t[BL_MAX_REGIONS]') (regionTemps 'int32_t[BL_MAX_REGIONS]') (regionSizes 'int32_t[BL_MAX_REGIONS]') (regionCount int32_t)
 		(slKind 'uint8_t[BL_MAX_SLOW]') (slPc 'int32_t[BL_MAX_SLOW]') (slDepth 'int32_t[BL_MAX_SLOW]') (slLabel 'int32_t[BL_MAX_SLOW]') (slCont 'int32_t[BL_MAX_SLOW]') (slTarget 'int32_t[BL_MAX_SLOW]')
@@ -857,7 +857,7 @@ emitFrameFor: isBlock args: na temps: nt
 			asm comment: 'the receiver: the outer context''s, into the closure''s slot'.
 			asm ldr: X16 base: X0 offset: (self fieldOffset: BC_OUTER).
 			asm ldr: X21 base: X16 offset: (self fieldOffset: CTX_RECEIVER).
-			self emitFollowReceiver.
+			blockReadsSelf ifTrue: [self emitFollowReceiver].
 			asm stur: X21 base: X20 offset: -8]
 		ifFalse: [
 			asm comment: 'x21 := the receiver'.
@@ -873,8 +873,19 @@ emitFrameFor: isBlock args: na temps: nt
 				asm str: X23 base: X20 offset: (self slot: i).
 				i := i + 1]]
 !
+readsReceiverFrom: start to: end
+	"The bytecodes from start to end read the receiver: self, an instance variable, ^self, thisContext, a super send (nested blocks included)."
+	| p b |
+	p := start.
+	[p < end] whileTrue: [
+		b := analysis byteAt: p.
+		(analysis lengthAt: p) = 0 ifTrue: [^true].
+		((b >= 16r10 and: [b <= 16r1F]) or: [b = 16r70 or: [b = 16r7A or: [b = 16r76 or: [b = 16r81 or: [b = 16r85 or: [b = 16r88 or: [b = 16r8E]]]]]]]) ifTrue: [^true].
+		p := p + (analysis lengthAt: p) asInt32].
+	^false
+!
 emitFollowReceiver
-	"A block's receiver (x21) comes from its outer Context, which may hold a forwarder (becomeForward:): followed out of line while some object is one. x86: x16 holds nil before and after."
+	"A block's receiver (x21) comes from its outer Context, which may hold a forwarder (becomeForward:): followed out of line while some object is one, in blocks that read it. x86: x16 holds nil before and after."
 	| s done |
 	s := self slow: SL_FOLLOW pc: 0 depth: 0.
 	s < 0 ifTrue: [
@@ -907,7 +918,7 @@ emitFrameForX64: isBlock args: na temps: nt
 			asm comment: 'the receiver: the outer context''s, into the closure''s slot'.
 			asm ldr: X17 base: X0 offset: (self fieldOffset: BC_OUTER).
 			asm ldr: X21 base: X17 offset: (self fieldOffset: CTX_RECEIVER).
-			self emitFollowReceiver.
+			blockReadsSelf ifTrue: [self emitFollowReceiver].
 			asm stur: X21 base: X20 offset: -8]
 		ifFalse: [
 			asm comment: 'x21 := the receiver'.
@@ -934,6 +945,7 @@ emitBlockEntry: pc
 	blockCount := blockCount + 1.
 	asm comment: 'block entry: x0 the closure, x20 our fp, x30 back to the value send'.
 	(self emitStackCheck: pc) ifFalse: [^false].
+	blockReadsSelf := self readsReceiverFrom: pc to: pc + size.
 	self emitFrameFor: true args: na temps: nt.
 	(self emitTierUp: pc depth: na + nt loop: 0) ifFalse: [^false].
 	self ssReset: na + nt.

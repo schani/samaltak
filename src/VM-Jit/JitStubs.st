@@ -332,7 +332,6 @@ generateBaselineX64
 	exit := asm labelAt: exitPlainAddr.
 	blMiss := self symbol: 'baseline miss'.
 	"x0 the receiver, back to the send on the stack, x19 the sender's frame, x20 the callee's fp"
-	self emitFollowMissReceiver.
 	asm mov: X1 with: X0.
 	asm loadReturnAddress: X2.
 	asm mov: X0 with: X19.
@@ -868,7 +867,6 @@ generateBaseline
 	exit := asm labelAt: exitPlainAddr.
 	blMiss := self symbol: 'baseline miss'.
 	"x0 the receiver, x30 back to the send, x19 the sender's frame, x20 the callee's fp"
-	self emitFollowMissReceiver.
 	asm stp: X29 with: X30 base: SP preIndex: -16.
 	asm mov: X29 with: SP.
 	asm mov: X1 with: X0.
@@ -1015,15 +1013,6 @@ generateBaseline
 	asm ret.
 	self emitCopyStub.
 	self emitStringStubs
-!
-emitFollowMissReceiver
-	"A forwarder (becomeForward:) misses every class check: the send goes to its target (x0 and the receiver's slot below x20)."
-	| go |
-	go := asm newLabel.
-	self emitNoForwardersTestTo: go.
-	self emitFollow: X0.
-	asm stur: X0 base: X20 offset: -8.
-	asm bind: go
 !
 emitContinueOrExit: exit
 	"x0: 1 leave, else the code to continue at with the receiver in x0 again (x30 back to the send)."
