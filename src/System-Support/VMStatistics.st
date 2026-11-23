@@ -89,7 +89,7 @@ jitExits
 	^self counterAt: 21
 !
 jitResumes
-	"Machine code continued after a return or a send the interpreter made."
+	"Machine code continued after a return, a send the interpreter made or a process switch."
 	^self counterAt: 22
 !
 jitOsrEntries

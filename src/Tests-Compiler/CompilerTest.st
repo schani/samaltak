@@ -38,6 +38,18 @@ unmappedStopsIn: aMethod
 	"Answer the pcs of sends, stores, returns and closure pushes that have no sourceMap entry."
 	^CompilerTest unmappedStopsIn: aMethod
 !
+assertCaptures: aString equal: anArray
+	"Evaluate aString, with bs an OrderedCollection, k 0, x nil, and the closures it collects in bs, with the blocks marked @ inlined and not; both must answer anArray."
+	#('' ' yourself') do: [:suffix | | source |
+		source := '| bs k x | bs := OrderedCollection new. k := 0. ' , (aString copyReplaceAll: '@' with: suffix) , '. (bs collect: [:b | b value]) asArray'.
+		self assert: (self eval: source) equals: anArray]
+!
+closuresIn: aMethod
+	| n |
+	n := 0.
+	aMethod instructionsDo: [:pc :op | op = 16r8F ifTrue: [n := n + 1]].
+	^n
+!
 compile: aString
 	^self compile: aString in: CompilerTestSubject
 !
@@ -377,6 +389,53 @@ testNonInlinedFallbacks
 	self assert: (self eval: '| b | b := [#yes]. 3 > 2 ifTrue: b') == #yes.
 	self assert: (self eval: '| b | b := [:x | x + 1]. 3 ifNotNil: b') equals: 4.
 	self assert: (self eval: '| s b | s := 0. b := [:i | s := s + i]. 1 to: 4 do: b. s') equals: 10
+!
+testLoopVariablesFreshPerIteration
+	"A closure in an inlined loop captures the variables of its own iteration (the loop variable, the temporaries of the loop's blocks and of the blocks inlined into them), as in the loop's non-inlined form: @ marks the blocks the form leaves inlined or (yourself) not."
+	self assertCaptures: '1 to: 3 do: [:i | | j | j := i * 10. bs add: [j + i]]@' equal: #(11 22 33).
+	self assertCaptures: '1 to: 3 do: [:i | bs add: [i]]@' equal: #(1 2 3).
+	self assertCaptures: '1 to: 3 do: [:i | | j | bs add: [j]. j := i * 10]@' equal: #(10 20 30).
+	self assertCaptures: '1 to: 3 do: [:i | | j | bs add: [j]. i = 1 ifTrue: [j := 5]]@' equal: #(5 nil nil).
+	self assertCaptures: '1 to: 3 do: [:i | | j | j := i. bs add: [j := j + 1]]@' equal: #(2 3 4).
+	self assertCaptures: '1 to: 3 do: [:i | | j | j := i. [j := j + 100] value. bs add: [j]]@' equal: #(101 102 103).
+	self assertCaptures: '7 to: 1 by: -3 do: [:i | bs add: [i]]@' equal: #(7 4 1).
+	self assertCaptures: '[k < 3]@ whileTrue: [| j | k := k + 1. j := k. bs add: [j]]@' equal: #(1 2 3).
+	self assertCaptures: '[k < 3]@ whileTrue: [| j | bs add: [j]. k := k + 1. j := k]@' equal: #(1 2 3).
+	self assertCaptures: '[k >= 3]@ whileFalse: [| j | k := k + 1. j := k. bs add: [j]]@' equal: #(1 2 3).
+	self assertCaptures: '[| j | j := k. bs add: [j]. k >= 2]@ whileFalse: [k := k + 1]@' equal: #(0 1 2).
+	self assertCaptures: '[| j | j := k. bs add: [j]. (k := k + 1) < 3]@ whileTrue' equal: #(0 1 2).
+	self assertCaptures: '[| j | bs add: [j]. j := k. (k := k + 1) >= 3]@ whileFalse' equal: #(0 1 2).
+	self assertCaptures: '[| j | j := k. bs add: [j]. (k := k + 1) = 3 ifTrue: [^(bs collect: [:b | b value]) asArray]]@ repeat' equal: #(0 1 2).
+	self assertCaptures: '1 to: 3 do: [:i | i >= 0 ifTrue: [| j | j := i. bs add: [j]]@]@' equal: #(1 2 3).
+	self assertCaptures: '1 to: 3 do: [:i | i < 0 ifFalse: [| j | j := i. bs add: [j]]@]@' equal: #(1 2 3).
+	self assertCaptures: '1 to: 3 do: [:i | i odd ifTrue: [| j | j := i. bs add: [j]]@ ifFalse: [| j | j := i negated. bs add: [j]]@]@' equal: #(1 -2 3).
+	self assertCaptures: '1 to: 3 do: [:i | (i > 0 and: [| j | j := i. bs add: [j]. true]@) | (i < 0 or: [| j | j := i * 2. bs add: [j]. true]@)]@' equal: #(1 2 2 4 3 6).
+	self assertCaptures: '1 to: 3 do: [:i | i ifNotNil: [:v | bs add: [v]]@]@' equal: #(1 2 3).
+	self assertCaptures: '1 to: 3 do: [:i | nil ifNil: [| j | j := i. bs add: [j]]@]@' equal: #(1 2 3).
+	self assertCaptures: '1 to: 3 do: [:i | i ifNil: [nil]@ ifNotNil: [:v | bs add: [v * 2]]@]@' equal: #(2 4 6).
+	self assertCaptures: '1 to: 3 do: [:i | i ifNotNil: [:v | bs add: [v * 3]]@ ifNil: [nil]@]@' equal: #(3 6 9).
+	self assertCaptures: '1 to: 2 do: [:i | 1 to: 2 do: [:k | bs add: [i * 10 + k]]@]@' equal: #(11 12 21 22).
+	self assertCaptures: '1 to: 2 do: [:i | | k | k := 0. [k < 2]@ whileTrue: [| j | k := k + 1. j := k. bs add: [i * 10 + j]]@]@' equal: #(11 12 21 22).
+	self assertCaptures: '1 to: 3 do: [:i | x := i. bs add: [x]]@' equal: #(3 3 3).
+	self assertCaptures: '1 to: 3 do: [:i | | j | j := i. bs add: [j]. x := (x ifNil: [0]) * 10 + (thisContext tempNamed: ''j'')]@. bs add: [x]' equal: #(1 2 3 123)
+!
+testLoopBlocksWithCapturedVariablesReturn
+	self compile: 'tCapturedReturn | r | 1 to: 5 do: [:i | | j | j := i. r := [j]. i = 3 ifTrue: [^r]]. ^nil'.
+	self assert: CompilerTestSubject new tCapturedReturn value equals: 3.
+	self compile: 'tCapturedWhileReturn | k | k := 0. [| j | j := k. k := k + 1. k = 2 ifTrue: [^[j]]. true] whileTrue. ^nil'.
+	self assert: CompilerTestSubject new tCapturedWhileReturn value equals: 1.
+	self assert: (self eval: '1 to: 3 do: [:i | [i]]') isNil.
+	self assert: (self eval: '| k | k := 0. [| j | j := k. [j]. (k := k + 1) < 3] whileTrue: [| j | j := k. [j]]') isNil
+!
+testLoopsWithoutCapturedVariablesStayInlined
+	"Only a loop whose own variables a closure captures gets a block of its own."
+	| m |
+	m := self compile: 'tNoCapture: c | s | s := 0. 1 to: 3 do: [:i | | t | t := i. s := s + t. c do: [:e | s := s + e]. c do: [:i | s := s + i]]. [s > 100] whileFalse: [s := s * 2]. ^s'.
+	self assert: (self closuresIn: m) equals: 2.
+	self assert: (CompilerTestSubject new tNoCapture: #(1)) equals: 192.
+	m := self compile: 'tNested | bs | bs := OrderedCollection new. 1 to: 2 do: [:i | 1 to: 2 do: [:k | bs add: [k]]]. ^(bs collect: [:b | b value]) asArray'.
+	self assert: (self closuresIn: m) equals: 3.
+	self assert: CompilerTestSubject new tNested equals: #(1 2 1 2)
 !
 testHoistedTemps
 	| m |

@@ -147,7 +147,7 @@ areasOutside: aRectangle
 	^aRectangle isRectangle and: [origin = aRectangle origin and: [corner = aRectangle corner]]
 !
 hash
-	^origin hash bitXor: corner hash
+	^(origin hash hashMultiply + corner hash) hashMultiply
 ! !
 
 !Rectangle methodsFor: 'printing'!

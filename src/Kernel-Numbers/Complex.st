@@ -45,7 +45,7 @@ abs
 	^(aComplex isKindOf: Complex) and: [real = aComplex real and: [imaginary = aComplex imaginary]]
 !
 hash
-	^real hash bitXor: imaginary hash
+	^(real hash hashMultiply + imaginary hash) hashMultiply
 ! !
 
 !Complex methodsFor: 'printing'!

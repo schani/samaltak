@@ -360,6 +360,24 @@ primFloatFromIEEEBits
 primFloatAbs
 	<vmPrimitive: 64 name: 'floatAbs'>
 	self floatReceiverDo: [:a | self answerFloat: (libm fabs: a)]
+!
+primFloatHash
+	"Float>>hash: NaN and the infinities answer constants, other non-integral values murmur3's fmix64 of their bits, the low 30 bits; integral values fail."
+	<vmPrimitive: 65 name: 'floatHash'>
+	<leaf>
+	| h |
+	self floatReceiverDo: [:a |
+		(self isFinite: a) ifFalse: [
+			a = a ifFalse: [^self answer: (self intOop: 16r7FF8)].
+			^self answer: (self intOop: (a > 0.0 ifTrue: [16r7FF0] ifFalse: [-16r7FF0]))].
+		(libm trunc: a) = a ifTrue: [^self fail].
+		h := self bitsOfDouble: a.
+		h := h bitXor: h >> 33.
+		h := (h * 16rFF51AFD7ED558CCD) asUInt64.
+		h := h bitXor: h >> 33.
+		h := (h * 16rC4CEB9FE1A85EC53) asUInt64.
+		h := h bitXor: h >> 33.
+		self answer: (self intOop: (h bitAnd: 16r3FFFFFFF) asInt64)]
 ! !
 
 !NumericPrimitives methodsFor: 'Character'!

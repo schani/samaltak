@@ -41,7 +41,7 @@ like: anObject
 	index := anObject hash \\ size + 1.
 	[(element := array at: index) isNil] whileFalse: [
 		anObject = element ifTrue: [^element].
-		index := index \\ size + 1].
+		(index := index + 1) > size ifTrue: [index := 1]].
 	^nil
 ! !
 
@@ -78,6 +78,6 @@ scanFor: anObject
 	size := array size.
 	index := anObject hash \\ size + 1.
 	[(element := array at: index) isNil or: [element = anObject]]
-		whileFalse: [index := index \\ size + 1].
+		whileFalse: [(index := index + 1) > size ifTrue: [index := 1]].
 	^index
 ! !

@@ -141,6 +141,8 @@ tierUp: f loop: loop
 	s := f closure = memory nilOop ifTrue: [0] ifFalse: [(self intVal: (self loadRef: f closure at: BC_STARTPC)) asInt32].
 	(s = 0 and: [h opt = 0 and: [(self failed: m start: 0 osr: 0) not]]) ifTrue: [
 		(self optimize: m lower: h) isNull ifTrue: [self noteFailed: m start: 0 osr: 0]].
+	"a block whose loop ran out of the count is optimized too, as a method is: else, the count running out in its loops rather than at its entries, each of its activations would run its lower tier code up to the loop and enter the loop's unit there"
+	(s ~= 0 and: [loop ~= 0]) ifTrue: [self optimizeBlock: m start: s lower: h].
 	k := loop = 0 ifTrue: [0] ifFalse: [f pc + 1].
 	"a married frame's temps may change through its Context (blocks it made): a unit of its own keeps those in the frame"
 	(k ~= 0 and: [f ctx ~= memory nilOop and: [self makesClosures: m start: s]]) ifTrue: [k := k + 16r10000].
@@ -162,6 +164,17 @@ tierUp: f loop: loop
 	k ~= 0 ifTrue: [rtStatOptOsr := rtStatOptOsr + 1].
 	f code: (self cCoerce: o to: 'uint64_t').
 	^o start
+!
+optimizeBlock: m start: s lower: h
+	"Compile the unit of m's block at startpc s entered at its start, unless it has live code or failed to compile."
+	<function>
+	<var: #h type: 'JitMethod *'>
+	<var: #o type: 'JitMethod *'>
+	| o |
+	o := self unitOf: m start: s osr: 0.
+	((o isNull or: [(runtime hasCode: o) and: [(self isAlive: o) not and: [o generation < OPT_MAX_GENERATIONS]]]) and: [(self failed: m start: s osr: 0) not]) ifFalse: [^self].
+	o := self optimizeUnit: m start: s osr: 0 depth: 0 lower: h previous: o.
+	o isNull ifTrue: [self noteFailed: m start: s osr: 0]
 !
 variantOf: f method: m start: s osr: g
 	"The key of the unit f enters at loop key g: the variant (bits 17 and up: 1 to OPT_MAX_VARIANTS) whose signature is f's (signatureOf:method:), a new one if there is room (OPT_MAX_VARIANT_UNITS in all, a free unit) and none failed to compile, else the loop's plain unit (variant 0, which inlines no closures other frames made). rtUnitSignature: the variant's signature, 0 for the plain unit."

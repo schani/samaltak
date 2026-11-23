@@ -57,6 +57,7 @@ primitive_entry vm_primitive_table[] = {
     {62, 2, "floatAsIEEEBits", prim_float_as_ieee_bits},
     {63, 2, "floatFromIEEEBits", prim_float_from_ieee_bits},
     {64, 2, "floatAbs", prim_float_abs},
+    {65, 3, "floatHash", prim_float_hash},
     {70, 2, "basicNew", prim_basic_new},
     {71, 2, "basicNew:", prim_basic_new_size},
     {72, 3, "basicSize", prim_basic_size},

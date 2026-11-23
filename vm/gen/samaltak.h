@@ -1868,6 +1868,7 @@ void prim_float_fraction_part(void);
 void prim_float_from_ieee_bits(void);
 void prim_float_greater(void);
 void prim_float_greater_eq(void);
+void prim_float_hash(void);
 void prim_float_less(void);
 void prim_float_less_eq(void);
 void prim_float_ln(void);

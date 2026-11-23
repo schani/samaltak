@@ -1138,11 +1138,12 @@ contextEntry: looping
 	^h codeStart + off asUInt64
 !
 run: frame at: address
-	"Run machine code from address in frame (top frame, state externalized) until it leaves; on return into a frame with code continue there, and on optimized code's return into activeCtx (OptRuntime>>returnBottom:index:) as the interpreter's returns do (contextEntry:)."
-	| r f a g |
+	"Run machine code from address in frame (top frame, state externalized) until it leaves; on return into a frame with code continue there, and on optimized code's return into activeCtx (OptRuntime>>returnBottom:index:) or after a process switch (the code left with no frames: the Process switched to has only its Context) as the interpreter's returns do (contextEntry:). Iterating, not recursing: switch after switch, the C stack stays as deep."
+	| r f a g switches |
 	f := frame.
 	a := address.
 	[statEntries := statEntries + 1.
+	 switches := scheduler statProcessSwitches.
 	 (self baselineCode and: [(self isOptFrame: f) not]) ifTrue: [
 		"baseline returns from frame 0 (into a Context) take the married frame's slow path; machine code keeps pc and sp"
 		(f = interpreter frames and: [f ctx = memory nilOop]) ifTrue: [interpreter marry: f].
@@ -1152,7 +1153,7 @@ run: frame at: address
 	 r = 0
 		ifTrue: [
 			statExits := statExits + 1.
-			bottomReturned ifFalse: [^self].
+			(bottomReturned or: [interpreter nframes = 0 and: [scheduler statProcessSwitches ~= switches]]) ifFalse: [^self].
 			bottomReturned := false.
 			self prepare.
 			a := self contextEntry: false.

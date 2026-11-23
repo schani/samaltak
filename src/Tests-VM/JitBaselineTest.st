@@ -214,7 +214,7 @@ testClosures
 testClosuresInMachineCode
 	"Closures, and the Context of the frame that makes the first, are allocated by the code, not by the runtime, which would make the frames below canonical (jitFrameWalks) for each."
 	| walks |
-	self define: 'closures: n | r b | r := 0. 1 to: n do: [:i | b := [i]. r := r + b value]. ^r'.
+	self define: 'closures: n | r b k | r := 0. 1 to: n do: [:i | k := i. b := [k]. r := r + b value]. ^r'.
 	self subject closures: 10.
 	walks := Smalltalk vm statistics jitFrameWalks.
 	self assert: (self subject closures: 100000) equals: 5000050000.

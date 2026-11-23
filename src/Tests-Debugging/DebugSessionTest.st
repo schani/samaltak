@@ -58,6 +58,25 @@ tearDown
 ! !
 
 !DebugSessionTest methodsFor: 'tests'!
+testRestartWaitingProcess
+	"A Process waiting on a Semaphore, suspended, restarted in the debugger and proceeded: switched to, it runs the restarted frame from its start and waits again; signaled, it finishes."
+	| sem log process session |
+	sem := Semaphore new.
+	log := OrderedCollection new.
+	process := self fork: [log add: #start. sem wait. log add: #end. Smalltalk at: #DebugTestResult put: log size].
+	self assert: (self waitFor: [process suspendingList == sem]).
+	process suspend.
+	session := DebugSession debugProcess: process.
+	self assert: (self textOf: session) equals: 'log add: #end'.
+	session restart: session interruptedContext.
+	session proceed.
+	self assert: (self waitFor: [process suspendingList == sem]).
+	self assert: log asArray equals: #(#start #start).
+	sem signal.
+	self waitUntilTerminated: process.
+	self assert: log asArray equals: #(#start #start #end).
+	self assert: self result equals: 3
+!
 testBreakpointStepOver
 	| session texts |
 	session := self gcdSession.

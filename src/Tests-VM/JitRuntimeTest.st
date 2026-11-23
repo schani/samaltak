@@ -769,3 +769,103 @@ testValueWithArgumentsWithProcessSwitches
 	  self assert: result equals: 500006500000.
 	  ticks = 0] whileTrue] ensure: [stop := true]
 ! !
+
+!JitRuntimeTest methodsFor: 'tests - process switches'!
+testSwitchContinuesInMachineCode
+	"After a process switch the Process switched to continues in machine code at once (JitRuntime>>run:at:, Interpreter>>haveEntry:), not interpreted up to a backward jump and entered there."
+	| before d |
+	self define: 'pingPong: n | a b sum | a := Semaphore new. b := Semaphore new. sum := 0. [1 to: n do: [:i | a wait. sum := sum + i. b signal]] fork. 1 to: n do: [:i | a signal. b wait]. ^sum'.
+	self assert: (JitRuntimeTestSubject new pingPong: 10) equals: 55.
+	before := self statistics.
+	self assert: (JitRuntimeTestSubject new pingPong: 1000) equals: 500500.
+	d := self statistics - before.
+	self assert: d processSwitches >= 2000.
+	self stressed ifFalse: [
+		self assert: d jitResumes >= (d processSwitches // 2).
+		self assert: d jitOsrEntries < (d processSwitches // 10)]
+!
+testManySwitchesKeepTheStack
+	"A million round trips between two Processes 50 sends deep, each continued in machine code after the switch to it: switch after switch the VM's C stack stays as deep (it would overflow)."
+	self define: 'deep: d then: aBlock ^d = 0 ifTrue: [aBlock value] ifFalse: [(self deep: d - 1 then: aBlock) + 1]'.
+	self define: 'deepPingPong: n | a b done sum | a := Semaphore new. b := Semaphore new. done := Semaphore new. sum := 0. [self deep: 50 then: [1 to: n do: [:i | a wait. sum := sum + 1. b signal]. 0]. done signal] fork. self deep: 50 then: [1 to: n do: [:i | a signal. b wait]. 0]. done wait. ^sum'.
+	self assert: (JitRuntimeTestSubject new deepPingPong: 1000000) equals: 1000000
+!
+testSwitchToAReplacedContext
+	"A Process whose Context was replaced while it waited (suspendedContext:) continues the new one when it is switched to."
+	| s done log p |
+	self define: 'waitOn: s log: log s wait. log add: #old. ^log'.
+	s := Semaphore new.
+	done := Semaphore new.
+	log := OrderedCollection new.
+	p := self fork: [JitRuntimeTestSubject new waitOn: s log: log].
+	self assert: (self waitFor: [p suspendingList == s]).
+	p suspend.
+	p suspendedContext: [log add: #replaced. done signal. Processor activeProcess terminate] asContext.
+	p resume.
+	done wait.
+	self assert: (self waitFor: [p isTerminated]).
+	self assert: log asArray equals: #(#replaced)
+!
+testSwitchToARestartedContext
+	"A Process whose Context was reset to its start while it waited runs it again from there when it is switched to."
+	| s log p ctx |
+	self define: 'waitOn: s log: log log add: #start. s wait. log add: #end. ^log'.
+	s := Semaphore new.
+	log := OrderedCollection new.
+	p := self fork: [JitRuntimeTestSubject new waitOn: s log: log].
+	self assert: (self waitFor: [p suspendingList == s]).
+	p suspend.
+	ctx := p suspendedContext.
+	self assert: ctx selector equals: #waitOn:log:.
+	ctx privRefresh.
+	p resume.
+	self assert: (self waitFor: [p suspendingList == s]).
+	self assert: log asArray equals: #(#start #start).
+	s signal.
+	self assert: (self waitFor: [p isTerminated]).
+	self assert: log asArray equals: #(#start #start #end)
+!
+testSwitchToASignaledProcess
+	"An exception signaled in a waiting Process (signalException:) is handled in it when it is switched to; resumed, it waits again."
+	| s log p |
+	self define: 'waitOn: s log: log [s wait. log add: #waited] on: ZeroDivide do: [:e | log add: e class name. e resume: nil]. ^log'.
+	s := Semaphore new.
+	log := OrderedCollection new.
+	p := self fork: [JitRuntimeTestSubject new waitOn: s log: log].
+	self assert: (self waitFor: [p suspendingList == s]).
+	p signalException: ZeroDivide new.
+	self assert: (self waitFor: [log notEmpty and: [p suspendingList == s]]).
+	self assert: log asArray equals: #(#ZeroDivide).
+	s signal.
+	self assert: (self waitFor: [p isTerminated]).
+	self assert: log asArray equals: #(#ZeroDivide #waited)
+!
+testSwitchToATerminatedProcessRunsItsUnwindBlocks
+	"A waiting Process terminated runs its unwind blocks, not the rest of its method."
+	| s log p |
+	self define: 'waitOn: s log: log [s wait. log add: #notReached] ensure: [log add: #ensure]. ^log'.
+	s := Semaphore new.
+	log := OrderedCollection new.
+	p := self fork: [JitRuntimeTestSubject new waitOn: s log: log].
+	self assert: (self waitFor: [p suspendingList == s]).
+	p terminate.
+	self assert: (self waitFor: [p isTerminated]).
+	self assert: log asArray equals: #(#ensure).
+	s signal.
+	Processor yield.
+	self assert: log asArray equals: #(#ensure)
+!
+testSwitchToAProcessWhoseMethodChanged
+	"A Process waits in a method that is recompiled, and all machine code dropped, meanwhile: switched to, it goes on in the method it was in (compiled again or interpreted); new sends run the new one."
+	| s p result |
+	self define: 'answerAfter: s s wait. ^1'.
+	s := Semaphore new.
+	p := self fork: [result := JitRuntimeTestSubject new answerAfter: s].
+	self assert: (self waitFor: [p suspendingList == s]).
+	self define: 'answerAfter: s s wait. ^2'.
+	Smalltalk vm releaseMemory.
+	s signal.
+	self assert: (self waitFor: [p isTerminated]).
+	self assert: result equals: 1.
+	self assert: (JitRuntimeTestSubject new answerAfter: (Semaphore new signal; yourself)) equals: 2
+! !

@@ -142,14 +142,18 @@ removeWindow: aWindow
 	lock critical: [
 		windows := windows copyWithout: aWindow.
 		closingWindows := closingWindows copyWith: aWindow].
-	aWindow layer animate: #opacity to: 0 duration: 110 easing: #easeInCubic.
-	(aWindow layer animate: #scale to: 0.97 duration: 110 easing: #easeInCubic)
+	aWindow layer animate: #opacity to: 0 duration: self closeMilliseconds easing: #easeInCubic.
+	(aWindow layer animate: #scale to: 0.97 duration: self closeMilliseconds easing: #easeInCubic)
 		whenDone: [self dropClosing: aWindow].
 	activeWindow == aWindow ifTrue: [
 		activeWindow := nil.
 		next := windows detect: [:w | w isCollapsed not] ifNone: [windows isEmpty ifTrue: [nil] ifFalse: [windows first]].
 		next isNil ifFalse: [self activate: next]].
 	self changed
+!
+closeMilliseconds
+	"How long a closing window fades out (and shrinks a little)."
+	^110
 !
 dropClosing: aWindow
 	"Called by the compositor when the close animation ended."

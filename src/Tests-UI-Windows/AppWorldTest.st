@@ -3,7 +3,7 @@ UIWindowsTestCase subclass: #AppWorldTest
 	classVariableNames: ''
 	package: 'Tests-UI-Windows'!
 
-AppWorldTest comment: 'Tests AppWorld and AppWindow on a hidden host window: the window fills the host window without chrome, gets events at its own coordinates, there is no top bar, frames are presented only when something changed, and closing the last window ends the (hidden) world; an application''s other host window closes alone.'!
+AppWorldTest comment: 'Tests AppWorld and AppWindow on a hidden host window: the window fills the host window without chrome, gets events at its own coordinates, there is no top bar, frames are presented only when something changed, and closing the last window ends the (hidden) world; an application''s other host window closes alone; windows close without a fade.'!
 
 !AppWorldTest methodsFor: 'running'!
 setUp
@@ -55,6 +55,17 @@ testPresentsOnlyWhatChanged
 	self settle.
 	self assert: world compositor frameCount > frames.
 	self assertColor: (Color r: 0 g: 0 b: 1) at: 150 @ 100 in: self screenshot
+!
+testAClosingWindowDoesNotFade
+	"On the host's desktop the window manager animates windows, not I: a closed window is gone with the next frame."
+	| first second |
+	first := self openApp: RecordingTestView new.
+	second := self openApp: RecordingTestView new.
+	self assert: world closeMilliseconds equals: 0.
+	second close.
+	world waitForFrames: 2.
+	self assert: world closingWindows isEmpty.
+	self assert: world windows asArray equals: (Array with: first)
 !
 testClosingTheLastWindowEndsTheWorld
 	| w |

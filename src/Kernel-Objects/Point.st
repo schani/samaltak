@@ -66,7 +66,7 @@ negated
 	^aPoint isPoint and: [x = aPoint x and: [y = aPoint y]]
 !
 hash
-	^(x hash bitShift: 2) bitXor: y hash
+	^(x hash hashMultiply + y hash) hashMultiply
 !
 < aPoint
 	^x < aPoint x and: [y < aPoint y]

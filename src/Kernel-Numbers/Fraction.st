@@ -165,7 +165,12 @@ abs
 	^numerator * aNumber denominator = (aNumber numerator * denominator)
 !
 hash
-	^numerator hash bitXor: denominator hash
+	"Equal numbers have equal hashes: if a Float equals me, I hash like it."
+	| f |
+	denominator isPowerOfTwo ifTrue: [
+		f := self asFloat.
+		(f isFinite and: [f = self]) ifTrue: [^f hash]].
+	^(numerator hash hashMultiply + denominator hash) hashMultiply
 ! !
 
 !Fraction methodsFor: 'truncation and rounding'!

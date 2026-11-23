@@ -11,6 +11,6 @@ scanFor: key
 	size := array size.
 	index := key identityHash \\ size + 1.
 	[(element := array at: index) isNil or: [element key == key]]
-		whileFalse: [index := index \\ size + 1].
+		whileFalse: [(index := index + 1) > size ifTrue: [index := 1]].
 	^index
 ! !

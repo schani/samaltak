@@ -90,11 +90,16 @@ abs
 	^(self = aNumber) not
 !
 hash
-	"Fold the magnitude bytes; SmallInteger overrides with itself."
+	"FNV-1a over the magnitude bytes, as ByteArray>>hash, complemented if negative; SmallInteger overrides with itself."
 	| h |
-	h := self negative ifTrue: [7] ifFalse: [0].
-	1 to: self digitLength do: [:i | h := (h * 31 + (self digitAt: i)) bitAnd: 16r3FFFFFFF].
-	^h
+	h := 2166136261.
+	1 to: self digitLength do: [:i | h := ((h bitXor: (self digitAt: i)) * 16777619) bitAnd: 16rFFFFFFFF].
+	h := h bitAnd: 16r3FFFFFFF.
+	^self negative ifTrue: [h bitXor: 16r3FFFFFFF] ifFalse: [h]
+!
+hashMultiply
+	"See SmallInteger>>hashMultiply; of me, only the low 60 bits count."
+	^(self bitAnd: 16rFFFFFFFFFFFFFFF) hashMultiply
 !
 compareInteger: anInteger
 	"Answer -1, 0 or 1 comparing the receiver with anInteger."

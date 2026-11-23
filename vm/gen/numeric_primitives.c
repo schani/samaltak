@@ -374,6 +374,53 @@ void prim_float_greater_eq(void)
 exit_float_args_do:;
 }
 
+/* NumericPrimitives>>primFloatHash */
+void prim_float_hash(void)
+{
+    oop ro;
+    double d;
+    int v;
+    uint64_t v_2;
+    uint64_t h;
+    int64_t v_3;
+    uint64_t v_4;
+    ro = prim_base[0];
+    if (!is_float(ro)) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        goto exit_float_receiver_do;
+    }
+    d = float_val(ro);
+    if (!(d - d == 0.0)) {
+        if (!(float_val(ro) == float_val(ro))) {
+            prim_result = 65521ULL;
+            prim_status = PS_OK;
+            return;
+        }
+        v = float_val(ro) > 0.0 ? 0x7FF0 : -32752;
+        v_2 = (uint64_t)((((int64_t)v) << 1) | 1);
+        prim_result = v_2;
+        prim_status = PS_OK;
+        return;
+    }
+    if (trunc(float_val(ro)) == float_val(ro)) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    h = lt_bits_of_double(float_val(ro));
+    h = h ^ (h >> 33);
+    h = h * 0xFF51AFD7ED558CCDULL;
+    h = h ^ (h >> 33);
+    h = h * 0xC4CEB9FE1A85EC53ULL;
+    h = h ^ (h >> 33);
+    v_3 = (int64_t)(h & 0x3FFFFFFF);
+    v_4 = (uint64_t)((v_3 << 1) | 1);
+    prim_result = v_4;
+    prim_status = PS_OK;
+exit_float_receiver_do:;
+}
+
 /* NumericPrimitives>>primFloatLess */
 void prim_float_less(void)
 {

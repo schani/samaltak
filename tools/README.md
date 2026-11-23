@@ -94,3 +94,7 @@ Video scripts (`tools/video-lib.mjs`) use this: `sleep` is `advance`, video time
     python3 tools/compose-video.py <dir>   # caption band + narration → <dir>/walkthrough.mp4
 
 `<dir>` defaults to `.context/video-real`. Steps, captions and spoken text: `narration.json`; each step lasts at least as long as its clip. The recording is the compositor's own output (`record start`), 1440×900 at 30 fps.
+
+## Hash table capacities
+
+    python3 tools/hash-capacities.py    # the primes of HashedCollection class>>capacities, on one line (stderr: how many, the largest step)

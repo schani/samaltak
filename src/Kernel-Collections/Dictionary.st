@@ -119,7 +119,7 @@ remove: anObject ifAbsent: aBlock
 	^self shouldNotImplement
 !
 removeAll
-	self init: 8
+	self init: (self class capacityAtLeast: 0)
 ! !
 
 !Dictionary methodsFor: 'testing'!
@@ -221,7 +221,7 @@ scanFor: key
 	size := array size.
 	index := key hash \\ size + 1.
 	[(element := array at: index) isNil or: [element key = key]]
-		whileFalse: [index := index \\ size + 1].
+		whileFalse: [(index := index + 1) > size ifTrue: [index := 1]].
 	^index
 ! !
 

@@ -63,10 +63,18 @@ reciprocal
 	^(self = aNumber) not
 !
 hash
-	"Equal numbers have equal hashes: integral floats hash like the integer, others like their exact fraction."
+	"Equal numbers have equal hashes: integral floats hash like the integer; others answer murmur3's fmix64 of their IEEE bits, 30 bits of it, as Fractions a Float represents exactly do (Fraction>>hash). The primitive fails for integral floats."
+	<primitive: 'floatHash'>
+	| h |
 	self isFinite ifFalse: [^self isNaN ifTrue: [16r7FF8] ifFalse: [self sign * 16r7FF0]].
-	(self fractionPart = 0.0 and: [self abs < 1.0e18]) ifTrue: [^self truncated hash].
-	^self asExactFraction hash
+	self fractionPart = 0.0 ifTrue: [^self abs < 1.0e18 ifTrue: [self truncated hash] ifFalse: [self asExactFraction hash]].
+	h := self asIEEEBits.
+	h := h bitXor: (h bitShift: -33).
+	h := h * 16rFF51AFD7ED558CCD bitAnd: 16rFFFFFFFFFFFFFFFF.
+	h := h bitXor: (h bitShift: -33).
+	h := h * 16rC4CEB9FE1A85EC53 bitAnd: 16rFFFFFFFFFFFFFFFF.
+	h := h bitXor: (h bitShift: -33).
+	^h bitAnd: 16r3FFFFFFF
 ! !
 
 !Float methodsFor: 'truncation and rounding'!

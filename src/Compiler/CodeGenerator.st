@@ -1,11 +1,13 @@
 Object subclass: #CodeGenerator
-	instanceVariableNames: 'encoder scope methodNode targetClass bindings instVarNames cascadeReceiver tempNameMap inlinedTemps'
+	instanceVariableNames: 'encoder scope methodNode targetClass bindings instVarNames cascadeReceiver tempNameMap inlinedTemps contextBlocks'
 	classVariableNames: ''
 	package: 'Compiler'!
 
 CodeGenerator comment: 'I translate a MethodNode into a CompiledMethod: I resolve variables (scopes, instance variables, workspace bindings, class variables, globals), inline control structures with literal block arguments, and drive a BytecodeEncoder. In methods of Context and its subclasses (isContextClass), sender, pc and stackp are read and every instance variable is stored with the forms the VM answers from a married Context''s frame.
 
-tempNameMap collects {startpc. endpc. slotNames} for the method (startpc 0) and every real block, for the debugger.'!
+tempNameMap collects {startpc. endpc. slotNames} for the method (startpc 0) and every real block, for the debugger.
+
+contextBlocks are the blocks of inlined loops that declare (themselves or in blocks inlined into them) variables a closure captures: each runs as a real block, evaluated in place, so that every evaluation has those variables of its own, as the loop''s non-inlined form gives them (and Pharo''s and Squeak''s compilers, with temp vectors). Found by scanning the method at its first inlined loop.'!
 
 !CodeGenerator class methodsFor: 'inlining'!
 inlinedSelectors
@@ -385,6 +387,14 @@ emitInlined: aMessageNode forValue: forValue
 emitInlinedBlock: aBlockNode forValue: forValue
 	self emitStatementsOf: aBlockNode in: (self newInlinedScopeFor: aBlockNode) forValue: forValue
 !
+emitLoopBlock: aBlockNode forValue: forValue
+	"The receiver or argument block of an inlined loop (without arguments)."
+	(self needsContext: aBlockNode) ifFalse: [^self emitInlinedBlock: aBlockNode forValue: forValue].
+	self emitClosure: aBlockNode.
+	encoder noteNode: aBlockNode.
+	encoder send: #value numArgs: 0 super: false.
+	forValue ifFalse: [encoder pop]
+!
 emitStatementsOf: aBlockNode in: aScope forValue: forValue
 	"Emit the statements of an inlined block. Its temporaries start as nil each time. For value, exactly one value is left on the stack."
 	| saved statements start |
@@ -461,11 +471,11 @@ emitAndOr: aMessageNode forValue: forValue
 emitWhile: aMessageNode forValue: forValue
 	| loop exit |
 	loop := encoder pc.
-	self emitInlinedBlock: aMessageNode receiver forValue: true.
+	self emitLoopBlock: aMessageNode receiver forValue: true.
 	exit := aMessageNode selector == #whileTrue:
 		ifTrue: [encoder jumpFalse]
 		ifFalse: [encoder jumpTrue].
-	self emitInlinedBlock: aMessageNode arguments first forValue: false.
+	self emitLoopBlock: aMessageNode arguments first forValue: false.
 	encoder jumpBackTo: loop.
 	encoder patchJump: exit.
 	forValue ifTrue: [encoder pushNil]
@@ -475,7 +485,7 @@ emitUnaryWhile: aMessageNode forValue: forValue
 	| loop mapped |
 	loop := encoder pc.
 	mapped := encoder sourceMapSize.
-	self emitInlinedBlock: aMessageNode receiver forValue: true.
+	self emitLoopBlock: aMessageNode receiver forValue: true.
 	encoder sourceMapSize = mapped ifTrue: [encoder noteNode: aMessageNode].
 	encoder jumpBackTo: loop if: aMessageNode selector == #whileTrue.
 	forValue ifTrue: [encoder pushNil]
@@ -483,13 +493,13 @@ emitUnaryWhile: aMessageNode forValue: forValue
 emitRepeat: aMessageNode forValue: forValue
 	| loop |
 	loop := encoder pc.
-	self emitInlinedBlock: aMessageNode receiver forValue: false.
+	self emitLoopBlock: aMessageNode receiver forValue: false.
 	encoder jumpBackTo: loop.
 	forValue ifTrue: [encoder pushNil]
 !
 emitToDo: aMessageNode forValue: forValue
 	"start to: limit [by: step] do: [:i | ...] with a literal step. The limit is evaluated once, into a hidden temporary unless it is a literal. The test comes before the loop and again at its bottom: one jump per iteration."
-	| arguments limit step block limitIndex blockScope index loop exit |
+	| arguments limit step block limitIndex blockScope index loop exit inContext |
 	arguments := aMessageNode arguments.
 	limit := arguments first.
 	block := arguments last.
@@ -502,13 +512,24 @@ emitToDo: aMessageNode forValue: forValue
 			limit emitValue: self.
 			limitIndex := scope realScope allocateSlotNamed: '(limit)'.
 			encoder noteNode: aMessageNode; popStoreTemp: limitIndex].
-	blockScope := self newInlinedScopeFor: block.
-	index := blockScope indexOf: block arguments first name.
+	inContext := self needsContext: block.
+	inContext
+		ifTrue: [index := scope realScope allocateSlotNamed: '(index)']
+		ifFalse: [
+			blockScope := self newInlinedScopeFor: block.
+			index := blockScope indexOf: block arguments first name].
 	encoder noteNode: aMessageNode; popStoreTemp: index.
 	self emitToDoTest: aMessageNode index: index limit: limit limitIndex: limitIndex step: step.
 	exit := encoder jumpFalse.
 	loop := encoder pc.
-	self emitStatementsOf: block in: blockScope forValue: false.
+	inContext
+		ifTrue: [
+			self emitClosure: block.
+			encoder pushTemp: index.
+			encoder noteNode: block.
+			encoder send: #value: numArgs: 1 super: false.
+			encoder pop]
+		ifFalse: [self emitStatementsOf: block in: blockScope forValue: false].
 	encoder pushTemp: index.
 	encoder pushLiteral: step.
 	encoder noteNode: aMessageNode.
@@ -599,4 +620,90 @@ emitIfNilIfNotNil: aMessageNode forValue: forValue
 		ifFalse: [self emitInlinedBlock: nilBlock forValue: forValue].
 	encoder patchJump: end.
 	encoder depth: (forValue ifTrue: [depth + 1] ifFalse: [depth])
+! !
+
+!CodeGenerator methodsFor: 'captured variables'!
+needsContext: aBlockNode
+	"Whether aBlockNode, a block of an inlined loop, is one of contextBlocks."
+	| saved |
+	contextBlocks isNil ifTrue: [
+		contextBlocks := IdentitySet new.
+		saved := cascadeReceiver.
+		cascadeReceiver := nil.
+		self scanStatementsOf: methodNode body into: self newScan.
+		cascadeReceiver := saved].
+	^contextBlocks includes: aBlockNode
+!
+newScan
+	"{free. captured. pending}: the names code refers to that it does not declare, those of them that real blocks in it refer to, and whether a closure captures a variable declared by a block inlined into it (not as a loop's block)."
+	^Array with: Set new with: Set new with: false
+!
+scan: aNode into: aScan
+	"Add aNode's names to aScan; add to contextBlocks the loop blocks in aNode that need contexts of their own."
+	aNode isVariable ifTrue: [^(aScan at: 1) add: aNode name].
+	aNode isLiteral ifTrue: [^self].
+	aNode isBlock ifTrue: [^self scanRealBlock: aNode into: aScan].
+	aNode isReturn ifTrue: [^self scan: aNode value into: aScan].
+	aNode isAssignment ifTrue: [
+		self scan: aNode variable into: aScan.
+		^self scan: aNode value into: aScan].
+	aNode isMessage ifTrue: [^self scanMessage: aNode into: aScan].
+	aNode isCascade ifTrue: [
+		self scan: aNode receiver into: aScan.
+		^aNode messages do: [:message |
+			message arguments do: [:each | self scan: each into: aScan]]].
+	aNode elements do: [:each | self scan: each into: aScan]
+!
+scanMessage: aMessageNode into: aScan
+	| inlined loop |
+	inlined := (self isInlinable: aMessageNode)
+		ifTrue: [self inlinedBlocksOf: aMessageNode]
+		ifFalse: [#()].
+	loop := #(#whileTrue: #whileFalse: #whileTrue #whileFalse #repeat #to:do: #to:by:do:) includes: aMessageNode selector.
+	self scan: aMessageNode receiver loop: loop inlined: inlined into: aScan.
+	aMessageNode arguments do: [:each | self scan: each loop: loop inlined: inlined into: aScan]
+!
+scan: aNode loop: isLoop inlined: inlinedBlocks into: aScan
+	(inlinedBlocks includes: aNode)
+		ifTrue: [self scanInlinedBlock: aNode loop: isLoop into: aScan]
+		ifFalse: [self scan: aNode into: aScan]
+!
+inlinedBlocksOf: aMessageNode
+	| selector |
+	selector := aMessageNode selector.
+	(#(#whileTrue: #whileFalse: #whileTrue #whileFalse #repeat) includes: selector)
+		ifTrue: [^(Array with: aMessageNode receiver) , aMessageNode arguments].
+	(selector == #to:do: or: [selector == #to:by:do:]) ifTrue: [^Array with: aMessageNode arguments last].
+	^aMessageNode arguments
+!
+scanRealBlock: aBlockNode into: aScan
+	| free |
+	free := (self scanStatementsOf: aBlockNode into: self newScan) at: 1.
+	self remove: (self namesDeclaredBy: aBlockNode) from: free.
+	(aScan at: 1) addAll: free.
+	(aScan at: 2) addAll: free
+!
+scanInlinedBlock: aBlockNode loop: isLoop into: aScan
+	"A loop's block needs a context of its own if a closure captures a variable it declares, or one a block inlined into it declares."
+	| names inner captures |
+	names := self namesDeclaredBy: aBlockNode.
+	inner := self scanStatementsOf: aBlockNode into: self newScan.
+	captures := (inner at: 3) or: [names anySatisfy: [:each | (inner at: 2) includes: each]].
+	(isLoop and: [captures])
+		ifTrue: [contextBlocks add: aBlockNode]
+		ifFalse: [captures ifTrue: [aScan at: 3 put: true]].
+	self remove: names from: (inner at: 1).
+	self remove: names from: (inner at: 2).
+	(aScan at: 1) addAll: (inner at: 1).
+	(aScan at: 2) addAll: (inner at: 2)
+!
+scanStatementsOf: aNode into: aScan
+	aNode statements do: [:each | self scan: each into: aScan].
+	^aScan
+!
+namesDeclaredBy: aBlockNode
+	^(aBlockNode arguments , aBlockNode temporaries) collect: [:each | each name]
+!
+remove: names from: aSet
+	names do: [:each | aSet remove: each ifAbsent: [nil]]
 ! !

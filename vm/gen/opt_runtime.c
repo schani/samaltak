@@ -60,6 +60,7 @@ static int64_t frame_size_of(oop m, oop c);
 static void make_sunk(int32_t s, oop ctx);
 static uint64_t mix(uint64_t h0, oop c, int32_t i, int d, oop fc);
 static jit_method *optimize(oop m, jit_method *h);
+static void optimize_block(oop m, int32_t s, jit_method *h);
 static jit_method *optimize_unit(oop m, int32_t s, int32_t t, int32_t d, jit_method *h, jit_method *p);
 static oop opt_runtime_send(frame *f, int64_t k, uint64_t key);
 static void trace_deopt(jit_method *h, int64_t k, int mode);
@@ -2064,6 +2065,52 @@ exit_note_young:;
     return o;
 }
 
+/* OptRuntime>>optimizeBlock:start:lower: */
+static void optimize_block(oop m, int32_t s, jit_method *h)
+{
+    jit_method *o;
+    bool r_failed;
+    uint64_t key;
+    int32_t i;
+    int64_t n;
+    uint64_t key_2;
+    int32_t i_2;
+    int64_t n_2;
+    o = unit_of(m, s, 0);
+    if (!(((o == NULL) || ((o != NULL) && ((o->flags & JM_FAILED) == 0) && ((!((o != NULL) && ((o->flags & JM_FAILED) == 0) && ((o->flags & 2) == 0))) && (o->generation < OPT_MAX_GENERATIONS)))) && (!({
+    key = ((((uint64_t)(uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) ^ 0ULL) << 32) | ((((uint64_t)s) & 0xFFFF) << 16) | 0ULL | 9223372036854775808ULL;
+    i = (int32_t)((key ^ (key >> 29)) & 8191);
+    n = 0;
+    while ((rt_failed[i] != 0) && (n < 4096)) {
+        if (rt_failed[i] == key) {
+            r_failed = true;
+            goto exit_failed;
+        }
+        n = n + 1;
+        i = (i + 1) & 8191;
+    }
+    r_failed = false;
+exit_failed:;
+    r_failed; })))) {
+        return;
+    }
+    o = optimize_unit(m, s, 0, 0, h, o);
+    if (o == NULL) {
+        key_2 = ((((uint64_t)(uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) ^ 0ULL) << 32) | ((((uint64_t)s) & 0xFFFF) << 16) | 0ULL | 9223372036854775808ULL;
+        i_2 = (int32_t)((key_2 ^ (key_2 >> 29)) & 8191);
+        n_2 = 0;
+        while (rt_failed[i_2] != 0) {
+            n_2 = n_2 + 1;
+            if (n_2 >= 4096) {
+                goto exit_note_failed;
+            }
+            i_2 = (i_2 + 1) & 8191;
+        }
+        rt_failed[i_2] = key_2;
+    exit_note_failed:;
+    }
+}
+
 /* OptRuntime>>optimizeUnit:start:osr:depth:lower:previous: */
 static jit_method *optimize_unit(oop m, int32_t s, int32_t t, int32_t d, jit_method *h, jit_method *p)
 {
@@ -2801,6 +2848,9 @@ exit_failed:;
             rt_failed[i_2] = key_2;
         exit_note_failed:;
         }
+    }
+    if ((s != 0) && (loop != 0)) {
+        optimize_block(m, s, h);
     }
     k = loop == 0 ? 0 : f->pc + 1;
     if ((k != 0) && ((f->ctx != nil_oop) && ({

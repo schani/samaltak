@@ -77,6 +77,10 @@ hash
 !
 identityHash
 	^self
+!
+hashMultiply
+	"Answer a 28-bit scramble of me, for combining hashes: the bits above 28 folded into the low 28, times 1664525 modulo 2^28."
+	^((self bitShift: -28) + (self bitAnd: 16rFFFFFFF) bitAnd: 16rFFFFFFF) * 1664525 bitAnd: 16rFFFFFFF
 ! !
 
 !SmallInteger methodsFor: 'bit manipulation'!

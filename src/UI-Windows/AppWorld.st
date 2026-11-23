@@ -61,6 +61,10 @@ removeWindow: aWindow
 	windows isEmpty ifTrue: [
 		[(hidden or: [self isMain not]) ifTrue: [self stop] ifFalse: [self quitRequested]] forkAt: Processor userBackgroundPriority]
 !
+closeMilliseconds
+	"No fade: the window manager animates my host window away (or not), as for any other application."
+	^0
+!
 quitRequested
 	"The window manager closed my host window: the application quits, unless I am one of its other host windows."
 	self isMain ifTrue: [^super quitRequested].
@@ -76,6 +80,9 @@ desktopClickedAt: aPoint button: anInteger
 ! !
 
 !AppWorld methodsFor: 'host window'!
+leave
+	"Before a quit: no fade to black; the window manager takes my host window away as it does any other application's."
+!
 raise
 	"Bring my host window to the front, with the focus (as far as the window manager lets an application); not when hidden."
 	hidden ifFalse: [displayWindow hostWindow show]

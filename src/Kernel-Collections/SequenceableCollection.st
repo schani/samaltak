@@ -178,7 +178,7 @@ hasEqualElements: otherCollection
 hash
 	| h |
 	h := self species hash bitXor: self size.
-	1 to: (self size min: 16) do: [:i | h := (h * 31 + (self at: i) hash) bitAnd: 16r3FFFFFFF].
+	1 to: (self size min: 16) do: [:i | h := (h + (self at: i) hash) hashMultiply].
 	^h
 !
 beginsWith: aSequence

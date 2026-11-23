@@ -307,19 +307,33 @@ testRegistryAnswersNoCollectedProcess
 	self assert: (weak allSatisfy: [:p | p isNil]).
 	self assert: (Processor allProcesses allSatisfy: [:p | p notNil and: [p isTerminated not]])
 !
+testHighestReadyRunsFirst
+	"A switch scans the run lists from a hint (Scheduler>>transferToHighest): after a scan that ended low, at 12, Processes made ready at 23, 47 and 31 still run highest first, before the one at 12."
+	| order done high low |
+	order := OrderedCollection new.
+	done := Semaphore new.
+	high := [#(23 47 31) do: [:p | [order add: p. done signal] newProcess priority: p; resume]] newProcess.
+	high priority: 60.
+	low := [high resume. order add: 12. done signal] newProcess.
+	low priority: 12.
+	low resume.
+	4 timesRepeat: [done wait].
+	self assert: order asArray = #(47 31 23 12)
+!
 testCpuTimeAddsUp
-	"Two processes switching 100,000 times are charged the VM thread's CPU time, but for the JIT's compiling."
-	| a b me other t0 j0 c0 t c |
+	"While two processes switch 100,000 times, the Processes are charged the VM thread's CPU time, but for the JIT's compiling: all of them, as others run meanwhile (the timer Process sampling for the profiler, finalization). The thread clock is read inside the Processes' readings, the JIT's time inside the thread clock's."
+	| a b c0 t0 j0 j1 t1 c t |
 	a := Semaphore new.
 	b := Semaphore new.
-	me := Processor activeProcess.
-	other := self partner: 50000 waitOn: a signal: b spin: 0.
+	self partner: 50000 waitOn: a signal: b spin: 0.
+	c0 := self cpuTimes.
 	t0 := Smalltalk vm threadCpuMicroseconds.
 	j0 := Smalltalk vm statistics jitCompileMicroseconds.
-	c0 := me cpuMicroseconds + other cpuMicroseconds.
 	50000 timesRepeat: [a signal. b wait].
-	c := me cpuMicroseconds + other cpuMicroseconds - c0.
-	t := Smalltalk vm threadCpuMicroseconds - t0 - (Smalltalk vm statistics jitCompileMicroseconds - j0).
+	j1 := Smalltalk vm statistics jitCompileMicroseconds.
+	t1 := Smalltalk vm threadCpuMicroseconds.
+	c := self cpuMicrosecondsSince: c0.
+	t := t1 - t0 - (j1 - j0).
 	self assert: (c - t) abs <= 2000
 !
 testShortSlicesAreCharged
@@ -398,6 +412,21 @@ registered
 !
 registryCapacity
 	^(Process classPool at: #Registry) size
+!
+cpuTimes
+	"Every live Process's CPU time, by Process."
+	| times |
+	times := IdentityDictionary new.
+	Process allLive do: [:p | times at: p put: p cpuMicroseconds].
+	^times
+!
+cpuMicrosecondsSince: times
+	"The CPU time charged since cpuTimes answered times to the Processes in it (also those that have terminated since) and to those started since."
+	| sum |
+	sum := 0.
+	times keysAndValuesDo: [:p :us | sum := sum + p cpuMicroseconds - us].
+	Process allLive do: [:p | (times includesKey: p) ifFalse: [sum := sum + p cpuMicroseconds]].
+	^sum
 !
 partner: n waitOn: a signal: b spin: work
 	"Answer a process at my priority that, n times, waits on a, spins work times and signals b; it is waiting on a."

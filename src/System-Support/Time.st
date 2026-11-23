@@ -35,7 +35,7 @@ setSeconds: secondCount nanos: nanoCount
 	^self class == aTime class and: [seconds = aTime asSeconds and: [nanos = aTime nanoSecond]]
 !
 hash
-	^seconds hash bitXor: nanos hash
+	^(seconds hash hashMultiply + nanos hash) hashMultiply
 ! !
 
 !Time methodsFor: 'printing'!

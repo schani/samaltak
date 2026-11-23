@@ -40,7 +40,7 @@ sentTo: receiver
 		and: [selector == anObject selector and: [arguments = anObject arguments]]
 !
 hash
-	^selector hash bitXor: arguments hash
+	^(selector hash hashMultiply + arguments hash) hashMultiply
 ! !
 
 !Message methodsFor: 'printing'!
