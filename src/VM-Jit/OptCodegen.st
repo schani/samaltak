@@ -895,12 +895,13 @@ emitCompare: n
 		ifFalse: [
 			y := self src: nd b into: self scratchB.
 			((nd op asInt32 = O_EQ or: [nd op asInt32 = O_NE]) and: [(self isNoForwarderTarget: nd a) not and: [(self isNoForwarderTarget: nd b) not]]) ifTrue: [
-				"some object is a forwarder (becomeForward:): follow both first"
-				l := self out: OUT_FOLLOW node: n index: (x bitOr: y << 8).
+				"some object is a forwarder (becomeForward:): compare copies of both followed (out of line)"
+				l := self out: OUT_FOLLOW node: n index: ((x bitOr: y << 8) bitOr: 1 << 16).
 				back := asm newLabel.
 				(cgOuts + (cgOutCount - 1)) resume: back.
 				self emitForwardersTestTo: l.
-				asm bind: back].
+				asm cmp: x with: y.
+				^asm bind: back].
 			asm cmp: x with: y]
 !
 emitBranch: n block: b next: nextBlock
@@ -1473,18 +1474,16 @@ emitMul: n
 !
 emitClassOf: n
 	"The class of a; a forwarder's target's, or (aux 1, a type switch's) its tagged class word, which is no class."
-	| nd x r imm done ch back fwd |
+	| nd x r imm done ch fwd |
 	nd := ir node: n.
 	x := self src: nd a into: self scratchB.
 	r := self dst: n.
 	imm := asm newLabel.
 	done := asm newLabel.
 	ch := asm newLabel.
-	back := asm newLabel.
 	nd aux = 0 ifTrue: [
-		fwd := self out: OUT_FOLLOW node: n index: (x bitOr: 255 << 8).
-		(cgOuts + (cgOutCount - 1)) resume: back].
-	asm bind: back.
+		fwd := self out: OUT_FOLLOW node: n index: ((x bitOr: r asInt64 << 8) bitOr: 2 << 16).
+		(cgOuts + (cgOutCount - 1)) resume: done].
 	asm ands: X16 with: x imm: 7.
 	asm b: imm if: COND_NE.
 	asm ldr: X17 base: x offset: 8.
@@ -2404,6 +2403,30 @@ moveRegTo: phi from: r
 ! !
 
 !OptCodegen methodsFor: 'out of line'!
+emitFollowOut: o
+	"Some object is a forwarder (becomeForward:). Its index: register x, byte 1 register y (255: none), byte 2 what to do: 0 follow x (and y), 1 compare copies of x and y followed, 2 y := the class of a copy of x followed. Copies, since x and y keep the value their slots hold, which code after a call reloads: knowledge of the target's class must not reach the forwarder."
+	| x y mode |
+	x := o index bitAnd: 255.
+	y := (o index >> 8) bitAnd: 255.
+	mode := o index >> 16.
+	mode = 0 ifTrue: [
+		asm comment: 'some object is a forwarder (becomeForward:): follow it'.
+		self emitFollow: x.
+		y ~= 255 ifTrue: [self emitFollow: y]].
+	mode = 1 ifTrue: [
+		asm comment: 'some object is a forwarder (becomeForward:): compare the operands followed'.
+		x ~= self scratchA ifTrue: [asm mov: self scratchA with: x].
+		y ~= self scratchB ifTrue: [asm mov: self scratchB with: y].
+		self emitFollow: self scratchA.
+		self emitFollow: self scratchB.
+		asm cmp: self scratchA with: self scratchB].
+	mode = 2 ifTrue: [
+		asm comment: 'a forwarder (becomeForward:): its target''s class'.
+		x ~= self scratchB ifTrue: [asm mov: self scratchB with: x].
+		self emitFollow: self scratchB.
+		asm ldr: y base: self scratchB offset: 8].
+	asm b: o resume
+!
 out: kind node: n index: i
 	"An out-of-line path emitted after the code; answer its label."
 	| o |
@@ -2448,11 +2471,7 @@ emitOuts
 			self reloadAcross: o node.
 			asm b: o resume].
 		o kind = OUT_ARRAY ifTrue: [self emitMakeArraySlow: o].
-		o kind = OUT_FOLLOW ifTrue: [
-			asm comment: 'some object is a forwarder (becomeForward:): follow the operands'.
-			self emitFollow: (o index bitAnd: 255).
-			(o index >> 8) ~= 255 ifTrue: [self emitFollow: o index >> 8].
-			asm b: o resume].
+		o kind = OUT_FOLLOW ifTrue: [self emitFollowOut: o].
 		o kind = OUT_BARRIER ifTrue: [
 			asm comment: 'remember the old object: call the runtime'.
 			self emitBarrierCall: o].

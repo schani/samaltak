@@ -208,6 +208,20 @@ sizeOf: x
 	c := a + 2.
 	^x size + a + b + c - (a + b + c) + (x size * 0)
 !
+testEqualityWithIt
+	"Optimized code follows a forwarder to compare it with ==, but what it holds afterwards is still the forwarder: String>>= checks == first, then sends size to its argument."
+	| wide holder |
+	wide := 'abcdef' asWideString.
+	1 to: 5000 do: [:i |
+		self is: (i \\ 3 = 0 ifTrue: ['abcdef' copy] ifFalse: [wide])
+			equalTo: (i odd ifTrue: ['abcdef' asWideString] ifFalse: [i \\ 4 = 0 ifTrue: ['abcdef' copy] ifFalse: [#abcdef]])].
+	holder := Array with: 'abcdef' asWideString.
+	holder first becomeForward: 'abcdef' asWideString.
+	self assert: (self is: wide equalTo: holder first)
+!
+is: a equalTo: b
+	^a = b
+!
 testForwardedLiteralArray
 	"A method's literal Array forwarded: cached quick and ordinary activations of the method answer the new literals (in the interpreter: machine code keeps the literals it embedded)."
 	| subject mode literals |
