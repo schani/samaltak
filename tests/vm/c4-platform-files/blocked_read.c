@@ -48,6 +48,7 @@ void c4_heap_test_after_close(void)
         assert(write(done[1], "d", 1) == 1);
 }
 
+void c4_heap_test_weak_chunk(uint32_t at, uint32_t word, bool materialized) {}
 void c4_heap_test_before_weak_cas(uint64_t obj, uint32_t i, uint64_t prev) {}
 void c4_heap_test_after_weak_load(uint64_t obj, uint32_t i, uint64_t value) {}
 void c4_heap_test_enum_field(uint32_t at, uint32_t i, bool materialized) {}

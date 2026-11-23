@@ -17,6 +17,8 @@ static _Atomic bool stall_enum_field, at_enum_field;
 static uint32_t enum_owner_word, enum_slot;
 static _Atomic bool stall_mark_chunk, at_mark_chunk;
 static uint32_t mark_owner_word, mark_chunk_word;
+static _Atomic bool stall_weak_chunk, at_weak_chunk;
+static uint32_t weak_owner_word, weak_chunk_word;
 
 /* Runs on the mutator after the shadow read. Force the worker to finish
  * while that read still holds the pre-CAS bits in a local. */
@@ -70,6 +72,14 @@ void c4_heap_test_mark_chunk(uint32_t at, uint32_t word, bool materialized)
     assert(!materialized);
     atomic_store(&at_mark_chunk, true);
     while (atomic_load(&stall_mark_chunk)) sched_yield();
+}
+
+void c4_heap_test_weak_chunk(uint32_t at, uint32_t word, bool materialized)
+{
+    if (!atomic_load(&stall_weak_chunk) || at != weak_owner_word || word != weak_chunk_word) return;
+    assert(!materialized);
+    atomic_store(&at_weak_chunk, true);
+    while (atomic_load(&stall_weak_chunk)) sched_yield();
 }
 
 static void *arena(size_t size)
@@ -2593,6 +2603,82 @@ static void lazy_publish(void)
 }
 
 
+extern uint64_t c4_heap_test_weak_raw(uint64_t obj, uint32_t i);
+
+static void lazy_weak_clear(void)
+{
+    enum { IMPORTED = 189, SLOTS = 485, FIRST = 119, BOUNDARY = 180, STALE = 313 };
+    oop nil = (oop)(uintptr_t)arena(8192);
+    initialize(nil, nil, F_EMPTY, 0);
+    c4_heap_set_nil(nil);
+    assert(c4_heap_import(nil, extent(0), 0, C4_NO_WEAK));
+    oop kept = nil + extent(0), dead = kept + extent(1), pad = dead + extent(1);
+    for (oop obj = kept; obj <= pad; obj += extent(1)) {
+        initialize(obj, nil, F_VAR, 1);
+        assert(c4_heap_import(obj, extent(1), 1, C4_NO_WEAK));
+    }
+
+    /* Import an odd-aligned mixed owner with real edges, not a lazy tag. */
+    oop imported = pad + extent(1);
+    initialize(imported, nil, F_WEAK, IMPORTED);
+    oop *row = (oop *)(uintptr_t)imported + 2;
+    for (unsigned i = 0; i < IMPORTED; ++i) row[i] = nil;
+    row[89] = kept;
+    row[90] = dead;
+    row[IMPORTED - 1] = kept;
+    assert(c4_heap_import(imported, extent(IMPORTED), IMPORTED, 90));
+    assert(c4_heap_start());
+
+    oop old = alloc_nil(nil, F_WEAK, SLOTS, FIRST, nil);
+    c4_heap_store_ref(old, STALE, dead);
+    assert(c4_heap_begin());
+    c4_heap_root(imported);
+    c4_heap_root(dead);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(!c4_heap_take_weak_clears());
+
+    oop owner = alloc_nil(nil, F_WEAK, SLOTS, FIRST, nil);
+    assert(owner == old);
+    uint32_t at = (owner - nil) / 8;
+    assert((at + 2 + FIRST) % 64 == 3);
+    assert((at + 2 + BOUNDARY) % 64 == 0);
+    assert((at + 2 + SLOTS) % 64 != 0);
+    c4_heap_store_ref(owner, BOUNDARY, dead);
+    c4_heap_store_ref(owner, SLOTS - 1, dead);
+    c4_heap_store_ref(owner, SLOTS - 2, kept);
+
+    weak_owner_word = at;
+    weak_chunk_word = at + 2 + FIRST;
+    atomic_store(&stall_weak_chunk, true);
+    assert(c4_heap_begin());
+    c4_heap_root(imported);
+    c4_heap_root(owner);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_weak_chunk)) {
+        c4_heap_finish_poll();
+        sched_yield();
+    }
+    /* Worker has observed the mismatch after ACK. First materialization can
+     * install a live edge but must reject a raw current-cycle white oop. */
+    c4_heap_store_ref(owner, FIRST, dead);
+    c4_heap_store_ref(owner, FIRST + 1, kept);
+    atomic_store(&stall_weak_chunk, false);
+    finish_cycle();
+
+    assert(c4_heap_take_weak_clears() == 3); /* import, next boundary, final partial */
+    assert(c4_heap_load_ref(imported, 89) == kept);
+    assert(c4_heap_test_weak_raw(imported, 90) == nil);
+    assert(c4_heap_test_weak_raw(imported, IMPORTED - 1) == kept);
+    assert(c4_heap_test_weak_raw(owner, FIRST) == nil);
+    assert(c4_heap_test_weak_raw(owner, FIRST + 1) == kept);
+    assert(c4_heap_test_weak_raw(owner, BOUNDARY) == nil);
+    assert(c4_heap_test_weak_raw(owner, STALE) == nil);
+    assert(c4_heap_test_weak_raw(owner, SLOTS - 2) == kept);
+    assert(c4_heap_test_weak_raw(owner, SLOTS - 1) == nil);
+    assert(alloc(nil, F_VAR, 1) == dead);
+}
+
 static void lazy_enumeration(void)
 {
     enum { SLOTS = 8192, RACE_SLOT = SLOTS / 2 };
@@ -2720,8 +2806,6 @@ static void cache_enumeration(void)
     assert(c4_heap_cache_gen() != generation);
     assert(c4_heap_load_ref(weak, 0) == nil);
 }
-
-extern uint64_t c4_heap_test_weak_raw(uint64_t obj, uint32_t i);
 
 static void mforward_disabled(void)
 {
@@ -3036,6 +3120,7 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "weak-owner-reuse")) weak_owner_reuse();
     else if (!strcmp(argv[1], "lazy-publish")) lazy_publish();
     else if (!strcmp(argv[1], "lazy-mark")) lazy_mark();
+    else if (!strcmp(argv[1], "lazy-weak-clear")) lazy_weak_clear();
     else if (!strcmp(argv[1], "lazy-enumeration")) lazy_enumeration();
     else if (!strcmp(argv[1], "weak-idle")) weak_idle_transition();
     else if (!strcmp(argv[1], "code-bytes")) code_bytes();

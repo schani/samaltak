@@ -755,21 +755,43 @@ static uint64_t clear_weak(uint32_t limit)
             uint32_t refs = (uint32_t)layout;
             if (refs >= C4_RESERVED || cell->weak_start >= refs)
                 bad_contract("invalid weak owner");
-            for (uint32_t i = cell->weak_start; i < refs; ++i) {
-                _Atomic uint64_t *slot = shadow_field(at, i, refs, false);
-                if (!slot) continue;
-                uint64_t prev = acquire(slot);
-                uint64_t next = c4_heap_canonical(prev);
-                if (!post_close_live(next)) next = heap.nil;
-                if (next == prev) continue;
+            uint32_t body = at + 2, word = body + cell->weak_start, end = body + refs;
+            uint64_t tag = lazy_tag(at);
+            uint32_t prefix_end = tag ? lazy_start(at) : end;
+            while (word < end) {
+                uint32_t stop = prefix_end;
+                if (word >= prefix_end) {
+                    /* The first weak slot can start inside a chunk. A
+                     * matching acquire orders initialization. On mismatch
+                     * no pre-ACK edge exists; even a racing first store
+                     * after ACK cannot install a white edge. */
+                    stop = (word & ~(SHADOW_CHUNK - 1u)) + SHADOW_CHUNK;
+                    if (stop > end) stop = end;
+                    bool materialized = acquire(&heap.chunk_tags[word / SHADOW_CHUNK]) == tag;
 #ifdef SAMALTAK_C4_TEST
-                extern void c4_heap_test_before_weak_cas(uint64_t obj, uint32_t i, uint64_t prev);
-                c4_heap_test_before_weak_cas(heap.base + (size_t)at * 8, i, prev);
+                    extern void c4_heap_test_weak_chunk(uint32_t at, uint32_t word, bool materialized);
+                    c4_heap_test_weak_chunk(at, word, materialized);
 #endif
-                if (atomic_compare_exchange_strong_explicit(slot, &prev, next,
-                        memory_order_acq_rel, memory_order_relaxed) && next == heap.nil)
-                    ++cleared;
-                /* A racing overwrite cannot have installed another white oop. */
+                    if (!materialized) {
+                        word = stop;
+                        continue;
+                    }
+                }
+                for (; word < stop; ++word) {
+                    _Atomic uint64_t *slot = &heap.shadow[word];
+                    uint64_t prev = acquire(slot);
+                    uint64_t next = c4_heap_canonical(prev);
+                    if (!post_close_live(next)) next = heap.nil;
+                    if (next == prev) continue;
+#ifdef SAMALTAK_C4_TEST
+                    extern void c4_heap_test_before_weak_cas(uint64_t obj, uint32_t i, uint64_t prev);
+                    c4_heap_test_before_weak_cas(heap.base + (size_t)at * 8, word - body, prev);
+#endif
+                    if (atomic_compare_exchange_strong_explicit(slot, &prev, next,
+                            memory_order_acq_rel, memory_order_relaxed) && next == heap.nil)
+                        ++cleared;
+                    /* A racing overwrite cannot have installed another white oop. */
+                }
             }
         }
     }
