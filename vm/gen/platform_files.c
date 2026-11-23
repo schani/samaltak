@@ -186,7 +186,7 @@ int32_t platform_files_open(char *path, int32_t mode)
     int fd;
     int32_t h;
     platform_interface_init();
-    if ((mode < 0) || (mode > 3)) {
+    if ((mode < 0) || (mode > 4)) {
         snprintf(last_error, LAST_ERROR_SIZE, "bad file mode %d", mode);
         return 0;
     }
@@ -204,7 +204,7 @@ int32_t platform_files_open(char *path, int32_t mode)
         v = O_RDWR | O_CREAT | O_TRUNC;
         break;
     }
-    fd = open(path, v | O_CLOEXEC, 420);
+    fd = open(path, v | O_CLOEXEC, mode == PF_FILE_CREATE_PRIVATE ? 384 : 420);
     if (fd < 0) {
         platform_common_fail_os_path_code("open", path, errno);
         return 0;

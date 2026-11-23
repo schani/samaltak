@@ -56,6 +56,14 @@ writeText: aString to: aPath
 	"Replace the file's contents with aString, UTF-8 encoded."
 	FileStream forceNewFileNamed: aPath do: [:s | s nextPutAll: aString]
 !
+writeSecret: aString to: aPath
+	"Replace the file with aString, UTF-8 encoded, as a file only its owner may read and write (mode 600, whatever mode it had), written whole or not at all: a new file next to it, renamed over it."
+	| tmp |
+	tmp := aPath, '.tmp'.
+	self deleteIfExists: tmp.
+	FileStream forceNewPrivateFileNamed: tmp do: [:s | s nextPutAll: aString].
+	self rename: tmp to: aPath
+!
 lineCountOf: aPath
 	"Answer the number of line feeds in the file, as wc -l counts lines."
 	^(self readBytes: aPath) occurrencesOf: 10
@@ -112,7 +120,7 @@ signalErrorFor: aPath
 
 !File class methodsFor: 'primitives'!
 primOpen: aPath mode: mode
-	"mode: 0 read, 1 read/write (created if missing), 2 append, 3 create/truncate. Answer a handle or nil."
+	"mode: 0 read, 1 read/write (created if missing), 2 append, 3 create/truncate, 4 create/truncate, created with mode 600. Answer a handle or nil."
 	<primitive: 'fileOpen'>
 	^nil
 !

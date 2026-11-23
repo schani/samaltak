@@ -193,6 +193,7 @@ static void for_each_root(void (*fn)(oop *))
     oop o_5;
     int i_2;
     int32_t i_3;
+    int32_t i_4;
     memset(&local, 0, sizeof local);
     r = local;
     r[0] = specials_oop;
@@ -219,8 +220,11 @@ static void for_each_root(void (*fn)(oop *))
     for (i_2 = 0; i_2 <= 3; i_2++) {
         fn(tmp_roots + i_2);
     }
-    for (i_3 = 0; i_3 <= root_count - 1; i_3++) {
-        fn(root_stack[i_3]);
+    for (i_3 = 0; i_3 <= ledger_n - 1; i_3++) {
+        fn(ledger_procs + i_3);
+    }
+    for (i_4 = 0; i_4 <= root_count - 1; i_4++) {
+        fn(root_stack[i_4]);
     }
     interpreter_roots(fn);
 }

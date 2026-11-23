@@ -1852,6 +1852,29 @@ str: rt base: rn index: rm
 ldrb: rt base: rn index: rm
 	self ldrb: rt base: rn index: rm extend: EXT_LSL shift: 0
 !
+ldrb: rt base: rn index: rm offset: d
+	"x86's own (the code generators branch on isX64): rt := the byte at rn + rm + d, zero-extended; rt, rn and rm registers of x86's."
+	((self isPhys: rt) and: [(self isBase: rn) and: [self isPhys: rm]]) ifFalse: [^self fail: ASM_ERR_OPERAND].
+	self op: 16rB60F len: 2 pre: 0 w: 0 reg: (self gpr: rt) base: (self gpr: rn) index: (self gpr: rm) scale: 0 disp: d byte: false
+!
+strb: rt base: rn index: rm offset: d
+	"x86's own: the byte at rn + rm + d := rt's low byte; registers of x86's."
+	((self isPhys: rt) and: [(self isBase: rn) and: [self isPhys: rm]]) ifFalse: [^self fail: ASM_ERR_OPERAND].
+	self op: 16r88 len: 1 pre: 0 w: 0 reg: (self gpr: rt) base: (self gpr: rn) index: (self gpr: rm) scale: 0 disp: d byte: true
+!
+ldr: rt base: rn index: rm shift: n offset: d
+	"x86's own: rt := the word at rn + (rm << n) + d; registers of x86's."
+	((self isPhys: rt) and: [(self isBase: rn) and: [self isPhys: rm]]) ifFalse: [^self fail: ASM_ERR_OPERAND].
+	self op: 16r8B len: 1 pre: 0 w: (self wide: rt) reg: (self gpr: rt) base: (self gpr: rn) index: (self gpr: rm) scale: n disp: d byte: false
+!
+str: rt base: rn index: rm shift: n offset: d
+	"x86's own: the word at rn + (rm << n) + d := rt; rn and rm registers of x86's, rt any general register (one without, such as nil's x23, through r11)."
+	((self isBase: rn) and: [self isPhys: rm]) ifFalse: [^self fail: ASM_ERR_OPERAND].
+	(self isPhys: rt) ifFalse: [
+		self load: rt into: X64_R11.
+		^self op: 16r89 len: 1 pre: 0 w: (self wide: rt) reg: X64_R11 base: (self gpr: rn) index: (self gpr: rm) scale: n disp: d byte: false].
+	self op: 16r89 len: 1 pre: 0 w: (self wide: rt) reg: (self gpr: rt) base: (self gpr: rn) index: (self gpr: rm) scale: n disp: d byte: false
+!
 ldrb: rt base: rn index: rm extend: ext shift: n
 	((self isPhys: rt) and: [(self isBase: rn) and: [(self isPhys: rm) and: [ext = EXT_LSL]]]) ifTrue: [
 		^self op: 16rB60F len: 2 pre: 0 w: 0 reg: (self gpr: rt) base: (self gpr: rn) index: (self gpr: rm) scale: n disp: 0 byte: false].

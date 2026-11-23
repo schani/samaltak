@@ -1,9 +1,9 @@
 Object subclass: #AgentContext
-	instanceVariableNames: 'receiver bindings frame label selection'
+	instanceVariableNames: 'receiver bindings frame label selection notes'
 	classVariableNames: ''
 	package: 'System-Agent'!
 
-AgentContext comment: 'I am what the tool that opened an AgentConversation bound, and how its code-mode cells compile against it: receiver (self, default nil), bindings (variables, Symbol -> Association as in a Workspace, so a Workspace passes its own and assignments are shared; variables a cell declares are added to them), optionally frame (a suspended Context: cells run in it, with its receiver as self and its temporaries as variables, which hide bindings of the same name), label (a window title) and selection (the text the user had selected, or nil).
+AgentContext comment: 'I am what the tool that opened an AgentConversation bound, and how its code-mode cells compile against it: receiver (self, default nil), bindings (variables, Symbol -> Association as in a Workspace, so a Workspace passes its own and assignments are shared; variables a cell declares are added to them), optionally frame (a suspended Context: cells run in it, with its receiver as self and its temporaries as variables, which hide bindings of the same name), label (a window title), selection (the text the user had selected, or nil) and notes (what the model should know about where it is, beyond the variables: an application''s, or nil).
 
 	AgentContext new receiver: anObject; bindings: aWorkspace bindings; label: ''Workspace''; yourself'!
 
@@ -47,6 +47,12 @@ selection
 !
 selection: aStringOrNil
 	selection := aStringOrNil
+!
+notes
+	^notes
+!
+notes: aStringOrNil
+	notes := aStringOrNil
 ! !
 
 !AgentContext methodsFor: 'evaluating'!

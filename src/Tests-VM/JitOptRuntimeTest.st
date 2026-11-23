@@ -1217,6 +1217,25 @@ testFlooredDivisionByAPowerOfTwo
 	self assert: (listing includesSubstring: 'floored division by the constant 16').
 	self assert: (listing includesSubstring: 'modulo the constant 1024')
 !
+testShiftRightByAConstant
+	"x bitShift: -k of a SmallInteger is one shift of the tagged value: what a count that is no constant gives, for both signs and at the ends of the range (counts beyond 61 baseline code sends, and so does optimized code). The runs and the listing at the timing priority, as in testDivisionByAConstantIsInTheCode."
+	| o check active priority listing |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'rightShifts: x ^{x bitShift: -1. x bitShift: -5. x bitShift: -32. x bitShift: -61. x bitShift: -62. x bitShift: -100}'.
+	self define: 'shift: x by: n ^x bitShift: n'.
+	o := JitRuntimeTestSubject new.
+	check := [:x | | r |
+		r := o rightShifts: x.
+		#(1 5 32 61 62 100) doWithIndex: [:k :i | self assert: (r at: i) equals: (o shift: x by: k negated)]].
+	active := Processor activeProcess.
+	priority := active priority.
+	active priority: Processor timingPriority.
+	[-3000 to: 3000 do: [:x | check value: x].
+	 {SmallInteger maxVal. SmallInteger maxVal - 1. SmallInteger minVal. SmallInteger minVal + 1. 16rFFFFFFFF. -16r100000000} do: [:x | check value: x].
+	 listing := self listingOf: #rightShifts:] ensure: [active priority: priority].
+	self assert: (listing includesSubstring: 'bitShift: right by the constant 32').
+	self assert: (listing includesSubstring: 'bitShift: right by the constant 61')
+!
 testBranchesMakeNoBoolean
 	"A comparison an inlined method answers is branched on without a Boolean made, a phi of Booleans without a mustBeBoolean check."
 	| o |
@@ -1260,6 +1279,15 @@ testStringHashAndCompareCallStubs
 	self assert: ((self listingOf: #compare:with:) includesSubstring: 'guard: the argument is bytes').
 	1 to: 1200 do: [:i | self assert: (o compare: 'abc' with: 'abb' asWideString) equals: 1].
 	self stressed ifFalse: [self deny: ((self listingOf: #compare:with:) includesSubstring: 'the string compare stub')]
+!
+testConstantsStoredIntoAnArray
+	"Optimized code stores nil, true and false (x86: words of the JitState, in no register) into an Array's elements, at indices checked once before the loop and at one checked where it is stored."
+	| o |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'mark: a | n | n := a size. 1 to: n do: [:i | i odd ifTrue: [a at: i put: true] ifFalse: [a at: i put: false]]. a at: n put: nil. ^a'.
+	o := JitRuntimeTestSubject new.
+	1 to: 1200 do: [:i | self assert: (o mark: (Array new: 4)) equals: #(true false true nil)].
+	self assert: ((JitRuntimeTestSubject >> #mark:) jitCode: #opt) notNil description: 'mark: is not compiled by the optimizer'
 !
 testCopyOfAStringIsFused
 	"copyFrom:to: of a String (its species a global's class the code speculates on, isWideString folded) allocates and copies with only the new object's last slot zeroed."

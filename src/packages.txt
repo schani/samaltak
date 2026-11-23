@@ -10,7 +10,7 @@
 #   export <package> <layer> <global>...   these globals may be used from <layer> up
 #   <name> <layer> uses <package>...       this package may also use the listed packages (test fixtures only)
 # Graphics-Canvas' drawing vocabulary is exported to the UI layers and Tools:
-export Graphics-Canvas 3 Canvas Color Font Form FragmentShader
+export Graphics-Canvas 3 Canvas Color Font Form FragmentShader VectorPath VectorPainter SVGImage
 Kernel-Objects 0
 Kernel-Numbers 0
 Kernel-Collections 0
@@ -56,9 +56,10 @@ UI-Widgets 4
 Tests-UI-Widgets 4 uses Graphics-Canvas
 UI-Omarchy 4
 Tests-UI-Omarchy 4
+UI-Agent 4
 Tools 5
 Tools-Agent 5
 Tests-Tools 5 uses UI-Windows Graphics-Canvas
 Tests-Tools-Profiler 5 uses Tests-UI-Windows UI-Windows
 Tests-Tools-Debugger 5 uses UI-Windows
-Tests-Tools-Agent 5
+Tests-Tools-Agent 5 uses UI-Windows

@@ -7,7 +7,7 @@ JitBaselineRuntime comment: 'What baseline code (JitBaselineCompiler) needs of t
 
 Lazy frames: a frame suspended in a send has a stale pc and sp; the return address in its callee''s native frame record (the record of frame f is at baseRecord - 16 (f - baseFrame) / 64) says where it is (the return map: return offset, pc, depth, argc, length, pushes). canonicalizeBelow: makes them canonical, from the top down, stopping at a frame that already is (the prologue zeroes pc and sp; a suspended frame''s pc is never 0). Optimized frames are lazy the same way, with optimized code''s return map (return offset, safepoint, argc).
 
-Inline caches (baseline code''s, and optimized code''s, which has the same sites): miss:receiver:ret: (the miss stub: unlinked sites, a callee''s failed class check, polymorphic and megamorphic misses) looks the send up, compiles the target when its activations reach the threshold, links the site (monomorphic: the class in the site''s literal, bl to the target''s checked entry; then a BaselinePic of up to BL_PIC_CASES classes; then megamorphic: the selector in the literal, bl to the megamorphic stub, which probes megaTable) and answers the target''s unchecked entry. Young classes and methods are cached too: a young object written into the code makes its word a young root. unlinkAll (method dictionaries changed, become) and unlinkSelector: reset sites. A site''s state is its type feedback: unlinked, monomorphic (class, target), polymorphic (the BaselinePic''s classes and targets), megamorphic. The perform methods'' machine code probes megaTable too (class, selector; the fourth word: the selector''s argument count); performMiss:receiver:ret:info: fills it.
+Inline caches (baseline code''s, and optimized code''s, which has the same sites): miss:receiver:ret: (the miss stub: unlinked sites, a callee''s failed class check, polymorphic and megamorphic misses) looks the send up, compiles the target when its activations reach the threshold, links the site (monomorphic: the class in the site''s literal, bl to the target''s checked entry; then a BaselinePic of up to BL_PIC_CASES classes; then megamorphic: the selector in the literal, bl to the megamorphic stub, which probes megaTable, two-way sets by the addresses of class and selector) and answers the target''s unchecked entry. Young classes and methods are cached too: a young object written into the code makes its word a young root. unlinkAll (method dictionaries changed, become) and unlinkSelector: reset sites. A site''s state is its type feedback: unlinked, monomorphic (class, target), polymorphic (the BaselinePic''s classes and targets), megamorphic. The perform methods'' machine code probes megaTable too (class, selector; the fourth word: the selector''s argument count); performMiss:receiver:ret:info: fills it.
 
 The collector: the words in the code that hold objects (the method''s literals, the caches'' classes) are registered (oopSlots, the young ones also in youngSlots) and updated as roots; megaTable and blockTable (home method, startpc -> block entry) are cleared by every GC and become.
 
@@ -65,7 +65,8 @@ picCases
 	^BL_PIC_CASES
 !
 megaMask
-	^BL_MEGA_CACHE - 1
+	"The megamorphic cache's sets: two entries of 4 words each (class, selector, target, argument count)."
+	^(BL_MEGA_CACHE >> 1) - 1
 !
 blockMask
 	^BL_BLOCK_CACHE - 1
@@ -569,9 +570,11 @@ goMega: s site: site lit: lit selector: sel
 	self patchCall: site to: (jit mega ifTrue: [stubs blMegaStub] ifFalse: [stubs blMissStub])
 !
 megaFill: cls selector: sel target: t
-	"The fourth word, for the perform methods' machine code: sel's argument count, -1 if t is a perform method (the interpreter does perform: of perform:)."
+	"Two-way: the set of (class, selector) holds the two pairs used last, so two hot pairs whose addresses meet in a set do not evict each other; a new pair goes first, the first moves second. The fourth word, for the perform methods' machine code: sel's argument count, -1 if t is a perform method (the interpreter does perform: of perform:)."
 	| i |
-	i := ((((cls bitXor: sel) >> 3) bitAnd: BL_MEGA_CACHE - 1) * 4) asInt64.
+	i := ((((cls bitXor: sel) >> 3) bitAnd: self megaMask) * 8) asInt64.
+	(megaTable at: i) = 0 ifFalse: [
+		0 to: 3 do: [:k | megaTable at: i + 4 + k put: (megaTable at: i + k)]].
 	megaTable at: i put: cls.
 	megaTable at: i + 1 put: sel.
 	megaTable at: i + 2 put: t uentry.
@@ -871,8 +874,8 @@ prim: f fp: fp fn: fn info: info
 			^1].
 		jit state result: v.
 		^0].
-	"the primitive committed its result (a process primitive that did not switch): optimized code goes on with it (the interpreter cannot continue its frame)"
-	(status = PS_SWITCHED and: [(jit isOptFrame: f) and: [interpreter frameEpoch = moved and: [interpreter nframes = ((f - interpreter frames) + 1)]]]) ifTrue: [
+	"the primitive committed its result (a process primitive that did not switch): machine code goes on with it; invalidated baseline code leaves (the interpreter continues its frame), optimized code cannot"
+	(status = PS_SWITCHED and: [interpreter frameEpoch = moved and: [interpreter nframes = ((f - interpreter frames) + 1) and: [inv = jit invalidations or: [jit isOptFrame: f]]]]) ifTrue: [
 		inv ~= jit invalidations ifTrue: [^jit leaveAfter: f pc: f pc sp: f sp].
 		jit state result: (base at: 0).
 		^0].

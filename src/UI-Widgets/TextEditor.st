@@ -490,10 +490,10 @@ copySelection
  | w context |
  self hasSelection ifTrue: [
  self clipboardText: self selectedText.
- (Smalltalk at: #ActionContext) copied: ((Smalltalk at: #ActionContext) forEditor: self).
+ (Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | actions copied: (actions forEditor: self)].
  ^self].
  w := self window.
- (w notNil and: [w content respondsTo: #agentContext]) ifTrue: [
+ (w notNil and: [(w content respondsTo: #agentContext) and: [Smalltalk includesKey: #ActionContext]]) ifTrue: [
  context := (Smalltalk at: #ActionContext) for: w content.
  self clipboardText: context value printString.
  (Smalltalk at: #ActionContext) copied: context]
@@ -1059,7 +1059,7 @@ keyDown: anEvent
 	^false
 !
 commandKey: aCharacter shift: shift
-	aCharacter = $j ifTrue: [((Smalltalk at: #ActionContext) forEditor: self) agent. ^true].
+	aCharacter = $j ifTrue: [(Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | (actions forEditor: self) agent]. ^true].
  aCharacter = $a ifTrue: [self selectAll. ^true].
 	aCharacter = $c ifTrue: [self copySelection. ^true].
 	aCharacter = $x ifTrue: [self cut. ^true].
@@ -1204,10 +1204,10 @@ text: aString
 
 !TextEditor methodsFor: 'actions'!
 inspectIt
- ((Smalltalk at: #ActionContext) forEditor: self) inspect.
+ (Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | (actions forEditor: self) inspect].
  ^true
 !
 browseIt
- ((Smalltalk at: #ActionContext) forEditor: self) browse.
+ (Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | (actions forEditor: self) browse].
  ^true
 ! !

@@ -114,6 +114,56 @@ testLimbBoundaries
 	self assert: (10 raisedTo: 36) printString = ('1' , (String new: 36 withAll: $0)).
 	self assert: ((10 raisedTo: 36) - 1) printString = (String new: 36 withAll: $9)
 !
+testLimbBoundaries64
+	"The primitives' 64-bit limbs: carries and borrows across whole limbs, one-limb LargeIntegers between the SmallInteger range and 2^64 (both signs), shifts by about one and two limbs, products and quotients of all-ones limbs."
+	| m |
+	#(1 2 3 7 8 9) do: [:k | | p |
+		p := 2 raisedTo: 64 * k.
+		self assert: (p - 1) + 1 = p.
+		self assert: p - 1 + p = ((p bitShift: 1) - 1).
+		self assert: p - (p - 1) = 1.
+		self assert: (p - 1) * (p - 1) = ((p * p) - (p bitShift: 1) + 1).
+		self assert: (p - 1) * (p + 1) // (p + 1) = (p - 1).
+		self assert: ((p - 1) * (p + 1)) \\ (p - 1) = 0.
+		#(63 64 65 127 128 129) do: [:s |
+			self assert: (((p - 1) bitShift: s) bitShift: s negated) = (p - 1).
+			self assert: ((p - 1) bitShift: s) = ((p - 1) * (1 bitShift: s))]].
+	m := SmallInteger maxVal.
+	#(1 2 3) do: [:d |
+		self assert: (m + d) - d = m.
+		self assert: ((m + d) - d) class = SmallInteger.
+		self assert: (m + d) class ~= SmallInteger.
+		self assert: (m + d) negated + d = (m negated).
+		self assertNormalized: (m + d) - d].
+	self assert: (16rFFFFFFFFFFFFFFFF + 1) = (1 bitShift: 64).
+	self assert: (1 bitShift: 64) - 1 = 16rFFFFFFFFFFFFFFFF.
+	self assert: 16rFFFFFFFFFFFFFFFF * 16rFFFFFFFFFFFFFFFF = ((1 bitShift: 128) - (1 bitShift: 65) + 1).
+	self assert: 16rFFFFFFFFFFFFFFFF negated - 1 = (1 bitShift: 64) negated.
+	self assert: (16rFFFFFFFFFFFFFFFF bitAnd: 16rFFFFFFFFFFFFFFFF negated) = 1
+!
+testKnuthDivision64
+	"With 64-bit limbs: u = (2^64 - 1) * 2^e by v = 2^e + 1 (128 <= e < 192) takes the step that adds the divisor back; u = 2^64 * v - 1 has a top limb equal to the divisor's (the largest quotient limb, estimated without dividing); divisors whose top limb has 0 to 63 leading zero bits."
+	128 to: 191 do: [:e | | u v |
+		u := 16rFFFFFFFFFFFFFFFF bitShift: e.
+		v := (1 bitShift: e) + 1.
+		self assert: u // v = 16rFFFFFFFFFFFFFFFE.
+		self assert: u \\ v = ((1 bitShift: e) - 16rFFFFFFFFFFFFFFFE).
+		self assert: (u negated quo: v) = -16rFFFFFFFFFFFFFFFE.
+		self assert: (u negated rem: v) = (u \\ v) negated].
+	#(64 65 100 127 128 129 191 192 300) do: [:bits | | v u |
+		v := (1 bitShift: bits) + 16r123456789ABCDEF.
+		u := (v bitShift: 64) - 1.
+		self assert: u // v = 16rFFFFFFFFFFFFFFFF.
+		self assert: u \\ v = (v - 1).
+		u := (v bitShift: 128) + v - 1.
+		self assert: u // v = (1 bitShift: 128).
+		self assert: u // v * v + (u \\ v) = u].
+	0 to: 63 do: [:z | | v q |
+		v := (1 bitShift: 191 - z) + 12345.
+		q := (1 bitShift: 200) - 3.
+		self assert: q * v + 7 // v = q.
+		self assert: q * v + 7 \\ v = 7]
+!
 testLargeProducts
 	"Balanced and lopsided products, all-ones limbs (the largest carries), squares."
 	#(#(1 1) #(2 1) #(59 59) #(61 75) #(64 300) #(300 64) #(250 250)) do: [:sizes | | a b |

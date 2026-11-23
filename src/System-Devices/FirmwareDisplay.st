@@ -92,6 +92,11 @@ windowRefreshRate: window
 window: window title: aString
 	self check: window
 !
+window: window width: w height: h
+	"The screen keeps its size."
+	self check: window.
+	^false
+!
 window: window textInputAreaX: x y: y width: w height: h cursor: cursorX
 	self check: window
 !

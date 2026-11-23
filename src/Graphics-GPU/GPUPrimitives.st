@@ -181,6 +181,11 @@ window: window title: aString
 	<primitive: 'windowSetTitle'>
 	^self fail: 'windowSetTitle'
 !
+window: window width: w height: h
+	"Resize window to w × h points; false where the VM cannot (it predates the primitive, or the platform refused)."
+	<primitive: 'windowSetSize'>
+	^false
+!
 window: window textInputAreaX: x y: y width: w height: h cursor: cursorX
 	<primitive: 'windowSetTextInputArea'>
 	^self fail: 'windowSetTextInputArea'

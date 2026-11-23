@@ -1,5 +1,5 @@
 World subclass: #AppWorld
-	instanceVariableNames: 'deskColor idleWatcher releasedAtFrame'
+	instanceVariableNames: 'deskColor idleWatcher releasedAtFrame isMain'
 	classVariableNames: ''
 	package: 'UI-Windows'!
 
@@ -11,7 +11,11 @@ AppWorld comment: 'I am the World of an application that runs as a window of the
 
 When no frame was presented for idleSeconds (2), I give back to the system the memory the burst before held: eden''s pages, the machine code and the JIT''s scratch areas (VirtualMachine>>releaseMemory), once per burst; an application that wakes up every quarter of an hour to redraw holds only what it keeps.
 
-The host window has a fixed size (the content''s), so a tiling window manager such as Hyprland floats it. On Linux the Wayland app_id comes from SDL_APP_ID (bin/samaltak sets it).'!
+The host window has a fixed size (the content''s), so a tiling window manager such as Hyprland floats it. On Linux the Wayland app_id comes from SDL_APP_ID (bin/samaltak sets it).
+
+An application may open more host windows (the Agent on it, AgentWindow): each is an AppWorld of its own, not the main one (isMain), and closing it closes only it; it may be resizable, and then the window manager tiles it.
+
+	AppWorld openExtent: 720 @ 640 title: ''Agent — Weather'' hidden: false main: false resizable: true'!
 
 !AppWorld methodsFor: 'kind'!
 showsTopBar
@@ -22,6 +26,13 @@ presentsContinuously
 ! !
 
 !AppWorld methodsFor: 'accessing'!
+isMain
+	"Whether I am the application's main host window: closing me ends it."
+	^isMain ~~ false
+!
+isMain: aBoolean
+	isMain := aBoolean
+!
 deskColor
 	"What shows where no window is (before the first frame, or while my window redraws after a resize)."
 	^deskColor ifNil: [Color paper]
@@ -45,10 +56,15 @@ addWindow: aWindow
 	^aWindow
 !
 removeWindow: aWindow
-	"The application ends with its last window: on screen it quits, hidden (tests) I stop."
+	"The application ends with its last window: on screen it quits, hidden (tests) I stop. Another host window of the application (not isMain) just closes."
 	super removeWindow: aWindow.
 	windows isEmpty ifTrue: [
-		[hidden ifTrue: [self stop] ifFalse: [self quitRequested]] forkAt: Processor userBackgroundPriority]
+		[(hidden or: [self isMain not]) ifTrue: [self stop] ifFalse: [self quitRequested]] forkAt: Processor userBackgroundPriority]
+!
+quitRequested
+	"The window manager closed my host window: the application quits, unless I am one of its other host windows."
+	self isMain ifTrue: [^super quitRequested].
+	[self stop] forkAt: Processor userBackgroundPriority
 !
 nextWindowPosition: anExtent
 	^0 @ 0
@@ -60,6 +76,14 @@ desktopClickedAt: aPoint button: anInteger
 ! !
 
 !AppWorld methodsFor: 'host window'!
+raise
+	"Bring my host window to the front, with the focus (as far as the window manager lets an application); not when hidden."
+	hidden ifFalse: [displayWindow hostWindow show]
+!
+resizeTo: aPoint
+	"Ask the host window to become aPoint points (it stays fixed-size); my window follows when the host reports the new size. Answer whether the host took it."
+	^displayWindow extent: aPoint
+!
 hostResized: aPoint
 	extent := displayWindow extent.
 	windows do: [:w | w bounds: self bounds].
@@ -121,12 +145,18 @@ openExtent: aPoint title: aString
 	^self openExtent: aPoint title: aString hidden: false
 !
 openExtent: aPoint title: aString hidden: aBoolean
-	"Open a host window of aPoint points with the title aString, start an AppWorld on it and make it current."
+	"Open the application's host window of aPoint points (fixed) with the title aString, start an AppWorld on it and make it current."
+	^self openExtent: aPoint title: aString hidden: aBoolean main: true resizable: false
+!
+openExtent: aPoint title: aString hidden: aBoolean main: mainBoolean resizable: resizableBoolean
+	"Open a host window of aPoint points with the title aString and start an AppWorld on it; the main one becomes current, another one only when none is."
 	| display world |
-	display := DisplayWindow width: aPoint x ceiling height: aPoint y ceiling title: aString flags: (aBoolean ifTrue: [5] ifFalse: [4]).
+	display := DisplayWindow width: aPoint x ceiling height: aPoint y ceiling title: aString
+		flags: (4 bitOr: ((aBoolean ifTrue: [1] ifFalse: [0]) bitOr: (resizableBoolean ifTrue: [2] ifFalse: [0]))).
 	Font deviceScale = display scale ifFalse: [Font deviceScale: display scale].
 	world := self new setDisplayWindow: display hidden: aBoolean.
-	Current := world.
+	world isMain: mainBoolean.
+	(mainBoolean or: [Current isNil]) ifTrue: [Current := world].
 	world start.
 	^world
 ! !

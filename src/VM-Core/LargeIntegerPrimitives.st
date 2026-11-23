@@ -3,32 +3,30 @@ VMPrimitiveModule subclass: #LargeIntegerPrimitives
 	classVariableNames: ''
 	package: 'VM-Core'!
 
-LargeIntegerPrimitives comment: 'Integer arithmetic beyond SmallIntegers, after Squeak''s LargeIntegersPlugin: add, subtract, compare, multiply (schoolbook), divide (Knuth''s algorithm D), shifts and two''s complement bit operations. Operands are SmallIntegers and LargePositive/NegativeIntegers, read as 32-bit limbs (a LargeInteger''s magnitude bytes are little-endian) with 64-bit intermediates. A result is computed into a scratch buffer kept between calls, then answered as a SmallInteger if it fits, else as a new LargeInteger without leading zero bytes. The primitives fail on other operands, on a zero divisor, and with PRIM_ERR_NO_MEMORY for results that can never fit the heap.'!
+LargeIntegerPrimitives comment: 'Integer arithmetic beyond SmallIntegers, after Squeak''s LargeIntegersPlugin: add, subtract, compare, multiply (schoolbook), divide (Knuth''s algorithm D), shifts and two''s complement bit operations. Operands are SmallIntegers and LargePositive/NegativeIntegers, read as 64-bit limbs (a LargeInteger''s magnitude bytes are little-endian, its slots the limbs) with 128-bit intermediates (mul64:by:plus:plus:high:, div128:low:by:remainder:). A result is computed into a scratch buffer kept between calls, then answered as a SmallInteger if it fits, else as a new LargeInteger without leading zero bytes. The primitives fail on other operands, on a zero divisor, and with PRIM_ERR_NO_MEMORY for results that can never fit the heap.'!
 
 !LargeIntegerPrimitives class methodsFor: 'declaring'!
 declarations
-	^#((scratch 'uint32_t *') (scratchLimbs int64_t))
+	^#((scratch 'uint64_t *') (scratchLimbs int64_t))
 ! !
 
 !LargeIntegerPrimitives methodsFor: 'operands'!
 operand: o into: x
-	"x := the Integer o: its magnitude as limbs, least significant first (o's bytes, or x's own two for a SmallInteger), their number without leading zero limbs, and its sign (never negative for zero). False if o is no Integer."
+	"x := the Integer o: its magnitude as 64-bit limbs, least significant first (o's slots, whose bytes past its size are zero; or x's own one for a SmallInteger), their number without leading zero limbs, and its sign (never negative for zero). False if o is no Integer."
 	<function>
-	| v m c p n |
+	| v c p n |
 	(self isInt: o) ifTrue: [
 		v := self intVal: o.
-		m := v < 0 ifTrue: [(0 - v) asUInt64] ifFalse: [v asUInt64].
-		x small at: 0 put: m asUInt32.
-		x small at: 1 put: (m >> 32) asUInt32.
+		x small at: 0 put: (v < 0 ifTrue: [(0 - v) asUInt64] ifFalse: [v asUInt64]).
 		x limbs: x small.
-		x count: (m = 0 ifTrue: [0] ifFalse: [(m >> 32) = 0 ifTrue: [1] ifFalse: [2]]).
+		x count: (v = 0 ifTrue: [0] ifFalse: [1]).
 		x neg: v < 0.
 		^true].
 	((self isPtr: o) and: [(self formatOf: o) >= F_BYTES]) ifFalse: [^false].
 	c := self rawClass: o.
 	(c = (memory special: SO_LARGEPOS) or: [c = (memory special: SO_LARGENEG)]) ifFalse: [^false].
-	p := self words32Of: o.
-	n := ((memory byteSize: o) + 3 quo: 4) asInt64.
+	p := self cCoerce: o + 16 to: 'uint64_t *'.
+	n := ((memory byteSize: o) + 7 quo: 8) asInt64.
 	[n > 0 and: [(p at: n - 1) = 0]] whileTrue: [n := n - 1].
 	x limbs: p.
 	x count: n.
@@ -46,32 +44,35 @@ scratch: n
 	n > scratchLimbs ifTrue: [
 		cap := n > (scratchLimbs * 2) ifTrue: [n] ifFalse: [scratchLimbs * 2].
 		libc free: scratch.
-		scratch := self cCoerce: (libc malloc: cap asUInt64 * 4) to: 'uint32_t *'.
+		scratch := self cCoerce: (libc malloc: cap asUInt64 * 8) to: 'uint64_t *'.
 		scratchLimbs := scratch isNull ifTrue: [0] ifFalse: [cap]].
 	^scratch
 !
 fits: n
 	"Whether a result of n limbs could fit the heap."
-	^n * 4 <= gc maxHeapBytes asInt64
+	^n * 8 <= gc maxHeapBytes asInt64
 !
 answer: r count: n negative: neg
-	"Answer the Integer with the magnitude r (n limbs) and sign neg: a SmallInteger if it fits, else a new LargeInteger without leading zero bytes."
+	"Answer the Integer with the magnitude r (n limbs) and sign neg: a SmallInteger if it fits, else a new LargeInteger without leading zero bytes (its slots r's limbs, the top one's bytes past them zero; made without zeroing them first)."
 	<function>
-	| k m top bytes o |
+	<var: #m type: 'uint64_t'>
+	<var: #top type: 'uint64_t'>
+	| k m top used o |
 	k := n.
 	[k > 0 and: [(r at: k - 1) = 0]] whileTrue: [k := k - 1].
-	k <= 2 ifTrue: [
-		m := k = 0 ifTrue: [0 asUInt64] ifFalse: [k = 1 ifTrue: [(r at: 0) asUInt64] ifFalse: [((r at: 1) asUInt64 << 32) bitOr: (r at: 0)]].
+	k <= 1 ifTrue: [
+		m := k = 0 ifTrue: [0] ifFalse: [r at: 0].
 		m <= (neg ifTrue: [VM_INT_MAX asUInt64 + 1] ifFalse: [VM_INT_MAX asUInt64]) ifTrue: [
 			^self answer: (self intOop: (neg ifTrue: [(0 - m) asInt64] ifFalse: [m asInt64]))]].
 	top := r at: k - 1.
-	bytes := (k - 1) * 4 + (top > 16rFFFFFF ifTrue: [4] ifFalse: [top > 16rFFFF ifTrue: [3] ifFalse: [top > 16rFF ifTrue: [2] ifFalse: [1]]]).
+	used := 1.
+	[used < 8 and: [(top >> (8 * used)) ~= 0]] whileTrue: [used := used + 1].
 	o := memory
-		allocObjTry: (memory special: (neg ifTrue: [SO_LARGENEG] ifFalse: [SO_LARGEPOS]))
-		format: F_BYTES + ((8 - (bytes rem: 8)) rem: 8) asInt32
-		slots: (bytes + 7 quo: 8) asUInt64.
+		allocUnfilledTry: (memory special: (neg ifTrue: [SO_LARGENEG] ifFalse: [SO_LARGEPOS]))
+		format: F_BYTES + (8 - used) asInt32
+		slots: k asUInt64.
 	o = 0 ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
-	libc memcpy: (self bytesOf: o) from: r size: bytes asUInt64.
+	libc memcpy: (self bytesOf: o) from: r size: (k * 8) asUInt64.
 	self answer: o
 ! !
 
@@ -89,135 +90,210 @@ compare: a count: na with: b count: nb
 sum: a count: na plus: b count: nb into: r
 	"r := a + b (na >= nb); answer its limbs (na + 1 at most)."
 	<function>
-	| carry t |
-	carry := 0 asUInt64.
+	<var: #carry type: 'uint64_t'>
+	<var: #x type: 'uint64_t'>
+	<var: #t type: 'uint64_t'>
+	<var: #u type: 'uint64_t'>
+	| carry x t u |
+	carry := 0.
 	0 to: nb - 1 do: [:i |
-		t := (a at: i) asUInt64 + (b at: i) + carry.
-		r at: i put: t asUInt32.
-		carry := t >> 32].
+		x := a at: i.
+		t := (x + (b at: i)) asUInt64.
+		u := (t + carry) asUInt64.
+		carry := (t < x or: [u < t]) ifTrue: [1 asUInt64] ifFalse: [0 asUInt64].
+		r at: i put: u].
 	nb to: na - 1 do: [:i |
-		t := (a at: i) asUInt64 + carry.
-		r at: i put: t asUInt32.
-		carry := t >> 32].
-	r at: na put: carry asUInt32.
+		x := a at: i.
+		u := (x + carry) asUInt64.
+		carry := u < x ifTrue: [1 asUInt64] ifFalse: [0 asUInt64].
+		r at: i put: u].
+	r at: na put: carry.
 	^na + 1
 !
 difference: a count: na minus: b count: nb into: r
 	"r := a - b (a >= b, na >= nb); answer its limbs (na at most)."
 	<function>
-	| borrow t |
+	<var: #borrow type: 'uint64_t'>
+	<var: #x type: 'uint64_t'>
+	<var: #y type: 'uint64_t'>
+	<var: #t type: 'uint64_t'>
+	| borrow x y t |
 	borrow := 0.
 	0 to: nb - 1 do: [:i |
-		t := (a at: i) asInt64 - (b at: i) asInt64 - borrow.
-		r at: i put: t asUInt32.
-		borrow := t < 0 ifTrue: [1] ifFalse: [0]].
+		x := a at: i.
+		y := b at: i.
+		t := (x - y) asUInt64.
+		r at: i put: (t - borrow) asUInt64.
+		borrow := (x < y or: [t < borrow]) ifTrue: [1 asUInt64] ifFalse: [0 asUInt64]].
 	nb to: na - 1 do: [:i |
-		t := (a at: i) asInt64 - borrow.
-		r at: i put: t asUInt32.
-		borrow := t < 0 ifTrue: [1] ifFalse: [0]].
+		x := a at: i.
+		r at: i put: (x - borrow) asUInt64.
+		borrow := x < borrow ifTrue: [1 asUInt64] ifFalse: [0 asUInt64]].
 	^na
 !
 product: a count: na times: b count: nb into: r
-	"r (na + nb limbs) := a * b, schoolbook: a row per limb of a, so a short a makes few passes over b; the first row writes r, the others add to it."
+	"r (na + nb limbs) := a * b, schoolbook: a row per limb of a (na >= 1), so a short a makes few passes over b; the first row writes r, the others add to it; each step a 64 x 64 bit product with what it adds (mul64:by:plus:plus:high:)."
 	<function>
-	| ai carry t |
-	0 to: na - 1 do: [:i |
-		ai := (a at: i) asUInt64.
-		carry := 0 asUInt64.
+	<var: #ai type: 'uint64_t'>
+	<var: #carry type: 'uint64_t'>
+	| ai carry hi |
+	hi := self local: 'uint64_t'.
+	ai := a at: 0.
+	carry := 0.
+	0 to: nb - 1 do: [:j |
+		r at: j put: (self mul64: ai by: (b at: j) plus: carry plus: 0 high: hi).
+		carry := hi value].
+	r at: nb put: carry.
+	1 to: na - 1 do: [:i |
+		ai := a at: i.
+		carry := 0.
 		0 to: nb - 1 do: [:j |
-			t := ai * (b at: j) + carry.
-			i > 0 ifTrue: [t := t + (r at: i + j)].
-			r at: i + j put: t asUInt32.
-			carry := t >> 32].
-		r at: i + nb put: carry asUInt32]
+			r at: i + j put: (self mul64: ai by: (b at: j) plus: carry plus: (r at: i + j) high: hi).
+			carry := hi value].
+		r at: i + nb put: carry]
+!
+estimate: qhat times: v exceeds: rhat low: u
+	"Whether qhat * v exceeds rhat * 2^64 + u (algorithm D's test of a quotient limb)."
+	<function>
+	<var: #qhat type: 'uint64_t'>
+	<var: #v type: 'uint64_t'>
+	<var: #rhat type: 'uint64_t'>
+	<var: #u type: 'uint64_t'>
+	<var: #lo type: 'uint64_t'>
+	| lo hi |
+	hi := self local: 'uint64_t'.
+	lo := self mul64: qhat by: v plus: 0 plus: 0 high: hi.
+	^hi value > rhat or: [hi value = rhat and: [lo > u]]
 !
 divide: a count: na by: b count: nb quotient: q remainder: r work: w
-	"q (na - nb + 1 limbs) := a quo: b and r (nb limbs) := a rem: b, for a >= b > 0 without leading zero limbs: short division by one limb, else Knuth's algorithm D (TAOCP 4.3.1) on copies shifted so that the divisor's top bit is set (w: na + nb + 2 limbs)."
+	"q (na - nb + 1 limbs) := a quo: b and r (nb limbs) := a rem: b, for a >= b > 0 without leading zero limbs: short division by one limb, else Knuth's algorithm D (TAOCP 4.3.1) on a copy of a (w: na + 1 limbs) and b as they are: each quotient limb estimated from the top limbs of both shifted so that b's top bit is set (normalized: limb:of:shiftedBy:), 128 by 64 bits (div128:low:by:remainder:); subtracting its multiple of b from the remainder is the shifted subtraction scaled back, borrow and all, so neither number is shifted, nor the remainder back."
 	<function>
-	| d rem t s un vn vTop vNext num qhat rhat carry borrow p diff |
+	<var: #d type: 'uint64_t'>
+	<var: #vTop type: 'uint64_t'>
+	<var: #vNext type: 'uint64_t'>
+	<var: #top type: 'uint64_t'>
+	<var: #qhat type: 'uint64_t'>
+	<var: #rhat type: 'uint64_t'>
+	<var: #carry type: 'uint64_t'>
+	<var: #borrow type: 'uint64_t'>
+	<var: #x type: 'uint64_t'>
+	<var: #t type: 'uint64_t'>
+	<var: #u type: 'uint64_t'>
+	<var: #p type: 'uint64_t'>
+	| d rem hi s un vTop vNext top qhat rhat big carry borrow x t u p |
+	rem := self local: 'uint64_t'.
+	hi := self local: 'uint64_t'.
 	nb = 1 ifTrue: [
-		d := (b at: 0) asUInt64.
-		rem := 0 asUInt64.
-		na - 1 to: 0 by: -1 do: [:i |
-			t := (rem << 32) bitOr: (a at: i).
-			q at: i put: (t quo: d) asUInt32.
-			rem := t rem: d].
-		r at: 0 put: rem asUInt32.
+		d := b at: 0.
+		rem value: 0.
+		na - 1 to: 0 by: -1 do: [:i | q at: i put: (self div128: rem value low: (a at: i) by: d remainder: rem)].
+		r at: 0 put: rem value.
 		^self].
 	s := self leadingZeros: (b at: nb - 1).
 	un := w.
-	vn := w + (na + 1).
-	self shift: a count: na left: s into: un.
-	self shift: b count: nb left: s into: vn.
-	vTop := (vn at: nb - 1) asUInt64.
-	vNext := (vn at: nb - 2) asUInt64.
+	libc memcpy: un from: a size: (na * 8) asUInt64.
+	un at: na put: 0.
+	vTop := self limb: nb - 1 of: b shiftedBy: s.
+	vNext := self limb: nb - 2 of: b shiftedBy: s.
 	na - nb to: 0 by: -1 do: [:j |
-		"estimate the quotient limb from the top two limbs, at most 2 too large; correct it with the next limb"
-		num := ((un at: j + nb) asUInt64 << 32) bitOr: (un at: j + nb - 1).
-		qhat := num quo: vTop.
-		rhat := num rem: vTop.
-		[rhat <= 16rFFFFFFFF and: [qhat > 16rFFFFFFFF or: [qhat * vNext > ((rhat << 32) bitOr: (un at: j + nb - 2))]]] whileTrue: [
+		"the quotient limb estimated from the top two limbs, at most 2 too large; corrected with the next one"
+		top := self limb: j + nb of: un shiftedBy: s.
+		top >= vTop
+			ifTrue: [
+				"(the top limb is vTop then) the largest limb; a remainder estimate past 2^64 tests nothing"
+				qhat := 16rFFFFFFFFFFFFFFFF.
+				rhat := ((self limb: j + nb - 1 of: un shiftedBy: s) + vTop) asUInt64.
+				big := rhat < vTop]
+			ifFalse: [
+				qhat := self div128: top low: (self limb: j + nb - 1 of: un shiftedBy: s) by: vTop remainder: rem.
+				rhat := rem value.
+				big := false].
+		[big not and: [self estimate: qhat times: vNext exceeds: rhat low: (self limb: j + nb - 2 of: un shiftedBy: s)]] whileTrue: [
 			qhat := qhat - 1.
-			rhat := rhat + vTop].
-		"un[j .. j + nb] -= qhat * vn"
-		carry := 0 asUInt64.
+			t := (rhat + vTop) asUInt64.
+			big := t < rhat.
+			rhat := t].
+		"un[j .. j + nb] -= qhat * b"
+		carry := 0.
 		borrow := 0.
 		0 to: nb - 1 do: [:i |
-			p := qhat * (vn at: i) + carry.
-			carry := p >> 32.
-			diff := (un at: i + j) asInt64 - (p bitAnd: 16rFFFFFFFF) asInt64 - borrow.
-			un at: i + j put: diff asUInt32.
-			borrow := diff < 0 ifTrue: [1] ifFalse: [0]].
-		diff := (un at: j + nb) asInt64 - carry asInt64 - borrow.
-		un at: j + nb put: diff asUInt32.
-		diff < 0 ifTrue: [
-			"rarely, qhat was still one too large: add vn back"
+			p := self mul64: qhat by: (b at: i) plus: carry plus: 0 high: hi.
+			carry := hi value.
+			x := un at: i + j.
+			t := (x - p) asUInt64.
+			un at: i + j put: (t - borrow) asUInt64.
+			borrow := (x < p or: [t < borrow]) ifTrue: [1 asUInt64] ifFalse: [0 asUInt64]].
+		x := un at: j + nb.
+		t := (x - carry) asUInt64.
+		un at: j + nb put: (t - borrow) asUInt64.
+		(x < carry or: [t < borrow]) ifTrue: [
+			"rarely, qhat was still one too large: add b back"
 			qhat := qhat - 1.
-			carry := 0 asUInt64.
+			carry := 0.
 			0 to: nb - 1 do: [:i |
-				p := (un at: i + j) asUInt64 + (vn at: i) + carry.
-				un at: i + j put: p asUInt32.
-				carry := p >> 32].
-			un at: j + nb put: ((un at: j + nb) asUInt64 + carry) asUInt32].
-		q at: j put: qhat asUInt32].
-	0 to: nb - 1 do: [:i |
-		r at: i put: (((un at: i) asUInt64 >> s) bitOr: (un at: i + 1) asUInt64 << (32 - s)) asUInt32]
+				x := un at: i + j.
+				t := (x + (b at: i)) asUInt64.
+				u := (t + carry) asUInt64.
+				un at: i + j put: u.
+				carry := (t < x or: [u < t]) ifTrue: [1 asUInt64] ifFalse: [0 asUInt64]].
+			un at: j + nb put: ((un at: j + nb) + carry) asUInt64].
+		q at: j put: qhat].
+	0 to: nb - 1 do: [:i | r at: i put: (un at: i)]
+!
+limb: i of: x shiftedBy: s
+	"Limb i of x << s (s < 64): x's limb i shifted, below it what limb i - 1 shifts out (limb 0 has none below)."
+	<function>
+	<returns: 'uint64_t'>
+	(s = 0 or: [i = 0]) ifTrue: [^((x at: i) << s) asUInt64].
+	^((x at: i) << s) asUInt64 bitOr: (x at: i - 1) >> (64 - s)
 !
 leadingZeros: x
-	"The number of leading zero bits of the nonzero 32-bit x."
+	"The number of leading zero bits of the nonzero 64-bit x."
+	<var: #x type: 'uint64_t'>
+	<var: #v type: 'uint64_t'>
 	| v n |
-	v := x asUInt64.
+	v := x.
 	n := 0.
-	[(v bitAnd: 16r80000000) = 0] whileTrue: [
-		v := v << 1.
+	[(v >> 63) = 0] whileTrue: [
+		v := (v << 1) asUInt64.
 		n := n + 1].
 	^n
 !
 shift: x count: n left: k into: r
-	"r (n + (k quo: 32) + 1 limbs) := x << k."
+	"r (n + (k quo: 64) + 1 limbs) := x << k."
 	<function>
-	| limbs bits carry t |
-	limbs := k quo: 32.
-	bits := k rem: 32.
+	<var: #carry type: 'uint64_t'>
+	<var: #v type: 'uint64_t'>
+	| limbs bits carry v |
+	limbs := k quo: 64.
+	bits := k rem: 64.
 	0 to: limbs - 1 do: [:i | r at: i put: 0].
-	carry := 0 asUInt64.
+	bits = 0 ifTrue: [
+		0 to: n - 1 do: [:i | r at: limbs + i put: (x at: i)].
+		r at: limbs + n put: 0.
+		^self].
+	carry := 0.
 	0 to: n - 1 do: [:i |
-		t := ((x at: i) asUInt64 << bits) bitOr: carry.
-		r at: limbs + i put: t asUInt32.
-		carry := t >> 32].
-	r at: limbs + n put: carry asUInt32
+		v := x at: i.
+		r at: limbs + i put: ((v << bits) asUInt64 bitOr: carry).
+		carry := v >> (64 - bits)].
+	r at: limbs + n put: carry
 !
 shift: x count: n right: k into: r
-	"r (n - (k quo: 32) limbs, k < 32 n) := x >> k; answer whether 1 bits were shifted out."
+	"r (n - (k quo: 64) limbs, k < 64 n) := x >> k; answer whether 1 bits were shifted out."
 	<function>
+	<var: #next type: 'uint64_t'>
 	| limbs bits lost next |
-	limbs := k quo: 32.
-	bits := k rem: 32.
-	lost := ((x at: limbs) asUInt64 << (32 - bits)) asUInt32 ~= 0.
+	limbs := k quo: 64.
+	bits := k rem: 64.
+	lost := bits > 0 and: [((x at: limbs) << (64 - bits)) asUInt64 ~= 0].
 	0 to: limbs - 1 do: [:i | (x at: i) ~= 0 ifTrue: [lost := true]].
 	limbs to: n - 1 do: [:i |
-		next := i + 1 < n ifTrue: [(x at: i + 1) asUInt64] ifFalse: [0 asUInt64].
-		r at: i - limbs put: (((x at: i) asUInt64 >> bits) bitOr: next << (32 - bits)) asUInt32].
+		bits = 0
+			ifTrue: [r at: i - limbs put: (x at: i)]
+			ifFalse: [
+				next := i + 1 < n ifTrue: [x at: i + 1] ifFalse: [0].
+				r at: i - limbs put: (((x at: i) >> bits) bitOr: (next << (64 - bits)) asUInt64)]].
 	^lost
 !
 increment: x count: n
@@ -225,13 +301,13 @@ increment: x count: n
 	<function>
 	| i |
 	i := 0.
-	[i < n and: [(x at: i) = 16rFFFFFFFF]] whileTrue: [
+	[i < n and: [(x at: i) = 16rFFFFFFFFFFFFFFFF]] whileTrue: [
 		x at: i put: 0.
 		i := i + 1].
 	i = n ifTrue: [
 		x at: n put: 1.
 		^n + 1].
-	x at: i put: (x at: i) + 1.
+	x at: i put: ((x at: i) + 1) asUInt64.
 	^n
 !
 lowest: x count: n
@@ -245,12 +321,14 @@ lowest: x count: n
 limb: i of: x lowest: z
 	"Limb i of x in two's complement (z: the index of x's lowest nonzero limb): for a negative x, ~(|x| - 1)."
 	<function>
+	<returns: 'uint64_t'>
+	<var: #v type: 'uint64_t'>
 	| v |
-	v := i < x count ifTrue: [x limbs at: i] ifFalse: [0 asUInt32].
+	v := i < x count ifTrue: [x limbs at: i] ifFalse: [0].
 	x neg ifFalse: [^v].
-	i < z ifTrue: [^0 asUInt32].
-	i = z ifTrue: [^(0 - v asUInt64) asUInt32].
-	^v bitInvert32
+	i < z ifTrue: [^0].
+	i = z ifTrue: [^(0 - v) asUInt64].
+	^v bitInvert64
 ! !
 
 !LargeIntegerPrimitives methodsFor: 'operations'!
@@ -323,11 +401,11 @@ bitOp: op
 		x := self limb: i of: a lowest: za.
 		y := self limb: i of: b lowest: zb.
 		r at: i put: (op = 1 ifTrue: [x bitAnd: y] ifFalse: [op = 2 ifTrue: [x bitOr: y] ifFalse: [x bitXor: y]])].
-	((r at: n - 1) >> 31) = 0 ifTrue: [^self answer: r count: n negative: false].
+	((r at: n - 1) >> 63) = 0 ifTrue: [^self answer: r count: n negative: false].
 	"negative: the magnitude is the two's complement of r"
 	za := self lowest: r count: n.
-	r at: za put: (0 - (r at: za) asUInt64) asUInt32.
-	za + 1 to: n - 1 do: [:i | r at: i put: (r at: i) bitInvert32].
+	r at: za put: (0 - (r at: za)) asUInt64.
+	za + 1 to: n - 1 do: [:i | r at: i put: (r at: i) bitInvert64].
 	self answer: r count: n negative: true
 ! !
 
@@ -403,19 +481,19 @@ primLargeBitShift
 	a := self local: 'LargeOperand'.
 	s := self local: 'LargeOperand'.
 	(self operands: a and: s) ifFalse: [^self fail].
-	m := s count = 0 ifTrue: [0 asUInt64] ifFalse: [s count = 1 ifTrue: [(s limbs at: 0) asUInt64] ifFalse: [((s limbs at: 1) asUInt64 << 32) bitOr: (s limbs at: 0)]].
-	(s count > 2 or: [m > 16r10000000000]) ifTrue: [m := 16r10000000000 asUInt64].
+	m := s count = 0 ifTrue: [0 asUInt64] ifFalse: [s limbs at: 0].
+	(s count > 1 or: [m > 16r10000000000]) ifTrue: [m := 16r10000000000 asUInt64].
 	k := m asInt64.
 	a count = 0 ifTrue: [^self answer: (self intOop: 0)].
 	s neg ifFalse: [
-		n := a count + (k quo: 32) + 1.
+		n := a count + (k quo: 64) + 1.
 		(self fits: n) ifFalse: [^self failCode: PRIM_ERR_NO_MEMORY].
 		r := self scratch: n.
 		r isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 		self shift: a limbs count: a count left: k into: r.
 		^self answer: r count: n negative: a neg].
-	(k quo: 32) >= a count ifTrue: [^self answer: (self intOop: (a neg ifTrue: [-1] ifFalse: [0]))].
-	n := a count - (k quo: 32).
+	(k quo: 64) >= a count ifTrue: [^self answer: (self intOop: (a neg ifTrue: [-1] ifFalse: [0]))].
+	n := a count - (k quo: 64).
 	r := self scratch: n + 1.
 	r isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 	((self shift: a limbs count: a count right: k into: r) and: [a neg]) ifTrue: [n := self increment: r count: n].
@@ -427,9 +505,9 @@ VMStruct subclass: #LargeOperand
 	classVariableNames: ''
 	package: 'VM-Core'!
 
-LargeOperand comment: 'An Integer operand of LargeIntegerPrimitives: its magnitude as count 32-bit limbs at limbs (least significant first; small holds them for a SmallInteger) and its sign.'!
+LargeOperand comment: 'An Integer operand of LargeIntegerPrimitives: its magnitude as count 64-bit limbs at limbs (least significant first; small holds the one of a SmallInteger) and its sign.'!
 
 !LargeOperand class methodsFor: 'declaring'!
 fields
-	^#((limbs 'uint32_t *') (count int64_t) (neg bool) (small 'uint32_t[2]'))
+	^#((limbs 'uint64_t *') (count int64_t) (neg bool) (small 'uint64_t[1]'))
 ! !

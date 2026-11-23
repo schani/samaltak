@@ -1,7 +1,7 @@
 AgentItemView subclass: #AgentMessageView
 	instanceVariableNames: ''
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentMessageView comment: 'I show a message of an AgentConversation as wrapped plain text: the user''s (You, a rule above: a new turn), the agent''s (growing while it streams) or an error (in ultramarine).'!
 

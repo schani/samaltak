@@ -1,7 +1,7 @@
 Widget subclass: #AgentTranscript
 	instanceVariableNames: 'conversation count'
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentTranscript comment: 'I am the transcript of an AgentWindow, the content of its ScrollPane: one AgentItemView per shown item of the conversation, stacked, each as tall as it needs at my width. sync (in my window''s Process) adds views for new items and redraws the changed ones.'!
 

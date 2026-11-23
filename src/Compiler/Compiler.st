@@ -1,6 +1,6 @@
 Object subclass: #Compiler
 	instanceVariableNames: 'bindings doIt doItSource'
-	classVariableNames: 'RecompiledAll'
+	classVariableNames: 'PackageDirectories RecompiledAll'
 	package: 'Compiler'!
 
 Compiler comment: 'I am the facade of the Smalltalk compiler.
@@ -178,7 +178,15 @@ fileInPackage: aDirectory
 		pending := pending reject: [:d | ready includes: d]].
 	sources do: [:source | self fileInString: source except: [:chunk | definitions anySatisfy: [:d | d first == chunk or: [d first = chunk]]]].
 	classes do: [:c | (c class includesSelector: #initialize) ifTrue: [c initialize]].
+	classes isEmpty ifFalse: [
+		PackageDirectories isNil ifTrue: [PackageDirectories := Dictionary new].
+		PackageDirectories at: classes first packageName put: aDirectory].
 	^classes asArray
+!
+packageDirectoryOf: aPackageName
+	"The directory fileInPackage: loaded the package aPackageName from (an application's, apps/Weather), or nil."
+	PackageDirectories isNil ifTrue: [^nil].
+	^PackageDirectories at: aPackageName ifAbsent: [nil]
 !
 classDefinitionIn: aChunk
 	"Answer {superclass name. class name} if aChunk is a class definition (Superclass subclass: #Name ...), else nil."

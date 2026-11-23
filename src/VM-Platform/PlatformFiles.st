@@ -40,14 +40,14 @@ openFlags: mode
 
 !PlatformFiles methodsFor: 'files'!
 open: path mode: mode
-	"mode: PF_FILE_READ, PF_FILE_READ_WRITE, PF_FILE_APPEND or PF_FILE_CREATE_TRUNCATE."
+	"mode: PF_FILE_READ, PF_FILE_READ_WRITE, PF_FILE_APPEND, PF_FILE_CREATE_TRUNCATE or PF_FILE_CREATE_PRIVATE (as PF_FILE_CREATE_TRUNCATE, but a file it creates only its owner may read and write: secrets)."
 	<export>
 	| fd h |
 	platform init.
-	(mode < 0 or: [mode > 3]) ifTrue: [
+	(mode < 0 or: [mode > 4]) ifTrue: [
 		common setError: 'bad file mode %d' with: mode.
 		^0].
-	fd := posixIO open: path flags: ((self openFlags: mode) bitOr: posixIO O_CLOEXEC) mode: 8r644.
+	fd := posixIO open: path flags: ((self openFlags: mode) bitOr: posixIO O_CLOEXEC) mode: (mode = PF_FILE_CREATE_PRIVATE ifTrue: [8r600] ifFalse: [8r644]).
 	fd < 0 ifTrue: [
 		self failOS: 'open' path: path.
 		^0].

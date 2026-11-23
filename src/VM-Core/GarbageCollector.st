@@ -196,7 +196,7 @@ rememberIfOld: o
 
 !GarbageCollector methodsFor: 'roots'!
 forEachRoot: fn
-	"The VM's roots: the variables holding oops (through a copy in memory, so fn gets pointers to them), the temporary roots, the pushed roots and the interpreter's frames."
+	"The VM's roots: the variables holding oops (through a copy in memory, so fn gets pointers to them), the temporary roots, the scheduler's ledger, the pushed roots and the interpreter's frames."
 	<function>
 	| r |
 	r := self local: 'oop[6]'.
@@ -214,6 +214,7 @@ forEachRoot: fn
 	interpreter primResult: (r at: 4).
 	interpreter resendSelector: (r at: 5).
 	0 to: 3 do: [:i | fn call: interpreter tmpRoots + i].
+	0 to: scheduler ledgerN - 1 do: [:i | fn call: scheduler ledgerProcs + i].
 	0 to: memory rootCount - 1 do: [:i | fn call: (memory rootAt: i)].
 	interpreter roots: fn
 ! !

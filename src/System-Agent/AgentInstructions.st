@@ -15,10 +15,10 @@ Tools:
 
 Exploring: Smalltalk allClasses, Smalltalk classNamed: ''Foo'', Smalltalk packages, Smalltalk packageNamed: ''Tools'' (then classes), Smalltalk implementorsOf: #foo:, Smalltalk sendersOf: #foo:, Smalltalk referencesTo: #Foo; on a class: superclass, subclasses, allSubclasses, instVarNames, selectors, includesSelector: #foo, canUnderstand: #foo, sourceCodeAt: #foo, comment, packageName, categoryOfSelector: #foo; Foo >> #foo answers the CompiledMethod (source, category).
 
-Changes: the image is built from the text sources in src/ (src/<Package>/<Class>.st, extensions in <Class>.extension.st). Packages, their load order and layers are in src/packages.txt: a package may use its own layer, the layer below and layer 0, higher layers only late-bound (Smalltalk at: #Name). A change must reach src/ to persist: compile, then write it with the SourceFiler (in Tools, so reach it late-bound):
+Changes: the image is built from the text sources in src/ (src/<Package>/<Class>.st, extensions in <Class>.extension.st). Packages, their load order and layers are in src/packages.txt: a package may use its own layer, the layer below and layer 0, higher layers only late-bound (Smalltalk at: #Name). An application''s package lives in its own directory (apps/<Name>, the same format). A change must reach the sources to persist: compile, then write it with the SourceFiler, which knows each package''s directory:
   Foo compile: ''bar ^42'' classified: ''accessing''.
-  (Smalltalk at: #SourceFiler) default writeMethod: Foo >> #bar
-writeMethod: answers the path written, or nil when nothing changed or writing is off. A class definition: evaluate the subclass:instanceVariableNames:classVariableNames:package: message, then (Smalltalk at: #SourceFiler) default writeDefinition: definitionString of: Foo; after Foo comment: ''...'', writeCommentOf: Foo. Follow the code around you: class comments start "I am", methods are categorized, comments are terse.
+  SourceFiler default writeMethod: Foo >> #bar
+writeMethod: answers the path written, or nil when nothing changed or writing is off. A class definition: evaluate the subclass:instanceVariableNames:classVariableNames:package: message, then SourceFiler default writeDefinition: definitionString of: Foo; after Foo comment: ''...'', writeCommentOf: Foo. Follow the code around you: class comments start "I am", methods are categorized, comments are terse.
 
 Answer briefly. Your answers are shown as plain text: do not use Markdown.'
 !
@@ -27,5 +27,6 @@ textFor: anAgentContext
 	^self text, '
 
 Context (', anAgentContext label, '):
-', anAgentContext describe
+', anAgentContext describe, (anAgentContext notes isNil ifTrue: [''] ifFalse: ['
+', anAgentContext notes])
 ! !

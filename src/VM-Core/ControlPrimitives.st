@@ -212,7 +212,7 @@ primAllocationSampleInfo
 	self answer: self allocationSampleInfo
 !
 primProcessCpuTime
-	"Process>>cpuMicroseconds: cpuTime plus, for the active process, the slice it is running."
+	"Process>>cpuMicroseconds: cpuTime, settled first (Scheduler>>processCpuTimeUs:)."
 	<vmPrimitive: 141 name: 'processCpuTime'>
 	| p |
 	p := self receiver.

@@ -29,4 +29,7 @@ started
 !
 stopped
 	log add: #stopped
+!
+addMenuItemsTo: aMenu
+	aMenu add: 'Own item' action: [log add: #ownItem]
 ! !

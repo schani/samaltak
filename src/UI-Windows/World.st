@@ -1,9 +1,9 @@
 Object subclass: #World
 	instanceVariableNames: 'displayWindow extent scale windows overlays activeWindow compositor dispatcher topBar toasts tooltip lock windowCounter closingWindows needsFrame remotePointer hidden imageName clipboardText running curtain closingFrontWindows'
-	classVariableNames: 'Current HelpHandler UserInterruptHandler WorldMenuBuilder QuitHandler'
+	classVariableNames: 'All Current HelpHandler UserInterruptHandler WorldMenuBuilder QuitHandler'
 	package: 'UI-Windows'!
 
-World comment: 'I am the desktop: the host window (a DisplayWindow), the halftone desk, the windows (z-order, front to back), the active window, the top bar, and the overlays (menus, toasts, the tooltip, the remote pointer). The Compositor (priority 70, vsync) draws me; the InputDispatcher (priority 60) routes input and moves and resizes windows. World current is the running one.
+World comment: 'I am the desktop: the host window (a DisplayWindow), the halftone desk, the windows (z-order, front to back), the active window, the top bar, and the overlays (menus, toasts, the tooltip, the remote pointer). The Compositor (priority 70, vsync) draws me; the InputDispatcher (priority 60) routes input and moves and resizes windows. World current is the running one (an application''s other host windows are Worlds of their own: World all).
 
 	World current windows            "front to back"
 	World current openMenu: aMenu at: aPoint
@@ -375,6 +375,7 @@ start
 	"Start the compositor and the input dispatcher."
 	running ifTrue: [^self].
 	running := true.
+	All := (All ifNil: [#()]) copyWith: self.
 	compositor := Compositor world: self.
 	dispatcher := InputDispatcher world: self.
 	compositor start.
@@ -387,6 +388,7 @@ stop
 	dispatcher isNil ifFalse: [dispatcher stop].
 	compositor isNil ifFalse: [compositor stop].
 	running := false.
+	All := (All ifNil: [#()]) copyWithout: self.
 	(windows, overlays, closingWindows) do: [:w | w layer release].
 	windows := #().
 	overlays := #().
@@ -400,6 +402,7 @@ abandon
 	dispatcher isNil ifFalse: [dispatcher abandon].
 	compositor isNil ifFalse: [compositor abandon].
 	running := false.
+	All := (All ifNil: [#()]) copyWithout: self.
 	Current == self ifTrue: [Current := nil]
 !
 resumeHidden: aBoolean
@@ -407,6 +410,7 @@ resumeHidden: aBoolean
 	dispatcher isNil ifFalse: [dispatcher abandon].
 	compositor isNil ifFalse: [compositor abandon].
 	running := false.
+	All := (All ifNil: [#()]) copyWithout: self.
 	hidden := aBoolean.
 	imageName := self class imageName.
 	displayWindow hidden: aBoolean.
@@ -514,6 +518,17 @@ printOn: aStream
 !World class methodsFor: 'accessing'!
 current
 	^Current
+!
+all
+	"The running Worlds: the current one and an application's other host windows."
+	^All ifNil: [#()]
+!
+allDo: aBlock
+	self all do: aBlock
+!
+restyleAll
+	"Drawing code or the look changed: every running World draws anew."
+	self allDo: [:world | world restyle]
 !
 current: aWorld
 	Current := aWorld

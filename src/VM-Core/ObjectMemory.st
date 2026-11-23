@@ -232,8 +232,7 @@ nextHash
 !
 initObjectAt: p class: cls format: fmt slots: n
 	| s nl |
-	self uint64At: p put: ((n asUInt64 bitOr: fmt asUInt64 << H_FMT_SHIFT) bitOr: self nextHash asUInt64 << H_HASH_SHIFT).
-	self uint64At: p + 8 put: cls.
+	self initHeaderAt: p class: cls format: fmt slots: n.
 	(self fmtHasPointers: fmt)
 		ifTrue: [
 			s := self cCoerce: p + 16 to: 'oop *'.
@@ -313,6 +312,29 @@ allocObj: cls format: fmt slots: n
 		ifFalse: [
 			gc edenTop: p + bytes.
 			self initObjectAt: p class: cls format: fmt slots: n].
+	^p
+!
+initHeaderAt: p class: cls format: fmt slots: n
+	self uint64At: p put: ((n asUInt64 bitOr: fmt asUInt64 << H_FMT_SHIFT) bitOr: self nextHash asUInt64 << H_HASH_SHIFT).
+	self uint64At: p + 8 put: cls
+!
+allocUnfilledTry: cls format: fmt slots: n
+	"allocObjTry: of an object without pointers (fmt) whose slots the caller writes, every one, before anything else runs: in eden its header and class only, not zeroed (the collector never reads such slots); large ones as allocObjTry: makes them. 0 if it can never fit in the heap."
+	<function>
+	| bytes p clsRoot |
+	n > 16rFFFFFFFF ifTrue: [^0].
+	bytes := 16 + (8 * n).
+	bytes > largeObjectBytes ifTrue: [^self allocObjTry: cls format: fmt slots: n].
+	p := gc edenTop.
+	p + bytes > gc allocLimit
+		ifTrue: [
+			clsRoot := self local: 'oop'.
+			clsRoot value: cls.
+			p := self allocSlow: clsRoot bytes: bytes.
+			self initHeaderAt: p class: clsRoot value format: fmt slots: n asUInt32]
+		ifFalse: [
+			gc edenTop: p + bytes.
+			self initHeaderAt: p class: cls format: fmt slots: n asUInt32].
 	^p
 !
 allocObjTry: cls format: fmt slots: n

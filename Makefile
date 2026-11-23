@@ -77,6 +77,8 @@ test-core: image test-vm
 	SAMALTAK_VERIFY_GC=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
 	$(MAKE) fresh-runtime
 	tests/st_suite.sh $(OUT)/runtime.image -- Weather --load apps/Weather
+	tests/st_suite.sh $(OUT)/runtime.image -- Agents --load apps/Agents
+	tests/st_suite.sh $(OUT)/runtime.image -- Wodify --load apps/Wodify
 test-tools: image
 	$(PLATFORM_CHECK)
 	$(MAKE) -C vm/platform test st-test

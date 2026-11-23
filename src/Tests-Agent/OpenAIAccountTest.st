@@ -3,7 +3,7 @@ TestCase subclass: #OpenAIAccountTest
 	classVariableNames: ''
 	package: 'Tests-Agent'!
 
-OpenAIAccountTest comment: 'Tests OpenAIAccount against an HTTPTestServer standing in for the auth server: the id token''s claims, refreshing before expiry, a refused refresh signing out, the device login, cancelling it. replies maps a path to the responses to give in turn (the last one repeats). The tokens are unsigned JWTs made for the tests.'!
+OpenAIAccountTest comment: 'Tests OpenAIAccount against an HTTPTestServer standing in for the auth server: the id token''s claims, refreshing before expiry, a refused refresh signing out, the device login, cancelling it, the tokens kept in a file. replies maps a path to the responses to give in turn (the last one repeats). The tokens are unsigned JWTs made for the tests.'!
 
 !OpenAIAccountTest methodsFor: 'running'!
 setUp
@@ -90,6 +90,30 @@ testRefusedRefreshSignsOut
 	account tokens: (self tokens: self freshToken refresh: 'r1').
 	self reply: '/oauth/token' with: {HTTPTestServer response: 401 body: '{"error":{"code":"refresh_token_reused","message":"used"}}'}.
 	self should: [account refresh] raise: AgentError.
+	self deny: account isSignedIn
+!
+testKeptInAFile
+	"keepIn: shares the sign-in through a file: another account on it sees the tokens, a sign-out deletes it, and a refresh another process already made is taken from the file."
+	| path other |
+	path := self scratchDirectory / 'agent' / 'account.json'.
+	account keepIn: path.
+	self deny: (File exists: path).
+	account tokens: (self tokens: self freshToken refresh: 'r1').
+	self assert: (File exists: path).
+	other := OpenAIAccount new issuer: server url; keepIn: path; yourself.
+	self assert: other isSignedIn.
+	self assert: other email equals: 'ada@example.com'.
+	"the other process refreshes: its rotated tokens reach me before I refresh"
+	other tokens: (self tokens: self freshToken2 refresh: 'r2').
+	self assert: account accessToken equals: self freshToken2.
+	account tokens: (self tokens: self freshToken refresh: 'r1').
+	other tokens: (self tokens: self freshToken2 refresh: 'r3').
+	account refresh.
+	self assert: account isSignedIn.
+	self assert: account accessToken equals: self freshToken2.
+	self assert: (self requestsTo: '/oauth/token') isEmpty.
+	other signOut.
+	self deny: (File exists: path).
 	self deny: account isSignedIn
 !
 testFailedRefreshKeepsTheTokens

@@ -1,7 +1,7 @@
 AgentItemView subclass: #AgentCodeView
 	instanceVariableNames: ''
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentCodeView comment: 'I show a code-mode cell (the mock''s .call): a frame with a CODE-MODE header, the source highlighted as the editors do (TextHighlighter, Theme syntax styles), and below a dotted rule the result: its object id boxed (oN) and its printString, or the error of a failed cell, or ''running…''. Lines too long for my width are cut.'!
 

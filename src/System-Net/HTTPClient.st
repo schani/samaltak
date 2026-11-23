@@ -114,7 +114,7 @@ lost
 !
 send: head body: bytes
 	"Send the request; answer the response's status and headers, or nil if the connection closed before the response began."
-	| s line status headers |
+	| s line status fields |
 	s := socket.
 	s isNil ifTrue: [^nil].
 	(s sendAll: head) ifFalse: [^nil].
@@ -123,22 +123,21 @@ send: head body: bytes
 	 line isNil ifTrue: [^nil].
 	 status := ((line subStrings: ' ') at: 2 ifAbsent: ['']) asInteger.
 	 status isNil ifTrue: [^HTTPError signal: 'not an HTTP response: ', line].
-	 headers := self readHeaders.
+	 fields := self readHeaders.
 	 status < 200] whileTrue.
-	^HTTPResponse new setStatus: status headers: headers
+	^HTTPResponse new setStatus: status fields: fields
 !
 readHeaders
-	| headers line colon name value |
-	headers := Dictionary new.
+	"The header fields up to the empty line, in order: name (lowercase) -> value."
+	| fields line colon |
+	fields := OrderedCollection new.
 	[line := self readLine.
 	 line isNil ifTrue: [^self lost].
 	 line isEmpty] whileFalse: [
 		colon := line indexOf: $:.
 		colon > 0 ifTrue: [
-			name := (line copyFrom: 1 to: colon - 1) trimBoth asLowercase.
-			value := (line copyFrom: colon + 1 to: line size) trimBoth.
-			headers at: name put: ((headers at: name ifAbsent: [nil]) ifNil: [value] ifNotNil: [:old | old, ', ', value])]].
-	^headers
+			fields add: (line copyFrom: 1 to: colon - 1) trimBoth asLowercase -> (line copyFrom: colon + 1 to: line size) trimBoth]].
+	^fields asArray
 !
 readBodyOf: response method: method do: aBlock
 	| streams out sink length |

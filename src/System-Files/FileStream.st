@@ -282,6 +282,10 @@ forceNewFileNamed: aPath
 !
 appendingFileNamed: aPath
 	^self basicNew open: aPath mode: 2
+!
+forceNewPrivateFileNamed: aPath
+	"Create aPath, truncating it if it exists; a file this creates only its owner may read and write (mode 600)."
+	^self basicNew open: aPath mode: 4
 ! !
 
 !FileStream class methodsFor: 'evaluating'!
@@ -297,6 +301,9 @@ newFileNamed: aPath do: aBlock
 !
 forceNewFileNamed: aPath do: aBlock
 	^self withStream: (self forceNewFileNamed: aPath) do: aBlock
+!
+forceNewPrivateFileNamed: aPath do: aBlock
+	^self withStream: (self forceNewPrivateFileNamed: aPath) do: aBlock
 !
 withStream: aFileStream do: aBlock
 	^[aBlock value: aFileStream] ensure: [aFileStream close]

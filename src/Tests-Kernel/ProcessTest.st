@@ -229,4 +229,186 @@ testCpuTime
 	p := [1 to: 20000 do: [:i | i * i]. sem signal] fork.
 	sem wait.
 	self assert: p cpuTime >= 0
+!
+testRegistryHasEveryProcess
+	| procs live |
+	procs := (1 to: 300) collect: [:i | [nil] newProcess].
+	live := Processor allProcesses asIdentitySet.
+	self assert: (procs allSatisfy: [:p | live includes: p]).
+	self assert: (live includes: Processor activeProcess).
+	procs do: [:p | p terminate]
+!
+testRegistryReusesCollectedSlots
+	| capacity procs |
+	procs := (1 to: 2000) collect: [:i | [nil] newProcess].
+	procs := nil.
+	Smalltalk vm garbageCollect.
+	capacity := self registryCapacity.
+	procs := (1 to: 2000) collect: [:i | [nil] newProcess].
+	self assert: self registryCapacity equals: capacity.
+	procs do: [:p | p terminate]
+!
+testRegistryStaysSmall
+	| sem |
+	sem := Semaphore new.
+	20000 timesRepeat: [[sem wait] forkAt: Processor activePriority + 1].
+	self assert: self registryCapacity <= 65536.
+	self assert: Processor allProcesses size > 20000.
+	20000 timesRepeat: [sem signal]
+!
+testRegistryShrinksAfterABurst
+	"A burst of processes gone and collected, the next allProcesses compacts the registry; it still has every process, and registers the next ones."
+	| kept sem later all |
+	kept := (1 to: 100) collect: [:i | [nil] newProcess].
+	sem := Semaphore new.
+	5000 timesRepeat: [[sem wait] forkAt: Processor activePriority + 1].
+	self assert: self registryCapacity >= 8192.
+	5000 timesRepeat: [sem signal].
+	Smalltalk vm garbageCollect.
+	Processor allProcesses.
+	self assert: self registryCapacity < 5000.
+	self assert: self registryCapacity <= (64 max: self registered * 4).
+	later := (1 to: 1000) collect: [:i | [nil] newProcess].
+	all := Processor allProcesses asIdentitySet.
+	self assert: (kept allSatisfy: [:p | all includes: p]).
+	self assert: (later allSatisfy: [:p | all includes: p]).
+	self assert: (all includes: Processor activeProcess).
+	kept do: [:p | p terminate].
+	later do: [:p | p terminate]
+!
+testRegistryShrinksWhileProcessesRegister
+	"A process of higher priority goes on registering processes while bursts come and go and the registry is compacted: none is lost."
+	| made done finished sem all |
+	made := OrderedCollection new.
+	done := false.
+	finished := Semaphore new.
+	[[done] whileFalse: [
+		made add: [nil] newProcess.
+		(Delay forMilliseconds: 1) wait].
+	 finished signal] forkAt: Processor activePriority + 1.
+	5 timesRepeat: [
+		sem := Semaphore new.
+		2000 timesRepeat: [[sem wait] forkAt: Processor activePriority + 1].
+		2000 timesRepeat: [sem signal].
+		Smalltalk vm garbageCollect.
+		Processor allProcesses.
+		self assert: self registryCapacity <= (64 max: self registered * 4)].
+	done := true.
+	finished wait.
+	all := Processor allProcesses asIdentitySet.
+	self assert: made notEmpty.
+	self assert: (made allSatisfy: [:p | all includes: p]).
+	made do: [:p | p terminate]
+!
+testRegistryAnswersNoCollectedProcess
+	| weak |
+	weak := self unreferencedProcesses: 100.
+	Smalltalk vm garbageCollect.
+	self assert: (weak allSatisfy: [:p | p isNil]).
+	self assert: (Processor allProcesses allSatisfy: [:p | p notNil and: [p isTerminated not]])
+!
+testCpuTimeAddsUp
+	"Two processes switching 100,000 times are charged the VM thread's CPU time, but for the JIT's compiling."
+	| a b me other t0 j0 c0 t c |
+	a := Semaphore new.
+	b := Semaphore new.
+	me := Processor activeProcess.
+	other := self partner: 50000 waitOn: a signal: b spin: 0.
+	t0 := Smalltalk vm threadCpuMicroseconds.
+	j0 := Smalltalk vm statistics jitCompileMicroseconds.
+	c0 := me cpuMicroseconds + other cpuMicroseconds.
+	50000 timesRepeat: [a signal. b wait].
+	c := me cpuMicroseconds + other cpuMicroseconds - c0.
+	t := Smalltalk vm threadCpuMicroseconds - t0 - (Smalltalk vm statistics jitCompileMicroseconds - j0).
+	self assert: (c - t) abs <= 2000
+!
+testShortSlicesAreCharged
+	"Both sides of a fast ping-pong are charged, the one that works three times as much more."
+	| a b me other m0 o0 mine its |
+	a := Semaphore new.
+	b := Semaphore new.
+	me := Processor activeProcess.
+	other := self partner: 2000 waitOn: a signal: b spin: 3000.
+	Smalltalk vm scavenge.
+	m0 := me cpuMicroseconds.
+	o0 := other cpuMicroseconds.
+	2000 timesRepeat: [self spin: 1000. a signal. b wait].
+	mine := me cpuMicroseconds - m0.
+	its := other cpuMicroseconds - o0.
+	self assert: mine > 0.
+	self assert: its > mine.
+	self assert: its < (mine * 10)
+!
+testCpuTimeNeverDecreases
+	| a b me other last mine |
+	a := Semaphore new.
+	b := Semaphore new.
+	me := Processor activeProcess.
+	other := self partner: 10000 waitOn: a signal: b spin: 0.
+	last := 0.
+	mine := 0.
+	10000 timesRepeat: [| ct cm own |
+		a signal.
+		b wait.
+		ct := other cpuTime.
+		cm := other cpuMicroseconds.
+		own := me cpuMicroseconds.
+		self assert: ct >= last.
+		self assert: cm >= ct.
+		self assert: own >= mine.
+		last := cm.
+		mine := own]
+!
+testWaitsAreNotCharged
+	| done p c0 idle i0 |
+	done := Semaphore new.
+	p := self fork: [20 timesRepeat: [(Delay forMilliseconds: 10) wait]. done signal] at: Processor activePriority + 1.
+	c0 := p cpuMicroseconds.
+	done wait.
+	self assert: p cpuMicroseconds - c0 < 5000.
+	idle := Processor idleProcess.
+	i0 := idle cpuMicroseconds.
+	(Delay forMilliseconds: 200) wait.
+	self assert: idle cpuMicroseconds - i0 < 5000
+!
+testCpuTimeIsChargedInBatches
+	"The VM thread's CPU time, a system call to read, is read far less often than processes switch."
+	| a b s |
+	a := Semaphore new.
+	b := Semaphore new.
+	self partner: 50000 waitOn: a signal: b spin: 0.
+	s := Smalltalk vm statistics.
+	50000 timesRepeat: [a signal. b wait].
+	s := Smalltalk vm statistics - s.
+	self assert: s processSwitches >= 100000.
+	self assert: s cpuTimeReconciles < (s processSwitches // 20)
+! !
+
+!ProcessTest methodsFor: 'support'!
+unreferencedProcesses: anInteger
+	"Answer a WeakArray of anInteger new processes nothing else references."
+	| weak |
+	weak := WeakArray new: anInteger.
+	1 to: anInteger do: [:i | weak at: i put: [nil] newProcess].
+	^weak
+!
+registered
+	"How many processes the registry holds."
+	^(Process classPool at: #Registry) count: [:each | each notNil]
+!
+registryCapacity
+	^(Process classPool at: #Registry) size
+!
+partner: n waitOn: a signal: b spin: work
+	"Answer a process at my priority that, n times, waits on a, spins work times and signals b; it is waiting on a."
+	| p |
+	p := self fork: [n timesRepeat: [a wait. self spin: work. b signal]].
+	Processor yield.
+	^p
+!
+spin: n
+	| x |
+	x := 0.
+	1 to: n do: [:i | x := x + i bitAnd: 16rFFFF].
+	^x
 ! !

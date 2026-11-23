@@ -4374,6 +4374,42 @@ void prim_window_refresh_rate(void)
     }
 }
 
+/* PlatformPrimitives>>primWindowSetSize */
+void prim_window_set_size(void)
+{
+    bool r_args;
+    int64_t w;
+    int64_t wd;
+    int64_t h;
+    bool a_boolean;
+    oop v;
+    if (!({
+    bad = false;
+    r_args = prim_nargs == 3;
+    r_args; })) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    w = int_arg(0);
+    wd = int_arg(1);
+    h = int_arg(2);
+    if (bad || ((wd < 1) || (h < 1))) {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+        return;
+    }
+    a_boolean = set_size((int32_t)w, (int32_t)wd, (int32_t)h);
+    if (a_boolean) {
+        v = prim_base[0];
+        prim_result = v;
+        prim_status = PS_OK;
+    } else {
+        prim_status = PS_FAIL;
+        prim_error_code = -1;
+    }
+}
+
 /* PlatformPrimitives>>primWindowSetTextInputArea */
 void prim_window_set_text_input_area(void)
 {

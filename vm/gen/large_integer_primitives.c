@@ -2,25 +2,27 @@
 /* LargeIntegerPrimitives (VM-Core) */
 #include "samaltak.h"
 
-static uint32_t *scratch;
+static uint64_t *scratch;
 static int64_t scratch_limbs;
 
 static void large_integer_primitives_add(bool subtract);
-static void answer(uint32_t *r, int64_t n, bool neg);
+static void answer(uint64_t *r, int64_t n, bool neg);
 static void bit_op(int op);
-static int large_integer_primitives_compare(uint32_t *a, int64_t na, uint32_t *b, int64_t nb);
-static int64_t difference(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r);
+static int large_integer_primitives_compare(uint64_t *a, int64_t na, uint64_t *b, int64_t nb);
+static int64_t difference(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r);
 static void large_integer_primitives_divide(int mode);
-static void large_integer_primitives_divide_count_by_count_quotient_remainder_work(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *q, uint32_t *r, uint32_t *w);
-static int64_t increment(uint32_t *x, int64_t n);
-static uint32_t limb(int64_t i, large_operand *x, int64_t z);
-static int64_t lowest(uint32_t *x, int64_t n);
+static void large_integer_primitives_divide_count_by_count_quotient_remainder_work(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *q, uint64_t *r, uint64_t *w);
+static bool estimate(uint64_t qhat, uint64_t v, uint64_t rhat, uint64_t u);
+static int64_t increment(uint64_t *x, int64_t n);
+static uint64_t large_integer_primitives_limb_of_lowest(int64_t i, large_operand *x, int64_t z);
+static uint64_t large_integer_primitives_limb_of_shifted_by(int64_t i, uint64_t *x, int64_t s);
+static int64_t lowest(uint64_t *x, int64_t n);
 static bool operand(oop o, large_operand *x);
-static void product(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r);
-static uint32_t *large_integer_primitives_scratch(int64_t n);
-static void large_integer_primitives_shift_count_left_into(uint32_t *x, int64_t n, int64_t k, uint32_t *r);
-static bool large_integer_primitives_shift_count_right_into(uint32_t *x, int64_t n, int64_t k, uint32_t *r);
-static int64_t sum(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r);
+static void product(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r);
+static uint64_t *large_integer_primitives_scratch(int64_t n);
+static void large_integer_primitives_shift_count_left_into(uint64_t *x, int64_t n, int64_t k, uint64_t *r);
+static bool large_integer_primitives_shift_count_right_into(uint64_t *x, int64_t n, int64_t k, uint64_t *r);
+static int64_t sum(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r);
 
 /* LargeIntegerPrimitives>>add: */
 static void large_integer_primitives_add(bool subtract)
@@ -30,7 +32,7 @@ static void large_integer_primitives_add(bool subtract)
     large_operand local_2;
     large_operand *b;
     bool bneg;
-    uint32_t *r;
+    uint64_t *r;
     int64_t n;
     memset(&local, 0, sizeof local);
     a = &local;
@@ -61,21 +63,21 @@ static void large_integer_primitives_add(bool subtract)
 }
 
 /* LargeIntegerPrimitives>>answer:count:negative: */
-static void answer(uint32_t *r, int64_t n, bool neg)
+static void answer(uint64_t *r, int64_t n, bool neg)
 {
-    int64_t k;
     uint64_t m;
+    uint64_t top;
+    int64_t k;
     int64_t v;
     uint64_t v_2;
-    uint32_t top;
-    int64_t bytes;
+    int64_t used;
     uint64_t o;
     k = n;
     while ((k > 0) && (r[k - 1] == 0)) {
         k = k - 1;
     }
-    if (k <= 2) {
-        m = k == 0 ? 0ULL : k == 1 ? (uint64_t)r[0] : (((uint64_t)r[1]) << 32) | r[0];
+    if (k <= 1) {
+        m = k == 0 ? 0 : r[0];
         if (m <= (neg ? 4611686018427387904ULL : 4611686018427387903ULL)) {
             v = neg ? (int64_t)(0 - m) : (int64_t)m;
             v_2 = (uint64_t)((v << 1) | 1);
@@ -85,14 +87,17 @@ static void answer(uint32_t *r, int64_t n, bool neg)
         }
     }
     top = r[k - 1];
-    bytes = (k - 1) * 4 + (top > 0xFFFFFF ? 4 : top > 0xFFFF ? 3 : top > 0xFF ? 2 : 1);
-    o = alloc_obj_try(object_memory_special(neg ? SO_LARGENEG : SO_LARGEPOS), F_BYTES + (int32_t)((8 - bytes % 8) % 8), (uint64_t)((bytes + 7) / 8));
+    used = 1;
+    while ((used < 8) && ((top >> (8 * used)) != 0)) {
+        used = used + 1;
+    }
+    o = alloc_unfilled_try(object_memory_special(neg ? SO_LARGENEG : SO_LARGEPOS), F_BYTES + (int32_t)(8 - used), (uint64_t)k);
     if (o == 0) {
         prim_status = PS_FAIL;
         prim_error_code = PRIM_ERR_NO_MEMORY;
         return;
     }
-    memcpy((uint8_t *)(o + 16), r, (uint64_t)bytes);
+    memcpy((uint8_t *)(o + 16), r, (uint64_t)(k * 8));
     prim_result = o;
     prim_status = PS_OK;
 }
@@ -105,12 +110,12 @@ static void bit_op(int op)
     large_operand local_2;
     large_operand *b;
     int64_t n;
-    uint32_t *r;
+    uint64_t *r;
     int64_t za;
     int64_t zb;
     int64_t i;
-    uint32_t x;
-    uint32_t y;
+    uint64_t x;
+    uint64_t y;
     int64_t i_2;
     memset(&local, 0, sizeof local);
     a = &local;
@@ -131,16 +136,16 @@ static void bit_op(int op)
     za = lowest(a->limbs, a->count);
     zb = lowest(b->limbs, b->count);
     for (i = 0; i <= n - 1; i++) {
-        x = limb(i, a, za);
-        y = limb(i, b, zb);
+        x = large_integer_primitives_limb_of_lowest(i, a, za);
+        y = large_integer_primitives_limb_of_lowest(i, b, zb);
         r[i] = op == 1 ? x & y : op == 2 ? x | y : x ^ y;
     }
-    if ((r[n - 1] >> 31) == 0) {
+    if ((r[n - 1] >> 63) == 0) {
         answer(r, n, false);
         return;
     }
     za = lowest(r, n);
-    r[za] = (uint32_t)(0 - (uint64_t)r[za]);
+    r[za] = 0 - r[za];
     for (i_2 = za + 1; i_2 <= n - 1; i_2++) {
         r[i_2] = ~r[i_2];
     }
@@ -148,7 +153,7 @@ static void bit_op(int op)
 }
 
 /* LargeIntegerPrimitives>>compare:count:with:count: */
-static int large_integer_primitives_compare(uint32_t *a, int64_t na, uint32_t *b, int64_t nb)
+static int large_integer_primitives_compare(uint64_t *a, int64_t na, uint64_t *b, int64_t nb)
 {
     int64_t i;
     if (na != nb) {
@@ -165,22 +170,26 @@ static int large_integer_primitives_compare(uint32_t *a, int64_t na, uint32_t *b
 }
 
 /* LargeIntegerPrimitives>>difference:count:minus:count:into: */
-static int64_t difference(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r)
+static int64_t difference(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r)
 {
-    int64_t borrow;
+    uint64_t borrow;
+    uint64_t x;
+    uint64_t y;
+    uint64_t t;
     int64_t i;
-    int64_t t;
     int64_t i_2;
     borrow = 0;
     for (i = 0; i <= nb - 1; i++) {
-        t = (int64_t)a[i] - (int64_t)b[i] - borrow;
-        r[i] = (uint32_t)t;
-        borrow = t < 0 ? 1 : 0;
+        x = a[i];
+        y = b[i];
+        t = x - y;
+        r[i] = t - borrow;
+        borrow = (x < y) || (t < borrow) ? 1ULL : 0ULL;
     }
     for (i_2 = nb; i_2 <= na - 1; i_2++) {
-        t = (int64_t)a[i_2] - borrow;
-        r[i_2] = (uint32_t)t;
-        borrow = t < 0 ? 1 : 0;
+        x = a[i_2];
+        r[i_2] = x - borrow;
+        borrow = x < borrow ? 1ULL : 0ULL;
     }
     return na;
 }
@@ -194,9 +203,9 @@ static void large_integer_primitives_divide(int mode)
     large_operand *b;
     int64_t na;
     int64_t nb;
-    uint32_t *w;
-    uint32_t *q;
-    uint32_t *rem;
+    uint64_t *w;
+    uint64_t *q;
+    uint64_t *rem;
     int64_t qn;
     int64_t i;
     int64_t rn;
@@ -260,101 +269,131 @@ static void large_integer_primitives_divide(int mode)
 }
 
 /* LargeIntegerPrimitives>>divide:count:by:count:quotient:remainder:work: */
-static void large_integer_primitives_divide_count_by_count_quotient_remainder_work(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *q, uint32_t *r, uint32_t *w)
+static void large_integer_primitives_divide_count_by_count_quotient_remainder_work(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *q, uint64_t *r, uint64_t *w)
 {
     uint64_t d;
-    uint64_t rem;
-    int64_t i;
+    uint64_t v_top;
+    uint64_t v_next;
+    uint64_t top;
+    uint64_t qhat;
+    uint64_t rhat;
+    uint64_t carry;
+    uint64_t borrow;
+    uint64_t x;
     uint64_t t;
-    uint32_t x;
+    uint64_t u;
+    uint64_t p;
+    uint64_t local;
+    uint64_t *rem;
+    uint64_t local_2;
+    uint64_t *hi;
+    int64_t i;
+    uint64_t x_2;
     int64_t r_leading_zeros;
     uint64_t v;
     int64_t n;
     int64_t s;
-    uint32_t *un;
-    uint32_t *vn;
-    uint64_t v_top;
-    uint64_t v_next;
+    uint64_t *un;
     int64_t j;
-    uint64_t num;
-    uint64_t qhat;
-    uint64_t rhat;
-    uint64_t carry;
-    int64_t borrow;
+    bool big;
     int64_t i_2;
-    uint64_t p;
-    int64_t diff;
     int64_t i_3;
     int64_t i_4;
+    memset(&local, 0, sizeof local);
+    rem = &local;
+    memset(&local_2, 0, sizeof local_2);
+    hi = &local_2;
     if (nb == 1) {
-        d = (uint64_t)b[0];
-        rem = 0ULL;
+        d = b[0];
+        *rem = 0;
         for (i = na - 1; i >= 0; i--) {
-            t = (rem << 32) | a[i];
-            q[i] = (uint32_t)(t / d);
-            rem = t % d;
+            q[i] = lt_div128(*rem, a[i], d, rem);
         }
-        r[0] = (uint32_t)rem;
+        r[0] = *rem;
         return;
     }
-    x = b[nb - 1];
+    x_2 = b[nb - 1];
     s = ({
-    v = (uint64_t)x;
+    v = x_2;
     n = 0;
-    while ((v & 0x80000000LL) == 0) {
+    while ((v >> 63) == 0) {
         v = v << 1;
         n = n + 1;
     }
     r_leading_zeros = n;
     r_leading_zeros; });
     un = w;
-    vn = w + (na + 1);
-    large_integer_primitives_shift_count_left_into(a, na, s, un);
-    large_integer_primitives_shift_count_left_into(b, nb, s, vn);
-    v_top = (uint64_t)vn[nb - 1];
-    v_next = (uint64_t)vn[nb - 2];
+    memcpy(un, a, (uint64_t)(na * 8));
+    un[na] = 0;
+    v_top = large_integer_primitives_limb_of_shifted_by(nb - 1, b, s);
+    v_next = large_integer_primitives_limb_of_shifted_by(nb - 2, b, s);
     for (j = na - nb; j >= 0; j--) {
-        num = (((uint64_t)un[j + nb]) << 32) | un[j + nb - 1];
-        qhat = num / v_top;
-        rhat = num % v_top;
-        while ((rhat <= 0xFFFFFFFFLL) && ((qhat > 0xFFFFFFFFLL) || (qhat * v_next > ((rhat << 32) | un[j + nb - 2])))) {
-            qhat = qhat - 1;
-            rhat = rhat + v_top;
+        top = large_integer_primitives_limb_of_shifted_by(j + nb, un, s);
+        if (top >= v_top) {
+            qhat = 0xFFFFFFFFFFFFFFFFULL;
+            rhat = large_integer_primitives_limb_of_shifted_by(j + nb - 1, un, s) + v_top;
+            big = rhat < v_top;
+        } else {
+            qhat = lt_div128(top, large_integer_primitives_limb_of_shifted_by(j + nb - 1, un, s), v_top, rem);
+            rhat = *rem;
+            big = false;
         }
-        carry = 0ULL;
+        while ((!big) && estimate(qhat, v_next, rhat, large_integer_primitives_limb_of_shifted_by(j + nb - 2, un, s))) {
+            qhat = qhat - 1;
+            t = rhat + v_top;
+            big = t < rhat;
+            rhat = t;
+        }
+        carry = 0;
         borrow = 0;
         for (i_2 = 0; i_2 <= nb - 1; i_2++) {
-            p = qhat * vn[i_2] + carry;
-            carry = p >> 32;
-            diff = (int64_t)un[i_2 + j] - (int64_t)(p & 0xFFFFFFFFLL) - borrow;
-            un[i_2 + j] = (uint32_t)diff;
-            borrow = diff < 0 ? 1 : 0;
+            p = lt_mul64(qhat, b[i_2], carry, 0, hi);
+            carry = *hi;
+            x = un[i_2 + j];
+            t = x - p;
+            un[i_2 + j] = t - borrow;
+            borrow = (x < p) || (t < borrow) ? 1ULL : 0ULL;
         }
-        diff = (int64_t)un[j + nb] - (int64_t)carry - borrow;
-        un[j + nb] = (uint32_t)diff;
-        if (diff < 0) {
+        x = un[j + nb];
+        t = x - carry;
+        un[j + nb] = t - borrow;
+        if ((x < carry) || (t < borrow)) {
             qhat = qhat - 1;
-            carry = 0ULL;
+            carry = 0;
             for (i_3 = 0; i_3 <= nb - 1; i_3++) {
-                p = (uint64_t)un[i_3 + j] + vn[i_3] + carry;
-                un[i_3 + j] = (uint32_t)p;
-                carry = p >> 32;
+                x = un[i_3 + j];
+                t = x + b[i_3];
+                u = t + carry;
+                un[i_3 + j] = u;
+                carry = (t < x) || (u < t) ? 1ULL : 0ULL;
             }
-            un[j + nb] = (uint32_t)((uint64_t)un[j + nb] + carry);
+            un[j + nb] = un[j + nb] + carry;
         }
-        q[j] = (uint32_t)qhat;
+        q[j] = qhat;
     }
     for (i_4 = 0; i_4 <= nb - 1; i_4++) {
-        r[i_4] = (uint32_t)((((uint64_t)un[i_4]) >> s) | (((uint64_t)un[i_4 + 1]) << (32 - s)));
+        r[i_4] = un[i_4];
     }
 }
 
+/* LargeIntegerPrimitives>>estimate:times:exceeds:low: */
+static bool estimate(uint64_t qhat, uint64_t v, uint64_t rhat, uint64_t u)
+{
+    uint64_t lo;
+    uint64_t local;
+    uint64_t *hi;
+    memset(&local, 0, sizeof local);
+    hi = &local;
+    lo = lt_mul64(qhat, v, 0, 0, hi);
+    return (*hi > rhat) || ((*hi == rhat) && (lo > u));
+}
+
 /* LargeIntegerPrimitives>>increment:count: */
-static int64_t increment(uint32_t *x, int64_t n)
+static int64_t increment(uint64_t *x, int64_t n)
 {
     int64_t i;
     i = 0;
-    while ((i < n) && (x[i] == 0xFFFFFFFFLL)) {
+    while ((i < n) && (x[i] == 0xFFFFFFFFFFFFFFFFULL)) {
         x[i] = 0;
         i = i + 1;
     }
@@ -367,24 +406,33 @@ static int64_t increment(uint32_t *x, int64_t n)
 }
 
 /* LargeIntegerPrimitives>>limb:of:lowest: */
-static uint32_t limb(int64_t i, large_operand *x, int64_t z)
+static uint64_t large_integer_primitives_limb_of_lowest(int64_t i, large_operand *x, int64_t z)
 {
-    uint32_t v;
-    v = i < x->count ? x->limbs[i] : 0U;
+    uint64_t v;
+    v = i < x->count ? x->limbs[i] : 0;
     if (!x->neg) {
         return v;
     }
     if (i < z) {
-        return 0U;
+        return 0;
     }
     if (i == z) {
-        return (uint32_t)(0 - (uint64_t)v);
+        return 0 - v;
     }
     return ~v;
 }
 
+/* LargeIntegerPrimitives>>limb:of:shiftedBy: */
+static uint64_t large_integer_primitives_limb_of_shifted_by(int64_t i, uint64_t *x, int64_t s)
+{
+    if ((s == 0) || (i == 0)) {
+        return x[i] << s;
+    }
+    return (x[i] << s) | (x[i - 1] >> (64 - s));
+}
+
 /* LargeIntegerPrimitives>>lowest:count: */
-static int64_t lowest(uint32_t *x, int64_t n)
+static int64_t lowest(uint64_t *x, int64_t n)
 {
     int64_t i;
     i = 0;
@@ -398,17 +446,14 @@ static int64_t lowest(uint32_t *x, int64_t n)
 static bool operand(oop o, large_operand *x)
 {
     int64_t v;
-    uint64_t m;
     uint64_t c;
-    uint32_t *p;
+    uint64_t *p;
     int64_t n;
     if ((o & 1) != 0) {
         v = ((int64_t)o) >> 1;
-        m = v < 0 ? (uint64_t)(0 - v) : (uint64_t)v;
-        x->small[0] = (uint32_t)m;
-        x->small[1] = (uint32_t)(m >> 32);
+        x->small[0] = v < 0 ? (uint64_t)(0 - v) : (uint64_t)v;
         x->limbs = x->small;
-        x->count = m == 0 ? 0 : (m >> 32) == 0 ? 1 : 2;
+        x->count = v == 0 ? 0 : 1;
         x->neg = v < 0;
         return true;
     }
@@ -419,8 +464,8 @@ static bool operand(oop o, large_operand *x)
     if (!((c == object_memory_special(SO_LARGEPOS)) || (c == object_memory_special(SO_LARGENEG)))) {
         return false;
     }
-    p = (uint32_t *)(o + 16);
-    n = (int64_t)((byte_size(o) + 3) / 4);
+    p = (uint64_t *)(o + 16);
+    n = (int64_t)((byte_size(o) + 7) / 8);
     while ((n > 0) && (p[n - 1] == 0)) {
         n = n - 1;
     }
@@ -458,7 +503,7 @@ void prim_large_bit_shift(void)
     uint64_t m;
     int64_t k;
     int64_t n;
-    uint32_t *r;
+    uint64_t *r;
     int v;
     uint64_t v_2;
     memset(&local, 0, sizeof local);
@@ -470,8 +515,8 @@ void prim_large_bit_shift(void)
         prim_error_code = -1;
         return;
     }
-    m = s->count == 0 ? 0ULL : s->count == 1 ? (uint64_t)s->limbs[0] : (((uint64_t)s->limbs[1]) << 32) | s->limbs[0];
-    if ((s->count > 2) || (m > 0x10000000000LL)) {
+    m = s->count == 0 ? 0ULL : s->limbs[0];
+    if ((s->count > 1) || (m > 0x10000000000LL)) {
         m = 1099511627776ULL;
     }
     k = (int64_t)m;
@@ -481,8 +526,8 @@ void prim_large_bit_shift(void)
         return;
     }
     if (!s->neg) {
-        n = a->count + k / 32 + 1;
-        if (!(n * 4 <= (int64_t)max_heap_bytes)) {
+        n = a->count + k / 64 + 1;
+        if (!(n * 8 <= (int64_t)max_heap_bytes)) {
             prim_status = PS_FAIL;
             prim_error_code = PRIM_ERR_NO_MEMORY;
             return;
@@ -497,14 +542,14 @@ void prim_large_bit_shift(void)
         answer(r, n, a->neg);
         return;
     }
-    if (k / 32 >= a->count) {
+    if (k / 64 >= a->count) {
         v = a->neg ? -1 : 0;
         v_2 = (uint64_t)((((int64_t)v) << 1) | 1);
         prim_result = v_2;
         prim_status = PS_OK;
         return;
     }
-    n = a->count - k / 32;
+    n = a->count - k / 64;
     r = large_integer_primitives_scratch(n + 1);
     if (r == NULL) {
         prim_status = PS_FAIL;
@@ -578,7 +623,7 @@ void prim_large_mul(void)
     large_operand local_2;
     large_operand *b;
     int64_t n;
-    uint32_t *r;
+    uint64_t *r;
     memset(&local, 0, sizeof local);
     a = &local;
     memset(&local_2, 0, sizeof local_2);
@@ -594,7 +639,7 @@ void prim_large_mul(void)
         return;
     }
     n = a->count + b->count;
-    if (!(n * 4 <= (int64_t)max_heap_bytes)) {
+    if (!(n * 8 <= (int64_t)max_heap_bytes)) {
         prim_status = PS_FAIL;
         prim_error_code = PRIM_ERR_NO_MEMORY;
         return;
@@ -632,107 +677,131 @@ void prim_large_sub(void)
 }
 
 /* LargeIntegerPrimitives>>product:count:times:count:into: */
-static void product(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r)
+static void product(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r)
 {
-    int64_t i;
     uint64_t ai;
     uint64_t carry;
+    uint64_t local;
+    uint64_t *hi;
     int64_t j;
-    uint64_t t;
-    for (i = 0; i <= na - 1; i++) {
-        ai = (uint64_t)a[i];
-        carry = 0ULL;
-        for (j = 0; j <= nb - 1; j++) {
-            t = ai * b[j] + carry;
-            if (i > 0) {
-                t = t + r[i + j];
-            }
-            r[i + j] = (uint32_t)t;
-            carry = t >> 32;
+    int64_t i;
+    int64_t j_2;
+    memset(&local, 0, sizeof local);
+    hi = &local;
+    ai = a[0];
+    carry = 0;
+    for (j = 0; j <= nb - 1; j++) {
+        r[j] = lt_mul64(ai, b[j], carry, 0, hi);
+        carry = *hi;
+    }
+    r[nb] = carry;
+    for (i = 1; i <= na - 1; i++) {
+        ai = a[i];
+        carry = 0;
+        for (j_2 = 0; j_2 <= nb - 1; j_2++) {
+            r[i + j_2] = lt_mul64(ai, b[j_2], carry, r[i + j_2], hi);
+            carry = *hi;
         }
-        r[i + nb] = (uint32_t)carry;
+        r[i + nb] = carry;
     }
 }
 
 /* LargeIntegerPrimitives>>scratch: */
-static uint32_t *large_integer_primitives_scratch(int64_t n)
+static uint64_t *large_integer_primitives_scratch(int64_t n)
 {
     int64_t cap;
     if (n > scratch_limbs) {
         cap = n > scratch_limbs * 2 ? n : scratch_limbs * 2;
         free(scratch);
-        scratch = (uint32_t *)malloc((uint64_t)cap * 4);
+        scratch = (uint64_t *)malloc((uint64_t)cap * 8);
         scratch_limbs = scratch == NULL ? 0 : cap;
     }
     return scratch;
 }
 
 /* LargeIntegerPrimitives>>shift:count:left:into: */
-static void large_integer_primitives_shift_count_left_into(uint32_t *x, int64_t n, int64_t k, uint32_t *r)
+static void large_integer_primitives_shift_count_left_into(uint64_t *x, int64_t n, int64_t k, uint64_t *r)
 {
+    uint64_t carry;
+    uint64_t v;
     int64_t limbs;
     int64_t bits;
     int64_t i;
-    uint64_t carry;
     int64_t i_2;
-    uint64_t t;
-    limbs = k / 32;
-    bits = k % 32;
+    int64_t i_3;
+    limbs = k / 64;
+    bits = k % 64;
     for (i = 0; i <= limbs - 1; i++) {
         r[i] = 0;
     }
-    carry = 0ULL;
-    for (i_2 = 0; i_2 <= n - 1; i_2++) {
-        t = (((uint64_t)x[i_2]) << bits) | carry;
-        r[limbs + i_2] = (uint32_t)t;
-        carry = t >> 32;
+    if (bits == 0) {
+        for (i_2 = 0; i_2 <= n - 1; i_2++) {
+            r[limbs + i_2] = x[i_2];
+        }
+        r[limbs + n] = 0;
+        return;
     }
-    r[limbs + n] = (uint32_t)carry;
+    carry = 0;
+    for (i_3 = 0; i_3 <= n - 1; i_3++) {
+        v = x[i_3];
+        r[limbs + i_3] = (v << bits) | carry;
+        carry = v >> (64 - bits);
+    }
+    r[limbs + n] = carry;
 }
 
 /* LargeIntegerPrimitives>>shift:count:right:into: */
-static bool large_integer_primitives_shift_count_right_into(uint32_t *x, int64_t n, int64_t k, uint32_t *r)
+static bool large_integer_primitives_shift_count_right_into(uint64_t *x, int64_t n, int64_t k, uint64_t *r)
 {
+    uint64_t next;
     int64_t limbs;
     int64_t bits;
     bool lost;
     int64_t i;
     int64_t i_2;
-    uint64_t next;
-    limbs = k / 32;
-    bits = k % 32;
-    lost = (uint32_t)(((uint64_t)x[limbs]) << (32 - bits)) != 0;
+    limbs = k / 64;
+    bits = k % 64;
+    lost = (bits > 0) && ((x[limbs] << (64 - bits)) != 0);
     for (i = 0; i <= limbs - 1; i++) {
         if (x[i] != 0) {
             lost = true;
         }
     }
     for (i_2 = limbs; i_2 <= n - 1; i_2++) {
-        next = i_2 + 1 < n ? (uint64_t)x[i_2 + 1] : 0ULL;
-        r[i_2 - limbs] = (uint32_t)((((uint64_t)x[i_2]) >> bits) | (next << (32 - bits)));
+        if (bits == 0) {
+            r[i_2 - limbs] = x[i_2];
+        } else {
+            next = i_2 + 1 < n ? x[i_2 + 1] : 0;
+            r[i_2 - limbs] = (x[i_2] >> bits) | (next << (64 - bits));
+        }
     }
     return lost;
 }
 
 /* LargeIntegerPrimitives>>sum:count:plus:count:into: */
-static int64_t sum(uint32_t *a, int64_t na, uint32_t *b, int64_t nb, uint32_t *r)
+static int64_t sum(uint64_t *a, int64_t na, uint64_t *b, int64_t nb, uint64_t *r)
 {
     uint64_t carry;
-    int64_t i;
+    uint64_t x;
     uint64_t t;
+    uint64_t u;
+    int64_t i;
     int64_t i_2;
-    carry = 0ULL;
+    carry = 0;
     for (i = 0; i <= nb - 1; i++) {
-        t = (uint64_t)a[i] + b[i] + carry;
-        r[i] = (uint32_t)t;
-        carry = t >> 32;
+        x = a[i];
+        t = x + b[i];
+        u = t + carry;
+        carry = (t < x) || (u < t) ? 1ULL : 0ULL;
+        r[i] = u;
     }
     for (i_2 = nb; i_2 <= na - 1; i_2++) {
-        t = (uint64_t)a[i_2] + carry;
-        r[i_2] = (uint32_t)t;
-        carry = t >> 32;
+        x = a[i_2];
+        u = x + carry;
+        carry = u < x ? 1ULL : 0ULL;
+        r[i_2] = u;
     }
-    r[na] = (uint32_t)carry;
+    r[na] = carry;
     return na + 1;
 }
 

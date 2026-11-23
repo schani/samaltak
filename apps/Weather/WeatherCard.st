@@ -1,9 +1,9 @@
-Widget subclass: #WeatherCard
-	instanceVariableNames: 'report location error imperial onActivate onRefresh'
+OmarchyCard subclass: #WeatherCard
+	instanceVariableNames: 'report location error imperial'
 	classVariableNames: ''
 	package: 'Weather'!
 
-WeatherCard comment: 'I show the weather as the Omarchy desktop card and the bar''s weather panel do: the current conditions (the weather''s glyph, the temperature large, the place and FEELS, WIND, HUMID) above a hairline and the next three days (glyph, day, high and low), on the theme''s popup surface in its typeface and type scale (OmarchyTheme; other themes give me their paper, ink and code font). Until the first report I say what is going on.
+WeatherCard comment: 'I show the weather as the Omarchy desktop card and the bar''s weather panel do: the current conditions (the weather''s glyph, the temperature large, the place and FEELS, WIND, HUMID) above a hairline and the next three days (glyph, day, high and low), an OmarchyCard. Until the first report I say what is going on.
 
 A click runs onActivate (the app opens the bar''s weather panel), a middle click onRefresh.'!
 
@@ -29,62 +29,9 @@ imperial: aBoolean
 	imperial := aBoolean.
 	self invalidate
 !
-onActivate: aBlock
-	onActivate := aBlock
-!
-onRefresh: aBlock
-	onRefresh := aBlock
-!
 statusText
 	"What I show without a report."
 	^error isEmpty ifTrue: ['Fetching weather…'] ifFalse: [error]
-! !
-
-!WeatherCard methodsFor: 'theme'!
-omarchy
-	"The current theme if it is Omarchy's, else nil."
-	^(self theme respondsTo: #fontOfSize:bold:letterSpacing:) ifTrue: [self theme] ifFalse: [nil]
-!
-fontOfSize: pixels bold: aBoolean
-	^self fontOfSize: pixels bold: aBoolean tracking: 0
-!
-fontOfSize: pixels bold: aBoolean tracking: points
-	| font |
-	self omarchy ifNotNil: [:t | ^t fontOfSize: pixels bold: aBoolean letterSpacing: points].
-	font := Font faceNamed: (aBoolean ifTrue: ['JetBrainsMono-Bold'] ifFalse: ['JetBrainsMono-Regular']) size: pixels.
-	points = 0 ifFalse: [font letterSpacing: points].
-	^font
-!
-pixelsOf: aToken
-	"The shell's type scale (OmarchyTheme), or its defaults at base size 12."
-	self omarchy ifNotNil: [:t | ^t pixelsOf: aToken].
-	^(12 * (OmarchyTheme tokenFactors at: aToken)) rounded
-!
-space: points
-	self omarchy ifNotNil: [:t | ^t space: points].
-	^points
-!
-cardPadding
-	"The desktop card's padding (Style.spacing.panelPadding, 18) less its 2-point border, which the window manager's border replaces: Hyprland draws its border outside the window, the card inside its padding."
-	^(self omarchy ifNil: [18] ifNotNil: [:t | t metric: #panelPadding]) - (self space: 2)
-!
-background
-	self omarchy ifNotNil: [:t | ^t color: #popupBackground].
-	^self theme paper
-!
-foreground
-	self omarchy ifNotNil: [:t | ^t color: #popupText].
-	^self theme ink
-!
-dim
-	"Qt.darker(text, 1.4), as the card dims its labels."
-	^self darker: self foreground by: 1.4
-!
-dimmer
-	^self darker: self foreground by: 1.5
-!
-darker: aColor by: factor
-	^Color r: aColor red / factor g: aColor green / factor b: aColor blue / factor a: aColor alpha
 ! !
 
 !WeatherCard methodsFor: 'fonts'!
@@ -123,14 +70,6 @@ statusFont
 ! !
 
 !WeatherCard methodsFor: 'layout'!
-contentWidth
-	"The card's width without its padding: a column of desktop-cards on a 1512-point screen less the card's padding. desktop-cards (Layout.js) makes a column floor((1512 - 2 gaps - 2 gaps) / 3) wide, the gap 10 points: 490."
-	^490 - (2 * (self space: 18))
-!
-widthOf: aString in: aFont
-	"The width a Qt Text gives aString: its natural width (ink past the last advance included), in whole points."
-	^(aFont naturalWidthOf: aString) ceiling
-!
 heroHeight
 	^self heroLeftHeight max: self heroRightHeight
 !
@@ -148,24 +87,17 @@ forecastHeight
 !
 contentHeight
 	^self heroHeight + (self space: 14) + (self space: 1) + (self space: 14) + self forecastHeight
-!
-preferredExtent
-	^(self contentWidth + (2 * self cardPadding)) ceiling @ (self contentHeight + (2 * self cardPadding)) ceiling
 ! !
 
 !WeatherCard methodsFor: 'drawing'!
-drawSelfOn: aCanvas
-	| pad |
-	aCanvas fillRect: self localBounds color: self background.
-	pad := self cardPadding.
+drawContentOn: aCanvas width: w
 	report isNil ifTrue: [
-		^aCanvas drawString: self statusText at: pad @ pad font: self statusFont color: self dimmer].
-	aCanvas translateBy: pad @ pad during: [
-		self drawHeroOn: aCanvas.
-		aCanvas fillRect: (0 @ (self heroHeight + (self space: 14)) extent: (self width - (2 * pad)) @ (self space: 1))
-			color: (self foreground alpha: 0.12).
-		aCanvas translateBy: 0 @ (self heroHeight + (2 * (self space: 14)) + (self space: 1)) during: [
-			self drawForecastOn: aCanvas width: self width - (2 * pad)]]
+		^aCanvas drawString: self statusText at: 0 @ 0 font: self statusFont color: self dimmer].
+	self drawHeroOn: aCanvas.
+	aCanvas fillRect: (0 @ (self heroHeight + (self space: 14)) extent: w @ (self space: 1))
+		color: (self foreground alpha: 0.12).
+	aCanvas translateBy: 0 @ (self heroHeight + (2 * (self space: 14)) + (self space: 1)) during: [
+		self drawForecastOn: aCanvas width: w]
 !
 drawHeroOn: c
 	"Left: the glyph and the temperature, vertically centered; right: the place above the stats."
@@ -201,7 +133,7 @@ drawPlaceOn: c at: aPoint width: w
 	font := self placeFont.
 	c drawString: marker at: aPoint font: self markerFont color: self dim.
 	x := aPoint x + (self widthOf: marker in: self markerFont) + (self space: 6).
-	name := self class truncate: location name asUppercase to: w - (x - aPoint x) font: font.
+	name := self truncate: location name asUppercase to: w - (x - aPoint x) font: font.
 	c drawString: name at: x @ aPoint y font: font color: self dim
 !
 drawForecastOn: c width: width
@@ -259,20 +191,7 @@ unitText
 	^'°', (imperial ifTrue: ['F'] ifFalse: ['C'])
 ! !
 
-!WeatherCard methodsFor: 'events'!
-mouseDown: anEvent
-	anEvent button = 1 ifTrue: [onActivate isNil ifFalse: [onActivate value]. ^true].
-	anEvent button = 3 ifTrue: [onRefresh isNil ifFalse: [onRefresh value]. ^true].
-	^false
-!
-cursorAt: aPoint
-	^#hand
-! !
-
 !WeatherCard methodsFor: 'remote control'!
-remoteRole
-	^#card
-!
 remoteLabel
 	report isNil ifTrue: [^self statusText].
 	^(WeatherReport temperature: report temperature imperial: imperial), self unitText
@@ -282,14 +201,4 @@ remoteState
 	^Array
 		with: 'place=', (location isNil ifTrue: [''] ifFalse: [location name])
 		with: 'days=', (report days collect: [:d | d dayName]) printString
-! !
-
-!WeatherCard class methodsFor: 'text'!
-truncate: aString to: width font: aFont
-	"aString, cut with an ellipsis to fit width points."
-	| s |
-	(aFont naturalWidthOf: aString) <= width ifTrue: [^aString].
-	s := aString.
-	[s notEmpty and: [(aFont naturalWidthOf: s, '…') > width]] whileTrue: [s := s allButLast].
-	^s, '…'
 ! !

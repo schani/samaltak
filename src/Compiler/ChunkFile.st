@@ -1,7 +1,7 @@
 Object subclass: #ChunkFile
 	instanceVariableNames: 'text chunks sections methods'
 	classVariableNames: ''
-	package: 'Tools'!
+	package: 'Compiler'!
 
 ChunkFile comment: 'I am the text of a chunk-format source file (src/<package>/<Class>.st): definitions and comments as top-level chunks, methods in sections "!!X methodsFor: ''category''!!" ... "!! !!". I find and change single chunks in place, so a file stays byte-for-byte the same except for the method, comment or definition that changed (SourceFiler uses me for the browser''s accept).
 

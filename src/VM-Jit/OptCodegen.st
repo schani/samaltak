@@ -1063,7 +1063,7 @@ emitSizeOf: x kind: ek fixed: fixed
 	asm sub: X16 with: X16 with: X17
 !
 emitIndexCheck: n
-	"X17 := the 0-based element index of n's index operand (a SmallInteger) in its object, deoptimizing if it is out of bounds; answer the object's register."
+	"X17 := the 0-based element index of n's index operand (a SmallInteger) in its object (1-based on x86 where no bounds are checked), deoptimizing if it is out of bounds; answer the object's register."
 	| nd x i s |
 	nd := ir node: n.
 	(nd flags bitAnd: NF_NOBOUNDS) ~= 0 ifTrue: [
@@ -1071,7 +1071,8 @@ emitIndexCheck: n
 		asm comment: 'within bounds: checked once before the loop'.
 		i := self src: nd b into: self scratchB.
 		asm asr: X17 with: i imm: 1.
-		asm sub: X17 with: X17 imm: 1.
+		"x86: the 1-based index, the element's address one displacement (indexDisplacementOf:)"
+		asm isX64 ifFalse: [asm sub: X17 with: X17 imm: 1].
 		^x].
 	s := self deoptLabelFor: n.
 	x := self src: nd a into: self scratchA.
@@ -1084,11 +1085,55 @@ emitIndexCheck: n
 	asm b: s if: COND_HS.
 	^x
 !
+indexDisplacementOf: n
+	"x86: the element's address is the object's plus X17 times the element size plus this (emitIndexCheck: leaves a 1-based index where no bounds are checked)."
+	| nd size |
+	nd := ir node: n.
+	size := nd aux asInt32 = E_PTR ifTrue: [8] ifFalse: [1].
+	^16 + (8 * nd aux2) - ((nd flags bitAnd: NF_NOBOUNDS) ~= 0 ifTrue: [size] ifFalse: [0])
+!
+emitByteStoreX64: n object: x label: s
+	"x86: emitIndexStore: of a byte or a Character below 256 at the object x, the index in X17: the value into X16 and stored with one addressing mode."
+	| nd v ek |
+	nd := ir node: n.
+	ek := nd aux asInt32.
+	v := self src: nd c into: self scratchB.
+	(nd flags bitAnd: NF_INRANGE) = 0 ifTrue: [
+		ek = E_BYTE
+			ifTrue: [
+				asm tst: v imm: 1.
+				asm b: s if: COND_EQ]
+			ifFalse: [
+				asm and: X16 with: v imm: 7.
+				asm cmp: X16 imm: 2.
+				asm b: s if: COND_NE]].
+	asm comment: ((nd flags bitAnd: NF_INRANGE) ~= 0 ifTrue: ['a byte or a Character below 256: unchecked'] ifFalse: ['a byte or a Character: below 256?']).
+	asm lsr: X16 with: v imm: (ek = E_BYTE ifTrue: [1] ifFalse: [3]).
+	(nd flags bitAnd: NF_INRANGE) = 0 ifTrue: [
+		asm cmp: X16 imm: 255.
+		asm b: s if: COND_HI].
+	asm strb: W16 base: x index: X17 offset: (self indexDisplacementOf: n)
+!
 emitIndexLoad: n
 	| nd x r ek |
 	nd := ir node: n.
 	ek := nd aux asInt32.
 	x := self emitIndexCheck: n.
+	asm isX64 ifTrue: [
+		"one addressing mode: the object, the index, the header and fixed fields as the displacement"
+		r := self dst: n.
+		ek = E_PTR ifTrue: [
+			asm ldr: r base: x index: X17 shift: 3 offset: (self indexDisplacementOf: n).
+			^self def: n from: r].
+		asm ldrb: W16 base: x index: X17 offset: (self indexDisplacementOf: n).
+		ek = E_BYTE
+			ifTrue: [
+				asm lsl: X16 with: X16 imm: 1.
+				asm orr: r with: X16 imm: 1]
+			ifFalse: [
+				asm lsl: X16 with: X16 imm: 3.
+				asm orr: r with: X16 imm: 2].
+		^self def: n from: r].
 	asm add: X16 with: x imm: 16 + (8 * nd aux2).
 	r := self dst: n.
 	ek = E_PTR ifTrue: [
@@ -1115,8 +1160,10 @@ emitIndexStore: n
 		asm ldr: X16 base: x offset: 0.
 		asm tst: X16 imm: H_IMMUTABLE.
 		asm b: s if: COND_NE].
-	asm add: X16 with: x imm: 16 + (8 * nd aux2).
-	asm add: X16 with: X16 with: X17 shift: SHIFT_LSL amount: (ek = E_PTR ifTrue: [3] ifFalse: [0]).
+	(asm isX64 and: [ek ~= E_PTR]) ifTrue: [^self emitByteStoreX64: n object: x label: s].
+	asm isX64 ifFalse: [
+		asm add: X16 with: x imm: 16 + (8 * nd aux2).
+		asm add: X16 with: X16 with: X17 shift: SHIFT_LSL amount: (ek = E_PTR ifTrue: [3] ifFalse: [0])].
 	v := self src: nd c into: self scratchB.
 	ek ~= E_PTR ifTrue: [
 		(nd flags bitAnd: NF_INRANGE) ~= 0 ifTrue: [
@@ -1138,7 +1185,9 @@ emitIndexStore: n
 		asm b: s if: COND_HI.
 		asm strb: W17 base: X16 offset: 0.
 		^self].
-	asm str: v base: X16 offset: 0.
+	asm isX64
+		ifTrue: [asm str: v base: x index: X17 shift: 3 offset: (self indexDisplacementOf: n)]
+		ifFalse: [asm str: v base: X16 offset: 0].
 	(ir node: nd c) op asInt32 = O_CONST ifTrue: [
 		(((ir node: nd c) aux bitAnd: 7) ~= 0 or: [(self isYoung: (ir node: nd c) aux asUInt64) not]) ifTrue: [^self]].
 	done := asm newLabel.
@@ -1206,9 +1255,18 @@ emitAddSub: n
 !
 emitDivShift: n
 	"SmallInteger modulo and division (floored, aux 1 truncated: rem: quo:, aux 2 exact: /, a remainder deoptimizes; a zero divisor deoptimizes; \\ by a divisor that turns out a positive power of two: a mask) and bitShift: (a result that does not fit deoptimizes)."
-	| nd s op neg done d k r general |
+	| nd s op neg done d k r general b |
 	nd := ir node: n.
 	op := nd op asInt32.
+	b := ir node: nd b.
+	(op = O_ISHIFT and: [b op asInt32 = O_CONST and: [(self isInt: b aux asUInt64) and: [(self intVal: b aux asUInt64) < 0]]]) ifTrue: [
+		"right by a constant k, on the tagged value 2x + 1: shifted by k it is 2(x >> k) or 2(x >> k) + 1"
+		k := (self intVal: b aux asUInt64) negated min: 63.
+		r := self dst: n.
+		asm comment: 'bitShift: right by the constant %d' with: k.
+		asm asr: r with: (self src: nd a into: self scratchA) imm: k.
+		asm orr: r with: r imm: 1.
+		^self def: n from: r].
 	d := self constantDivisorOf: n.
 	(nd aux = 0 and: [d > 1 and: [(d bitAnd: d - 1) = 0 and: [d < 16r40000000]]]) ifTrue: [
 		"floored by 2^k, on the tagged value 2x + 1: shifted right by k it is the quotient's 2q or 2q + 1, its low k + 1 bits are the remainder's 2r + 1"

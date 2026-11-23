@@ -724,7 +724,7 @@ compile: m mode: md notes: wantNotes
 	<var: #h type: 'JitMethod *'>
 	| t0 dt start ok h err |
 	self ensureOpen ifFalse: [^self null].
-	t0 := scheduler threadCpuUs.
+	t0 := scheduler pauseCharging.
 	start := cache top.
 	mapCount := 0.
 	cache beginWriting.
@@ -740,7 +740,7 @@ compile: m mode: md notes: wantNotes
 		asm recordNotes: false.
 		cache endWritingFrom: start size: 0.
 		flushPending := true.
-		scheduler uncharge: scheduler threadCpuUs - t0.
+		scheduler resumeCharging.
 		^self null].
 	(ok and: [asm isOK: err])
 		ifTrue: [h := self finish: m code: start mode: md]
@@ -751,7 +751,7 @@ compile: m mode: md notes: wantNotes
 	cache endWritingFrom: start size: cache top - start.
 	h isNull ifTrue: [
 		flushPending := true.
-		scheduler uncharge: scheduler threadCpuUs - t0.
+		scheduler resumeCharging.
 		^self null].
 	(self hasCode: h) ifTrue: [
 		statCompiled := statCompiled + 1.
@@ -759,9 +759,8 @@ compile: m mode: md notes: wantNotes
 		statCodeBytes := statCodeBytes + h codeSize.
 		(perfMap notNull and: [copying not]) ifTrue: [self perfMapCode: h mode: md]].
 	"CPU time, the VM's: not charged to the running Process"
-	dt := scheduler threadCpuUs - t0.
+	dt := scheduler resumeCharging - t0.
 	statCompileUs := statCompileUs + dt asUInt64.
-	scheduler uncharge: dt.
 	^h
 !
 finish: m code: start mode: md

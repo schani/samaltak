@@ -163,6 +163,9 @@ windowRefreshRate: window
 window: window title: aString
 	^self display window: window title: aString
 !
+window: window width: w height: h
+	^self display window: window width: w height: h
+!
 window: window textInputAreaX: x y: y width: w height: h cursor: cursorX
 	^self display window: window textInputAreaX: x y: y width: w height: h cursor: cursorX
 !

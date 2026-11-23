@@ -274,6 +274,17 @@ primWindowSetTitle
 	libc free: t.
 	self answerOk: ok
 !
+primWindowSetSize
+	"win width height (points)"
+	<vmPrimitive: 421 name: 'windowSetSize'>
+	| w wd h |
+	(self args: 3) ifFalse: [^self fail].
+	w := self intArg: 0.
+	wd := self intArg: 1.
+	h := self intArg: 2.
+	(bad or: [wd < 1 or: [h < 1]]) ifTrue: [^self fail].
+	self answerOk: (windows setSize: w asInt32 width: wd asInt32 height: h asInt32)
+!
 primWindowSetTextInputArea
 	"win x y w h cursor (points; cursor: x of the caret within the rectangle)"
 	<vmPrimitive: 419 name: 'windowSetTextInputArea'>

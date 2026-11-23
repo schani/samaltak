@@ -404,7 +404,7 @@ testCpuMicroseconds
 	"Processes are charged CPU time: on a loaded machine 20 ms of it take longer."
 	t := Time millisecondClockValue.
 	[p cpuMicroseconds - before < 20000 and: [Time millisecondClockValue - t < 10000]] whileTrue: [300 factorial].
-	"cpuTime only advances at process switches; cpuMicroseconds includes the running slice."
+	"cpuMicroseconds settles cpuTime, which lags, first."
 	self assert: p cpuMicroseconds - before >= 20000.
 	"cpuTime first: a switch between the two reads advances it"
 	ct := p cpuTime.
@@ -505,7 +505,7 @@ testFramesAndMarks
 		start := Time microsecondClockValue.
 		self busyFor: i * 3 untilSamples: 1.
 		end := Time microsecondClockValue.
-		"The active process's cpuTime only advances at process switches, so use the wall time it ran."
+		"The active process's cpuTime lags (the VM settles it in batches), so use the wall time it ran."
 		Profiler recordFrame: (FrameRecord
 			start: start end: end
 			processTimes: (IdentityDictionary new at: Processor activeProcess put: end - start; yourself)

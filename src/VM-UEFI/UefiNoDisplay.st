@@ -457,6 +457,15 @@ setTextInputArea: win x: x y: y width: w height: h cursor: c
 	common setError: 'not on UEFI'.
 	^false
 !
+setSize: win width: w height: h
+	<function>
+	<var: #win type: 'int32_t'>
+	<var: #w type: 'int32_t'>
+	<var: #h type: 'int32_t'>
+	<returns: 'bool'>
+	common setError: 'not on UEFI'.
+	^false
+!
 setTitle: win title: title
 	<function>
 	<var: #win type: 'int32_t'>

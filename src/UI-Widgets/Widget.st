@@ -309,6 +309,8 @@ contextualKeyDown: event
  | context key |
  event modifiers commandKey ifFalse: [^false].
  (self respondsTo: #agentContext) ifFalse: [^false].
+ "The actions are the tools' (ActionContext): an application's runtime image has none."
+ (Smalltalk includesKey: #ActionContext) ifFalse: [^false].
  key := event key.
  key isCharacter ifFalse: [^false].
  key := key asLowercase.
@@ -490,7 +492,7 @@ printOn: aStream
 !Widget methodsFor: 'clipboard'!
 clipboardText: aString
  | w |
- (Smalltalk at: #ActionContext) copied: nil.
+ (Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | actions copied: nil].
  FallbackClipboard := aString.
  w := self window.
  w isNil ifFalse: [w clipboard: aString]

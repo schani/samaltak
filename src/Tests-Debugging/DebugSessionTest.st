@@ -34,7 +34,7 @@ sessionOn: aSelector running: aBlock
 	^self waitForSession
 !
 waitUntilRunning: aProcess
-	"Wait until aProcess has had the CPU (its cpuTime grows when it is switched out)."
+	"Wait until aProcess has had the CPU (its cpuMicroseconds grows)."
 	| cpu |
 	cpu := aProcess cpuMicroseconds.
 	self assert: (self waitFor: [aProcess cpuMicroseconds > cpu]) description: 'the process did not run'

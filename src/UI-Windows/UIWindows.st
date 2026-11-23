@@ -14,10 +14,10 @@ initialize
 	Smalltalk addToStartUpList: self.
 	Smalltalk addToShutDownList: self.
 	SystemChanges subscribe: #UIWindows do: [:change |
-		(self isDrawingChange: change) ifTrue: [World current ifNotNil: [:world | world restyle]]].
+		(self isDrawingChange: change) ifTrue: [World restyleAll]].
 	Renderer shaderErrorHandler: [:error | self reportShaderError: error].
 	DebugSession subscribe: #UIWindows do: [:process :event |
-		World current ifNotNil: [:world | world debugged: process changed: event]]
+		World allDo: [:world | world debugged: process changed: event]]
 !
 isDrawingChange: aSystemChange
 	"Answer whether aSystemChange may change what is on the screen: views and the drawing packages."
@@ -59,17 +59,21 @@ shutDown: quitting
 runMainAction
 	"The kernel's main action. The World runs in its own Processes, so the main Process ends after the startup action. With --app the application runs instead of the World."
 	Smalltalk isHeadless ifTrue: [^self runHeadless].
-	Smalltalk appClasses isEmpty ifFalse: [^self runApp].
+	(Smalltalk appClasses notEmpty or: [(Smalltalk argumentAfter: '--run') notNil]) ifTrue: [^self runApp].
 	self startUp.
 	self runStartupAction
 !
 runApp
-	"--app <directory>: run the application its package defines (a subclass of Application, UI-Widgets) in a window of the host's window manager (AppWorld)."
-	| base app |
+	"--app <directory>: run the application its package defines (a subclass of Application, UI-Widgets) in a window of the host's window manager (AppWorld). --run <class name>: run that Application of the image (AgentApp)."
+	| base app name |
 	base := Smalltalk at: #Application ifAbsent: [nil].
-	app := base isNil ifFalse: [Smalltalk appClasses detect: [:c | c ~~ base and: [c inheritsFrom: base]] ifNone: [nil]].
+	name := Smalltalk argumentAfter: '--run'.
+	app := base isNil ifFalse: [
+		name isNil
+			ifTrue: [Smalltalk appClasses detect: [:c | c ~~ base and: [c inheritsFrom: base]] ifNone: [nil]]
+			ifFalse: [(Smalltalk at: name asSymbol ifAbsent: [nil]) ifNotNil: [:c | (c isBehavior and: [c inheritsFrom: base]) ifTrue: [c]]]].
 	app isNil ifTrue: [
-		Smalltalk vm stderrWrite: 'Samaltak: the --app package defines no Application', (String with: Character lf).
+		Smalltalk vm stderrWrite: (name isNil ifTrue: ['Samaltak: the --app package defines no Application'] ifFalse: ['Samaltak: no Application named ', name]), (String with: Character lf).
 		^Smalltalk quit: 1].
 	app run.
 	ControlServer current isNil ifFalse: [UIRemote installOn: World current]

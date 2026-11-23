@@ -51,3 +51,9 @@ openPanel
 	[(OSProcess command: 'omarchy-shell -q shell toggle omarchy.weather') start; wait]
 		forkAt: Processor userBackgroundPriority
 ! !
+
+!WeatherApp methodsFor: 'agent'!
+agentContext
+	"The Agent of my right-click menu also has my service (what it fetched, and fetching again)."
+	^super agentContext bind: #service to: service; yourself
+! !

@@ -1286,6 +1286,8 @@ intrinsic: aSelector arguments: argNodes node: aNode valueWanted: aBoolean
 	aSelector == #bitsOfDouble: ifTrue: [^CCall function: 'lt_bits_of_double' arguments: (Array with: (self expression: argNodes first)) type: (registry at: 'uint64_t')].
 	aSelector == #varargBits: ifTrue: [^self varargBits: (self expression: argNodes first)].
 	aSelector == #doubleFromBits: ifTrue: [^CCall function: 'lt_double_from_bits' arguments: (Array with: (self expression: argNodes first)) type: (registry at: 'double')].
+	aSelector == #mul64:by:plus:plus:high: ifTrue: [^CCall function: 'lt_mul64' arguments: (argNodes collect: [:n | self expression: n]) asArray type: (registry at: 'uint64_t')].
+	aSelector == #div128:low:by:remainder: ifTrue: [^CCall function: 'lt_div128' arguments: (argNodes collect: [:n | self expression: n]) asArray type: (registry at: 'uint64_t')].
 	aSelector == #atomicLoad: ifTrue: [
 		| g |
 		g := self atomicVariable: argNodes first.

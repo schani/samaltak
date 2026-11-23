@@ -232,7 +232,7 @@ current: aTheme
 themeChanged
 	"My methods or Color's changed: the current theme defines itself again and everything redraws."
 	Current isNil ifFalse: [Current refresh].
-	World current ifNotNil: [:world | world restyle]
+	World restyleAll
 !
 reset
 	Current isNil ifFalse: [Current reset]

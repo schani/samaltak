@@ -1,7 +1,7 @@
 Widget subclass: #AgentItemView
 	instanceVariableNames: 'item shown heights'
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentItemView comment: 'I am the abstract view of one AgentItem in an AgentWindow''s transcript (AgentTranscript), as tall as heightFor: my width answers. AgentItemView for: anItem answers the view for its kind (nil: not shown, e.g. #reasoning): the seam for richer views. refresh redraws me when what I show of the item changed (an assistant message grows while it streams, a cell gets its result).
 

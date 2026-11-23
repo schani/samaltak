@@ -1449,6 +1449,14 @@ guessedClassOf: x
 		(nd op asInt32 = O_GUARDCLASS and: [nd block >= 0 and: [nd a = n or: [nd a = x]]]) ifTrue: [^nd aux asUInt64]].
 	^memory clsArray
 !
+anyImmediate: site count: n
+	"Whether one of the first n classes site reports is a class of immediates (SmallInteger, Character, SmallFloat64)."
+	| c |
+	0 to: n - 1 do: [:i |
+		c := site classes at: i.
+		(c = memory clsSmallint or: [c = memory clsChar or: [c = memory clsSmallfloat]]) ifTrue: [^true]].
+	^false
+!
 sawOnlyIntsAt: pc act: a
 	"The send at a's pc reported no receiver class but SmallInteger (the lower tier's inline paths report none)."
 	| site |
@@ -1613,7 +1621,8 @@ sendSelector: sel argc: argc kind: kind special: k pc: pc act: a rcvSlot: r
 inlineSend: sel argc: argc kind: kind special: k pc: pc act: a rcvSlot: r
 	"Inline the send for the receiver classes it is known or speculated to have; answer whether it did."
 	<function>
-	| rcv cls site n merge s test next t g fl other andInts |
+	<var: #rcvClass type: 'int32_t'>
+	| rcv cls site n merge s test next t g fl other andInts rcvClass |
 	rcv := self read: (self var: a slot: r).
 	kind = 1 ifTrue: [
 		cls := self loadRef: (self loadRef: (ir act: a) method at: CM_CLASS) at: BEH_SUPERCLASS.
@@ -1651,12 +1660,20 @@ inlineSend: sel argc: argc kind: kind special: k pc: pc act: a rcvSlot: r
 	merge := ir newBlock.
 	(ir block: merge) act: a.
 	andInts ifTrue: [n := n + 1].
+	"between classes of objects (no immediates): the class loaded once, compared with each (value numbering shares the load with other switches on the value)"
+	rcvClass := -1.
+	(andInts not and: [n > 1 and: [(self anyImmediate: site count: n) not]]) ifTrue: [
+		rcvClass := self add: O_CLASSOF rep: R_OOP.
+		(ir node: rcvClass) a: rcv].
 	0 to: n - 1 do: [:i |
 		cls := (andInts and: [i = (n - 1)]) ifTrue: [memory clsSmallint] ifFalse: [site classes at: i].
-		test := self add: O_CLASSIS rep: R_OOP.
-		(ir node: test) a: rcv.
-		(ir node: test) aux: cls asInt64.
-		(ir node: test) tkind: T_BOOL.
+		rcvClass >= 0
+			ifTrue: [test := self compare: O_EQ a: rcvClass b: (self constant: cls)]
+			ifFalse: [
+				test := self add: O_CLASSIS rep: R_OOP.
+				(ir node: test) a: rcv.
+				(ir node: test) aux: cls asInt64.
+				(ir node: test) tkind: T_BOOL].
 		t := ir newBlock.
 		(ir block: t) act: a.
 		next := ir newBlock.

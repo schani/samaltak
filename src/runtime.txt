@@ -1,6 +1,6 @@
 # The packages of the runtime image (build/runtime.image, make runtime) that applications run on (docs/apps.md):
 # the kernel, the compiler (apps are filed in from source), files, sockets, HTTP and JSON, the GPU, the Canvas, the
-# window system, the widgets and the Omarchy theme; not the development tools, the tests, the VM's own sources
+# window system, the widgets, the Omarchy theme and the agent (its window opens from an application's menu); not the development tools, the tests, the VM's own sources
 # (simulator, JIT, translator, image builder) or the UEFI drivers. One package a line; packages.txt gives their order
 # and layers.
 Kernel-Objects
@@ -20,8 +20,10 @@ System-Debugging
 Compiler
 System-Remote
 System-Net
+System-Agent
 Graphics-GPU
 Graphics-Canvas
 UI-Windows
 UI-Widgets
 UI-Omarchy
+UI-Agent

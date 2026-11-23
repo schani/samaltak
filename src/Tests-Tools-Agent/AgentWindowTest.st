@@ -335,12 +335,12 @@ testMethodBrowserContext
 !
 testFileBrowserContext
 	| window browser context |
-	window := self open: [FileBrowser openOn: 'src/Tools-Agent/AgentWindow.st' at: 60 @ 60].
+	window := self open: [FileBrowser openOn: 'src/UI-Agent/AgentWindow.st' at: 60 @ 60].
 	browser := window content.
 	context := self in: window do: [browser viewer selectFrom: 1 to: 12. browser agentContext].
-	self assert: ((self valueOf: #path in: context) endsWith: '/src/Tools-Agent/AgentWindow.st').
+	self assert: ((self valueOf: #path in: context) endsWith: '/src/UI-Agent/AgentWindow.st').
 	self assert: (self valueOf: #entry in: context) == browser file.
-	self assert: context selection equals: 'ToolPane sub'.
+	self assert: context selection equals: 'Column subcl'.
 	context := self in: window do: [browser reveal: 'src/Tools-Agent'. browser agentContext].
 	self assert: ((self valueOf: #path in: context) endsWith: '/src/Tools-Agent').
 	self assert: context selection isNil.

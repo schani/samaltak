@@ -1,7 +1,7 @@
 TextEditor subclass: #ToolTextEditor
 	instanceVariableNames: ''
 	classVariableNames: ''
-	package: 'Tools'!
+	package: 'UI-Widgets'!
 
 ToolTextEditor comment: 'I am the tools'' text editor: a TextEditor that also takes the keys when remote control selects text in me (samaltak-ctl select), as selecting with the mouse does, so a following key command (⌘P) acts on that selection instead of first clicking somewhere into me.'!
 

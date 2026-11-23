@@ -145,6 +145,18 @@ testRenameAndDirectories
 	self assert: Directory current notEmpty.
 	self should: [Directory entries: dir / 'missing'] raise: FileError
 !
+testWriteSecret
+	"A secret replaces the file whole (through a temporary file, gone afterwards); the file is created private (mode 600, not checked here: File stat has no mode)."
+	| path |
+	path := dir / 'secret.json'.
+	File writeSecret: 'one' to: path.
+	self assert: (File readText: path) equals: 'one'.
+	File writeSecret: 'two' to: path.
+	self assert: (File readText: path) equals: 'two'.
+	self deny: (File exists: path, '.tmp').
+	FileStream forceNewPrivateFileNamed: path do: [:s | s nextPutAll: 'three'].
+	self assert: (File readText: path) equals: 'three'
+!
 testPaths
 	self assert: 'a' / 'b' = 'a/b'.
 	self assert: 'a/' / 'b' = 'a/b'.

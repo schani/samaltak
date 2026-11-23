@@ -4,8 +4,9 @@
 #   samaltak                         the Samaltak desktop (the World)
 #   samaltak run <app dir> [opt...]  file in the package <app dir> (e.g. apps/Weather) and run its Application
 #                                    in a window of its own; options go to the image (--control, --profile ...)
+#   samaltak agent [opt...]          the Agent in a window of its own (AgentApp); an app's right-click menu opens it on the app
 #   samaltak test <app dir> [name...]  run the app's tests headless (default: all of its package)
-#   samaltak install <app dir>       add the app to the desktop's launcher (an XDG .desktop entry)
+#   samaltak install <app dir>|agent add the app (or the agent) to the desktop's launcher (an XDG .desktop entry)
 #
 # Apps run on the runtime image build/runtime.image next to this script (make runtime builds it: the packages of
 # src/runtime.txt), or $SAMALTAK_IMAGE; the desktop on build/samaltak.image. The VM is vm/build/samaltak, or $SAMALTAK_VM. An app's Wayland app_id (Hyprland's window class) is org.samaltak.<name>
@@ -41,28 +42,39 @@ run)
 	SDL_APP_ID=${SDL_APP_ID:-$(app_id "$dir")}
 	export SDL_APP_ID
 	exec "$vm" "$runtime" --app "$dir" "$@" ;;
+agent)
+	[ -f "$runtime" ] || die "no runtime image at $runtime (run make runtime in $root)"
+	SDL_APP_ID=${SDL_APP_ID:-org.samaltak.agent}
+	export SDL_APP_ID
+	exec "$vm" "$runtime" --run AgentApp "$@" ;;
 test)
 	dir=$(app_dir "$@"); shift
 	[ -f "$runtime" ] || die "no runtime image at $runtime (run make runtime in $root)"
 	[ $# -gt 0 ] || set -- "$(app_name "$dir")"
 	exec "$vm" "$runtime" --headless --load "$dir" --test "$@" ;;
 install)
-	dir=$(app_dir "$@")
-	name=$(app_name "$dir")
-	id=$(app_id "$dir")
+	if [ "${1:-}" = agent ]; then
+		name=Agent id=org.samaltak.agent comment="The Samaltak agent" exec="\"$root/bin/samaltak\" agent"
+	else
+		dir=$(app_dir "$@")
+		name=$(app_name "$dir")
+		id=$(app_id "$dir")
+		comment="$name (Samaltak, from $dir)"
+		exec="\"$root/bin/samaltak\" run \"$dir\""
+	fi
 	target=${XDG_DATA_HOME:-$HOME/.local/share}/applications/$id.desktop
 	mkdir -p "$(dirname "$target")"
 	cat > "$target" <<EOF
 [Desktop Entry]
 Type=Application
 Name=$name
-Comment=$name (Samaltak, from $dir)
-Exec="$root/bin/samaltak" run "$dir"
+Comment=$comment
+Exec=$exec
 Terminal=false
 StartupWMClass=$id
 Categories=Utility;
 EOF
 	echo "samaltak: installed $target" ;;
 *)
-	die "unknown command $cmd (run, test, install)" ;;
+	die "unknown command $cmd (run, agent, test, install)" ;;
 esac

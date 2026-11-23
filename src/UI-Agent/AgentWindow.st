@@ -1,13 +1,15 @@
-ToolPane subclass: #AgentWindow
+Column subclass: #AgentWindow
 	instanceVariableNames: 'conversation origin account transcript pane card askEditor sendButton stopButton status signOutButton updateQueued login'
 	classVariableNames: 'Account'
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
-AgentWindow comment: 'I am the Agent window (docs/agent.md, prototypes/5-agent/6-chosen.html): a view of an AgentConversation. ⌘J in a tool (Tools open: #agent with: aTool) opens me on a conversation with the tool''s agentContext, or brings back the one already open for that tool. Top to bottom: the context strip (what the tool bound), the transcript (AgentTranscript in a ScrollPane, following the end), the ASK editor (Return sends, Shift-Return is a new line) with Send and Stop, and the status bar (model, account, tokens of the last response, working…) with Sign out. Signed out, the login card (AgentLoginCard) replaces the transcript; the device login runs in a Process of its own.
+AgentWindow comment: 'I am the Agent window (docs/agent.md, prototypes/5-agent/6-chosen.html): a view of an AgentConversation. On the desktop ⌘J in a tool (Tools open: #agent with: aTool, Tools-Agent) opens me on a conversation with the tool''s agentContext, or brings back the one already open for that tool. An application''s right-click menu (Agent) opens me as a window of the host''s window manager, on the application''s agentContext (openNativeFor:); so does bin/samaltak agent, on nothing (AgentApp). Top to bottom: the context strip (what the tool bound), the transcript (AgentTranscript in a ScrollPane, following the end), the ASK editor (Return sends, Shift-Return is a new line) with Send and Stop, and the status bar (model, account, tokens of the last response, working…) with Sign out. Signed out, the login card (AgentLoginCard) replaces the transcript; the device login runs in a Process of its own.
 
 The conversation notifies me in its turn''s Process; I redraw in my window''s Process, at most one update queued at a time. The account and the provider block on the network: I call them from other Processes only. Closing me stops a running turn and cancels a pending login.
 
-	AgentWindow openFor: aWorkspace
+In a host window of my own the sign-in is kept in a file only the user may read (accountPath, OpenAIAccount>>keepIn:), so every application and later runs share it.
+
+	AgentWindow openNativeFor: anApplication
 	AgentWindow account: anAccountDouble   "tests; nil: OpenAIAccount default"
 
 Remote names: transcript (items user-3, code-4, show-5 with its inspect button …), login (sign-in url code copy message), ask, send, stop, status, sign-out.'!
@@ -52,6 +54,44 @@ contextStrip
 !
 minimumWindowExtent
 	^420 @ 360
+! !
+
+!AgentWindow methodsFor: 'opening'!
+openIn: aRectangle title: aString
+	"Open me in a new Window of the desktop (with its own Process) framed by aRectangle; answer the Window."
+	| w |
+	w := Desktop newWindow title: aString; content: self; bounds: aRectangle; yourself.
+	w minExtent: self minimumWindowExtent.
+	w whenClosed: [self windowClosed].
+	w open.
+	^w
+!
+openNativeTitle: aString hidden: aBoolean
+	"Open me in a host window of my own (an AppWorld that is not the application's main one: closing it closes only me); answer my AppWindow."
+	| world w |
+	world := AppWorld openExtent: 720 @ 640 title: aString hidden: aBoolean main: false resizable: true.
+	world deskColor: self theme paper.
+	w := AppWindow new title: aString; content: self; yourself.
+	w whenClosed: [self windowClosed].
+	w openIn: world.
+	^w
+! !
+
+!AgentWindow methodsFor: 'events'!
+keyDown: event
+	"? shows the tools' help, where there are tools (not in an application's runtime image)."
+	| tools |
+	tools := Smalltalk at: #Tools ifAbsent: [nil].
+	(tools notNil and: [self isHelpKey: event]) ifTrue: [tools showHelp. ^true].
+	^super keyDown: event
+!
+isHelpKey: anEvent
+	| key focus |
+	key := anEvent key.
+	anEvent modifiers commandKey ifTrue: [^false].
+	(key = $? or: [key = $/ and: [anEvent modifiers shift]]) ifFalse: [^false].
+	focus := self window isNil ifTrue: [nil] ifFalse: [self window keyboardFocus].
+	^(focus isKindOf: TextEditor) not or: [focus isReadOnly]
 ! !
 
 !AgentWindow methodsFor: 'accessing'!
@@ -185,20 +225,40 @@ openOn: anAgentConversation origin: aToolOrNil in: aRectangle
 	window do: [view update. view askEditor focus].
 	^window
 !
-openFor: aTool
-	^self openFor: aTool context: aTool
+openNativeOn: anAgentConversation origin: anObjectOrNil hidden: aBoolean
+	"Open me on anAgentConversation in a host window of my own (hidden: offscreen, for tests); answer my AppWindow."
+	| view window |
+	self account == OpenAIAccount default ifTrue: [OpenAIAccount default keepIn: self accountPath].
+	view := self new setConversation: anAgentConversation origin: anObjectOrNil account: self account.
+	window := view openNativeTitle: 'Agent — ', anAgentConversation context label hidden: aBoolean.
+	window do: [view update. view askEditor focus].
+	^window
 !
-openFor: aToolOrNil context: aContext
-	"⌘J opens the Agent for a tool on aContext's agentContext, bringing it back if already open."
+openNativeFor: anObject
+	^self openNativeFor: anObject hidden: false
+!
+openNativeFor: anObject hidden: aBoolean
+	"The Agent on anObject's agentContext (an Application's right-click menu) in a host window of its own; the one already open for anObject comes to the front instead."
 	| existing |
-	existing := aToolOrNil isNil ifFalse: [(Tools windowsOf: self) detect: [:each | each content origin == aToolOrNil] ifNone: [nil]].
-	existing isNil ifFalse: [existing focus. ^existing].
-	^self openOn: (AgentConversation on: aContext agentContext) origin: aToolOrNil in: (Tools placeNear: aContext window extent: 720 @ 640)
+	existing := self nativeWindowFor: anObject.
+	existing isNil ifFalse: [existing world raise. existing focus. ^existing].
+	^self openNativeOn: (AgentConversation on: anObject agentContext) origin: anObject hidden: aBoolean
+!
+nativeWindowFor: anObject
+	"The open host window of mine whose origin is anObject, or nil."
+	World allDo: [:world |
+		((world isKindOf: AppWorld) and: [world isMain not]) ifTrue: [
+			world windows do: [:w | ((w content isKindOf: self) and: [w content origin == anObject]) ifTrue: [^w]]]].
+	^nil
+!
+accountPath
+	"Where host windows keep the sign-in (a file only the user may read)."
+	^XDG state: 'samaltak/agent/account.json'
 !
 initialize
-	Tools registerOpener: #agent with: [:tool | self openFor: tool].
-	ToolsMenu register: 'Agent' description: '⌘J in a tool' order: 65 action: [:point |
-		self openOn: (AgentConversation on: (AgentContext new label: 'Desktop'; yourself)) origin: nil in: (Tools placeAt: point extent: 720 @ 640)]
+	"An application's right-click menu offers me."
+	Application addMenuItem: #agent with: [:app :menu |
+		menu add: 'Agent' description: 'ask about this window' action: [self openNativeFor: app]]
 ! !
 
 !AgentWindow methodsFor: 'context'!

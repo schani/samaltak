@@ -1,11 +1,13 @@
 VMCoreModule subclass: #Scheduler
-	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs lastSwitchUs startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired'
-	classVariableNames: 'TICK_DEADLINE TICK_POLL WORK_CLOCK_FLOOR WORK_CLOCK_POLL_US WORK_CYCLES_PER_US'
+	instanceVariableNames: 'interruptPending lastPreempted lastPreemptedAtEntry allocSampleClass allocSampleSize allocSampleInterval allocSampleCountdown allocSampleSema statProcessSwitches allocSamplePending inIdle preemptToFront allocSampleUnread samplerTickUnread timerMs samplerIntervalUs samplerNextUs sliceStartNs windowStartNs windowCpuUs ledgerProcs ledgerNs ledgerN statReconciles startUs samplerSema pendingExt pendingExtN pendingExtCap tickIdle tickPollUs tickArmedPoll tickArmedDeadline tickDeadlineFired ticker workClockOn workClockRunning workClockPaced workClockUsesCycles workClockUs workClockCycles workClockRaw workClockHeld workClockHoldCycles workClockQuerying frameSema frameFps frameOriginUs frameIndex frameNextUs sliceUs sliceDueUs slicePriority sliceExpired'
+	classVariableNames: 'LEDGER_SIZE RECONCILE_NS TICK_DEADLINE TICK_POLL WORK_CLOCK_FLOOR WORK_CLOCK_POLL_US WORK_CYCLES_PER_US'
 	package: 'VM-Core'!
 
 Scheduler comment: 'Process scheduler, semaphores and interrupts: the timer, the CPU and allocation samplers, external semaphore signals, time slices.
 
 Time slicing (setTimeSlice:): while another Process of the active one''s priority is ready, the active one runs at most sliceUs before it goes to the back of its run list, so equal-priority Processes take turns. The slice''s deadline is armed only under that contention (a Process made ready at the active priority, a switch to a Process with peers waiting): a program whose Processes do not compete, or that idles, has no timer for it.
+
+Processes are charged the VM thread''s CPU time (threadCpuUs) in batches, as one read of that clock costs a system call: a switch adds the outgoing Process''s slice, by the monotonic clock, to its entry in a ledger of LEDGER_SIZE entries. Once the ledger is full or its window older than RECONCILE_NS (or when charging pauses, or a Process in it or running is asked its time), reconcile splits the thread clock''s advance over the window among the entries in proportion to their slices, exactly. While the VM waits or compiles, charging pauses (pauseCharging, resumeCharging).
 
 While Smalltalk runs, a timer of the Ticker (its thread calls tickFired:) requests an interrupt check when the timer or the CPU sampler is due, and a periodic one every tickPollUs if the platform asked for polls (requestPeriodicPoll:). While the VM waits in the platform''s wait both are disarmed: the wait''s timeout covers the timer and the sampler, and the platform wakes it for events. tickUpdate (VM thread) re-arms after any change.
 
@@ -16,7 +18,8 @@ declarations
 	^#((interruptPending atomic_int) (lastPreempted oop) (lastPreemptedAtEntry bool) (allocSampleClass oop) (allocSampleSize int64_t)
 		(allocSampleInterval int64_t) (allocSampleCountdown int64_t) (allocSampleSema int32_t) (statProcessSwitches uint64_t)
 		(allocSamplePending bool) (inIdle bool) (preemptToFront bool) (allocSampleUnread bool) (samplerTickUnread bool)
-		(timerMs int64_t -1) (samplerIntervalUs int64_t) (samplerNextUs int64_t) (lastSwitchUs int64_t) (startUs int64_t)
+		(timerMs int64_t -1) (samplerIntervalUs int64_t) (samplerNextUs int64_t) (sliceStartNs int64_t) (windowStartNs int64_t) (windowCpuUs int64_t)
+		(ledgerProcs 'oop[16]') (ledgerNs 'int64_t[16]') (ledgerN int32_t) (statReconciles uint64_t) (startUs int64_t)
 		(samplerSema int32_t) (pendingExt 'int32_t *') (pendingExtN int32_t) (pendingExtCap int32_t)
 		(tickIdle bool) (tickPollUs int64_t) (tickArmedPoll int64_t) (tickArmedDeadline int64_t 16r7FFFFFFFFFFFFFFF)
 		(tickDeadlineFired atomic_bool) (ticker Ticker)
@@ -26,6 +29,9 @@ declarations
 		(sliceUs int64_t) (sliceDueUs int64_t) (slicePriority int64_t) (sliceExpired bool))
 !
 initialize
+	"Charging: the ledger's entries (the size of ledgerProcs and ledgerNs), the longest window between two reads of the thread clock (ns)."
+	LEDGER_SIZE := 16.
+	RECONCILE_NS := 200000.
 	TICK_DEADLINE := 1.
 	TICK_POLL := 2.
 	"The work clock: its rate (a 3.3 GHz core), how often a running Smalltalk is checked against its deadlines (µs of real time), the lowest priority that runs while it stands still (the control server's)."
@@ -86,6 +92,15 @@ samplerTickUnread: aBoolean
 !
 statProcessSwitches
 	^statProcessSwitches
+!
+statReconciles
+	^statReconciles
+!
+ledgerProcs
+	^ledgerProcs
+!
+ledgerN
+	^ledgerN
 ! !
 
 !Scheduler methodsFor: 'time'!
@@ -95,6 +110,13 @@ rawNowUs
 	ts := self local: 'Timespec'.
 	posix clockGettime: posix CLOCK_MONOTONIC into: ts.
 	^(ts tv_sec * 1000000) + (ts tv_nsec quo: 1000)
+!
+rawNowNs
+	<function>
+	| ts |
+	ts := self local: 'Timespec'.
+	posix clockGettime: posix CLOCK_MONOTONIC into: ts.
+	^(ts tv_sec * 1000000000) + ts tv_nsec
 !
 nowUs
 	<function>
@@ -117,10 +139,66 @@ realThreadCpuUs
 	posix clockGettime: posix CLOCK_THREAD_CPUTIME_ID into: ts.
 	^(ts tv_sec * 1000000) + (ts tv_nsec quo: 1000)
 !
-uncharge: us
-	"The running Process is not charged us of the VM's own work (the JIT compiling)."
+pauseCharging
+	"Charge the Processes that ran (reconcile); until resumeCharging nothing is charged (the VM waits, or works for itself). Answer the thread clock."
 	<function>
-	lastSwitchUs := lastSwitchUs + us
+	^self reconcile
+!
+resumeCharging
+	"Charging goes on: a new window and slice from now. Answer the thread clock."
+	<function>
+	sliceStartNs := self rawNowNs.
+	windowStartNs := sliceStartNs.
+	windowCpuUs := self threadCpuUs.
+	^windowCpuUs
+!
+reconcile
+	"End the running slice and the window: split the thread clock's advance since the window began among the ledger's Processes in proportion to their slices (rounding the running sums, so that the shares add up to it), empty the ledger and begin the next window. Answer the thread clock."
+	<function>
+	| now cpu t total scale acc given share |
+	now := self rawNowNs.
+	self ledgerAdd: self activeProcess ns: now - sliceStartNs.
+	cpu := self threadCpuUs.
+	t := cpu - windowCpuUs.
+	total := 0.
+	0 to: ledgerN - 1 do: [:i | total := total + (ledgerNs at: i)].
+	"weights below 2^24: t times one does not overflow"
+	scale := 0.
+	[(total >> scale) > 16rFFFFFF] whileTrue: [scale := scale + 1].
+	acc := 0.
+	given := 0.
+	0 to: ledgerN - 1 do: [:i |
+		acc := acc + (ledgerNs at: i).
+		share := total = 0
+			ifTrue: [i = (ledgerN - 1) ifTrue: [t] ifFalse: [0]]
+			ifFalse: [t * (acc >> scale) quo: (total >> scale)].
+		self charge: (ledgerProcs at: i) us: share - given.
+		given := share].
+	ledgerN := 0.
+	sliceStartNs := now.
+	windowStartNs := now.
+	windowCpuUs := cpu.
+	statReconciles := statReconciles + 1.
+	^cpu
+!
+ledgerAdd: proc ns: ns
+	"Add ns to proc's entry, a new one if it has none (there is room)."
+	0 to: ledgerN - 1 do: [:i |
+		(ledgerProcs at: i) = proc ifTrue: [
+			ledgerNs at: i put: (ledgerNs at: i) + ns.
+			^self]].
+	ledgerProcs at: ledgerN put: proc.
+	ledgerNs at: ledgerN put: ns.
+	ledgerN := ledgerN + 1
+!
+inLedger: proc
+	0 to: ledgerN - 1 do: [:i | (ledgerProcs at: i) = proc ifTrue: [^true]].
+	^false
+!
+charge: proc us: us
+	| ct |
+	ct := self loadRef: proc at: PROC_CPUTIME.
+	self storeRef: proc at: PROC_CPUTIME put: (self intOop: ((self isInt: ct) ifTrue: [self intVal: ct] ifFalse: [0]) + us)
 ! !
 
 !Scheduler methodsFor: 'interrupts'!
@@ -148,6 +226,7 @@ workClockStart: fps semaphore: index
 	"From now on the clock is the work clock (see my comment), running. With fps > 0, external semaphore index is signaled when frame k is due, on the millisecond grid of the clock (the Delays'): ceiling(k × 1000 / fps) ms after frame 0, which is due at the next whole millisecond (kept if that semaphore is already armed). Answer when frame 0 is."
 	<function>
 	workClockOn ifFalse: [
+		self pauseCharging.
 		workClockUs := self nowUs.
 		workClockUsesCycles := ticker threadCycles >= 0.
 		workClockUsesCycles ifFalse: [
@@ -158,7 +237,7 @@ workClockStart: fps semaphore: index
 		workClockPaced := false.
 		workClockCycles := self workClockThreadCycles.
 		workClockRaw := self rawNowUs.
-		lastSwitchUs := self threadCpuUs.
+		self resumeCharging.
 		self tickUpdate].
 	(fps > 0 and: [frameSema ~= index]) ifTrue: [
 		frameSema := index.
@@ -173,11 +252,12 @@ workClockStop
 	"Back to the real clock, which goes on from the work clock's time."
 	<function>
 	workClockOn ifFalse: [^self].
+	self pauseCharging.
 	self workClockSync.
 	startUs := self rawNowUs - workClockUs.
 	workClockOn := false.
 	frameSema := 0.
-	lastSwitchUs := self threadCpuUs.
+	self resumeCharging.
 	self tickUpdate
 !
 workClockRunning: aBoolean
@@ -306,7 +386,7 @@ workClockIdle
 workClockIdleWait
 	self workClockIdle.
 	self handleInterrupts.
-	lastSwitchUs := self threadCpuUs.
+	self resumeCharging.
 	inIdle := false
 !
 workClockFrameDue
@@ -362,7 +442,7 @@ init
 	startUs := self rawNowUs.
 	lastPreempted := memory nilOop.
 	allocSampleClass := memory nilOop.
-	lastSwitchUs := self threadCpuUs.
+	self resumeCharging.
 	ticker start
 ! !
 
@@ -435,7 +515,7 @@ runList: pri
 transferTo: aProcess
 	"Save the active context into the outgoing process and switch to aProcess."
 	<function>
-	| proc old now ct ctx |
+	| proc old now ctx |
 	proc := self local: 'oop'.
 	proc value: aProcess.
 	memory pushRoot: proc.
@@ -445,10 +525,10 @@ transferTo: aProcess
 	"only the process that ran into the safepoint is at an entry"
 	interpreter safepointAtEntry: false.
 	proc value = lastPreempted ifTrue: [lastPreemptedAtEntry := false].
-	now := self threadCpuUs.
-	ct := self loadRef: old at: PROC_CPUTIME.
-	self storeRef: old at: PROC_CPUTIME put: (self intOop: ((self isInt: ct) ifTrue: [self intVal: ct] ifFalse: [0]) + now - lastSwitchUs).
-	lastSwitchUs := now.
+	now := self rawNowNs.
+	self ledgerAdd: old ns: now - sliceStartNs.
+	sliceStartNs := now.
+	(ledgerN = LEDGER_SIZE or: [now - windowStartNs >= RECONCILE_NS]) ifTrue: [self reconcile].
 	self storeRef: old at: PROC_SUSPENDED put: interpreter activeCtx.
 	self storeRef: self processor at: SCHED_ACTIVE put: proc value.
 	ctx := self loadRef: proc value at: PROC_SUSPENDED.
@@ -465,6 +545,7 @@ idleWait
 	inIdle := true.
 	sliceDueUs := 0.
 	sliceExpired := false.
+	self pauseCharging.
 	(pendingExtN = 0 and: [allocSamplePending not]) ifTrue: [
 		workClockOn ifTrue: [^self workClockIdleWait].
 		now := self nowUs.
@@ -477,7 +558,7 @@ idleWait
 			ifFalse: [wait > 0 ifTrue: [platform wait: wait]].
 		self tickSetIdle: false].
 	self handleInterrupts.
-	lastSwitchUs := self threadCpuUs.
+	self resumeCharging.
 	inIdle := false
 !
 transferToHighest
@@ -635,13 +716,12 @@ sliceCheck
 				self tickUpdate]]
 !
 processCpuTimeUs: proc
-	"cpuTime, including the running slice if active."
+	"cpuTime, settled first if proc is running or has a slice in the ledger."
 	<function>
-	| ct t |
+	| ct |
+	(inIdle not and: [proc = self activeProcess or: [self inLedger: proc]]) ifTrue: [self reconcile].
 	ct := self loadRef: proc at: PROC_CPUTIME.
-	t := (self isInt: ct) ifTrue: [self intVal: ct] ifFalse: [0].
-	(proc = self activeProcess and: [inIdle not]) ifTrue: [t := t + self threadCpuUs - lastSwitchUs].
-	^t
+	^(self isInt: ct) ifTrue: [self intVal: ct] ifFalse: [0]
 !
 setSampler: intervalUs semaphore: sema
 	<function>
@@ -662,16 +742,18 @@ relinquish: microseconds
 	<function>
 	| us now |
 	(pendingExtN ~= 0 or: [allocSamplePending]) ifTrue: [^self].
-	workClockOn ifTrue: [
-		self workClockIdle.
-		^self requestInterruptCheck].
-	us := microseconds.
-	now := self nowUs.
-	(timerMs >= 0 and: [(timerMs * 1000) - now < us]) ifTrue: [us := (timerMs * 1000) - now].
-	(samplerIntervalUs > 0 and: [samplerNextUs - now < us]) ifTrue: [us := samplerNextUs - now].
-	us > 0 ifTrue: [
-		self tickSetIdle: true.
-		platform wait: us.
-		self tickSetIdle: false].
+	self pauseCharging.
+	workClockOn
+		ifTrue: [self workClockIdle]
+		ifFalse: [
+			us := microseconds.
+			now := self nowUs.
+			(timerMs >= 0 and: [(timerMs * 1000) - now < us]) ifTrue: [us := (timerMs * 1000) - now].
+			(samplerIntervalUs > 0 and: [samplerNextUs - now < us]) ifTrue: [us := samplerNextUs - now].
+			us > 0 ifTrue: [
+				self tickSetIdle: true.
+				platform wait: us.
+				self tickSetIdle: false]].
+	self resumeCharging.
 	self requestInterruptCheck
 ! !

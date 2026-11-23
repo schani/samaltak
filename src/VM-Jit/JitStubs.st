@@ -328,7 +328,7 @@ dumpingStubX64: fn named: name
 generateBaselineX64
 	"generateBaseline's stubs on x86: the return address is on the native stack where arm64 has x30."
 	<arch: #x86_64>
-	| exit imm have miss lnot |
+	| exit imm have miss lnot second |
 	exit := asm labelAt: exitPlainAddr.
 	blMiss := self symbol: 'baseline miss'.
 	"x0 the receiver, back to the send on the stack, x19 the sender's frame, x20 the callee's fp"
@@ -342,6 +342,7 @@ generateBaselineX64
 	"x0 the receiver, x9 the selector: probe the megamorphic cache by class and selector"
 	imm := asm newLabel.
 	have := asm newLabel.
+	second := asm newLabel.
 	asm tst: X0 imm: 7.
 	asm b: imm if: COND_NE.
 	asm ldr: X16 base: X0 offset: 8.
@@ -349,16 +350,26 @@ generateBaselineX64
 	asm eor: X10 with: X16 with: X9.
 	asm lsr: X10 with: X10 imm: 3.
 	asm and: X10 with: X10 imm: brt megaMask.
-	asm lsl: X10 with: X10 imm: 5.
+	asm lsl: X10 with: X10 imm: 6.
 	asm ldr: X11 base: X22 offset: self megaCacheOffset.
 	asm add: X11 with: X11 with: X10.
 	asm ldr: X17 base: X11 offset: 0.
 	asm cmp: X17 with: X16.
-	asm b: miss if: COND_NE.
+	asm b: second if: COND_NE.
 	asm ldr: X17 base: X11 offset: 8.
 	asm cmp: X17 with: X9.
-	asm b: miss if: COND_NE.
+	asm b: second if: COND_NE.
 	asm ldr: X16 base: X11 offset: 16.
+	asm br: X16.
+	asm bind: second.
+	asm comment: 'the set''s second entry'.
+	asm ldr: X17 base: X11 offset: 32.
+	asm cmp: X17 with: X16.
+	asm b: miss if: COND_NE.
+	asm ldr: X17 base: X11 offset: 40.
+	asm cmp: X17 with: X9.
+	asm b: miss if: COND_NE.
+	asm ldr: X16 base: X11 offset: 48.
 	asm br: X16.
 	asm bind: imm.
 	asm and: X16 with: X0 imm: 7.
@@ -863,7 +874,7 @@ emitEnter: restore
 !
 generateBaseline
 	"The baseline compiler's stubs (JitBaselineCompiler, JitBaselineRuntime)."
-	| exit imm have miss lnot |
+	| exit imm have miss lnot second |
 	exit := asm labelAt: exitPlainAddr.
 	blMiss := self symbol: 'baseline miss'.
 	"x0 the receiver, x30 back to the send, x19 the sender's frame, x20 the callee's fp"
@@ -881,6 +892,7 @@ generateBaseline
 	"x0 the receiver, x9 the selector: probe the megamorphic cache by class and selector"
 	imm := asm newLabel.
 	have := asm newLabel.
+	second := asm newLabel.
 	asm and: X16 with: X0 imm: 7.
 	asm cbnz: X16 to: imm.
 	asm ldr: X16 base: X0 offset: 8.
@@ -889,13 +901,22 @@ generateBaseline
 	asm lsr: X10 with: X10 imm: 3.
 	asm ldr: X11 base: X22 offset: self megaCacheOffset.
 	asm and: X10 with: X10 imm: brt megaMask.
-	asm add: X11 with: X11 with: X10 shift: SHIFT_LSL amount: 5.
+	asm add: X11 with: X11 with: X10 shift: SHIFT_LSL amount: 6.
 	asm ldp: X12 with: X13 base: X11 offset: 0.
+	asm cmp: X12 with: X16.
+	asm b: second if: COND_NE.
+	asm cmp: X13 with: X9.
+	asm b: second if: COND_NE.
+	asm ldr: X16 base: X11 offset: 16.
+	asm br: X16.
+	asm bind: second.
+	asm comment: 'the set''s second entry'.
+	asm ldp: X12 with: X13 base: X11 offset: 32.
 	asm cmp: X12 with: X16.
 	asm b: miss if: COND_NE.
 	asm cmp: X13 with: X9.
 	asm b: miss if: COND_NE.
-	asm ldr: X16 base: X11 offset: 16.
+	asm ldr: X16 base: X11 offset: 48.
 	asm br: X16.
 	asm bind: imm.
 	asm add: X17 with: X22 imm: self tagClassesOffset.

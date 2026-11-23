@@ -1098,7 +1098,7 @@ emitLeafPrimitiveCall
 emitPerformPrimitive
 	"perform:, perform:with:... (the selector, then n - 1 arguments) and perform:withArguments: (an Array): the target megamorphic sends of the selector to the receiver's class would take, from their table, if its argument count (the entry's fourth word) fits; the arguments one slot down, over the selector; its unchecked entry (x30 still returns to the send). Else the runtime, which fills the table, answers that the primitive failed (the frame and the body follow) or leaves."
 	<function>
-	| n withArgs imm have go slow fail room loop |
+	| n withArgs imm have go slow fail room loop second found |
 	n := curArgs.
 	withArgs := (brt primOpOf: analysis primitive) = 1.
 	slow := asm newLabel.
@@ -1107,6 +1107,8 @@ emitPerformPrimitive
 		imm := asm newLabel.
 		have := asm newLabel.
 		go := asm newLabel.
+		second := asm newLabel.
+		found := asm newLabel.
 		asm comment: 'primitive perform: the megamorphic table''s target for the receiver''s class and the selector'.
 		asm ldr: X9 base: X20 offset: (self slot: 0).
 		asm and: X16 with: X0 imm: 7.
@@ -1117,12 +1119,21 @@ emitPerformPrimitive
 		asm lsr: X10 with: X10 imm: 3.
 		asm ldr: X11 base: X22 offset: self megaCacheOffset.
 		asm and: X10 with: X10 imm: brt megaMask.
-		asm add: X11 with: X11 with: X10 shift: SHIFT_LSL amount: 5.
+		asm add: X11 with: X11 with: X10 shift: SHIFT_LSL amount: 6.
 		asm ldp: X12 with: X13 base: X11 offset: 0.
+		asm cmp: X12 with: X16.
+		asm b: second if: COND_NE.
+		asm cmp: X13 with: X9.
+		asm b: found if: COND_EQ.
+		asm bind: second.
+		asm comment: 'the set''s second entry'.
+		asm ldp: X12 with: X13 base: X11 offset: 32.
 		asm cmp: X12 with: X16.
 		asm b: slow if: COND_NE.
 		asm cmp: X13 with: X9.
 		asm b: slow if: COND_NE.
+		asm add: X11 with: X11 imm: 32.
+		asm bind: found.
 		asm comment: 'its unchecked entry and argument count (-1: a perform method); room for its frame'.
 		asm ldp: X16 with: X17 base: X11 offset: 16.
 		asm isX64
@@ -2723,6 +2734,12 @@ operand: i for: s a: isA
 		isA
 			ifTrue: [slA at: s put: (k = SS_SELF ifTrue: [X21] ifFalse: [(ssVal at: i) asInt32])]
 			ifFalse: [slB at: s put: (k = SS_SELF ifTrue: [X21] ifFalse: [(ssVal at: i) asInt32])].
+		^self].
+	"a temp in the loop's register: ssMaterialize: answered that register and left the entry a temp (not in the operand's slot)"
+	(k = SS_TEMP and: [(self loopRegOf: (ssVal at: i) asInt32) >= 0]) ifTrue: [
+		isA
+			ifTrue: [slA at: s put: (self loopRegOf: (ssVal at: i) asInt32) asInt8]
+			ifFalse: [slB at: s put: (self loopRegOf: (ssVal at: i) asInt32) asInt8].
 		^self].
 	k = SS_CONST ifTrue: [
 		isA

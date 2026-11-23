@@ -231,6 +231,44 @@ static uint64_t alloc_slow(oop *cls, uint64_t bytes)
     return p;
 }
 
+/* ObjectMemory>>allocUnfilledTry:format:slots: */
+uint64_t alloc_unfilled_try(oop cls, int32_t fmt, uint64_t n)
+{
+    uint64_t bytes;
+    uint64_t p;
+    oop local;
+    oop *cls_root;
+    oop cls_2;
+    uint32_t n_2;
+    uint64_t a;
+    uint32_t n_3;
+    if (n > 0xFFFFFFFFLL) {
+        return 0;
+    }
+    bytes = 16 + 8 * n;
+    if (bytes > large_object_bytes) {
+        return alloc_obj_try(cls, fmt, n);
+    }
+    p = eden_box[0];
+    if (p + bytes > eden_box[1]) {
+        memset(&local, 0, sizeof local);
+        cls_root = &local;
+        *cls_root = cls;
+        p = alloc_slow(cls_root, bytes);
+        cls_2 = *cls_root;
+        n_2 = (uint32_t)n;
+        *(uint64_t *)p = ((uint64_t)n_2) | (((uint64_t)fmt) << H_FMT_SHIFT) | (((uint64_t)next_hash()) << H_HASH_SHIFT);
+        *(uint64_t *)(p + 8) = cls_2;
+    } else {
+        a = p + bytes;
+        eden_box[0] = a;
+        n_3 = (uint32_t)n;
+        *(uint64_t *)p = ((uint64_t)n_3) | (((uint64_t)fmt) << H_FMT_SHIFT) | (((uint64_t)next_hash()) << H_HASH_SHIFT);
+        *(uint64_t *)(p + 8) = cls;
+    }
+    return p;
+}
+
 /* ObjectMemory>>allocWords32:count: */
 static uint64_t alloc_words32(oop cls, uint64_t n)
 {

@@ -257,11 +257,15 @@ fontOfSize: pixels bold: aBoolean
 !
 fontOfSize: pixels bold: aBoolean letterSpacing: points
 	"The Omarchy typeface at pixels, regular or bold, with points between letters (the shell's tracked captions use 1)."
+	^self fontOfSize: pixels style: (aBoolean ifTrue: [#bold] ifFalse: [#regular]) letterSpacing: points
+!
+fontOfSize: pixels style: aSymbol letterSpacing: points
+	"The Omarchy typeface at pixels in aSymbol (#regular, #bold or #italic), with points between letters."
 	| key |
-	key := Array with: pixels with: aBoolean with: points with: Font deviceScale.
+	key := Array with: pixels with: aSymbol with: points with: Font deviceScale.
 	^sized at: key ifAbsent: [
 		| font |
-		font := Font face: (aBoolean ifTrue: [self boldFace] ifFalse: [self regularFace]) size: pixels.
+		font := Font face: (aSymbol == #bold ifTrue: [self boldFace] ifFalse: [aSymbol == #italic ifTrue: [self italicFace] ifFalse: [self regularFace]]) size: pixels.
 		points = 0 ifFalse: [font letterSpacing: points].
 		sized at: key put: font]
 !
@@ -319,7 +323,7 @@ install
 	(Theme current isKindOf: self) ifFalse: [Theme current: (self new setDirectory: self defaultDirectory userShell: self defaultUserShell)].
 	Theme current publishPalette; applyFonts.
 	self startWatching.
-	World current ifNotNil: [:world | world restyle].
+	World restyleAll.
 	^Theme current
 !
 uninstall
@@ -329,7 +333,7 @@ uninstall
 	#('JetBrainsMono-Regular' 'JetBrainsMono-Bold' 'JetBrainsMono-Italic') do: [:each | Font substituteFace: each with: nil].
 	Theme current: Theme blueBook.
 	Theme current publishPalette.
-	World current ifNotNil: [:world | world restyle]
+	World restyleAll
 !
 wanted
 	"Whether this image should follow the desktop's theme: on an Omarchy desktop, with a display, not running tests, and not told otherwise (--theme blue-book)."
@@ -365,7 +369,7 @@ checkForChanges
 	theme := Theme current.
 	((theme isKindOf: self) and: [theme isStale]) ifFalse: [^self].
 	[theme refresh] on: Error do: [:e | e return: nil].
-	World current ifNotNil: [:world | world restyle]
+	World restyleAll
 ! !
 
 !OmarchyTheme class methodsFor: 'fonts'!

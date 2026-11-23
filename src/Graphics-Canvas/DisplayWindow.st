@@ -42,6 +42,10 @@ refreshRate
 title: aString
 	window title: aString
 !
+extent: aPoint
+	"Resize the host window to aPoint points; answer whether it did."
+	^window extent: aPoint
+!
 hidden: aBoolean
 	"Hidden or shown when my host window opens next (after an image restart)."
 	window hidden: aBoolean

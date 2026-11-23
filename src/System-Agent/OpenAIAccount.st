@@ -1,9 +1,9 @@
 Object subclass: #OpenAIAccount
-	instanceVariableNames: 'issuer idToken accessToken refreshToken deviceAuthId loginCode loginURL interval loginDeadline loginSemaphore lock'
+	instanceVariableNames: 'issuer idToken accessToken refreshToken deviceAuthId loginCode loginURL interval loginDeadline loginSemaphore lock storePath storeStamp'
 	classVariableNames: 'Default'
 	package: 'System-Agent'!
 
-OpenAIAccount comment: 'I am a ChatGPT sign-in, as the Codex CLI does it: a device-code login at my issuer, then OAuth tokens. The id token tells the account (email, accountId, planType); the access token is refreshed before it expires and after a 401 (refresh tokens rotate: I keep each one returned). The tokens are saved with the image; signOut forgets them.
+OpenAIAccount comment: 'I am a ChatGPT sign-in, as the Codex CLI does it: a device-code login at my issuer, then OAuth tokens. The id token tells the account (email, accountId, planType); the access token is refreshed before it expires and after a 401 (refresh tokens rotate: I keep each one returned). The tokens are saved with the image; signOut forgets them. Or, after keepIn: aPath, in that file (only the user may read it), so that the processes of applications share one sign-in: each reads it again when it changed, writes it after a login or refresh, and deletes it on signOut; a refresh that finds its refresh token used up by another process takes the newer one from the file.
 
 	account := OpenAIAccount default.
 	account startLogin.
@@ -26,7 +26,12 @@ issuer: aURLString
 	issuer := aURLString
 !
 isSignedIn
+	self reloadIfChanged.
 	^accessToken notNil
+!
+storePath
+	"The file I keep the tokens in, or nil (the image keeps them)."
+	^storePath
 !
 email
 	^self claims at: 'email' ifAbsent: [nil]
@@ -91,25 +96,78 @@ tokens: aDictionary
 	"Install the tokens of an /oauth/token response (those it has)."
 	(aDictionary at: 'id_token' ifAbsent: [nil]) ifNotNil: [:t | idToken := t].
 	(aDictionary at: 'access_token' ifAbsent: [nil]) ifNotNil: [:t | accessToken := t].
-	(aDictionary at: 'refresh_token' ifAbsent: [nil]) ifNotNil: [:t | refreshToken := t]
+	(aDictionary at: 'refresh_token' ifAbsent: [nil]) ifNotNil: [:t | refreshToken := t].
+	self save
 !
 signOut
 	idToken := nil.
 	accessToken := nil.
-	refreshToken := nil
+	refreshToken := nil.
+	self save
+! !
+
+!OpenAIAccount methodsFor: 'file'!
+keepIn: aPath
+	"Keep the tokens in the file aPath from now on, shared with other processes: read it if there is one (its sign-in replaces mine), else write mine to it."
+	storePath = aPath ifTrue: [^self].
+	storePath := aPath.
+	storeStamp := nil.
+	(File exists: aPath) ifTrue: [self load] ifFalse: [self save]
+!
+load
+	"Take the tokens from my file (none if it is gone or unreadable)."
+	| json |
+	storeStamp := self fileStamp.
+	json := [JSON parse: (File readText: storePath)] on: Error do: [:e | e return: nil].
+	(json isKindOf: Dictionary) ifFalse: [json := Dictionary new].
+	idToken := json at: 'id_token' ifAbsent: [nil].
+	accessToken := json at: 'access_token' ifAbsent: [nil].
+	refreshToken := json at: 'refresh_token' ifAbsent: [nil]
+!
+reloadIfChanged
+	"Another process signed in, refreshed or signed out: take its tokens. Answer whether my file changed."
+	storePath isNil ifTrue: [^false].
+	self fileStamp = storeStamp ifTrue: [^false].
+	self load.
+	^true
+!
+save
+	"Write my tokens to my file (only the user may read it), or delete it when I am signed out."
+	storePath isNil ifTrue: [^self].
+	[accessToken isNil
+		ifTrue: [File deleteIfExists: storePath]
+		ifFalse: [
+			Directory ensureExists: (File directoryOf: storePath).
+			File writeSecret: (JSON render: (Dictionary new
+				at: 'id_token' put: idToken;
+				at: 'access_token' put: accessToken;
+				at: 'refresh_token' put: refreshToken;
+				yourself)) to: storePath]]
+		on: Error do: [:e | e return: nil].
+	storeStamp := self fileStamp
+!
+fileStamp
+	"My file's modification time and size (nil if there is none)."
+	| st |
+	st := [File stat: storePath] on: Error do: [:e | e return: nil].
+	(st isNil or: [st first not]) ifTrue: [^nil].
+	^Array with: st fourth with: st third
 ! !
 
 !OpenAIAccount methodsFor: 'tokens'!
 accessToken
 	"A current access token, refreshed first when it expires within 5 minutes. AgentError when signed out."
 	^lock critical: [
+		self reloadIfChanged.
 		accessToken isNil ifTrue: [AgentError signal: 'Not signed in to ChatGPT'].
 		(self expiresWithin: 300) ifTrue: [self refreshBecause: 'proactive_expiry'].
 		accessToken]
 !
 refresh
 	"Refresh the tokens now (after a 401). If the refresh token is no longer valid, sign out and signal AgentError."
-	lock critical: [self refreshBecause: 'unauthorized_recovery']
+	lock critical: [
+		"another process may have refreshed already"
+		(self reloadIfChanged and: [accessToken notNil]) ifFalse: [self refreshBecause: 'unauthorized_recovery']]
 ! !
 
 !OpenAIAccount methodsFor: 'private'!
@@ -135,6 +193,8 @@ refreshBecause: reason
 		yourself).
 	r isSuccess ifTrue: [^self tokens: r json].
 	code := self class errorCodeOf: r.
+	"Another process refreshed first (refresh tokens rotate): its tokens are in the file."
+	(self reloadIfChanged and: [accessToken notNil]) ifTrue: [^self].
 	(r status = 401 or: [#('invalid_grant' 'refresh_token_expired' 'refresh_token_reused' 'refresh_token_invalidated') includes: code]) ifTrue: [
 		self signOut.
 		^AgentError signal: 'The ChatGPT sign-in has expired; sign in again'].

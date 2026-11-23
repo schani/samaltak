@@ -34,6 +34,7 @@ Everything below means the same in Smalltalk and in C; anything else is rejected
 - `quo:`/`rem:` (truncating) only; `/` only on doubles; no `//`, `\\`;
 - `<<`, `>>`, `bitAnd:`, `bitOr:`, `bitXor:`, `bitClear:`; `bitInvert` only on signed values (`bitInvert64`/`bitInvert32` for unsigned);
 - overflow checks: `x ifNoOverflowAdd: y do: [:r | ...]` (also `Sub`, `Mul`) runs the block with the 64-bit signed result if there was none (`__builtin_*_overflow`);
+- 128-bit steps of unsigned 64-bit values: `self mul64: a by: b plus: c plus: d high: h` answers the low 64 bits of a * b + c + d and stores the high ones into `h` (a `self local: 'uint64_t'`), `self div128: hi low: lo by: d remainder: r` answers (hi * 2^64 + lo) quo: d for hi < d and stores the remainder into `r` (`lt_mul64`, `lt_div128`: `unsigned __int128`);
 - `$a value` is a character code; `=`/`~=` compare values; `==`, `~~` and `nil` are not Lowtalk.
 
 **Control flow:** `ifTrue:ifFalse:` (conditions must be `bool`), `and:`/`or:`, `whileTrue:`/`whileFalse:`, `to:do:`/`to:by:do:`, `timesRepeat:`, `repeat`, `caseOf:otherwise:` (a C `switch` for constant keys), `^`. Blocks only as arguments of these or of inline methods.

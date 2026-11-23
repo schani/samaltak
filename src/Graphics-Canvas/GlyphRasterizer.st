@@ -157,6 +157,20 @@ coverage
 		out at: i put: (v >= 1.0 ifTrue: [255] ifFalse: [(v * 255.0 + 0.5) truncated])].
 	^out
 !
+coverageEvenOdd
+	"The coverage for the even-odd rule (SVG's fill-rule evenodd): a winding of 2 is outside again. As coverage, but the running sum folds to [0, 1] by its distance from the nearest even number."
+	| out sum v acc |
+	out := ByteArray new: width * height.
+	acc := accumulator.
+	sum := 0.0.
+	1 to: out size do: [:i |
+		sum := sum + (acc at: i).
+		v := sum < 0.0 ifTrue: [sum negated] ifFalse: [sum].
+		v := v - (2.0 * (v / 2.0) floor).
+		v > 1.0 ifTrue: [v := 2.0 - v].
+		out at: i put: (v >= 1.0 ifTrue: [255] ifFalse: [(v * 255.0 + 0.5) truncated])].
+	^out
+!
 coverageSum
 	"Answer the total coverage in pixels (exact, before quantization)."
 	| sum total v |

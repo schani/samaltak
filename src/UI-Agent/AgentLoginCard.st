@@ -1,7 +1,7 @@
 Column subclass: #AgentLoginCard
 	instanceVariableNames: 'signInButton urlLabel codeRow codeLabel messageLabel urlCopyButton'
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentLoginCard comment: 'I am what an AgentWindow shows instead of its transcript while signed out: a "Sign in with ChatGPT" button, then the device login''s URL and code (large, with a Copy button), and a line of news (waiting, why the last attempt failed). The window runs the login; I only show its state.'!
 

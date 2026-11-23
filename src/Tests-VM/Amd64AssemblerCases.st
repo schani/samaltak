@@ -424,6 +424,11 @@ loadStore
 	self case: 'mov QWORD PTR [rbx+rsi*1], rdi' emit: [asm str: X0 base: X20 index: X1].
 	self case: 'movzx edi, BYTE PTR [rbx+rsi*1]' emit: [asm ldrb: X0 base: X20 index: X1].
 	self case: 'mov BYTE PTR [rbx+rdi*1], sil' emit: [asm strb: X1 base: X20 index: X0].
+	self case: 'mov rdi, QWORD PTR [r13+r12*8+8]' emit: [asm ldr: X0 base: X21 index: X17 shift: 3 offset: 8].
+	self case: 'mov QWORD PTR [r14+r12*8+24], rsi' emit: [asm str: X1 base: X10 index: X17 shift: 3 offset: 24].
+	self case: 'mov r11, QWORD PTR [rip+0xff9]|mov QWORD PTR [r14+r12*8+16], r11' emit: [asm str: X23 base: X10 index: X17 shift: 3 offset: 16].
+	self case: 'movzx r10d, BYTE PTR [rbp+r12*1+15]' emit: [asm ldrb: W16 base: X19 index: X17 offset: 15].
+	self case: 'mov BYTE PTR [rax+r12*1+0x200], r10b' emit: [asm strb: W16 base: X9 index: X17 offset: 512].
 	self case: 'movsxd r11, esi|lea r11, [rbx+r11*8]|mov rdi, QWORD PTR [r11]' emit: [asm ldr: X0 base: X20 index: W1 extend: EXT_SXTW shift: 3].
 	self case: '{load} mov r11, rsi|{load} mov r11d, r11d|lea r11, [rbx+r11*4]|mov edi, DWORD PTR [r11]' emit: [asm ldr: W0 base: X20 index: W1 extend: EXT_UXTW shift: 2].
 	self case: 'lea r11, [rbx+rsi*2]|movzx edi, WORD PTR [r11]' emit: [asm ldrh: X0 base: X20 index: X1 extend: EXT_LSL shift: 1].

@@ -1,9 +1,9 @@
 Object subclass: #SourceFiler
 	instanceVariableNames: 'sourceDirectory enabled'
 	classVariableNames: 'Default'
-	package: 'Tools'!
+	package: 'Compiler'!
 
-SourceFiler comment: 'I write what the browser accepts back into the image''s sources (src/<package>/<Class>.st, or <Class>.extension.st for a method in a ''*Package'' category), changing only that method, comment or definition chunk (ChunkFile), so unchanged methods stay byte-for-byte the same and git shows exactly the edit.
+SourceFiler comment: 'I write what the browser (or the agent) accepts back into the image''s sources (src/<package>/<Class>.st, or <Class>.extension.st for a method in a ''*Package'' category; a package filed in from a directory, as an application is, in that directory), changing only that method, comment or definition chunk (ChunkFile), so unchanged methods stay byte-for-byte the same and git shows exactly the edit.
 
 The source directory is --source-dir <dir>, else the first of <image dir>/../../src, <image dir>/../src, <image dir>/src, <current dir>/src that holds packages.txt. --no-source-write turns me off; so does a directory I cannot write (the browser then only changes the image).
 
@@ -25,7 +25,8 @@ isEnabled
 	^sourceDirectory notNil
 !
 packageDirectory: aPackageName
-	^sourceDirectory, '/', aPackageName
+	"src/<package>, or the directory the package was filed in from (an application's)."
+	^(Compiler packageDirectoryOf: aPackageName) ifNil: [sourceDirectory, '/', aPackageName]
 !
 pathForClass: aClass
 	^(self packageDirectory: aClass theNonMetaClass packageName), '/', aClass theNonMetaClass name, '.st'

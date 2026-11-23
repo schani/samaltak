@@ -1,9 +1,9 @@
 Link subclass: #Process
 	instanceVariableNames: 'suspendedContext priority myList name cpuTime window errorHandler terminated overflowContext overflowLimit'
-	classVariableNames: 'Registry RegistryMutex'
+	classVariableNames: 'Registry RegistryCursor RegistryLap RegistryMutex'
 	package: 'Kernel-Processes'!
 
-Process comment: 'I am a green thread: a chain of Contexts (suspendedContext, while I am not running) scheduled by the ProcessorScheduler at my priority (1..80). myList is the LinkedList I wait in: a run queue of the scheduler or a Semaphore; nil while I am running or suspended. cpuTime counts the microseconds of CPU time I used (maintained by the VM). The first six fields are fixed by the VM; window and errorHandler belong to the UI (a window''s process, a per-process unhandled error handler). overflowContext and overflowLimit: the headroom a resumed StackOverflow left (see stackOverflowIn:depth:).'!
+Process comment: 'I am a green thread: a chain of Contexts (suspendedContext, while I am not running) scheduled by the ProcessorScheduler at my priority (1..80). myList is the LinkedList I wait in: a run queue of the scheduler or a Semaphore; nil while I am running or suspended. cpuTime counts the microseconds of CPU time I used (maintained by the VM, which settles it in batches; cpuMicroseconds settles it first). The first six fields are fixed by the VM; window and errorHandler belong to the UI (a window''s process, a per-process unhandled error handler). overflowContext and overflowLimit: the headroom a resumed StackOverflow left (see stackOverflowIn:depth:).'!
 
 !Process methodsFor: 'accessing'!
 suspendedContext
@@ -221,26 +221,46 @@ primStackLimit: anInteger
 initialize
 	"Register the processes created before the registry existed (the bootstrap process). Every later process registers itself in forContext:priority:."
 	Registry := WeakArray new: 64.
+	RegistryCursor := 0.
+	RegistryLap := 0.
 	RegistryMutex := Semaphore forMutualExclusion.
 	Process allInstances do: [:each | self register: each]
 !
 register: aProcess
-	"Remember aProcess weakly (a terminated process that nobody references is collected and its slot reused); answer it."
+	"Remember aProcess weakly (a process that nobody references is collected and its slot cleared); answer it. It takes the next free slot after the last one handed out. At the end of the registry: if this lap through it found fewer than half of its slots free, double it and go on in the new half, else start again at 1. A lap costs O(size) and either registers size / 2 processes or doubles the size, so registering is O(1) amortized."
 	RegistryMutex critical: [
-		| slot |
-		slot := Registry indexOf: nil.
-		slot = 0 ifTrue: [
-			slot := Registry size + 1.
-			Registry := (WeakArray new: Registry size * 2)
-				replaceFrom: 1 to: Registry size with: Registry startingAt: 1;
-				yourself].
-		Registry at: slot put: aProcess].
+		[RegistryCursor := RegistryCursor + 1.
+		 RegistryCursor > Registry size ifTrue: [
+			RegistryLap < (Registry size // 2)
+				ifTrue: [
+					Registry := (WeakArray new: Registry size * 2)
+						replaceFrom: 1 to: Registry size with: Registry startingAt: 1;
+						yourself]
+				ifFalse: [RegistryCursor := 1].
+			RegistryLap := 0].
+		 (Registry at: RegistryCursor) isNil] whileFalse.
+		Registry at: RegistryCursor put: aProcess.
+		RegistryLap := RegistryLap + 1].
 	^aProcess
 !
 allLive
-	"Every process that has not terminated, from the registry: no heap scan (Process allInstances walks the whole heap inside one primitive, which nothing can preempt)."
+	"Every process that has not terminated, from the registry: no heap scan (Process allInstances walks the whole heap inside one primitive, which nothing can preempt). The scan also tells how full the registry is: larger than the initial one and less than a quarter full, it is compacted, so that its capacity follows a burst of processes down again."
 	^RegistryMutex critical: [
-		(Registry asArray select: [:each | each notNil and: [each isTerminated not]])]
+		| registered |
+		registered := Registry asArray reject: [:each | each isNil].
+		(Registry size > 64 and: [registered size < (Registry size // 4)]) ifTrue: [self compact: registered].
+		registered reject: [:each | each isTerminated]]
+!
+compact: registered
+	"Replace the registry by the smallest one (a power of two, at least the initial 64) that registered, every Process in it, fills at most half of, with them in its first slots; the caller holds RegistryMutex. The cursor is on the last of them and the lap counts them, as if register: had just put them there: with half the slots or more free ahead, the lap wraps at the end. Less than a quarter full before and more than a quarter (or the initial size) after, the registry is compacted again only when as many processes are gone again; the scan that found it so has paid for the move."
+	| capacity |
+	capacity := 64.
+	[capacity < (registered size * 2)] whileTrue: [capacity := capacity * 2].
+	Registry := (WeakArray new: capacity)
+		replaceFrom: 1 to: registered size with: registered startingAt: 1;
+		yourself.
+	RegistryCursor := registered size.
+	RegistryLap := registered size
 ! !
 
 !Process methodsFor: 'private'!

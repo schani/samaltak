@@ -134,7 +134,8 @@ evaluateAndQuit: aString
 	compiler isNil ifTrue: [
 		self vm stderrWrite: 'Samaltak: --eval needs the Compiler package', (String with: Character lf).
 		^self quit: 1].
-	result := compiler evaluate: aString.
+	"An unhandled error reports itself and terminates this Process: then quit with 1, whatever else still runs (Processes the sources --load started, pending Delays)."
+	[result := compiler evaluate: aString] ifCurtailed: [self quit: 1].
 	Transcript show: result printString; cr.
 	self quit: 0
 !

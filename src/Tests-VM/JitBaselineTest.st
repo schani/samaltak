@@ -176,6 +176,16 @@ testLoopTempsInRegisters
 	Smalltalk vm jitArchitecture = #x86_64 ifTrue: [^self].
 	self assert: (((JitBaselineTestSubject >> #sieve:size:) machineCodeFor: #baseline) includesSubstring: 'its loop register')
 !
+testLoopTempAsAFloatOperand
+	"t lives in a register in the loop; 1.0 - t is a Float operation (1.0 is one for sure) whose slow path sends - with a Fraction: t goes into its operand slot from the loop's register."
+	self define: 'pace: n | sum | sum := 0.0. 1 to: n do: [:i | | t mt | t := i / n. mt := 1.0 - t. sum := sum + mt]. ^sum'.
+	self define: 'paceIn: n | sum | sum := 0.0. #(1) do: [:k | 1 to: n do: [:i | | t mt | t := i / n. mt := 1.0 - t. sum := sum + mt]]. ^sum'.
+	self define: 'scaled: n | sum | sum := 0.0. 1 to: n do: [:i | | t mt | t := i / n. mt := 2.0 * t. sum := sum + mt]. ^sum'.
+	self assert: (self subject pace: 3) equals: 1.0.
+	self assert: (self subject paceIn: 3) equals: 1.0.
+	self assert: (self subject paceIn: 4) equals: 1.5.
+	self assert: (self subject scaled: 3) equals: 4.0
+!
 testLoopTempChangedInASlowPath
 	"s lives in a register in the loop; the slow path of w + 1 runs a block that stores into it."
 	self define: 'loop: w | s | w block: [s := 1000]. s := 0. 1 to: 3 do: [:i | s := s + i. w + 1. s := s + i]. ^s'.

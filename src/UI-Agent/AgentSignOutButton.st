@@ -1,4 +1,4 @@
-Button subclass: #AgentSignOutButton instanceVariableNames: '' classVariableNames: '' package: 'Tools-Agent'!
+Button subclass: #AgentSignOutButton instanceVariableNames: '' classVariableNames: '' package: 'UI-Agent'!
 
 !AgentSignOutButton methodsFor: 'drawing'!
 drawSelfOn: aCanvas

@@ -1,7 +1,7 @@
 ToolTextEditor subclass: #AgentInputEditor
 	instanceVariableNames: 'images'
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
 AgentInputEditor comment: 'I am the agent composer. I keep pasted images until the message is sent.'!
 
@@ -23,7 +23,7 @@ clearImages
 paste
  | copied agent reference start |
  readOnly ifTrue: [^self].
- copied := ActionContext copied.
+ copied := (Smalltalk at: #ActionContext ifAbsent: [nil]) ifNotNil: [:actions | actions copied].
  (copied notNil and: [copied isObject and: [self clipboardText = copied value printString]]) ifTrue: [
  agent := self window content.
  reference := agent conversation idFor: copied value.

@@ -1,15 +1,16 @@
 AgentItemView subclass: #AgentShowView
 	instanceVariableNames: 'inspectButton objectText'
 	classVariableNames: ''
-	package: 'Tools-Agent'!
+	package: 'UI-Agent'!
 
-AgentShowView comment: 'I show an object the agent showed (show-object): a frame with a SHOW header, the object''s id and an Inspect button (opens the Inspector on it); in it a Form drawn as an image, scaled down to fit, or any other object''s printString (bounded).'!
+AgentShowView comment: 'I show an object the agent showed (show-object): a frame with a SHOW header, the object''s id and an Inspect button (opens the Inspector on it, where the tools are); in it a Form drawn as an image, scaled down to fit, or any other object''s printString (bounded).'!
 
 !AgentShowView methodsFor: 'accessing'!
 item: anAgentItem
 	super item: anAgentItem.
-	inspectButton := Button label: 'Inspect' action: [Tools inspect: item object near: self window].
-	inspectButton name: 'inspect'.
+	"The Inspector is a development tool: where there is none (an application's runtime image) the button does not show."
+	inspectButton := Button label: 'Inspect' action: [(Smalltalk at: #Tools) inspect: item object near: self window].
+	inspectButton name: 'inspect'; visible: (Smalltalk at: #Tools ifAbsent: [nil]) notNil.
 	self addChild: inspectButton
 !
 isForm

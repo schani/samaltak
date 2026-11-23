@@ -266,6 +266,22 @@ doubleFromBits: anInteger
 	<intrinsic>
 	^Float fromIEEEBits: anInteger
 !
+mul64: a by: b plus: c plus: d high: hi
+	"The low 64 bits of a * b + c + d (64-bit unsigned operands: the sum is below 2^128), its high 64 bits into hi (a uint64_t local); C: unsigned __int128."
+	<intrinsic>
+	| t |
+	t := a * b + c + d.
+	hi value: (t bitShift: -64).
+	^t bitAnd: 16rFFFFFFFFFFFFFFFF
+!
+div128: hi low: lo by: d remainder: rem
+	"(hi * 2^64 + lo) quo: d for hi < d (so the quotient fits 64 bits), the remainder into rem (a uint64_t local); C: unsigned __int128."
+	<intrinsic>
+	| n |
+	n := (hi bitShift: 64) + lo.
+	rem value: n \\ d.
+	^n // d
+!
 varargBits: aValue
 	"aValue as the 64 bits a C variadic function would read: a double's IEEE bits, an integer widened (a signed one sign-extended), a pointer's address. What a Lowtalk printf takes for its ... (UefiLibC)."
 	<intrinsic>
