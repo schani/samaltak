@@ -104,7 +104,7 @@ main: n argv: v
 	argsStart := (i + 1) asInt32.
 	i + 1 to: n - 1 do: [:k | (libc strcmp: (v at: k) with: '--headless') = 0 ifTrue: [headless := true]].
 	movingForward ifTrue: [
-		(c4 supported and: [c4 platformFiles not and: [c4 arm64InterpreterTest not]]) ifFalse: [self fatal: '--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1'].
+		(c4 supported and: [c4 platformFiles not and: [c4 arm64Interpreter not]]) ifFalse: [self fatal: '--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1'].
 		(explicitJit and: [jit mode ~= 0]) ifTrue: [self fatal: '--c4-moving-forward requires --jit none']].
 	c4 platformSDL ifTrue: [
 		c4Requested ifFalse: [self fatal: 'C4_PLATFORM_SDL=1 requires --c4 or --c4-moving'].
@@ -120,7 +120,7 @@ main: n argv: v
 	c4Requested ifTrue: [
 		c4 supported ifFalse: [self fatal: '--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1'].
 		(headless or: [c4 platformSDL]) ifFalse: [self fatal: '--c4 requires --headless'].
-		(c4 arm64InterpreterTest and: [explicitJit and: [jit mode ~= 0]]) ifTrue: [self fatal: 'C4 arm64 interpreter test requires --jit none'].
+		(c4 arm64Interpreter and: [explicitJit not or: [jit mode ~= 0]]) ifTrue: [self fatal: 'C4 on ARM64 requires explicit --jit none'].
 		(explicitJit and: [jit mode = jit optMode]) ifTrue: [self fatal: '--c4 supports only --jit none or baseline'].
 		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].
 		explicitJit ifFalse: [jit mode: 0]].

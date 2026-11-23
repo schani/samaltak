@@ -2,7 +2,7 @@
 # Usage: tests/vm/c4-live/run-publish.sh STANDARD_STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+case "$(uname -s -m):${C4_ARM64_VALIDATION:-0}" in
     'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-publish: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
@@ -13,7 +13,7 @@ mkdir -p "$out"
 for slots in 8192 1048576; do
     code=$(sed "s/Smalltalk at: #C4PublishSlots/$slots/" tests/vm/c4-live/publish.st)
     log=$out/$slots
-    if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4 --eden 1 --max-heap 128 \
+    if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4 --jit none --eden 1 --max-heap 128 \
         "$image" --headless --eval "$code" >"$log.out" 2>"$log.err" ||
         ! grep -Fxq 'C4 bounded publication ok' "$log.out" ||
         ! awk '

@@ -3,7 +3,7 @@
 #        [COMPARE_LEGACY=1] tests/vm/c4-live/run.sh [latency]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+case "$(uname -s -m):${C4_ARM64_VALIDATION:-0}" in
     'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-live: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
@@ -82,9 +82,18 @@ EXPECTED
     '
 }
 
+# Preserve the x86 default-tier smoke while opting into ARM64 explicitly.
+run_c4() {
+    if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then
+        "$@" --c4 --jit none
+    else
+        "$@" --c4
+    fi
+}
+
 if [ "${1:-}" = latency ]; then
     latency legacy "$legacy_vm" --jit none
-    latency c4 "$C4_VM" --c4
+    run_c4 latency c4 "$C4_VM"
     exit 0
 fi
 
@@ -100,19 +109,19 @@ expect_fatal() { # log-name diagnostic vm-args...
 }
 
 jit_rejection='--c4 supports only --jit none or baseline'
-if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then jit_rejection='C4 arm64 interpreter test requires --jit none'; fi
+if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then jit_rejection='C4 on ARM64 requires explicit --jit none'; fi
 expect_fatal c4-jit-rejected "$jit_rejection" \
     --c4 --jit opt "$image" --headless C4Pressure
 expect_fatal c4-nonheadless-rejected '--c4 requires --headless' --c4 "$image"
 
-run_vm "$C4_VM" c4-oom C4OOM --c4
+run_c4 run_vm "$C4_VM" c4-oom C4OOM
 check_stdout c4-oom - <<'EXPECTED'
 --- C4OOM
 Error: basicNew: failed 1
 C4 OOM ok
 EXPECTED
 
-SAMALTAK_C4_STATS=1 run_vm "$C4_VM" c4-pressure C4Pressure --c4
+SAMALTAK_C4_STATS=1 run_c4 run_vm "$C4_VM" c4-pressure C4Pressure
 # C4Pressure accounts for 128 * 384 * 4 KiB = 192 MiB of successful
 # allocations, excluding the live graph and frame objects.
 check_stdout c4-pressure - <<'EXPECTED'
@@ -148,7 +157,7 @@ fi
 
 # Generic interpreter/kernel coverage, limited to the primitives supported by C4.
 for test in Arith Float Strings Closures Unwind Context Perform; do
-    run_vm "$C4_VM" "c4-$test" "$test" --c4
+    run_c4 run_vm "$C4_VM" "c4-$test" "$test"
     check_stdout "c4-$test" "vm/tests/expected/$test.txt"
 done
 echo 'c4-live: guards, pressure, and kernel smoke passed'

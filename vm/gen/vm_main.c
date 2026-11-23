@@ -138,7 +138,7 @@ int main(int n, char **v)
         }
     }
     if (moving_forward) {
-        if (!(c4_heap_supported() && ((!c4_heap_platform_files()) && (!c4_heap_arm64_interpreter_test())))) {
+        if (!(c4_heap_supported() && ((!c4_heap_platform_files()) && (!c4_heap_arm64_interpreter())))) {
             fatal_begin();
             fprintf(stderr, "--c4-moving-forward requires Linux x86-64 with NO_PLATFORM=1");
             fatal_end();
@@ -191,9 +191,9 @@ int main(int n, char **v)
             fprintf(stderr, "--c4 requires --headless");
             fatal_end();
         }
-        if (c4_heap_arm64_interpreter_test() && (explicit_jit && (jit_mode != 0))) {
+        if (c4_heap_arm64_interpreter() && ((!explicit_jit) || (jit_mode != 0))) {
             fatal_begin();
-            fprintf(stderr, "C4 arm64 interpreter test requires --jit none");
+            fprintf(stderr, "C4 on ARM64 requires explicit --jit none");
             fatal_end();
         }
         if (explicit_jit && (jit_mode == JIT_OPT)) {

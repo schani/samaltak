@@ -6,6 +6,7 @@
 # macOS: Homebrew sdl3 and openssl@3, clang. Linux: sdl3, shaderc (GLSL → SPIR-V for SDL_GPU on Vulkan) and OpenSSL 3, gcc
 # or clang.
 # Profile-guided: pgo.profdata (if present) steers optimization; `make pgo IMAGE=...` retrains it. NO_PGO=1 skips it.
+# C4_ARM64_INTERPRETER=1 opts into draft C4 on Linux arm64 (NO_PLATFORM=1; separate BUILD).
 # C4_PLATFORM_FILES=1 builds an interpreter-only C4 VM with audited platform file primitives (Linux x86-64).
 # C4_PLATFORM_SDL=1 adds audited SDL windows, input and CPU presentation (Linux x86-64).
 # BRIEF=1 prints one line per file instead of the commands.
@@ -107,15 +108,16 @@ ifeq ($(C4_PLATFORM_SDL),1)
     $(error C4_PLATFORM_SDL=1 requires Linux x86-64 and the platform build dependencies)
   endif
 endif
-ifeq ($(C4_ARM64_INTERPRETER_TEST),1)
+ifeq ($(C4_ARM64_INTERPRETER),1)
   ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/ARM64/headless/1)
-    $(error C4_ARM64_INTERPRETER_TEST=1 requires Linux arm64 and NO_PLATFORM=1)
+    $(error C4_ARM64_INTERPRETER=1 requires Linux arm64 and NO_PLATFORM=1)
   endif
   ifeq ($(abspath $(BUILD)),$(abspath build))
-    $(error C4_ARM64_INTERPRETER_TEST=1 requires a separate BUILD directory)
+    $(error C4_ARM64_INTERPRETER=1 requires a separate BUILD directory)
   endif
-  VARIANT := c4-arm64-interpreter-test
-  CFLAGS += -DSAMALTAK_C4_ARM64_INTERPRETER_TEST
+  VARIANT := c4-arm64-interpreter
+  # Keep the guard active even when CFLAGS is set on the make command line.
+  override CFLAGS += -DSAMALTAK_C4_ARM64_INTERPRETER
   SRCS += c4_heap.c
   vpath c4_heap.c $(VM_DIR)
 endif

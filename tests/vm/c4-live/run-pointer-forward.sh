@@ -17,7 +17,7 @@ run() {
 run legacy '' --jit none
 grep -Fxq 'pointer forward ok' "$out/legacy.log"
 tiers='none baseline'
-if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then tiers=none; fi
+if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then tiers=none; fi
 for tier in $tiers; do
     run "$tier" '' --c4 --jit "$tier" --jit-threshold 0
     grep -Fxq 'pointer forward ok' "$out/$tier.log"
@@ -35,7 +35,7 @@ for tier in $tiers; do
     run "$tier-moving" -moving --c4-moving --jit "$tier" --jit-threshold 0
     grep -Fxq 'pointer moving rejects ok' "$out/$tier-moving.log"
 done
-if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then
+if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then
     echo 'c4-pointer-forward: legacy/interpreter differential and rejection gates passed'
 else
     echo 'c4-pointer-forward: legacy/interpreter/baseline differential and rejection gates passed'

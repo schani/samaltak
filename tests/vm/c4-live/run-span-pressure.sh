@@ -2,7 +2,7 @@
 # Usage: tests/vm/c4-live/run-span-pressure.sh STANDARD_STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+case "$(uname -s -m):${C4_ARM64_VALIDATION:-0}" in
     'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-span-pressure: skipped (requires Linux x86-64)'; exit 0 ;;
 esac

@@ -5,24 +5,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Private validation lane: never allow a platform build or other ABI. */
-#if defined(SAMALTAK_C4_ARM64_INTERPRETER_TEST) && \
+/* Draft interpreter-only opt-in: never allow a platform build or other ABI. */
+#if defined(SAMALTAK_C4_ARM64_INTERPRETER) && \
     (!defined(__linux__) || !defined(__aarch64__) || !defined(__AARCH64EL__) || \
      !defined(__LP64__) || defined(SAMALTAK_UEFI) || !defined(SAMALTAK_NO_PLATFORM) || \
      defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL))
-#error SAMALTAK_C4_ARM64_INTERPRETER_TEST requires little-endian LP64 Linux arm64 and NO_PLATFORM
+#error SAMALTAK_C4_ARM64_INTERPRETER requires little-endian LP64 Linux arm64 and NO_PLATFORM
 #endif
 
-#if defined(SAMALTAK_C4_ARM64_INTERPRETER_TEST) || (defined(__linux__) && defined(__x86_64__) && !defined(SAMALTAK_UEFI) && \
+#if defined(SAMALTAK_C4_ARM64_INTERPRETER) || (defined(__linux__) && defined(__x86_64__) && !defined(SAMALTAK_UEFI) && \
     (defined(SAMALTAK_NO_PLATFORM) || defined(SAMALTAK_C4_PLATFORM_FILES) || defined(SAMALTAK_C4_PLATFORM_SDL)))
 #define SAMALTAK_C4_SUPPORTED 1
 #else
 #define SAMALTAK_C4_SUPPORTED 0
 #endif
 
-static inline bool c4_heap_arm64_interpreter_test(void)
+static inline bool c4_heap_arm64_interpreter(void)
 {
-#ifdef SAMALTAK_C4_ARM64_INTERPRETER_TEST
+#ifdef SAMALTAK_C4_ARM64_INTERPRETER
     return true;
 #else
     return false;

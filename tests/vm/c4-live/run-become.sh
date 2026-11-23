@@ -2,7 +2,7 @@
 # Usage: tests/vm/c4-live/run-become.sh STANDARD_STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+case "$(uname -s -m):${C4_ARM64_VALIDATION:-0}" in
     'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-become: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
@@ -21,7 +21,7 @@ fail() {
 for mode in legacy c4 c4-moving; do
     case "$mode" in
         legacy) set -- "$legacy" --jit none ;;
-        *) set -- "$runtime" "--$mode" ;;
+        *) set -- "$runtime" "--$mode" --jit none ;;
     esac
     SAMALTAK_C4_STATS=1 timeout -k 2 45 "$@" --eden 1 --max-heap 512 "$image" \
         --headless --eval "$(cat tests/vm/c4-live/become.st)" >"$out/$mode.log" 2>&1 ||
@@ -44,13 +44,13 @@ for mode in legacy c4 c4-moving; do
     fi
 done
 
-timeout -k 2 45 "$runtime" --c4 --eden 1 --max-heap 512 "$image" --headless \
+timeout -k 2 45 "$runtime" --c4 --jit none --eden 1 --max-heap 512 "$image" --headless \
     --eval "$(cat tests/vm/c4-live/become-rejections.st)" >"$out/rejections.log" 2>&1 ||
     fail rejections
 grep -Fxq 'become rejections ok' "$out/rejections.log" || fail rejections
 
 # Gate the regressions without depending on an unrelated StringTest wall-clock assertion.
-timeout -k 2 45 "$runtime" --c4 --eden 1 --max-heap 512 "$image" --headless --eval '
+timeout -k 2 45 "$runtime" --c4 --jit none --eden 1 --max-heap 512 "$image" --headless --eval '
     | result |
     result := TestResult new.
     #(testSqueakAndPharoProtocol testWideStrings) do: [:selector |

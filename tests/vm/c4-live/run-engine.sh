@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+case "$(uname -s -m):${C4_ARM64_VALIDATION:-0}" in
     'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-engine: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
@@ -9,10 +9,10 @@ esac
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 # Allow callers to supply sanitizer flags and a different C compiler.
-arm_test=
-if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then arm_test=-DSAMALTAK_C4_ARM64_INTERPRETER_TEST; fi
+arm_interpreter=
+if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then arm_interpreter=-DSAMALTAK_C4_ARM64_INTERPRETER; fi
 ${CC:-cc} ${CFLAGS:--O2} -std=gnu11 -Wall -Wextra -Werror -pthread \
-    -UNDEBUG -DSAMALTAK_NO_PLATFORM $arm_test -DSAMALTAK_C4_TEST -DSAMALTAK_C4_BIN_TEST -Ivm -I"${SAMALTAK_VM_GEN:-vm/gen}" \
+    -UNDEBUG -DSAMALTAK_NO_PLATFORM $arm_interpreter -DSAMALTAK_C4_TEST -DSAMALTAK_C4_BIN_TEST -Ivm -I"${SAMALTAK_VM_GEN:-vm/gen}" \
     vm/c4_heap.c tests/vm/c4-live/engine_test.c -o "$tmp/engine-test"
 for test in close cache-close shadow oracle weak-close weak-shadow weak-owner-reuse weak-idle lazy-publish lazy-mark lazy-enumeration pinned-fit pinned-stranded-swept pinned-stranded-split pinned-rounded pinned-bin-publish pinned-bin-group-publish pinned-clear-split moving moving-general moving-oracle moving-saturated interval-oracle interval-saturated \
     code-bytes forward-strong forward-claimed forward-weak forward-weak-read forward-after-ack forward-pinned-overlap pointer-shape pointer-satb pointer-claimed pointer-after-ack pointer-enum mforward-disabled mforward-roles mforward-satb mforward-claimed mforward-weak-aba mforward-late mforward-enum mforward-budget mforward-saturated enumeration enumeration-limit enumeration-log-limit cache-enumeration raw-read-ok; do
