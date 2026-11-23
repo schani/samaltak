@@ -185,6 +185,15 @@ frame: i holds: o
 methodBcs: m
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
 !
+refreshLiterals
+	"becomeForward: may have forwarded a method's literal Array: the frames take their pointers into literals again, and the interpreter reloads its registers when the primitive returns."
+	<function>
+	| f |
+	0 to: nframes - 1 do: [:i |
+		f := frames + i.
+		f lits: (self slotsOf: (self literalsOf: f method))].
+	gc gcEpoch: gc gcEpoch + 1
+!
 beforeGC
 	"Frames hold raw pointers into their methods' bytecodes and literals: offsets while objects move."
 	<function>
@@ -929,6 +938,7 @@ pushFrameEntry: e argc: n
 	g fp: nfp.
 	g ip: e bcs.
 	g lits: e lits.
+	(self unlikely: gc forwardersExist) ifTrue: [g lits: (self slotsOf: (self literalsOf: e method))].
 	g sp: n + ntemps.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	nframes := nframes + 1.
@@ -1967,6 +1977,8 @@ haveEntry: e
 	newMethod := e method.
 	newBcs := e bcs.
 	newLits := e lits.
+	"a cached method's literal Array may have been forwarded since"
+	(self unlikely: gc forwardersExist) ifTrue: [newLits := self slotsOf: (self literalsOf: newMethod)].
 	newTemps := e ntemps.
 	newFsize := e fsize.
 	newEcode := -1.

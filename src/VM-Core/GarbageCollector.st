@@ -663,6 +663,7 @@ forward: from to: to
 		s := self slotsOf: interpreter activeCtx.
 		0 to: (self numSlots: interpreter activeCtx) asInt64 - 1 do: [:i | self becomeRoot: s + i].
 		self rememberIfOld: interpreter activeCtx].
+	interpreter refreshLiterals.
 	becomeFrom := memory nilOop.
 	becomeTo := memory nilOop
 !

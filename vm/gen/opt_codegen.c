@@ -5898,12 +5898,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t v_1390;
     bool r_is_no_forwarder_target;
     int32_t k_13;
+    uint64_t o_21;
     int32_t v_1391;
     bool r_is_no_forwarder_target_2;
     int32_t k_14;
+    uint64_t o_22;
     int64_t i_15;
     int32_t r_out_15;
-    opt_out *o_21;
+    opt_out *o_23;
     int32_t l_10;
     int32_t back_2;
     int64_t off_45;
@@ -5955,7 +5957,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_9;
     int32_t k_16;
     int32_t r_out_16;
-    opt_out *o_22;
+    opt_out *o_24;
     int32_t l_11;
     int64_t off_46;
     uint64_t v_1402;
@@ -6152,7 +6154,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_10;
     int32_t k_17;
     int32_t r_out_17;
-    opt_out *o_23;
+    opt_out *o_25;
     int32_t l_12;
     int64_t off_48;
     uint64_t v_1462;
@@ -6244,7 +6246,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_11;
     int32_t k_18;
     int32_t r_out_18;
-    opt_out *o_24;
+    opt_out *o_26;
     int32_t l_13;
     int64_t off_50;
     uint64_t v_1491;
@@ -6359,7 +6361,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_12;
     int32_t k_19;
     int32_t r_out_19;
-    opt_out *o_25;
+    opt_out *o_27;
     int32_t l_14;
     int64_t off_52;
     uint64_t v_1530;
@@ -6580,7 +6582,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_13;
     int32_t k_20;
     int32_t r_out_20;
-    opt_out *o_26;
+    opt_out *o_28;
     int32_t l_15;
     int64_t off_54;
     uint64_t v_1602;
@@ -6690,7 +6692,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_14;
     int32_t k_21;
     int32_t r_out_21;
-    opt_out *o_27;
+    opt_out *o_29;
     int32_t l_16;
     int64_t off_56;
     uint64_t v_1633;
@@ -6872,7 +6874,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_15;
     int32_t k_22;
     int32_t r_out_22;
-    opt_out *o_28;
+    opt_out *o_30;
     int32_t l_17;
     int64_t off_58;
     uint64_t v_1687;
@@ -7041,9 +7043,9 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t op_19;
     int32_t n_1687;
     opt_node *b_11;
-    uint64_t o_29;
-    uint64_t o_30;
     uint64_t o_31;
+    uint64_t o_32;
+    uint64_t o_33;
     int64_t k_23;
     int32_t r_dst_13;
     opt_node *nd_112;
@@ -7150,8 +7152,8 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t r_constant_divisor_of;
     int32_t n_1722;
     opt_node *b_12;
-    uint64_t o_32;
-    uint64_t o_33;
+    uint64_t o_34;
+    uint64_t o_35;
     int64_t d_259;
     int32_t r_dst_14;
     opt_node *nd_115;
@@ -7310,7 +7312,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_16;
     int32_t k_24;
     int32_t r_out_23;
-    opt_out *o_34;
+    opt_out *o_36;
     int32_t l_18;
     int64_t off_60;
     uint64_t v_1810;
@@ -7391,8 +7393,8 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t r_constant_divisor_of_2;
     int32_t n_1797;
     opt_node *b_13;
-    uint64_t o_35;
-    uint64_t o_36;
+    uint64_t o_37;
+    uint64_t o_38;
     bool r_emit_div_by;
     uint64_t v_1835;
     int64_t n_1798;
@@ -7523,7 +7525,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_17;
     int32_t k_26;
     int32_t r_out_24;
-    opt_out *o_37;
+    opt_out *o_39;
     int32_t l_19;
     int64_t off_62;
     uint64_t v_1874;
@@ -7871,7 +7873,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_18;
     int32_t k_27;
     int32_t r_out_25;
-    opt_out *o_38;
+    opt_out *o_40;
     int32_t l_20;
     int64_t off_64;
     uint64_t v_1983;
@@ -8162,7 +8164,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_19;
     int32_t k_28;
     int32_t r_out_26;
-    opt_out *o_39;
+    opt_out *o_41;
     int32_t l_21;
     int64_t off_66;
     uint64_t v_2061;
@@ -8280,7 +8282,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_20;
     int32_t k_29;
     int32_t r_out_27;
-    opt_out *o_40;
+    opt_out *o_42;
     int32_t l_22;
     int64_t off_68;
     uint64_t v_2089;
@@ -8432,7 +8434,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_21;
     int32_t k_30;
     int32_t r_out_28;
-    opt_out *o_41;
+    opt_out *o_43;
     int32_t l_23;
     int64_t off_70;
     uint64_t v_2139;
@@ -8681,7 +8683,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t n_2183;
     int32_t back_3;
     int32_t r_out_29;
-    opt_out *o_42;
+    opt_out *o_44;
     int32_t s_16;
     int64_t off_72;
     int cc_87;
@@ -8723,7 +8725,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     opt_node *nd_139;
     int32_t k_31;
     int32_t r_out_30;
-    opt_out *o_43;
+    opt_out *o_45;
     int32_t slow_5;
     int32_t back_4;
     int32_t r_dst_17;
@@ -9013,9 +9015,9 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_18;
     int32_t n_2272;
     opt_node *sz;
-    uint64_t o_44;
-    uint64_t o_45;
     uint64_t o_46;
+    uint64_t o_47;
+    uint64_t o_48;
     int32_t e;
     int64_t value_63;
     uint64_t v_2316;
@@ -9828,14 +9830,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_24;
     int32_t v_2544;
     opt_node *nd_152;
-    uint64_t o_47;
+    uint64_t o_49;
     uint64_t a_224;
     int64_t d_399;
     uint64_t v_2545;
     uint64_t target_352;
     int64_t disp_352;
     uint64_t v_2546;
-    uint64_t o_48;
+    uint64_t o_50;
     int64_t value_67;
     uint64_t v_2547;
     uint64_t v_2548;
@@ -9907,14 +9909,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_25;
     int32_t v_2570;
     opt_node *nd_154;
-    uint64_t o_49;
+    uint64_t o_51;
     uint64_t a_226;
     int64_t d_401;
     uint64_t v_2571;
     uint64_t target_356;
     int64_t disp_356;
     uint64_t v_2572;
-    uint64_t o_50;
+    uint64_t o_52;
     int64_t value_69;
     uint64_t v_2573;
     uint64_t v_2574;
@@ -10518,14 +10520,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_27;
     int32_t v_2769;
     opt_node *nd_158;
-    uint64_t o_51;
+    uint64_t o_53;
     uint64_t a_260;
     int64_t d_441;
     uint64_t v_2770;
     uint64_t target_396;
     int64_t disp_396;
     uint64_t v_2771;
-    uint64_t o_52;
+    uint64_t o_54;
     int64_t value_73;
     uint64_t v_2772;
     uint64_t v_2773;
@@ -10620,14 +10622,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_28;
     int32_t v_2803;
     opt_node *nd_160;
-    uint64_t o_53;
+    uint64_t o_55;
     uint64_t a_264;
     int64_t d_445;
     uint64_t v_2804;
     uint64_t target_402;
     int64_t disp_402;
     uint64_t v_2805;
-    uint64_t o_54;
+    uint64_t o_56;
     int64_t value_75;
     uint64_t v_2806;
     uint64_t v_2807;
@@ -10702,14 +10704,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_29;
     int32_t v_2830;
     opt_node *nd_162;
-    uint64_t o_55;
+    uint64_t o_57;
     uint64_t a_266;
     int64_t d_447;
     uint64_t v_2831;
     uint64_t target_406;
     int64_t disp_406;
     uint64_t v_2832;
-    uint64_t o_56;
+    uint64_t o_58;
     int64_t value_77;
     uint64_t v_2833;
     uint64_t v_2834;
@@ -10811,14 +10813,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_30;
     int32_t v_2866;
     opt_node *nd_164;
-    uint64_t o_57;
+    uint64_t o_59;
     uint64_t a_270;
     int64_t d_452;
     uint64_t v_2867;
     uint64_t target_412;
     int64_t disp_412;
     uint64_t v_2868;
-    uint64_t o_58;
+    uint64_t o_60;
     int64_t value_79;
     uint64_t v_2869;
     uint64_t v_2870;
@@ -10917,14 +10919,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_31;
     int32_t v_2898;
     opt_node *nd_166;
-    uint64_t o_59;
+    uint64_t o_61;
     uint64_t a_272;
     int64_t d_457;
     uint64_t v_2899;
     uint64_t target_416;
     int64_t disp_416;
     uint64_t v_2900;
-    uint64_t o_60;
+    uint64_t o_62;
     int64_t value_81;
     uint64_t v_2901;
     uint64_t v_2902;
@@ -10996,14 +10998,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_32;
     int32_t v_2924;
     opt_node *nd_168;
-    uint64_t o_61;
+    uint64_t o_63;
     uint64_t a_274;
     int64_t d_459;
     uint64_t v_2925;
     uint64_t target_420;
     int64_t disp_420;
     uint64_t v_2926;
-    uint64_t o_62;
+    uint64_t o_64;
     int64_t value_83;
     uint64_t v_2927;
     uint64_t v_2928;
@@ -11518,7 +11520,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t disp_441;
     uint64_t v_3091;
     int32_t r_out_31;
-    opt_out *o_63;
+    opt_out *o_65;
     uint64_t v_3092;
     int64_t n_2997;
     uint64_t tail_193;
@@ -11595,9 +11597,9 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t n_3014;
     int32_t cont;
     int32_t r_out_32;
-    opt_out *o_64;
+    opt_out *o_66;
     int32_t r_out_33;
-    opt_out *o_65;
+    opt_out *o_67;
     int32_t lazy;
     uint64_t v_3115;
     int64_t n_3015;
@@ -11660,7 +11662,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t disp_453;
     uint64_t v_3134;
     int32_t r_out_34;
-    opt_out *o_66;
+    opt_out *o_68;
     uint64_t v_3136;
     int64_t n_3029;
     int64_t n_3030;
@@ -11730,7 +11732,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t disp_459;
     uint64_t v_3161;
     int32_t r_out_35;
-    opt_out *o_67;
+    opt_out *o_69;
     int64_t off_87;
     int cc_117;
     uint64_t a_291;
@@ -12035,7 +12037,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_22;
     int32_t k_36;
     int32_t r_out_36;
-    opt_out *o_68;
+    opt_out *o_70;
     int32_t l_26;
     int64_t off_88;
     uint64_t v_3221;
@@ -12336,7 +12338,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t n_3225;
     int32_t n_3226;
     int32_t n_3227;
-    uint64_t o_69;
+    uint64_t o_71;
     int32_t n_3228;
     int32_t n_3229;
     int32_t n_3230;
@@ -12398,12 +12400,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t v_3331;
     bool r_is_no_forwarder_target_3;
     int32_t k_37;
+    uint64_t o_72;
     int32_t v_3332;
     bool r_is_no_forwarder_target_4;
     int32_t k_38;
+    uint64_t o_73;
     int64_t i_51;
     int32_t r_out_37;
-    opt_out *o_70;
+    opt_out *o_74;
     int32_t l_27;
     int32_t back_6;
     int64_t off_90;
@@ -12585,7 +12589,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t v_3393;
     int64_t x_24;
     int32_t r_out_38;
-    opt_out *o_71;
+    opt_out *o_75;
     int32_t s_24;
     int64_t off_91;
     uint64_t v_3394;
@@ -12613,7 +12617,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t r_entry_pc;
     int32_t back_7;
     int32_t r_out_39;
-    opt_out *o_72;
+    opt_out *o_76;
     int32_t w_82;
     int64_t off_92;
     int64_t d_515;
@@ -12668,7 +12672,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_23;
     int32_t k_41;
     int32_t r_out_40;
-    opt_out *o_73;
+    opt_out *o_77;
     int32_t l_28;
     int64_t off_93;
     uint64_t v_3414;
@@ -43470,12 +43474,26 @@ exit_src_28:;
     v_1390 = nd_82->a;
     (!({
     k_13 = (int32_t)(opt_nodes + v_1390)->tkind;
+    if (((int32_t)(opt_nodes + v_1390)->op == O_CONST) && ({
+    o_21 = (uint64_t)(opt_nodes + v_1390)->aux;
+    (!((o_21 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_1390)->aux); })) {
+        r_is_no_forwarder_target = true;
+        goto exit_is_no_forwarder_target;
+    }
     r_is_no_forwarder_target = (k_13 == T_SMI) || ((k_13 == T_BOOL) || ((k_13 == T_NIL) || ((k_13 == T_CHAR) || ((k_13 == T_FLOAT) && ((int32_t)(opt_nodes + v_1390)->op == O_CONST)))));
+exit_is_no_forwarder_target:;
     r_is_no_forwarder_target; })) && ({
     v_1391 = nd_82->b;
     !({
     k_14 = (int32_t)(opt_nodes + v_1391)->tkind;
+    if (((int32_t)(opt_nodes + v_1391)->op == O_CONST) && ({
+    o_22 = (uint64_t)(opt_nodes + v_1391)->aux;
+    (!((o_22 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_1391)->aux); })) {
+        r_is_no_forwarder_target_2 = true;
+        goto exit_is_no_forwarder_target_2;
+    }
     r_is_no_forwarder_target_2 = (k_14 == T_SMI) || ((k_14 == T_BOOL) || ((k_14 == T_NIL) || ((k_14 == T_CHAR) || ((k_14 == T_FLOAT) && ((int32_t)(opt_nodes + v_1391)->op == O_CONST)))));
+exit_is_no_forwarder_target_2:;
     r_is_no_forwarder_target_2; }); }); })) {
                 i_15 = x_11 | (y_3 << 8);
                 l_10 = ({
@@ -43486,15 +43504,15 @@ exit_src_28:;
         r_out_15 = new_label();
         goto exit_out_15;
     }
-    o_21 = cg_outs + cg_out_count;
-    o_21->kind = OUT_FOLLOW;
-    o_21->node = n;
-    o_21->index = i_15;
-    o_21->label = new_label();
-    o_21->resume = -1;
-    o_21->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_23 = cg_outs + cg_out_count;
+    o_23->kind = OUT_FOLLOW;
+    o_23->node = n;
+    o_23->index = i_15;
+    o_23->label = new_label();
+    o_23->resume = -1;
+    o_23->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_15 = o_21->label;
+    r_out_15 = o_23->label;
 exit_out_15:;
     r_out_15; });
                 back_2 = new_label();
@@ -43779,15 +43797,15 @@ exit_condition_of:;
         r_out_16 = new_label();
         goto exit_out_16;
     }
-    o_22 = cg_outs + cg_out_count;
-    o_22->kind = OUT_DEOPT;
-    o_22->node = n;
-    o_22->index = k_16;
-    o_22->label = new_label();
-    o_22->resume = -1;
-    o_22->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_24 = cg_outs + cg_out_count;
+    o_24->kind = OUT_DEOPT;
+    o_24->node = n;
+    o_24->index = k_16;
+    o_24->label = new_label();
+    o_24->resume = -1;
+    o_24->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_16 = o_22->label;
+    r_out_16 = o_24->label;
 exit_out_16:;
     r_out_16; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -45051,15 +45069,15 @@ exit_source_35:;
         r_out_17 = new_label();
         goto exit_out_17;
     }
-    o_23 = cg_outs + cg_out_count;
-    o_23->kind = OUT_DEOPT;
-    o_23->node = n;
-    o_23->index = k_17;
-    o_23->label = new_label();
-    o_23->resume = -1;
-    o_23->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_25 = cg_outs + cg_out_count;
+    o_25->kind = OUT_DEOPT;
+    o_25->node = n;
+    o_25->index = k_17;
+    o_25->label = new_label();
+    o_25->resume = -1;
+    o_25->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_17 = o_23->label;
+    r_out_17 = o_25->label;
 exit_out_17:;
     r_out_17; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -45691,15 +45709,15 @@ exit_source_36:;
         r_out_18 = new_label();
         goto exit_out_18;
     }
-    o_24 = cg_outs + cg_out_count;
-    o_24->kind = OUT_DEOPT;
-    o_24->node = n;
-    o_24->index = k_18;
-    o_24->label = new_label();
-    o_24->resume = -1;
-    o_24->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_26 = cg_outs + cg_out_count;
+    o_26->kind = OUT_DEOPT;
+    o_26->node = n;
+    o_26->index = k_18;
+    o_26->label = new_label();
+    o_26->resume = -1;
+    o_26->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_18 = o_24->label;
+    r_out_18 = o_26->label;
 exit_out_18:;
     r_out_18; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -46513,15 +46531,15 @@ exit_src_32:;
         r_out_19 = new_label();
         goto exit_out_19;
     }
-    o_25 = cg_outs + cg_out_count;
-    o_25->kind = OUT_DEOPT;
-    o_25->node = n;
-    o_25->index = k_19;
-    o_25->label = new_label();
-    o_25->resume = -1;
-    o_25->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_27 = cg_outs + cg_out_count;
+    o_27->kind = OUT_DEOPT;
+    o_27->node = n;
+    o_27->index = k_19;
+    o_27->label = new_label();
+    o_27->resume = -1;
+    o_27->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_19 = o_25->label;
+    r_out_19 = o_27->label;
 exit_out_19:;
     r_out_19; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -48025,15 +48043,15 @@ exit_src_35:;
         r_out_20 = new_label();
         goto exit_out_20;
     }
-    o_26 = cg_outs + cg_out_count;
-    o_26->kind = OUT_DEOPT;
-    o_26->node = n;
-    o_26->index = k_20;
-    o_26->label = new_label();
-    o_26->resume = -1;
-    o_26->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_28 = cg_outs + cg_out_count;
+    o_28->kind = OUT_DEOPT;
+    o_28->node = n;
+    o_28->index = k_20;
+    o_28->label = new_label();
+    o_28->resume = -1;
+    o_28->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_20 = o_26->label;
+    r_out_20 = o_28->label;
 exit_out_20:;
     r_out_20; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -48707,15 +48725,15 @@ exit_source_37:;
         r_out_21 = new_label();
         goto exit_out_21;
     }
-    o_27 = cg_outs + cg_out_count;
-    o_27->kind = OUT_DEOPT;
-    o_27->node = n;
-    o_27->index = k_21;
-    o_27->label = new_label();
-    o_27->resume = -1;
-    o_27->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_29 = cg_outs + cg_out_count;
+    o_29->kind = OUT_DEOPT;
+    o_29->node = n;
+    o_29->index = k_21;
+    o_29->label = new_label();
+    o_29->resume = -1;
+    o_29->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_21 = o_27->label;
+    r_out_21 = o_29->label;
 exit_out_21:;
     r_out_21; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -49900,15 +49918,15 @@ exit_src_38:;
         r_out_22 = new_label();
         goto exit_out_22;
     }
-    o_28 = cg_outs + cg_out_count;
-    o_28->kind = OUT_DEOPT;
-    o_28->node = n;
-    o_28->index = k_22;
-    o_28->label = new_label();
-    o_28->resume = -1;
-    o_28->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_30 = cg_outs + cg_out_count;
+    o_30->kind = OUT_DEOPT;
+    o_30->node = n;
+    o_30->index = k_22;
+    o_30->label = new_label();
+    o_30->resume = -1;
+    o_30->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_22 = o_28->label;
+    r_out_22 = o_30->label;
 exit_out_22:;
     r_out_22; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -51027,12 +51045,12 @@ exit_src_40:;
         n_1687 = nd_111->b;
         b_11 = opt_nodes + n_1687;
         if ((op_19 == O_ISHIFT) && (((int32_t)b_11->op == O_CONST) && ({
-    o_29 = (uint64_t)b_11->aux;
-    ((o_29 & 1) != 0) && ({
-    o_30 = (uint64_t)b_11->aux;
-    (((int64_t)o_30) >> 1) < 0; }); }))) {
-            o_31 = (uint64_t)b_11->aux;
-            k_23 = -(((int64_t)o_31) >> 1) < 63 ? -(((int64_t)o_31) >> 1) : 63;
+    o_31 = (uint64_t)b_11->aux;
+    ((o_31 & 1) != 0) && ({
+    o_32 = (uint64_t)b_11->aux;
+    (((int64_t)o_32) >> 1) < 0; }); }))) {
+            o_33 = (uint64_t)b_11->aux;
+            k_23 = -(((int64_t)o_33) >> 1) < 63 ? -(((int64_t)o_33) >> 1) : 63;
             r_16 = ({
     nd_112 = opt_nodes + n;
     if (nd_112->reg >= 0) {
@@ -51605,13 +51623,13 @@ exit_src_41:;
     n_1722 = (opt_nodes + n)->b;
     b_12 = opt_nodes + n_1722;
     if (!(((int32_t)b_12->op == O_CONST) && ({
-    o_32 = (uint64_t)b_12->aux;
-    (o_32 & 1) != 0; }))) {
+    o_34 = (uint64_t)b_12->aux;
+    (o_34 & 1) != 0; }))) {
         r_constant_divisor_of = 0;
         goto exit_constant_divisor_of;
     }
-    o_33 = (uint64_t)b_12->aux;
-    r_constant_divisor_of = ((int64_t)o_33) >> 1;
+    o_35 = (uint64_t)b_12->aux;
+    r_constant_divisor_of = ((int64_t)o_35) >> 1;
 exit_constant_divisor_of:;
     r_constant_divisor_of; });
         if ((nd_111->aux == 0) && ((d_259 > 1) && (((d_259 & (d_259 - 1)) == 0) && (d_259 < 0x40000000)))) {
@@ -52548,15 +52566,15 @@ exit_src_43:;
         r_out_23 = new_label();
         goto exit_out_23;
     }
-    o_34 = cg_outs + cg_out_count;
-    o_34->kind = OUT_DEOPT;
-    o_34->node = n;
-    o_34->index = k_24;
-    o_34->label = new_label();
-    o_34->resume = -1;
-    o_34->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_36 = cg_outs + cg_out_count;
+    o_36->kind = OUT_DEOPT;
+    o_36->node = n;
+    o_36->index = k_24;
+    o_36->label = new_label();
+    o_36->resume = -1;
+    o_36->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_23 = o_34->label;
+    r_out_23 = o_36->label;
 exit_out_23:;
     r_out_23; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -53076,13 +53094,13 @@ exit_src_44:;
     n_1797 = (opt_nodes + n)->b;
     b_13 = opt_nodes + n_1797;
     if (!(((int32_t)b_13->op == O_CONST) && ({
-    o_35 = (uint64_t)b_13->aux;
-    (o_35 & 1) != 0; }))) {
+    o_37 = (uint64_t)b_13->aux;
+    (o_37 & 1) != 0; }))) {
         r_constant_divisor_of_2 = 0;
         goto exit_constant_divisor_of_2;
     }
-    o_36 = (uint64_t)b_13->aux;
-    r_constant_divisor_of_2 = ((int64_t)o_36) >> 1;
+    o_38 = (uint64_t)b_13->aux;
+    r_constant_divisor_of_2 = ((int64_t)o_38) >> 1;
 exit_constant_divisor_of_2:;
     r_constant_divisor_of_2; });
         if (d_259 != 0) {
@@ -53910,15 +53928,15 @@ exit_emit_div_by:;
         r_out_24 = new_label();
         goto exit_out_24;
     }
-    o_37 = cg_outs + cg_out_count;
-    o_37->kind = OUT_DEOPT;
-    o_37->node = n;
-    o_37->index = k_26;
-    o_37->label = new_label();
-    o_37->resume = -1;
-    o_37->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_39 = cg_outs + cg_out_count;
+    o_39->kind = OUT_DEOPT;
+    o_39->node = n;
+    o_39->index = k_26;
+    o_39->label = new_label();
+    o_39->resume = -1;
+    o_39->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_24 = o_37->label;
+    r_out_24 = o_39->label;
 exit_out_24:;
     r_out_24; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -56196,15 +56214,15 @@ exit_src_45:;
         r_out_25 = new_label();
         goto exit_out_25;
     }
-    o_38 = cg_outs + cg_out_count;
-    o_38->kind = OUT_DEOPT;
-    o_38->node = n;
-    o_38->index = k_27;
-    o_38->label = new_label();
-    o_38->resume = -1;
-    o_38->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_40 = cg_outs + cg_out_count;
+    o_40->kind = OUT_DEOPT;
+    o_40->node = n;
+    o_40->index = k_27;
+    o_40->label = new_label();
+    o_40->resume = -1;
+    o_40->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_25 = o_38->label;
+    r_out_25 = o_40->label;
 exit_out_25:;
     r_out_25; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -57907,15 +57925,15 @@ exit_dst_15:;
         r_out_26 = new_label();
         goto exit_out_26;
     }
-    o_39 = cg_outs + cg_out_count;
-    o_39->kind = OUT_DEOPT;
-    o_39->node = n;
-    o_39->index = k_28;
-    o_39->label = new_label();
-    o_39->resume = -1;
-    o_39->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_41 = cg_outs + cg_out_count;
+    o_41->kind = OUT_DEOPT;
+    o_41->node = n;
+    o_41->index = k_28;
+    o_41->label = new_label();
+    o_41->resume = -1;
+    o_41->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_26 = o_39->label;
+    r_out_26 = o_41->label;
 exit_out_26:;
     r_out_26; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -58552,15 +58570,15 @@ exit_emit_stress_at_19:;
         r_out_27 = new_label();
         goto exit_out_27;
     }
-    o_40 = cg_outs + cg_out_count;
-    o_40->kind = OUT_DEOPT;
-    o_40->node = n;
-    o_40->index = k_29;
-    o_40->label = new_label();
-    o_40->resume = -1;
-    o_40->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_42 = cg_outs + cg_out_count;
+    o_42->kind = OUT_DEOPT;
+    o_42->node = n;
+    o_42->index = k_29;
+    o_42->label = new_label();
+    o_42->resume = -1;
+    o_42->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_27 = o_40->label;
+    r_out_27 = o_42->label;
 exit_out_27:;
     r_out_27; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -59604,15 +59622,15 @@ exit_src_48:;
         r_out_28 = new_label();
         goto exit_out_28;
     }
-    o_41 = cg_outs + cg_out_count;
-    o_41->kind = OUT_DEOPT;
-    o_41->node = n;
-    o_41->index = k_30;
-    o_41->label = new_label();
-    o_41->resume = -1;
-    o_41->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_43 = cg_outs + cg_out_count;
+    o_43->kind = OUT_DEOPT;
+    o_43->node = n;
+    o_43->index = k_30;
+    o_43->label = new_label();
+    o_43->resume = -1;
+    o_43->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_28 = o_41->label;
+    r_out_28 = o_43->label;
 exit_out_28:;
     r_out_28; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -61266,15 +61284,15 @@ exit_dst_16:;
         r_out_29 = new_label();
         goto exit_out_29;
     }
-    o_42 = cg_outs + cg_out_count;
-    o_42->kind = OUT_INTERRUPT;
-    o_42->node = n;
-    o_42->index = 0;
-    o_42->label = new_label();
-    o_42->resume = -1;
-    o_42->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_44 = cg_outs + cg_out_count;
+    o_44->kind = OUT_INTERRUPT;
+    o_44->node = n;
+    o_44->index = 0;
+    o_44->label = new_label();
+    o_44->resume = -1;
+    o_44->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_29 = o_42->label;
+    r_out_29 = o_44->label;
 exit_out_29:;
     r_out_29; });
         (cg_outs + (cg_out_count - 1))->resume = back_3;
@@ -61539,15 +61557,15 @@ exit_out_29:;
         r_out_30 = new_label();
         goto exit_out_30;
     }
-    o_43 = cg_outs + cg_out_count;
-    o_43->kind = OUT_ARRAY;
-    o_43->node = n;
-    o_43->index = 0;
-    o_43->label = new_label();
-    o_43->resume = -1;
-    o_43->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_45 = cg_outs + cg_out_count;
+    o_45->kind = OUT_ARRAY;
+    o_45->node = n;
+    o_45->index = 0;
+    o_45->label = new_label();
+    o_45->resume = -1;
+    o_45->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_30 = o_43->label;
+    r_out_30 = o_45->label;
 exit_out_30:;
     r_out_30; });
         back_4 = new_label();
@@ -63536,12 +63554,12 @@ exit_src_53:;
                 n_2272 = opt_operands[i_18];
                 sz = opt_nodes + n_2272;
                 if (((int32_t)sz->op == O_CONST) && ({
-    o_44 = (uint64_t)sz->aux;
-    ((o_44 & 1) != 0) && ({
-    o_45 = (uint64_t)sz->aux;
-    ((((int64_t)o_45) >> 1) >= 0) && ((((int64_t)o_45) >> 1) <= max); }); })) {
-                    o_46 = (uint64_t)sz->aux;
-                    e = (int32_t)(((int64_t)o_46) >> 1);
+    o_46 = (uint64_t)sz->aux;
+    ((o_46 & 1) != 0) && ({
+    o_47 = (uint64_t)sz->aux;
+    ((((int64_t)o_47) >> 1) >= 0) && ((((int64_t)o_47) >> 1) <= max); }); })) {
+                    o_48 = (uint64_t)sz->aux;
+                    e = (int32_t)(((int64_t)o_48) >> 1);
                     k_33 = isize + ((e + (1LL << shift) - 1) >> shift);
                     if (shift > 0) {
                         fmt = (int32_t)(fmt + ((k_33 << shift) - e));
@@ -68959,8 +68977,8 @@ exit_is_fused_replace:;
             v_2544 = opt_operands[i_24];
             nd_152 = opt_nodes + v_2544;
             if ((int32_t)nd_152->op == O_CONST) {
-                o_47 = (uint64_t)nd_152->aux;
-                if (!((o_47 & 1) != 0)) {
+                o_49 = (uint64_t)nd_152->aux;
+                if (!((o_49 & 1) != 0)) {
                     a_224 = asm_labels[fail];
                     if (a_224 != 0) {
                         d_399 = (int64_t)(a_224 - (asm_pc + 2));
@@ -69004,8 +69022,8 @@ exit_is_fused_replace:;
                 exit_b_204:;
                     goto exit_untag;
                 }
-                o_48 = (uint64_t)nd_152->aux;
-                value_67 = ((int64_t)o_48) >> 1;
+                o_50 = (uint64_t)nd_152->aux;
+                value_67 = ((int64_t)o_50) >> 1;
                 v_2547 = (uint64_t)value_67;
                 if (v_2547 <= 0xFFFFFFFFLL) {
                     v_2548 = 48193ULL | ((v_2547 & 0xFFFFFFFFLL) << 16);
@@ -69487,8 +69505,8 @@ exit_src_56:;
             v_2570 = opt_operands[i_25];
             nd_154 = opt_nodes + v_2570;
             if ((int32_t)nd_154->op == O_CONST) {
-                o_49 = (uint64_t)nd_154->aux;
-                if (!((o_49 & 1) != 0)) {
+                o_51 = (uint64_t)nd_154->aux;
+                if (!((o_51 & 1) != 0)) {
                     a_226 = asm_labels[fail];
                     if (a_226 != 0) {
                         d_401 = (int64_t)(a_226 - (asm_pc + 2));
@@ -69532,8 +69550,8 @@ exit_src_56:;
                 exit_b_205:;
                     goto exit_untag_2;
                 }
-                o_50 = (uint64_t)nd_154->aux;
-                value_69 = ((int64_t)o_50) >> 1;
+                o_52 = (uint64_t)nd_154->aux;
+                value_69 = ((int64_t)o_52) >> 1;
                 v_2573 = (uint64_t)value_69;
                 if (v_2573 <= 0xFFFFFFFFLL) {
                     v_2574 = 47681ULL | ((v_2573 & 0xFFFFFFFFLL) << 16);
@@ -73500,8 +73518,8 @@ exit_source_40:;
             v_2769 = opt_operands[i_27];
             nd_158 = opt_nodes + v_2769;
             if ((int32_t)nd_158->op == O_CONST) {
-                o_51 = (uint64_t)nd_158->aux;
-                if (!((o_51 & 1) != 0)) {
+                o_53 = (uint64_t)nd_158->aux;
+                if (!((o_53 & 1) != 0)) {
                     a_260 = asm_labels[fail];
                     if (a_260 != 0) {
                         d_441 = (int64_t)(a_260 - (asm_pc + 2));
@@ -73545,8 +73563,8 @@ exit_source_40:;
                 exit_b_238:;
                     goto exit_untag_3;
                 }
-                o_52 = (uint64_t)nd_158->aux;
-                value_73 = ((int64_t)o_52) >> 1;
+                o_54 = (uint64_t)nd_158->aux;
+                value_73 = ((int64_t)o_54) >> 1;
                 v_2772 = (uint64_t)value_73;
                 if (v_2772 <= 0xFFFFFFFFLL) {
                     v_2773 = 47681ULL | ((v_2772 & 0xFFFFFFFFLL) << 16);
@@ -74182,8 +74200,8 @@ exit_src_60:;
             v_2803 = opt_operands[i_28];
             nd_160 = opt_nodes + v_2803;
             if ((int32_t)nd_160->op == O_CONST) {
-                o_53 = (uint64_t)nd_160->aux;
-                if (!((o_53 & 1) != 0)) {
+                o_55 = (uint64_t)nd_160->aux;
+                if (!((o_55 & 1) != 0)) {
                     a_264 = asm_labels[fail];
                     if (a_264 != 0) {
                         d_445 = (int64_t)(a_264 - (asm_pc + 2));
@@ -74227,8 +74245,8 @@ exit_src_60:;
                 exit_b_241:;
                     goto exit_untag_4;
                 }
-                o_54 = (uint64_t)nd_160->aux;
-                value_75 = ((int64_t)o_54) >> 1;
+                o_56 = (uint64_t)nd_160->aux;
+                value_75 = ((int64_t)o_56) >> 1;
                 v_2806 = (uint64_t)value_75;
                 if (v_2806 <= 0xFFFFFFFFLL) {
                     v_2807 = 47681ULL | ((v_2806 & 0xFFFFFFFFLL) << 16);
@@ -74730,8 +74748,8 @@ exit_src_61:;
             v_2830 = opt_operands[i_29];
             nd_162 = opt_nodes + v_2830;
             if ((int32_t)nd_162->op == O_CONST) {
-                o_55 = (uint64_t)nd_162->aux;
-                if (!((o_55 & 1) != 0)) {
+                o_57 = (uint64_t)nd_162->aux;
+                if (!((o_57 & 1) != 0)) {
                     a_266 = asm_labels[fail];
                     if (a_266 != 0) {
                         d_447 = (int64_t)(a_266 - (asm_pc + 2));
@@ -74775,8 +74793,8 @@ exit_src_61:;
                 exit_b_242:;
                     goto exit_untag_5;
                 }
-                o_56 = (uint64_t)nd_162->aux;
-                value_77 = ((int64_t)o_56) >> 1;
+                o_58 = (uint64_t)nd_162->aux;
+                value_77 = ((int64_t)o_58) >> 1;
                 v_2833 = (uint64_t)value_77;
                 if (v_2833 <= 0xFFFFFFFFLL) {
                     v_2834 = 47681ULL | ((v_2833 & 0xFFFFFFFFLL) << 16);
@@ -75463,8 +75481,8 @@ exit_src_62:;
             v_2866 = opt_operands[i_30];
             nd_164 = opt_nodes + v_2866;
             if ((int32_t)nd_164->op == O_CONST) {
-                o_57 = (uint64_t)nd_164->aux;
-                if (!((o_57 & 1) != 0)) {
+                o_59 = (uint64_t)nd_164->aux;
+                if (!((o_59 & 1) != 0)) {
                     a_270 = asm_labels[fail];
                     if (a_270 != 0) {
                         d_452 = (int64_t)(a_270 - (asm_pc + 2));
@@ -75508,8 +75526,8 @@ exit_src_62:;
                 exit_b_245:;
                     goto exit_untag_6;
                 }
-                o_58 = (uint64_t)nd_164->aux;
-                value_79 = ((int64_t)o_58) >> 1;
+                o_60 = (uint64_t)nd_164->aux;
+                value_79 = ((int64_t)o_60) >> 1;
                 v_2869 = (uint64_t)value_79;
                 if (v_2869 <= 0xFFFFFFFFLL) {
                     v_2870 = 48193ULL | ((v_2869 & 0xFFFFFFFFLL) << 16);
@@ -76190,8 +76208,8 @@ exit_src_63:;
             v_2898 = opt_operands[i_31];
             nd_166 = opt_nodes + v_2898;
             if ((int32_t)nd_166->op == O_CONST) {
-                o_59 = (uint64_t)nd_166->aux;
-                if (!((o_59 & 1) != 0)) {
+                o_61 = (uint64_t)nd_166->aux;
+                if (!((o_61 & 1) != 0)) {
                     a_272 = asm_labels[fail];
                     if (a_272 != 0) {
                         d_457 = (int64_t)(a_272 - (asm_pc + 2));
@@ -76235,8 +76253,8 @@ exit_src_63:;
                 exit_b_246:;
                     goto exit_untag_7;
                 }
-                o_60 = (uint64_t)nd_166->aux;
-                value_81 = ((int64_t)o_60) >> 1;
+                o_62 = (uint64_t)nd_166->aux;
+                value_81 = ((int64_t)o_62) >> 1;
                 v_2901 = (uint64_t)value_81;
                 if (v_2901 <= 0xFFFFFFFFLL) {
                     v_2902 = 48961ULL | ((v_2901 & 0xFFFFFFFFLL) << 16);
@@ -76718,8 +76736,8 @@ exit_src_64:;
             v_2924 = opt_operands[i_32];
             nd_168 = opt_nodes + v_2924;
             if ((int32_t)nd_168->op == O_CONST) {
-                o_61 = (uint64_t)nd_168->aux;
-                if (!((o_61 & 1) != 0)) {
+                o_63 = (uint64_t)nd_168->aux;
+                if (!((o_63 & 1) != 0)) {
                     a_274 = asm_labels[fail];
                     if (a_274 != 0) {
                         d_459 = (int64_t)(a_274 - (asm_pc + 2));
@@ -76763,8 +76781,8 @@ exit_src_64:;
                 exit_b_247:;
                     goto exit_untag_8;
                 }
-                o_62 = (uint64_t)nd_168->aux;
-                value_83 = ((int64_t)o_62) >> 1;
+                o_64 = (uint64_t)nd_168->aux;
+                value_83 = ((int64_t)o_64) >> 1;
                 v_2927 = (uint64_t)value_83;
                 if (v_2927 <= 0xFFFFFFFFLL) {
                     v_2928 = 47681ULL | ((v_2927 & 0xFFFFFFFFLL) << 16);
@@ -80271,15 +80289,15 @@ exit_src_70:;
         r_out_31 = new_label();
         goto exit_out_31;
     }
-    o_63 = cg_outs + cg_out_count;
-    o_63->kind = OUT_SITE;
-    o_63->node = n;
-    o_63->index = k_32;
-    o_63->label = new_label();
-    o_63->resume = -1;
-    o_63->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_65 = cg_outs + cg_out_count;
+    o_65->kind = OUT_SITE;
+    o_65->node = n;
+    o_65->index = k_32;
+    o_65->label = new_label();
+    o_65->resume = -1;
+    o_65->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_31 = o_63->label;
+    r_out_31 = o_65->label;
 exit_out_31:;
     r_out_31; });
             (cg_outs + (cg_out_count - 1))->resume = back_5;
@@ -80832,15 +80850,15 @@ exit_out_31:;
         r_out_32 = new_label();
         goto exit_out_32;
     }
-    o_64 = cg_outs + cg_out_count;
-    o_64->kind = OUT_RESUME;
-    o_64->node = n;
-    o_64->index = k_32;
-    o_64->label = new_label();
-    o_64->resume = -1;
-    o_64->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_66 = cg_outs + cg_out_count;
+    o_66->kind = OUT_RESUME;
+    o_66->node = n;
+    o_66->index = k_32;
+    o_66->label = new_label();
+    o_66->resume = -1;
+    o_66->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_32 = o_64->label;
+    r_out_32 = o_66->label;
 exit_out_32:;
     r_out_32; });
         (cg_outs + (cg_out_count - 1))->resume = cont;
@@ -80852,15 +80870,15 @@ exit_out_32:;
         r_out_33 = new_label();
         goto exit_out_33;
     }
-    o_65 = cg_outs + cg_out_count;
-    o_65->kind = OUT_LAZY;
-    o_65->node = n;
-    o_65->index = k_32;
-    o_65->label = new_label();
-    o_65->resume = -1;
-    o_65->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_67 = cg_outs + cg_out_count;
+    o_67->kind = OUT_LAZY;
+    o_67->node = n;
+    o_67->index = k_32;
+    o_67->label = new_label();
+    o_67->resume = -1;
+    o_67->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_33 = o_65->label;
+    r_out_33 = o_67->label;
 exit_out_33:;
     r_out_33; });
         if (asm_noting) {
@@ -81262,15 +81280,15 @@ exit_out_33:;
         r_out_34 = new_label();
         goto exit_out_34;
     }
-    o_66 = cg_outs + cg_out_count;
-    o_66->kind = OUT_NOTMADE;
-    o_66->node = n;
-    o_66->index = k_32;
-    o_66->label = new_label();
-    o_66->resume = -1;
-    o_66->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_68 = cg_outs + cg_out_count;
+    o_68->kind = OUT_NOTMADE;
+    o_68->node = n;
+    o_68->index = k_32;
+    o_68->label = new_label();
+    o_68->resume = -1;
+    o_68->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_34 = o_66->label;
+    r_out_34 = o_68->label;
 exit_out_34:;
     r_out_34; });
             v_3136 = 0ULL;
@@ -81778,15 +81796,15 @@ exit_out_34:;
         r_out_35 = new_label();
         goto exit_out_35;
     }
-    o_67 = cg_outs + cg_out_count;
-    o_67->kind = OUT_SENT;
-    o_67->node = n;
-    o_67->index = k_32;
-    o_67->label = new_label();
-    o_67->resume = -1;
-    o_67->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_69 = cg_outs + cg_out_count;
+    o_69->kind = OUT_SENT;
+    o_69->node = n;
+    o_69->index = k_32;
+    o_69->label = new_label();
+    o_69->resume = -1;
+    o_69->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_35 = o_67->label;
+    r_out_35 = o_69->label;
 exit_out_35:;
     r_out_35; });
             (cg_outs + (cg_out_count - 1))->resume = cont;
@@ -83277,15 +83295,15 @@ exit_is_fused_2:;
         r_out_36 = new_label();
         goto exit_out_36;
     }
-    o_68 = cg_outs + cg_out_count;
-    o_68->kind = OUT_DEOPT;
-    o_68->node = n;
-    o_68->index = k_36;
-    o_68->label = new_label();
-    o_68->resume = -1;
-    o_68->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_70 = cg_outs + cg_out_count;
+    o_70->kind = OUT_DEOPT;
+    o_70->node = n;
+    o_70->index = k_36;
+    o_70->label = new_label();
+    o_70->resume = -1;
+    o_70->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_36 = o_68->label;
+    r_out_36 = o_70->label;
 exit_out_36:;
     r_out_36; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -85208,8 +85226,8 @@ exit_src_73:;
             n_3226 = nd_200->b;
             if (((int32_t)(opt_nodes + n_3226)->op == O_CONST) && ({
     n_3227 = nd_200->b;
-    o_69 = (uint64_t)(opt_nodes + n_3227)->aux;
-    ((o_69 & 1) != 0) && ({
+    o_71 = (uint64_t)(opt_nodes + n_3227)->aux;
+    ((o_71 & 1) != 0) && ({
     n_3228 = nd_200->b;
     ((opt_nodes + n_3228)->aux >= -4095) && ((opt_nodes + n_3228)->aux <= 4095); }); })) {
                 n_3229 = nd_200->b;
@@ -85596,12 +85614,26 @@ exit_src_74:;
     v_3331 = nd_200->a;
     (!({
     k_37 = (int32_t)(opt_nodes + v_3331)->tkind;
+    if (((int32_t)(opt_nodes + v_3331)->op == O_CONST) && ({
+    o_72 = (uint64_t)(opt_nodes + v_3331)->aux;
+    (!((o_72 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_3331)->aux); })) {
+        r_is_no_forwarder_target_3 = true;
+        goto exit_is_no_forwarder_target_3;
+    }
     r_is_no_forwarder_target_3 = (k_37 == T_SMI) || ((k_37 == T_BOOL) || ((k_37 == T_NIL) || ((k_37 == T_CHAR) || ((k_37 == T_FLOAT) && ((int32_t)(opt_nodes + v_3331)->op == O_CONST)))));
+exit_is_no_forwarder_target_3:;
     r_is_no_forwarder_target_3; })) && ({
     v_3332 = nd_200->b;
     !({
     k_38 = (int32_t)(opt_nodes + v_3332)->tkind;
+    if (((int32_t)(opt_nodes + v_3332)->op == O_CONST) && ({
+    o_73 = (uint64_t)(opt_nodes + v_3332)->aux;
+    (!((o_73 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_3332)->aux); })) {
+        r_is_no_forwarder_target_4 = true;
+        goto exit_is_no_forwarder_target_4;
+    }
     r_is_no_forwarder_target_4 = (k_38 == T_SMI) || ((k_38 == T_BOOL) || ((k_38 == T_NIL) || ((k_38 == T_CHAR) || ((k_38 == T_FLOAT) && ((int32_t)(opt_nodes + v_3332)->op == O_CONST)))));
+exit_is_no_forwarder_target_4:;
     r_is_no_forwarder_target_4; }); }); })) {
                     i_51 = x_23 | (y_6 << 8);
                     l_27 = ({
@@ -85612,15 +85644,15 @@ exit_src_74:;
         r_out_37 = new_label();
         goto exit_out_37;
     }
-    o_70 = cg_outs + cg_out_count;
-    o_70->kind = OUT_FOLLOW;
-    o_70->node = v_3220;
-    o_70->index = i_51;
-    o_70->label = new_label();
-    o_70->resume = -1;
-    o_70->pos = v_3220 >= 0 ? (opt_nodes + v_3220)->pos : 0;
+    o_74 = cg_outs + cg_out_count;
+    o_74->kind = OUT_FOLLOW;
+    o_74->node = v_3220;
+    o_74->index = i_51;
+    o_74->label = new_label();
+    o_74->resume = -1;
+    o_74->pos = v_3220 >= 0 ? (opt_nodes + v_3220)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_37 = o_70->label;
+    r_out_37 = o_74->label;
 exit_out_37:;
     r_out_37; });
                     back_6 = new_label();
@@ -86943,15 +86975,15 @@ exit_src_76:;
         r_out_38 = new_label();
         goto exit_out_38;
     }
-    o_71 = cg_outs + cg_out_count;
-    o_71->kind = OUT_BOTTOM;
-    o_71->node = n;
-    o_71->index = 0;
-    o_71->label = new_label();
-    o_71->resume = -1;
-    o_71->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_75 = cg_outs + cg_out_count;
+    o_75->kind = OUT_BOTTOM;
+    o_75->node = n;
+    o_75->index = 0;
+    o_75->label = new_label();
+    o_75->resume = -1;
+    o_75->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_38 = o_71->label;
+    r_out_38 = o_75->label;
 exit_out_38:;
     r_out_38; });
         off_91 = (int64_t)&((jit_state *)0)->frames;
@@ -87114,15 +87146,15 @@ exit_entry_pc:;
         r_out_39 = new_label();
         goto exit_out_39;
     }
-    o_72 = cg_outs + cg_out_count;
-    o_72->kind = OUT_WIDOW;
-    o_72->node = n;
-    o_72->index = 0;
-    o_72->label = new_label();
-    o_72->resume = -1;
-    o_72->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_76 = cg_outs + cg_out_count;
+    o_76->kind = OUT_WIDOW;
+    o_76->node = n;
+    o_76->index = 0;
+    o_76->label = new_label();
+    o_76->resume = -1;
+    o_76->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_39 = o_72->label;
+    r_out_39 = o_76->label;
 exit_out_39:;
     r_out_39; });
             (cg_outs + (cg_out_count - 1))->resume = back_7;
@@ -87514,15 +87546,15 @@ exit_out_39:;
         r_out_40 = new_label();
         goto exit_out_40;
     }
-    o_73 = cg_outs + cg_out_count;
-    o_73->kind = OUT_DEOPT;
-    o_73->node = n;
-    o_73->index = k_41;
-    o_73->label = new_label();
-    o_73->resume = -1;
-    o_73->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_77 = cg_outs + cg_out_count;
+    o_77->kind = OUT_DEOPT;
+    o_77->node = n;
+    o_77->index = k_41;
+    o_77->label = new_label();
+    o_77->resume = -1;
+    o_77->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_40 = o_73->label;
+    r_out_40 = o_77->label;
 exit_out_40:;
     r_out_40; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -89247,12 +89279,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t v_132;
     bool r_is_no_forwarder_target;
     int32_t k_13;
+    uint64_t o_82;
     int32_t v_133;
     bool r_is_no_forwarder_target_2;
     int32_t k_14;
+    uint64_t o_83;
     int64_t i_15;
     int32_t r_out_15;
-    opt_out *o_82;
+    opt_out *o_84;
     int32_t l_10;
     int32_t back_2;
     int64_t off_144;
@@ -89287,7 +89321,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_9;
     int32_t k_16;
     int32_t r_out_16;
-    opt_out *o_84;
+    opt_out *o_86;
     int32_t l_11;
     int64_t off_146;
     uint64_t a_word_501;
@@ -89350,7 +89384,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_10;
     int32_t k_17;
     int32_t r_out_17;
-    opt_out *o_90;
+    opt_out *o_92;
     int32_t l_12;
     int64_t off_152;
     uint64_t a_word_523;
@@ -89388,7 +89422,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_11;
     int32_t k_18;
     int32_t r_out_18;
-    opt_out *o_92;
+    opt_out *o_94;
     int32_t l_13;
     int64_t off_157;
     uint64_t a_word_535;
@@ -89442,7 +89476,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_12;
     int32_t k_19;
     int32_t r_out_19;
-    opt_out *o_94;
+    opt_out *o_96;
     int32_t l_14;
     int64_t off_163;
     uint64_t a_word_551;
@@ -89528,7 +89562,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_13;
     int32_t k_20;
     int32_t r_out_20;
-    opt_out *o_98;
+    opt_out *o_100;
     int32_t l_15;
     int64_t off_171;
     uint64_t a_word_580;
@@ -89575,7 +89609,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_14;
     int32_t k_21;
     int32_t r_out_21;
-    opt_out *o_101;
+    opt_out *o_103;
     int32_t l_16;
     int64_t off_176;
     uint64_t a_word_594;
@@ -89610,13 +89644,13 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_6;
     bool neg_76;
     int64_t v_169;
-    int o_103;
+    int o_105;
     uint64_t a_word_603;
     uint64_t a_word_604;
     int64_t imm_7;
     bool neg_77;
     int64_t v_170;
-    int o_104;
+    int o_106;
     uint64_t a_word_605;
     uint64_t a_word_606;
     int32_t v_171;
@@ -89655,7 +89689,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_15;
     int32_t k_22;
     int32_t r_out_22;
-    opt_out *o_107;
+    opt_out *o_109;
     int32_t l_17;
     int64_t off_182;
     uint64_t a_word_620;
@@ -89714,9 +89748,9 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t op_19;
     int32_t n_39;
     opt_node *b_11;
-    uint64_t o_111;
-    uint64_t o_112;
     uint64_t o_113;
+    uint64_t o_114;
+    uint64_t o_115;
     int64_t k_23;
     int32_t r_dst_12;
     opt_node *nd_103;
@@ -89749,8 +89783,8 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t r_constant_divisor_of;
     int32_t n_40;
     opt_node *b_12;
-    uint64_t o_115;
-    uint64_t o_116;
+    uint64_t o_117;
+    uint64_t o_118;
     int64_t d;
     int32_t r_dst_13;
     opt_node *nd_106;
@@ -89802,7 +89836,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_16;
     int32_t k_24;
     int32_t r_out_23;
-    opt_out *o_118;
+    opt_out *o_120;
     int32_t l_18;
     int64_t off_191;
     uint64_t a_word_663;
@@ -89834,8 +89868,8 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t r_constant_divisor_of_2;
     int32_t n_41;
     opt_node *b_13;
-    uint64_t o_120;
-    uint64_t o_121;
+    uint64_t o_122;
+    uint64_t o_123;
     bool r_emit_div_by;
     uint64_t a_word_673;
     int64_t ad;
@@ -89865,7 +89899,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_17;
     int32_t k_26;
     int32_t r_out_24;
-    opt_out *o_122;
+    opt_out *o_124;
     int32_t l_19;
     int64_t off_195;
     uint64_t a_word_683;
@@ -89977,7 +90011,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_18;
     int32_t k_27;
     int32_t r_out_25;
-    opt_out *o_129;
+    opt_out *o_131;
     int32_t l_20;
     int64_t off_213;
     uint64_t a_word_716;
@@ -90065,7 +90099,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_19;
     int32_t k_28;
     int32_t r_out_26;
-    opt_out *o_135;
+    opt_out *o_137;
     int32_t l_21;
     int64_t off_222;
     uint64_t a_word_746;
@@ -90100,7 +90134,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_20;
     int32_t k_29;
     int32_t r_out_27;
-    opt_out *o_138;
+    opt_out *o_140;
     int32_t l_22;
     int64_t off_226;
     uint64_t a_word_758;
@@ -90152,7 +90186,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t rd_62;
     bool neg_101;
     int64_t v_215;
-    int o_140;
+    int o_142;
     uint64_t a_word_774;
     uint64_t a_word_775;
     int64_t value_54;
@@ -90171,7 +90205,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_21;
     int32_t k_30;
     int32_t r_out_28;
-    opt_out *o_141;
+    opt_out *o_143;
     int32_t l_23;
     int64_t off_233;
     uint64_t a_word_780;
@@ -90257,7 +90291,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_810;
     int32_t back_3;
     int32_t r_out_29;
-    opt_out *o_144;
+    opt_out *o_146;
     int32_t s_36;
     int64_t off_241;
     uint64_t a_word_811;
@@ -90279,7 +90313,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     opt_node *nd_130;
     int32_t k_31;
     int32_t r_out_30;
-    opt_out *o_146;
+    opt_out *o_148;
     int32_t slow_5;
     int32_t back_4;
     int32_t r_dst_16;
@@ -90298,7 +90332,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_11;
     bool neg_107;
     int64_t v_229;
-    int o_149;
+    int o_151;
     uint64_t a_word_824;
     uint64_t a_word_825;
     uint64_t target_172;
@@ -90311,7 +90345,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_12;
     bool neg_108;
     int64_t v_230;
-    int o_150;
+    int o_152;
     uint64_t a_word_828;
     uint64_t a_word_829;
     int64_t value_60;
@@ -90373,9 +90407,9 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_18;
     int32_t n_43;
     opt_node *sz;
-    uint64_t o_153;
-    uint64_t o_154;
     uint64_t o_155;
+    uint64_t o_156;
+    uint64_t o_157;
     int32_t e;
     int64_t value_62;
     uint64_t a_word_847;
@@ -90401,7 +90435,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_853;
     bool neg_111;
     int64_t v_238;
-    int o_156;
+    int o_158;
     uint64_t a_word_854;
     uint64_t a_word_855;
     uint64_t target_178;
@@ -90410,13 +90444,13 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_856;
     bool neg_112;
     int32_t v_239;
-    int o_157;
+    int o_159;
     uint64_t a_word_857;
     uint64_t a_word_858;
     int64_t imm_13;
     bool neg_113;
     int64_t v_240;
-    int o_158;
+    int o_160;
     uint64_t a_word_859;
     uint64_t a_word_860;
     uint64_t a_word_861;
@@ -90425,7 +90459,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_862;
     bool neg_114;
     int32_t v_241;
-    int o_159;
+    int o_161;
     uint64_t a_word_863;
     uint64_t a_word_864;
     uint64_t imm_14;
@@ -90443,7 +90477,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_15;
     bool neg_117;
     int64_t v_244;
-    int o_162;
+    int o_164;
     uint64_t a_word_870;
     uint64_t a_word_871;
     uint64_t target_179;
@@ -90456,7 +90490,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_16;
     bool neg_118;
     int64_t v_245;
-    int o_163;
+    int o_165;
     uint64_t a_word_874;
     uint64_t a_word_875;
     int64_t value_64;
@@ -90599,12 +90633,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_24;
     int32_t v_256;
     opt_node *nd_143;
-    uint64_t o_172;
+    uint64_t o_174;
     uint64_t target_192;
     int64_t r_offset_to_192;
     int64_t off_275;
     int64_t a_word_913;
-    uint64_t o_173;
+    uint64_t o_175;
     int64_t value_66;
     uint64_t a_word_914;
     int64_t r_src_55;
@@ -90628,12 +90662,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_25;
     int32_t v_258;
     opt_node *nd_145;
-    uint64_t o_174;
+    uint64_t o_176;
     uint64_t target_195;
     int64_t r_offset_to_195;
     int64_t off_278;
     int64_t a_word_921;
-    uint64_t o_175;
+    uint64_t o_177;
     int64_t value_68;
     uint64_t a_word_922;
     int64_t r_src_56;
@@ -90793,12 +90827,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_27;
     int32_t v_273;
     opt_node *nd_149;
-    uint64_t o_185;
+    uint64_t o_187;
     uint64_t target_216;
     int64_t r_offset_to_216;
     int64_t off_301;
     int64_t a_word_974;
-    uint64_t o_186;
+    uint64_t o_188;
     int64_t value_72;
     uint64_t a_word_975;
     int64_t r_src_59;
@@ -90826,12 +90860,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_28;
     int32_t v_276;
     opt_node *nd_151;
-    uint64_t o_188;
+    uint64_t o_190;
     uint64_t target_220;
     int64_t r_offset_to_220;
     int64_t off_305;
     int64_t a_word_983;
-    uint64_t o_189;
+    uint64_t o_191;
     int64_t value_74;
     uint64_t a_word_984;
     int64_t r_src_60;
@@ -90855,12 +90889,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_29;
     int32_t v_278;
     opt_node *nd_153;
-    uint64_t o_190;
+    uint64_t o_192;
     uint64_t target_223;
     int64_t r_offset_to_223;
     int64_t off_308;
     int64_t a_word_991;
-    uint64_t o_191;
+    uint64_t o_193;
     int64_t value_76;
     uint64_t a_word_992;
     int64_t r_src_61;
@@ -90889,12 +90923,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_30;
     int32_t v_281;
     opt_node *nd_155;
-    uint64_t o_193;
+    uint64_t o_195;
     uint64_t target_227;
     int64_t r_offset_to_227;
     int64_t off_312;
     int64_t a_word_1000;
-    uint64_t o_194;
+    uint64_t o_196;
     int64_t value_78;
     uint64_t a_word_1001;
     int64_t r_src_62;
@@ -90920,18 +90954,18 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_19;
     bool neg_138;
     int64_t v_283;
-    int o_195;
+    int o_197;
     uint64_t a_word_1010;
     uint64_t a_word_1011;
     int32_t i_31;
     int32_t v_284;
     opt_node *nd_157;
-    uint64_t o_196;
+    uint64_t o_198;
     uint64_t target_230;
     int64_t r_offset_to_230;
     int64_t off_315;
     int64_t a_word_1012;
-    uint64_t o_197;
+    uint64_t o_199;
     int64_t value_80;
     uint64_t a_word_1013;
     int64_t r_src_63;
@@ -90955,12 +90989,12 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t i_32;
     int32_t v_286;
     opt_node *nd_159;
-    uint64_t o_198;
+    uint64_t o_200;
     uint64_t target_233;
     int64_t r_offset_to_233;
     int64_t off_318;
     int64_t a_word_1020;
-    uint64_t o_199;
+    uint64_t o_201;
     int64_t value_82;
     uint64_t a_word_1021;
     int64_t r_src_64;
@@ -90999,7 +91033,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t imm_20;
     bool neg_140;
     int64_t v_291;
-    int o_201;
+    int o_203;
     uint64_t a_word_1034;
     uint64_t a_word_1035;
     uint64_t target_237;
@@ -91130,7 +91164,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t off_254;
     bool neg_149;
     int32_t v_310;
-    int o_210;
+    int o_212;
     uint64_t a_word_1081;
     uint64_t a_word_1082;
     uint64_t a_word_1083;
@@ -91141,11 +91175,11 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t off_332;
     int64_t a_word_1084;
     int32_t r_out_31;
-    opt_out *o_211;
+    opt_out *o_213;
     int64_t imm_21;
     bool neg_150;
     int64_t v_311;
-    int o_212;
+    int o_214;
     uint64_t a_word_1085;
     uint64_t a_word_1086;
     uint64_t target_247;
@@ -91170,15 +91204,15 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t a_word_1090;
     bool neg_151;
     int32_t v_312;
-    int o_213;
+    int o_215;
     uint64_t a_word_1091;
     uint64_t a_word_1092;
     uint64_t a_word_1093;
     int32_t cont;
     int32_t r_out_32;
-    opt_out *o_214;
+    opt_out *o_216;
     int32_t r_out_33;
-    opt_out *o_215;
+    opt_out *o_217;
     int32_t lazy;
     int64_t off_337;
     uint64_t a_word_1094;
@@ -91202,7 +91236,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t off_342;
     uint64_t a_word_1103;
     int32_t r_out_34;
-    opt_out *o_217;
+    opt_out *o_219;
     int32_t enc_64;
     uint64_t a_word_1104;
     uint64_t target_253;
@@ -91224,7 +91258,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t off_345;
     uint64_t a_word_1110;
     int32_t r_out_35;
-    opt_out *o_218;
+    opt_out *o_220;
     int64_t off_346;
     uint64_t a_word_1111;
     uint64_t a_word_1112;
@@ -91387,7 +91421,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_22;
     int32_t k_36;
     int32_t r_out_36;
-    opt_out *o_224;
+    opt_out *o_226;
     int32_t l_26;
     int64_t off_350;
     uint64_t a_word_1143;
@@ -91494,7 +91528,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_1171;
     int32_t n_55;
     int32_t n_56;
-    uint64_t o_230;
+    uint64_t o_232;
     int32_t n_57;
     int32_t n_58;
     int32_t n_59;
@@ -91502,7 +91536,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t rd_78;
     bool neg_163;
     int64_t v_345;
-    int o_231;
+    int o_233;
     uint64_t a_word_1172;
     uint64_t a_word_1173;
     int32_t n_60;
@@ -91510,7 +91544,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int64_t rd_79;
     bool neg_164;
     int64_t v_346;
-    int o_232;
+    int o_234;
     uint64_t a_word_1174;
     uint64_t a_word_1175;
     int32_t v_347;
@@ -91529,12 +91563,14 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t v_349;
     bool r_is_no_forwarder_target_3;
     int32_t k_37;
+    uint64_t o_235;
     int32_t v_350;
     bool r_is_no_forwarder_target_4;
     int32_t k_38;
+    uint64_t o_236;
     int64_t i_51;
     int32_t r_out_37;
-    opt_out *o_233;
+    opt_out *o_237;
     int32_t l_27;
     int32_t back_6;
     int64_t off_357;
@@ -91621,7 +91657,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     uint64_t a_word_1202;
     int64_t x_24;
     int32_t r_out_38;
-    opt_out *o_234;
+    opt_out *o_238;
     int32_t s_56;
     int64_t off_367;
     uint64_t a_word_1203;
@@ -91636,7 +91672,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int32_t r_entry_pc;
     int32_t back_7;
     int32_t r_out_39;
-    opt_out *o_236;
+    opt_out *o_240;
     int32_t w;
     int64_t off_369;
     uint64_t a_word_1209;
@@ -91655,7 +91691,7 @@ static void emit_node(int32_t n, int32_t b, int32_t next_block)
     int why_23;
     int32_t k_41;
     int32_t r_out_40;
-    opt_out *o_238;
+    opt_out *o_242;
     int32_t l_28;
     int64_t off_371;
     uint64_t a_word_1214;
@@ -103178,12 +103214,26 @@ exit_src_27:;
     v_132 = nd_73->a;
     (!({
     k_13 = (int32_t)(opt_nodes + v_132)->tkind;
+    if (((int32_t)(opt_nodes + v_132)->op == O_CONST) && ({
+    o_82 = (uint64_t)(opt_nodes + v_132)->aux;
+    (!((o_82 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_132)->aux); })) {
+        r_is_no_forwarder_target = true;
+        goto exit_is_no_forwarder_target;
+    }
     r_is_no_forwarder_target = (k_13 == T_SMI) || ((k_13 == T_BOOL) || ((k_13 == T_NIL) || ((k_13 == T_CHAR) || ((k_13 == T_FLOAT) && ((int32_t)(opt_nodes + v_132)->op == O_CONST)))));
+exit_is_no_forwarder_target:;
     r_is_no_forwarder_target; })) && ({
     v_133 = nd_73->b;
     !({
     k_14 = (int32_t)(opt_nodes + v_133)->tkind;
+    if (((int32_t)(opt_nodes + v_133)->op == O_CONST) && ({
+    o_83 = (uint64_t)(opt_nodes + v_133)->aux;
+    (!((o_83 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_133)->aux); })) {
+        r_is_no_forwarder_target_2 = true;
+        goto exit_is_no_forwarder_target_2;
+    }
     r_is_no_forwarder_target_2 = (k_14 == T_SMI) || ((k_14 == T_BOOL) || ((k_14 == T_NIL) || ((k_14 == T_CHAR) || ((k_14 == T_FLOAT) && ((int32_t)(opt_nodes + v_133)->op == O_CONST)))));
+exit_is_no_forwarder_target_2:;
     r_is_no_forwarder_target_2; }); }); })) {
                 i_15 = x_11 | (y_3 << 8);
                 l_10 = ({
@@ -103194,15 +103244,15 @@ exit_src_27:;
         r_out_15 = new_label();
         goto exit_out_15;
     }
-    o_82 = cg_outs + cg_out_count;
-    o_82->kind = OUT_FOLLOW;
-    o_82->node = n;
-    o_82->index = i_15;
-    o_82->label = new_label();
-    o_82->resume = -1;
-    o_82->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_84 = cg_outs + cg_out_count;
+    o_84->kind = OUT_FOLLOW;
+    o_84->node = n;
+    o_84->index = i_15;
+    o_84->label = new_label();
+    o_84->resume = -1;
+    o_84->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_15 = o_82->label;
+    r_out_15 = o_84->label;
 exit_out_15:;
     r_out_15; });
                 back_2 = new_label();
@@ -103431,15 +103481,15 @@ exit_condition_of:;
         r_out_16 = new_label();
         goto exit_out_16;
     }
-    o_84 = cg_outs + cg_out_count;
-    o_84->kind = OUT_DEOPT;
-    o_84->node = n;
-    o_84->index = k_16;
-    o_84->label = new_label();
-    o_84->resume = -1;
-    o_84->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_86 = cg_outs + cg_out_count;
+    o_86->kind = OUT_DEOPT;
+    o_86->node = n;
+    o_86->index = k_16;
+    o_86->label = new_label();
+    o_86->resume = -1;
+    o_86->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_16 = o_84->label;
+    r_out_16 = o_86->label;
 exit_out_16:;
     r_out_16; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -104005,15 +104055,15 @@ exit_offset_to_104:;
         r_out_17 = new_label();
         goto exit_out_17;
     }
-    o_90 = cg_outs + cg_out_count;
-    o_90->kind = OUT_DEOPT;
-    o_90->node = n;
-    o_90->index = k_17;
-    o_90->label = new_label();
-    o_90->resume = -1;
-    o_90->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_92 = cg_outs + cg_out_count;
+    o_92->kind = OUT_DEOPT;
+    o_92->node = n;
+    o_92->index = k_17;
+    o_92->label = new_label();
+    o_92->resume = -1;
+    o_92->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_17 = o_90->label;
+    r_out_17 = o_92->label;
 exit_out_17:;
     r_out_17; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -104319,15 +104369,15 @@ exit_offset_to_107:;
         r_out_18 = new_label();
         goto exit_out_18;
     }
-    o_92 = cg_outs + cg_out_count;
-    o_92->kind = OUT_DEOPT;
-    o_92->node = n;
-    o_92->index = k_18;
-    o_92->label = new_label();
-    o_92->resume = -1;
-    o_92->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_94 = cg_outs + cg_out_count;
+    o_94->kind = OUT_DEOPT;
+    o_94->node = n;
+    o_94->index = k_18;
+    o_94->label = new_label();
+    o_94->resume = -1;
+    o_94->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_18 = o_92->label;
+    r_out_18 = o_94->label;
 exit_out_18:;
     r_out_18; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -104785,15 +104835,15 @@ exit_offset_to_111:;
         r_out_19 = new_label();
         goto exit_out_19;
     }
-    o_94 = cg_outs + cg_out_count;
-    o_94->kind = OUT_DEOPT;
-    o_94->node = n;
-    o_94->index = k_19;
-    o_94->label = new_label();
-    o_94->resume = -1;
-    o_94->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_96 = cg_outs + cg_out_count;
+    o_96->kind = OUT_DEOPT;
+    o_96->node = n;
+    o_96->index = k_19;
+    o_96->label = new_label();
+    o_96->resume = -1;
+    o_96->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_19 = o_94->label;
+    r_out_19 = o_96->label;
 exit_out_19:;
     r_out_19; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -105537,15 +105587,15 @@ exit_src_34:;
         r_out_20 = new_label();
         goto exit_out_20;
     }
-    o_98 = cg_outs + cg_out_count;
-    o_98->kind = OUT_DEOPT;
-    o_98->node = n;
-    o_98->index = k_20;
-    o_98->label = new_label();
-    o_98->resume = -1;
-    o_98->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_100 = cg_outs + cg_out_count;
+    o_100->kind = OUT_DEOPT;
+    o_100->node = n;
+    o_100->index = k_20;
+    o_100->label = new_label();
+    o_100->resume = -1;
+    o_100->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_20 = o_98->label;
+    r_out_20 = o_100->label;
 exit_out_20:;
     r_out_20; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -105894,15 +105944,15 @@ exit_offset_to_120:;
         r_out_21 = new_label();
         goto exit_out_21;
     }
-    o_101 = cg_outs + cg_out_count;
-    o_101->kind = OUT_DEOPT;
-    o_101->node = n;
-    o_101->index = k_21;
-    o_101->label = new_label();
-    o_101->resume = -1;
-    o_101->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_103 = cg_outs + cg_out_count;
+    o_103->kind = OUT_DEOPT;
+    o_103->node = n;
+    o_103->index = k_21;
+    o_103->label = new_label();
+    o_103->resume = -1;
+    o_103->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_21 = o_101->label;
+    r_out_21 = o_103->label;
 exit_out_21:;
     r_out_21; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -106153,9 +106203,9 @@ exit_src_36:;
                 imm_6 = c_3 < 0 ? -c_3 : c_3;
                 neg_76 = imm_6 < 0;
                 v_169 = neg_76 ? -imm_6 : imm_6;
-                o_103 = neg_76 ? 1610612736 : 0x20000000;
+                o_105 = neg_76 ? 1610612736 : 0x20000000;
                 if (v_169 <= 4095) {
-                    a_word_603 = 2432696320LL | o_103 | ((((uint64_t)v_169) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
+                    a_word_603 = 2432696320LL | o_105 | ((((uint64_t)v_169) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_603;
                         asm_pc = asm_pc + 4;
@@ -106165,7 +106215,7 @@ exit_src_36:;
                     goto exit_add_sub_91;
                 }
                 if (((v_169 & 4095) == 0) && (v_169 <= 0xFFF000)) {
-                    a_word_604 = 2436890624LL | o_103 | ((((uint64_t)(v_169 >> 12)) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
+                    a_word_604 = 2436890624LL | o_105 | ((((uint64_t)(v_169 >> 12)) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_604;
                         asm_pc = asm_pc + 4;
@@ -106182,9 +106232,9 @@ exit_src_36:;
                 imm_7 = c_3 < 0 ? -c_3 : c_3;
                 neg_77 = imm_7 < 0;
                 v_170 = neg_77 ? -imm_7 : imm_7;
-                o_104 = neg_77 ? 536870912 : 0x60000000;
+                o_106 = neg_77 ? 536870912 : 0x60000000;
                 if (v_170 <= 4095) {
-                    a_word_605 = 2432696320LL | o_104 | ((((uint64_t)v_170) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
+                    a_word_605 = 2432696320LL | o_106 | ((((uint64_t)v_170) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_605;
                         asm_pc = asm_pc + 4;
@@ -106194,7 +106244,7 @@ exit_src_36:;
                     goto exit_add_sub_92;
                 }
                 if (((v_170 & 4095) == 0) && (v_170 <= 0xFFF000)) {
-                    a_word_606 = 2436890624LL | o_104 | ((((uint64_t)(v_170 >> 12)) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
+                    a_word_606 = 2436890624LL | o_106 | ((((uint64_t)(v_170 >> 12)) << 10) | ((((uint64_t)(x_12 & 31)) << 5) | 16));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_606;
                         asm_pc = asm_pc + 4;
@@ -106498,15 +106548,15 @@ exit_offset_to_124:;
         r_out_22 = new_label();
         goto exit_out_22;
     }
-    o_107 = cg_outs + cg_out_count;
-    o_107->kind = OUT_DEOPT;
-    o_107->node = n;
-    o_107->index = k_22;
-    o_107->label = new_label();
-    o_107->resume = -1;
-    o_107->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_109 = cg_outs + cg_out_count;
+    o_109->kind = OUT_DEOPT;
+    o_109->node = n;
+    o_109->index = k_22;
+    o_109->label = new_label();
+    o_109->resume = -1;
+    o_109->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_22 = o_107->label;
+    r_out_22 = o_109->label;
 exit_out_22:;
     r_out_22; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -107016,12 +107066,12 @@ exit_offset_to_128:;
         n_39 = nd_102->b;
         b_11 = opt_nodes + n_39;
         if ((op_19 == O_ISHIFT) && (((int32_t)b_11->op == O_CONST) && ({
-    o_111 = (uint64_t)b_11->aux;
-    ((o_111 & 1) != 0) && ({
-    o_112 = (uint64_t)b_11->aux;
-    (((int64_t)o_112) >> 1) < 0; }); }))) {
-            o_113 = (uint64_t)b_11->aux;
-            k_23 = -(((int64_t)o_113) >> 1) < 63 ? -(((int64_t)o_113) >> 1) : 63;
+    o_113 = (uint64_t)b_11->aux;
+    ((o_113 & 1) != 0) && ({
+    o_114 = (uint64_t)b_11->aux;
+    (((int64_t)o_114) >> 1) < 0; }); }))) {
+            o_115 = (uint64_t)b_11->aux;
+            k_23 = -(((int64_t)o_115) >> 1) < 63 ? -(((int64_t)o_115) >> 1) : 63;
             r_17 = ({
     nd_103 = opt_nodes + n;
     if (nd_103->reg >= 0) {
@@ -107267,13 +107317,13 @@ exit_src_40:;
     n_40 = (opt_nodes + n)->b;
     b_12 = opt_nodes + n_40;
     if (!(((int32_t)b_12->op == O_CONST) && ({
-    o_115 = (uint64_t)b_12->aux;
-    (o_115 & 1) != 0; }))) {
+    o_117 = (uint64_t)b_12->aux;
+    (o_117 & 1) != 0; }))) {
         r_constant_divisor_of = 0;
         goto exit_constant_divisor_of;
     }
-    o_116 = (uint64_t)b_12->aux;
-    r_constant_divisor_of = ((int64_t)o_116) >> 1;
+    o_118 = (uint64_t)b_12->aux;
+    r_constant_divisor_of = ((int64_t)o_118) >> 1;
 exit_constant_divisor_of:;
     r_constant_divisor_of; });
         if ((nd_102->aux == 0) && ((d > 1) && (((d & (d - 1)) == 0) && (d < 0x40000000)))) {
@@ -107707,15 +107757,15 @@ exit_src_42:;
         r_out_23 = new_label();
         goto exit_out_23;
     }
-    o_118 = cg_outs + cg_out_count;
-    o_118->kind = OUT_DEOPT;
-    o_118->node = n;
-    o_118->index = k_24;
-    o_118->label = new_label();
-    o_118->resume = -1;
-    o_118->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_120 = cg_outs + cg_out_count;
+    o_120->kind = OUT_DEOPT;
+    o_120->node = n;
+    o_120->index = k_24;
+    o_120->label = new_label();
+    o_120->resume = -1;
+    o_120->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_23 = o_118->label;
+    r_out_23 = o_120->label;
 exit_out_23:;
     r_out_23; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -107970,13 +108020,13 @@ exit_src_43:;
     n_41 = (opt_nodes + n)->b;
     b_13 = opt_nodes + n_41;
     if (!(((int32_t)b_13->op == O_CONST) && ({
-    o_120 = (uint64_t)b_13->aux;
-    (o_120 & 1) != 0; }))) {
+    o_122 = (uint64_t)b_13->aux;
+    (o_122 & 1) != 0; }))) {
         r_constant_divisor_of_2 = 0;
         goto exit_constant_divisor_of_2;
     }
-    o_121 = (uint64_t)b_13->aux;
-    r_constant_divisor_of_2 = ((int64_t)o_121) >> 1;
+    o_123 = (uint64_t)b_13->aux;
+    r_constant_divisor_of_2 = ((int64_t)o_123) >> 1;
 exit_constant_divisor_of_2:;
     r_constant_divisor_of_2; });
         if (d != 0) {
@@ -108250,15 +108300,15 @@ exit_emit_div_by:;
         r_out_24 = new_label();
         goto exit_out_24;
     }
-    o_122 = cg_outs + cg_out_count;
-    o_122->kind = OUT_DEOPT;
-    o_122->node = n;
-    o_122->index = k_26;
-    o_122->label = new_label();
-    o_122->resume = -1;
-    o_122->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_124 = cg_outs + cg_out_count;
+    o_124->kind = OUT_DEOPT;
+    o_124->node = n;
+    o_124->index = k_26;
+    o_124->label = new_label();
+    o_124->resume = -1;
+    o_124->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_24 = o_122->label;
+    r_out_24 = o_124->label;
 exit_out_24:;
     r_out_24; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -109099,15 +109149,15 @@ exit_offset_to_149:;
         r_out_25 = new_label();
         goto exit_out_25;
     }
-    o_129 = cg_outs + cg_out_count;
-    o_129->kind = OUT_DEOPT;
-    o_129->node = n;
-    o_129->index = k_27;
-    o_129->label = new_label();
-    o_129->resume = -1;
-    o_129->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_131 = cg_outs + cg_out_count;
+    o_131->kind = OUT_DEOPT;
+    o_131->node = n;
+    o_131->index = k_27;
+    o_131->label = new_label();
+    o_131->resume = -1;
+    o_131->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_25 = o_129->label;
+    r_out_25 = o_131->label;
 exit_out_25:;
     r_out_25; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -109780,15 +109830,15 @@ exit_dst_14:;
         r_out_26 = new_label();
         goto exit_out_26;
     }
-    o_135 = cg_outs + cg_out_count;
-    o_135->kind = OUT_DEOPT;
-    o_135->node = n;
-    o_135->index = k_28;
-    o_135->label = new_label();
-    o_135->resume = -1;
-    o_135->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_137 = cg_outs + cg_out_count;
+    o_137->kind = OUT_DEOPT;
+    o_137->node = n;
+    o_137->index = k_28;
+    o_137->label = new_label();
+    o_137->resume = -1;
+    o_137->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_26 = o_135->label;
+    r_out_26 = o_137->label;
 exit_out_26:;
     r_out_26; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -110023,15 +110073,15 @@ exit_offset_to_158:;
         r_out_27 = new_label();
         goto exit_out_27;
     }
-    o_138 = cg_outs + cg_out_count;
-    o_138->kind = OUT_DEOPT;
-    o_138->node = n;
-    o_138->index = k_29;
-    o_138->label = new_label();
-    o_138->resume = -1;
-    o_138->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_140 = cg_outs + cg_out_count;
+    o_140->kind = OUT_DEOPT;
+    o_140->node = n;
+    o_140->index = k_29;
+    o_140->label = new_label();
+    o_140->resume = -1;
+    o_140->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_27 = o_138->label;
+    r_out_27 = o_140->label;
 exit_out_27:;
     r_out_27; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -110473,9 +110523,9 @@ exit_offset_to_162:;
                 rd_62 = (y & REG_W) | 31;
                 neg_101 = imm_10 < 0;
                 v_215 = neg_101 ? -imm_10 : imm_10;
-                o_140 = neg_101 ? 536870912 : 0x60000000;
+                o_142 = neg_101 ? 536870912 : 0x60000000;
                 if (v_215 <= 4095) {
-                    a_word_774 = 0x11000000 | ((rd_62 & REG_W) == 0 ? 0x80000000LL : 0) | o_140 | ((((uint64_t)v_215) << 10) | ((((uint64_t)(y & 31)) << 5) | (rd_62 & 31)));
+                    a_word_774 = 0x11000000 | ((rd_62 & REG_W) == 0 ? 0x80000000LL : 0) | o_142 | ((((uint64_t)v_215) << 10) | ((((uint64_t)(y & 31)) << 5) | (rd_62 & 31)));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_774;
                         asm_pc = asm_pc + 4;
@@ -110485,7 +110535,7 @@ exit_offset_to_162:;
                     goto exit_add_sub_120;
                 }
                 if (((v_215 & 4095) == 0) && (v_215 <= 0xFFF000)) {
-                    a_word_775 = 0x11400000 | ((rd_62 & REG_W) == 0 ? 0x80000000LL : 0) | o_140 | ((((uint64_t)(v_215 >> 12)) << 10) | ((((uint64_t)(y & 31)) << 5) | (rd_62 & 31)));
+                    a_word_775 = 0x11400000 | ((rd_62 & REG_W) == 0 ? 0x80000000LL : 0) | o_142 | ((((uint64_t)(v_215 >> 12)) << 10) | ((((uint64_t)(y & 31)) << 5) | (rd_62 & 31)));
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_775;
                         asm_pc = asm_pc + 4;
@@ -110588,15 +110638,15 @@ exit_offset_to_163:;
         r_out_28 = new_label();
         goto exit_out_28;
     }
-    o_141 = cg_outs + cg_out_count;
-    o_141->kind = OUT_DEOPT;
-    o_141->node = n;
-    o_141->index = k_30;
-    o_141->label = new_label();
-    o_141->resume = -1;
-    o_141->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_143 = cg_outs + cg_out_count;
+    o_143->kind = OUT_DEOPT;
+    o_143->node = n;
+    o_143->index = k_30;
+    o_143->label = new_label();
+    o_143->resume = -1;
+    o_143->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_28 = o_141->label;
+    r_out_28 = o_143->label;
 exit_out_28:;
     r_out_28; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -111452,15 +111502,15 @@ exit_dst_15:;
         r_out_29 = new_label();
         goto exit_out_29;
     }
-    o_144 = cg_outs + cg_out_count;
-    o_144->kind = OUT_INTERRUPT;
-    o_144->node = n;
-    o_144->index = 0;
-    o_144->label = new_label();
-    o_144->resume = -1;
-    o_144->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_146 = cg_outs + cg_out_count;
+    o_146->kind = OUT_INTERRUPT;
+    o_146->node = n;
+    o_146->index = 0;
+    o_146->label = new_label();
+    o_146->resume = -1;
+    o_146->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_29 = o_144->label;
+    r_out_29 = o_146->label;
 exit_out_29:;
     r_out_29; });
         (cg_outs + (cg_out_count - 1))->resume = back_3;
@@ -111612,15 +111662,15 @@ exit_offset_to_171:;
         r_out_30 = new_label();
         goto exit_out_30;
     }
-    o_146 = cg_outs + cg_out_count;
-    o_146->kind = OUT_ARRAY;
-    o_146->node = n;
-    o_146->index = 0;
-    o_146->label = new_label();
-    o_146->resume = -1;
-    o_146->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_148 = cg_outs + cg_out_count;
+    o_148->kind = OUT_ARRAY;
+    o_148->node = n;
+    o_148->index = 0;
+    o_148->label = new_label();
+    o_148->resume = -1;
+    o_148->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_30 = o_146->label;
+    r_out_30 = o_148->label;
 exit_out_30:;
     r_out_30; });
         back_4 = new_label();
@@ -111804,9 +111854,9 @@ exit_dst_16:;
             imm_11 = (int64_t)(((uint64_t)eden_box) & 0xFFF);
             neg_107 = imm_11 < 0;
             v_229 = neg_107 ? -imm_11 : imm_11;
-            o_149 = neg_107 ? 1073741824 : 0;
+            o_151 = neg_107 ? 1073741824 : 0;
             if (v_229 <= 4095) {
-                a_word_824 = 2432696320LL | o_149 | ((((uint64_t)v_229) << 10) | 561ULL);
+                a_word_824 = 2432696320LL | o_151 | ((((uint64_t)v_229) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_824;
                     asm_pc = asm_pc + 4;
@@ -111816,7 +111866,7 @@ exit_dst_16:;
                 goto exit_add_sub_127;
             }
             if (((v_229 & 4095) == 0) && (v_229 <= 0xFFF000)) {
-                a_word_825 = 2436890624LL | o_149 | ((((uint64_t)(v_229 >> 12)) << 10) | 561ULL);
+                a_word_825 = 2436890624LL | o_151 | ((((uint64_t)(v_229 >> 12)) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_825;
                     asm_pc = asm_pc + 4;
@@ -111891,9 +111941,9 @@ exit_offset_to_172:;
             imm_12 = (int64_t)(((uint64_t)eden_box) & 0xFFF);
             neg_108 = imm_12 < 0;
             v_230 = neg_108 ? -imm_12 : imm_12;
-            o_150 = neg_108 ? 1073741824 : 0;
+            o_152 = neg_108 ? 1073741824 : 0;
             if (v_230 <= 4095) {
-                a_word_828 = 2432696320LL | o_150 | ((((uint64_t)v_230) << 10) | 561ULL);
+                a_word_828 = 2432696320LL | o_152 | ((((uint64_t)v_230) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_828;
                     asm_pc = asm_pc + 4;
@@ -111903,7 +111953,7 @@ exit_offset_to_172:;
                 goto exit_add_sub_128;
             }
             if (((v_230 & 4095) == 0) && (v_230 <= 0xFFF000)) {
-                a_word_829 = 2436890624LL | o_150 | ((((uint64_t)(v_230 >> 12)) << 10) | 561ULL);
+                a_word_829 = 2436890624LL | o_152 | ((((uint64_t)(v_230 >> 12)) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_829;
                     asm_pc = asm_pc + 4;
@@ -112348,12 +112398,12 @@ exit_offset_to_175:;
                 n_43 = opt_operands[i_18];
                 sz = opt_nodes + n_43;
                 if (((int32_t)sz->op == O_CONST) && ({
-    o_153 = (uint64_t)sz->aux;
-    ((o_153 & 1) != 0) && ({
-    o_154 = (uint64_t)sz->aux;
-    ((((int64_t)o_154) >> 1) >= 0) && ((((int64_t)o_154) >> 1) <= max); }); })) {
-                    o_155 = (uint64_t)sz->aux;
-                    e = (int32_t)(((int64_t)o_155) >> 1);
+    o_155 = (uint64_t)sz->aux;
+    ((o_155 & 1) != 0) && ({
+    o_156 = (uint64_t)sz->aux;
+    ((((int64_t)o_156) >> 1) >= 0) && ((((int64_t)o_156) >> 1) <= max); }); })) {
+                    o_157 = (uint64_t)sz->aux;
+                    e = (int32_t)(((int64_t)o_157) >> 1);
                     k_33 = isize + ((e + (1LL << shift) - 1) >> shift);
                     if (shift > 0) {
                         fmt = (int32_t)(fmt + ((k_33 << shift) - e));
@@ -112560,9 +112610,9 @@ exit_offset_to_177:;
                 }
                 neg_111 = max < 0;
                 v_238 = neg_111 ? -max : max;
-                o_156 = neg_111 ? 536870912 : 0x60000000;
+                o_158 = neg_111 ? 536870912 : 0x60000000;
                 if (v_238 <= 4095) {
-                    a_word_854 = 2432696320LL | o_156 | ((((uint64_t)v_238) << 10) | 511ULL);
+                    a_word_854 = 2432696320LL | o_158 | ((((uint64_t)v_238) << 10) | 511ULL);
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_854;
                         asm_pc = asm_pc + 4;
@@ -112572,7 +112622,7 @@ exit_offset_to_177:;
                     goto exit_add_sub_131;
                 }
                 if (((v_238 & 4095) == 0) && (v_238 <= 0xFFF000)) {
-                    a_word_855 = 2436890624LL | o_156 | ((((uint64_t)(v_238 >> 12)) << 10) | 511ULL);
+                    a_word_855 = 2436890624LL | o_158 | ((((uint64_t)(v_238 >> 12)) << 10) | 511ULL);
                     if (asm_pc < asm_limit) {
                         *(uint32_t *)asm_pc = a_word_855;
                         asm_pc = asm_pc + 4;
@@ -112607,9 +112657,9 @@ exit_offset_to_178:;
                 if (isize > 0) {
                     neg_112 = isize < 0;
                     v_239 = neg_112 ? -isize : isize;
-                    o_157 = neg_112 ? 1073741824 : 0;
+                    o_159 = neg_112 ? 1073741824 : 0;
                     if (v_239 <= 4095) {
-                        a_word_857 = 2432696320LL | o_157 | ((((uint64_t)v_239) << 10) | 495ULL);
+                        a_word_857 = 2432696320LL | o_159 | ((((uint64_t)v_239) << 10) | 495ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_857;
                             asm_pc = asm_pc + 4;
@@ -112619,7 +112669,7 @@ exit_offset_to_178:;
                         goto exit_add_sub_132;
                     }
                     if (((v_239 & 4095) == 0) && (v_239 <= 0xFFF000)) {
-                        a_word_858 = 2436890624LL | o_157 | ((((uint64_t)(v_239 >> 12)) << 10) | 495ULL);
+                        a_word_858 = 2436890624LL | o_159 | ((((uint64_t)(v_239 >> 12)) << 10) | 495ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_858;
                             asm_pc = asm_pc + 4;
@@ -112640,9 +112690,9 @@ exit_offset_to_178:;
                     imm_13 = (1LL << shift) - 1;
                     neg_113 = imm_13 < 0;
                     v_240 = neg_113 ? -imm_13 : imm_13;
-                    o_158 = neg_113 ? 1073741824 : 0;
+                    o_160 = neg_113 ? 1073741824 : 0;
                     if (v_240 <= 4095) {
-                        a_word_859 = 2432696320LL | o_158 | ((((uint64_t)v_240) << 10) | 496ULL);
+                        a_word_859 = 2432696320LL | o_160 | ((((uint64_t)v_240) << 10) | 496ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_859;
                             asm_pc = asm_pc + 4;
@@ -112652,7 +112702,7 @@ exit_offset_to_178:;
                         goto exit_add_sub_133;
                     }
                     if (((v_240 & 4095) == 0) && (v_240 <= 0xFFF000)) {
-                        a_word_860 = 2436890624LL | o_158 | ((((uint64_t)(v_240 >> 12)) << 10) | 496ULL);
+                        a_word_860 = 2436890624LL | o_160 | ((((uint64_t)(v_240 >> 12)) << 10) | 496ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_860;
                             asm_pc = asm_pc + 4;
@@ -112710,9 +112760,9 @@ exit_offset_to_178:;
                     }
                     neg_114 = fmt < 0;
                     v_241 = neg_114 ? -fmt : fmt;
-                    o_159 = neg_114 ? 1073741824 : 0;
+                    o_161 = neg_114 ? 1073741824 : 0;
                     if (v_241 <= 4095) {
-                        a_word_863 = 2432696320LL | o_159 | ((((uint64_t)v_241) << 10) | 561ULL);
+                        a_word_863 = 2432696320LL | o_161 | ((((uint64_t)v_241) << 10) | 561ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_863;
                             asm_pc = asm_pc + 4;
@@ -112722,7 +112772,7 @@ exit_offset_to_178:;
                         goto exit_add_sub_134;
                     }
                     if (((v_241 & 4095) == 0) && (v_241 <= 0xFFF000)) {
-                        a_word_864 = 2436890624LL | o_159 | ((((uint64_t)(v_241 >> 12)) << 10) | 561ULL);
+                        a_word_864 = 2436890624LL | o_161 | ((((uint64_t)(v_241 >> 12)) << 10) | 561ULL);
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_864;
                             asm_pc = asm_pc + 4;
@@ -112911,9 +112961,9 @@ exit_offset_to_178:;
             imm_15 = (int64_t)(((uint64_t)eden_box) & 0xFFF);
             neg_117 = imm_15 < 0;
             v_244 = neg_117 ? -imm_15 : imm_15;
-            o_162 = neg_117 ? 1073741824 : 0;
+            o_164 = neg_117 ? 1073741824 : 0;
             if (v_244 <= 4095) {
-                a_word_870 = 2432696320LL | o_162 | ((((uint64_t)v_244) << 10) | 561ULL);
+                a_word_870 = 2432696320LL | o_164 | ((((uint64_t)v_244) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_870;
                     asm_pc = asm_pc + 4;
@@ -112923,7 +112973,7 @@ exit_offset_to_178:;
                 goto exit_add_sub_137;
             }
             if (((v_244 & 4095) == 0) && (v_244 <= 0xFFF000)) {
-                a_word_871 = 2436890624LL | o_162 | ((((uint64_t)(v_244 >> 12)) << 10) | 561ULL);
+                a_word_871 = 2436890624LL | o_164 | ((((uint64_t)(v_244 >> 12)) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_871;
                     asm_pc = asm_pc + 4;
@@ -112998,9 +113048,9 @@ exit_offset_to_179:;
             imm_16 = (int64_t)(((uint64_t)eden_box) & 0xFFF);
             neg_118 = imm_16 < 0;
             v_245 = neg_118 ? -imm_16 : imm_16;
-            o_163 = neg_118 ? 1073741824 : 0;
+            o_165 = neg_118 ? 1073741824 : 0;
             if (v_245 <= 4095) {
-                a_word_874 = 2432696320LL | o_163 | ((((uint64_t)v_245) << 10) | 561ULL);
+                a_word_874 = 2432696320LL | o_165 | ((((uint64_t)v_245) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_874;
                     asm_pc = asm_pc + 4;
@@ -113010,7 +113060,7 @@ exit_offset_to_179:;
                 goto exit_add_sub_138;
             }
             if (((v_245 & 4095) == 0) && (v_245 <= 0xFFF000)) {
-                a_word_875 = 2436890624LL | o_163 | ((((uint64_t)(v_245 >> 12)) << 10) | 561ULL);
+                a_word_875 = 2436890624LL | o_165 | ((((uint64_t)(v_245 >> 12)) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_875;
                     asm_pc = asm_pc + 4;
@@ -113998,8 +114048,8 @@ exit_is_fused_replace:;
             v_256 = opt_operands[i_24];
             nd_143 = opt_nodes + v_256;
             if ((int32_t)nd_143->op == O_CONST) {
-                o_172 = (uint64_t)nd_143->aux;
-                if (!((o_172 & 1) != 0)) {
+                o_174 = (uint64_t)nd_143->aux;
+                if (!((o_174 & 1) != 0)) {
                     target_192 = target_of(fail);
                     a_word_913 = 0x14000000 | ({
     off_275 = ((int64_t)(target_192 - asm_pc)) >> 2;
@@ -114021,8 +114071,8 @@ exit_offset_to_192:;
                     }
                     goto exit_untag;
                 }
-                o_173 = (uint64_t)nd_143->aux;
-                value_66 = ((int64_t)o_173) >> 1;
+                o_175 = (uint64_t)nd_143->aux;
+                value_66 = ((int64_t)o_175) >> 1;
                 if ((value_66 >= 0) && (value_66 <= 0xFFFF)) {
                     if (!((value_66 >= 0) && (value_66 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -114222,8 +114272,8 @@ exit_offset_to_194:;
             v_258 = opt_operands[i_25];
             nd_145 = opt_nodes + v_258;
             if ((int32_t)nd_145->op == O_CONST) {
-                o_174 = (uint64_t)nd_145->aux;
-                if (!((o_174 & 1) != 0)) {
+                o_176 = (uint64_t)nd_145->aux;
+                if (!((o_176 & 1) != 0)) {
                     target_195 = target_of(fail);
                     a_word_921 = 0x14000000 | ({
     off_278 = ((int64_t)(target_195 - asm_pc)) >> 2;
@@ -114245,8 +114295,8 @@ exit_offset_to_195:;
                     }
                     goto exit_untag_2;
                 }
-                o_175 = (uint64_t)nd_145->aux;
-                value_68 = ((int64_t)o_175) >> 1;
+                o_177 = (uint64_t)nd_145->aux;
+                value_68 = ((int64_t)o_177) >> 1;
                 if ((value_68 >= 0) && (value_68 <= 0xFFFF)) {
                     if (!((value_68 >= 0) && (value_68 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -115487,8 +115537,8 @@ exit_offset_to_215:;
             v_273 = opt_operands[i_27];
             nd_149 = opt_nodes + v_273;
             if ((int32_t)nd_149->op == O_CONST) {
-                o_185 = (uint64_t)nd_149->aux;
-                if (!((o_185 & 1) != 0)) {
+                o_187 = (uint64_t)nd_149->aux;
+                if (!((o_187 & 1) != 0)) {
                     target_216 = target_of(fail);
                     a_word_974 = 0x14000000 | ({
     off_301 = ((int64_t)(target_216 - asm_pc)) >> 2;
@@ -115510,8 +115560,8 @@ exit_offset_to_216:;
                     }
                     goto exit_untag_3;
                 }
-                o_186 = (uint64_t)nd_149->aux;
-                value_72 = ((int64_t)o_186) >> 1;
+                o_188 = (uint64_t)nd_149->aux;
+                value_72 = ((int64_t)o_188) >> 1;
                 if ((value_72 >= 0) && (value_72 <= 0xFFFF)) {
                     if (!((value_72 >= 0) && (value_72 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -115747,8 +115797,8 @@ exit_offset_to_219:;
             v_276 = opt_operands[i_28];
             nd_151 = opt_nodes + v_276;
             if ((int32_t)nd_151->op == O_CONST) {
-                o_188 = (uint64_t)nd_151->aux;
-                if (!((o_188 & 1) != 0)) {
+                o_190 = (uint64_t)nd_151->aux;
+                if (!((o_190 & 1) != 0)) {
                     target_220 = target_of(fail);
                     a_word_983 = 0x14000000 | ({
     off_305 = ((int64_t)(target_220 - asm_pc)) >> 2;
@@ -115770,8 +115820,8 @@ exit_offset_to_220:;
                     }
                     goto exit_untag_4;
                 }
-                o_189 = (uint64_t)nd_151->aux;
-                value_74 = ((int64_t)o_189) >> 1;
+                o_191 = (uint64_t)nd_151->aux;
+                value_74 = ((int64_t)o_191) >> 1;
                 if ((value_74 >= 0) && (value_74 <= 0xFFFF)) {
                     if (!((value_74 >= 0) && (value_74 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -115977,8 +116027,8 @@ exit_offset_to_222:;
             v_278 = opt_operands[i_29];
             nd_153 = opt_nodes + v_278;
             if ((int32_t)nd_153->op == O_CONST) {
-                o_190 = (uint64_t)nd_153->aux;
-                if (!((o_190 & 1) != 0)) {
+                o_192 = (uint64_t)nd_153->aux;
+                if (!((o_192 & 1) != 0)) {
                     target_223 = target_of(fail);
                     a_word_991 = 0x14000000 | ({
     off_308 = ((int64_t)(target_223 - asm_pc)) >> 2;
@@ -116000,8 +116050,8 @@ exit_offset_to_223:;
                     }
                     goto exit_untag_5;
                 }
-                o_191 = (uint64_t)nd_153->aux;
-                value_76 = ((int64_t)o_191) >> 1;
+                o_193 = (uint64_t)nd_153->aux;
+                value_76 = ((int64_t)o_193) >> 1;
                 if ((value_76 >= 0) && (value_76 <= 0xFFFF)) {
                     if (!((value_76 >= 0) && (value_76 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -116241,8 +116291,8 @@ exit_offset_to_226:;
             v_281 = opt_operands[i_30];
             nd_155 = opt_nodes + v_281;
             if ((int32_t)nd_155->op == O_CONST) {
-                o_193 = (uint64_t)nd_155->aux;
-                if (!((o_193 & 1) != 0)) {
+                o_195 = (uint64_t)nd_155->aux;
+                if (!((o_195 & 1) != 0)) {
                     target_227 = target_of(fail);
                     a_word_1000 = 0x14000000 | ({
     off_312 = ((int64_t)(target_227 - asm_pc)) >> 2;
@@ -116264,8 +116314,8 @@ exit_offset_to_227:;
                     }
                     goto exit_untag_6;
                 }
-                o_194 = (uint64_t)nd_155->aux;
-                value_78 = ((int64_t)o_194) >> 1;
+                o_196 = (uint64_t)nd_155->aux;
+                value_78 = ((int64_t)o_196) >> 1;
                 if ((value_78 >= 0) && (value_78 <= 0xFFFF)) {
                     if (!((value_78 >= 0) && (value_78 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -116495,9 +116545,9 @@ exit_offset_to_229:;
             imm_19 = 16 - (1LL << s_47);
             neg_138 = imm_19 < 0;
             v_283 = neg_138 ? -imm_19 : imm_19;
-            o_195 = neg_138 ? 1073741824 : 0;
+            o_197 = neg_138 ? 1073741824 : 0;
             if (v_283 <= 4095) {
-                a_word_1010 = 2432696320LL | o_195 | ((((uint64_t)v_283) << 10) | 561ULL);
+                a_word_1010 = 2432696320LL | o_197 | ((((uint64_t)v_283) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1010;
                     asm_pc = asm_pc + 4;
@@ -116507,7 +116557,7 @@ exit_offset_to_229:;
                 goto exit_add_sub_162;
             }
             if (((v_283 & 4095) == 0) && (v_283 <= 0xFFF000)) {
-                a_word_1011 = 2436890624LL | o_195 | ((((uint64_t)(v_283 >> 12)) << 10) | 561ULL);
+                a_word_1011 = 2436890624LL | o_197 | ((((uint64_t)(v_283 >> 12)) << 10) | 561ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1011;
                     asm_pc = asm_pc + 4;
@@ -116524,8 +116574,8 @@ exit_offset_to_229:;
             v_284 = opt_operands[i_31];
             nd_157 = opt_nodes + v_284;
             if ((int32_t)nd_157->op == O_CONST) {
-                o_196 = (uint64_t)nd_157->aux;
-                if (!((o_196 & 1) != 0)) {
+                o_198 = (uint64_t)nd_157->aux;
+                if (!((o_198 & 1) != 0)) {
                     target_230 = target_of(fail);
                     a_word_1012 = 0x14000000 | ({
     off_315 = ((int64_t)(target_230 - asm_pc)) >> 2;
@@ -116547,8 +116597,8 @@ exit_offset_to_230:;
                     }
                     goto exit_untag_7;
                 }
-                o_197 = (uint64_t)nd_157->aux;
-                value_80 = ((int64_t)o_197) >> 1;
+                o_199 = (uint64_t)nd_157->aux;
+                value_80 = ((int64_t)o_199) >> 1;
                 if ((value_80 >= 0) && (value_80 <= 0xFFFF)) {
                     if (!((value_80 >= 0) && (value_80 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -116748,8 +116798,8 @@ exit_offset_to_232:;
             v_286 = opt_operands[i_32];
             nd_159 = opt_nodes + v_286;
             if ((int32_t)nd_159->op == O_CONST) {
-                o_198 = (uint64_t)nd_159->aux;
-                if (!((o_198 & 1) != 0)) {
+                o_200 = (uint64_t)nd_159->aux;
+                if (!((o_200 & 1) != 0)) {
                     target_233 = target_of(fail);
                     a_word_1020 = 0x14000000 | ({
     off_318 = ((int64_t)(target_233 - asm_pc)) >> 2;
@@ -116771,8 +116821,8 @@ exit_offset_to_233:;
                     }
                     goto exit_untag_8;
                 }
-                o_199 = (uint64_t)nd_159->aux;
-                value_82 = ((int64_t)o_199) >> 1;
+                o_201 = (uint64_t)nd_159->aux;
+                value_82 = ((int64_t)o_201) >> 1;
                 if ((value_82 >= 0) && (value_82 <= 0xFFFF)) {
                     if (!((value_82 >= 0) && (value_82 <= 0xFFFF))) {
                         if (asm_error == ASM_OK) {
@@ -117166,9 +117216,9 @@ exit_src_65:;
             imm_20 = 16 - (1LL << s_47);
             neg_140 = imm_20 < 0;
             v_291 = neg_140 ? -imm_20 : imm_20;
-            o_201 = neg_140 ? 1073741824 : 0;
+            o_203 = neg_140 ? 1073741824 : 0;
             if (v_291 <= 4095) {
-                a_word_1034 = 2432696320LL | o_201 | ((((uint64_t)v_291) << 10) | 528ULL);
+                a_word_1034 = 2432696320LL | o_203 | ((((uint64_t)v_291) << 10) | 528ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1034;
                     asm_pc = asm_pc + 4;
@@ -117178,7 +117228,7 @@ exit_src_65:;
                 goto exit_add_sub_166;
             }
             if (((v_291 & 4095) == 0) && (v_291 <= 0xFFF000)) {
-                a_word_1035 = 2436890624LL | o_201 | ((((uint64_t)(v_291 >> 12)) << 10) | 528ULL);
+                a_word_1035 = 2436890624LL | o_203 | ((((uint64_t)(v_291 >> 12)) << 10) | 528ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1035;
                     asm_pc = asm_pc + 4;
@@ -118274,9 +118324,9 @@ exit_src_69:;
         if (off_254 <= 4095) {
             neg_149 = off_254 < 0;
             v_310 = neg_149 ? -off_254 : off_254;
-            o_210 = neg_149 ? 1073741824 : 0;
+            o_212 = neg_149 ? 1073741824 : 0;
             if (v_310 <= 4095) {
-                a_word_1081 = 2432696320LL | o_210 | ((((uint64_t)v_310) << 10) | 660ULL);
+                a_word_1081 = 2432696320LL | o_212 | ((((uint64_t)v_310) << 10) | 660ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1081;
                     asm_pc = asm_pc + 4;
@@ -118286,7 +118336,7 @@ exit_src_69:;
                 goto exit_add_sub_175;
             }
             if (((v_310 & 4095) == 0) && (v_310 <= 0xFFF000)) {
-                a_word_1082 = 2436890624LL | o_210 | ((((uint64_t)(v_310 >> 12)) << 10) | 660ULL);
+                a_word_1082 = 2436890624LL | o_212 | ((((uint64_t)(v_310 >> 12)) << 10) | 660ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1082;
                     asm_pc = asm_pc + 4;
@@ -118359,15 +118409,15 @@ exit_offset_to_246:;
         r_out_31 = new_label();
         goto exit_out_31;
     }
-    o_211 = cg_outs + cg_out_count;
-    o_211->kind = OUT_SITE;
-    o_211->node = n;
-    o_211->index = k_32;
-    o_211->label = new_label();
-    o_211->resume = -1;
-    o_211->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_213 = cg_outs + cg_out_count;
+    o_213->kind = OUT_SITE;
+    o_213->node = n;
+    o_213->index = k_32;
+    o_213->label = new_label();
+    o_213->resume = -1;
+    o_213->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_31 = o_211->label;
+    r_out_31 = o_213->label;
 exit_out_31:;
     r_out_31; });
             (cg_outs + (cg_out_count - 1))->resume = back_5;
@@ -118383,9 +118433,9 @@ exit_out_31:;
             imm_21 = (int64_t)(uint64_t)((((int64_t)argc) << 1) | 1);
             neg_150 = imm_21 < 0;
             v_311 = neg_150 ? -imm_21 : imm_21;
-            o_212 = neg_150 ? 536870912 : 0x60000000;
+            o_214 = neg_150 ? 536870912 : 0x60000000;
             if (v_311 <= 4095) {
-                a_word_1085 = 2432696320LL | o_212 | ((((uint64_t)v_311) << 10) | 543ULL);
+                a_word_1085 = 2432696320LL | o_214 | ((((uint64_t)v_311) << 10) | 543ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1085;
                     asm_pc = asm_pc + 4;
@@ -118395,7 +118445,7 @@ exit_out_31:;
                 goto exit_add_sub_176;
             }
             if (((v_311 & 4095) == 0) && (v_311 <= 0xFFF000)) {
-                a_word_1086 = 2436890624LL | o_212 | ((((uint64_t)(v_311 >> 12)) << 10) | 543ULL);
+                a_word_1086 = 2436890624LL | o_214 | ((((uint64_t)(v_311 >> 12)) << 10) | 543ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1086;
                     asm_pc = asm_pc + 4;
@@ -118524,9 +118574,9 @@ exit_offset_to_250:;
         if (off_254 <= 4095) {
             neg_151 = off_254 < 0;
             v_312 = neg_151 ? -off_254 : off_254;
-            o_213 = neg_151 ? 0 : 0x40000000;
+            o_215 = neg_151 ? 0 : 0x40000000;
             if (v_312 <= 4095) {
-                a_word_1091 = 2432696320LL | o_213 | ((((uint64_t)v_312) << 10) | 660ULL);
+                a_word_1091 = 2432696320LL | o_215 | ((((uint64_t)v_312) << 10) | 660ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1091;
                     asm_pc = asm_pc + 4;
@@ -118536,7 +118586,7 @@ exit_offset_to_250:;
                 goto exit_add_sub_177;
             }
             if (((v_312 & 4095) == 0) && (v_312 <= 0xFFF000)) {
-                a_word_1092 = 2436890624LL | o_213 | ((((uint64_t)(v_312 >> 12)) << 10) | 660ULL);
+                a_word_1092 = 2436890624LL | o_215 | ((((uint64_t)(v_312 >> 12)) << 10) | 660ULL);
                 if (asm_pc < asm_limit) {
                     *(uint32_t *)asm_pc = a_word_1092;
                     asm_pc = asm_pc + 4;
@@ -118585,15 +118635,15 @@ exit_offset_to_250:;
         r_out_32 = new_label();
         goto exit_out_32;
     }
-    o_214 = cg_outs + cg_out_count;
-    o_214->kind = OUT_RESUME;
-    o_214->node = n;
-    o_214->index = k_32;
-    o_214->label = new_label();
-    o_214->resume = -1;
-    o_214->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_216 = cg_outs + cg_out_count;
+    o_216->kind = OUT_RESUME;
+    o_216->node = n;
+    o_216->index = k_32;
+    o_216->label = new_label();
+    o_216->resume = -1;
+    o_216->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_32 = o_214->label;
+    r_out_32 = o_216->label;
 exit_out_32:;
     r_out_32; });
         (cg_outs + (cg_out_count - 1))->resume = cont;
@@ -118605,15 +118655,15 @@ exit_out_32:;
         r_out_33 = new_label();
         goto exit_out_33;
     }
-    o_215 = cg_outs + cg_out_count;
-    o_215->kind = OUT_LAZY;
-    o_215->node = n;
-    o_215->index = k_32;
-    o_215->label = new_label();
-    o_215->resume = -1;
-    o_215->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_217 = cg_outs + cg_out_count;
+    o_217->kind = OUT_LAZY;
+    o_217->node = n;
+    o_217->index = k_32;
+    o_217->label = new_label();
+    o_217->resume = -1;
+    o_217->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_33 = o_215->label;
+    r_out_33 = o_217->label;
 exit_out_33:;
     r_out_33; });
         if (asm_noting) {
@@ -118792,15 +118842,15 @@ exit_offset_to_252:;
         r_out_34 = new_label();
         goto exit_out_34;
     }
-    o_217 = cg_outs + cg_out_count;
-    o_217->kind = OUT_NOTMADE;
-    o_217->node = n;
-    o_217->index = k_32;
-    o_217->label = new_label();
-    o_217->resume = -1;
-    o_217->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_219 = cg_outs + cg_out_count;
+    o_219->kind = OUT_NOTMADE;
+    o_219->node = n;
+    o_219->index = k_32;
+    o_219->label = new_label();
+    o_219->resume = -1;
+    o_219->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_34 = o_217->label;
+    r_out_34 = o_219->label;
 exit_out_34:;
     r_out_34; });
             enc_64 = logical_immediate(7ULL, 64);
@@ -118990,15 +119040,15 @@ exit_offset_to_255:;
         r_out_35 = new_label();
         goto exit_out_35;
     }
-    o_218 = cg_outs + cg_out_count;
-    o_218->kind = OUT_SENT;
-    o_218->node = n;
-    o_218->index = k_32;
-    o_218->label = new_label();
-    o_218->resume = -1;
-    o_218->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_220 = cg_outs + cg_out_count;
+    o_220->kind = OUT_SENT;
+    o_220->node = n;
+    o_220->index = k_32;
+    o_220->label = new_label();
+    o_220->resume = -1;
+    o_220->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_35 = o_218->label;
+    r_out_35 = o_220->label;
 exit_out_35:;
     r_out_35; });
             (cg_outs + (cg_out_count - 1))->resume = cont;
@@ -119924,15 +119974,15 @@ exit_is_fused_2:;
         r_out_36 = new_label();
         goto exit_out_36;
     }
-    o_224 = cg_outs + cg_out_count;
-    o_224->kind = OUT_DEOPT;
-    o_224->node = n;
-    o_224->index = k_36;
-    o_224->label = new_label();
-    o_224->resume = -1;
-    o_224->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_226 = cg_outs + cg_out_count;
+    o_226->kind = OUT_DEOPT;
+    o_226->node = n;
+    o_226->index = k_36;
+    o_226->label = new_label();
+    o_226->resume = -1;
+    o_226->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_36 = o_224->label;
+    r_out_36 = o_226->label;
 exit_out_36:;
     r_out_36; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {
@@ -120819,8 +120869,8 @@ exit_src_72:;
             n_55 = nd_191->b;
             if (((int32_t)(opt_nodes + n_55)->op == O_CONST) && ({
     n_56 = nd_191->b;
-    o_230 = (uint64_t)(opt_nodes + n_56)->aux;
-    ((o_230 & 1) != 0) && ({
+    o_232 = (uint64_t)(opt_nodes + n_56)->aux;
+    ((o_232 & 1) != 0) && ({
     n_57 = nd_191->b;
     ((opt_nodes + n_57)->aux >= -4095) && ((opt_nodes + n_57)->aux <= 4095); }); })) {
                 n_58 = nd_191->b;
@@ -120830,9 +120880,9 @@ exit_src_72:;
                     rd_78 = (x_23 & REG_W) | 31;
                     neg_163 = imm_22 < 0;
                     v_345 = neg_163 ? -imm_22 : imm_22;
-                    o_231 = neg_163 ? 536870912 : 0x60000000;
+                    o_233 = neg_163 ? 536870912 : 0x60000000;
                     if (v_345 <= 4095) {
-                        a_word_1172 = 0x11000000 | ((rd_78 & REG_W) == 0 ? 0x80000000LL : 0) | o_231 | ((((uint64_t)v_345) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_78 & 31)));
+                        a_word_1172 = 0x11000000 | ((rd_78 & REG_W) == 0 ? 0x80000000LL : 0) | o_233 | ((((uint64_t)v_345) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_78 & 31)));
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_1172;
                             asm_pc = asm_pc + 4;
@@ -120842,7 +120892,7 @@ exit_src_72:;
                         goto exit_add_sub_189;
                     }
                     if (((v_345 & 4095) == 0) && (v_345 <= 0xFFF000)) {
-                        a_word_1173 = 0x11400000 | ((rd_78 & REG_W) == 0 ? 0x80000000LL : 0) | o_231 | ((((uint64_t)(v_345 >> 12)) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_78 & 31)));
+                        a_word_1173 = 0x11400000 | ((rd_78 & REG_W) == 0 ? 0x80000000LL : 0) | o_233 | ((((uint64_t)(v_345 >> 12)) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_78 & 31)));
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_1173;
                             asm_pc = asm_pc + 4;
@@ -120861,9 +120911,9 @@ exit_src_72:;
                     rd_79 = (x_23 & REG_W) | 31;
                     neg_164 = imm_23 < 0;
                     v_346 = neg_164 ? -imm_23 : imm_23;
-                    o_232 = neg_164 ? 1610612736 : 0x20000000;
+                    o_234 = neg_164 ? 1610612736 : 0x20000000;
                     if (v_346 <= 4095) {
-                        a_word_1174 = 0x11000000 | ((rd_79 & REG_W) == 0 ? 0x80000000LL : 0) | o_232 | ((((uint64_t)v_346) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_79 & 31)));
+                        a_word_1174 = 0x11000000 | ((rd_79 & REG_W) == 0 ? 0x80000000LL : 0) | o_234 | ((((uint64_t)v_346) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_79 & 31)));
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_1174;
                             asm_pc = asm_pc + 4;
@@ -120873,7 +120923,7 @@ exit_src_72:;
                         goto exit_add_sub_190;
                     }
                     if (((v_346 & 4095) == 0) && (v_346 <= 0xFFF000)) {
-                        a_word_1175 = 0x11400000 | ((rd_79 & REG_W) == 0 ? 0x80000000LL : 0) | o_232 | ((((uint64_t)(v_346 >> 12)) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_79 & 31)));
+                        a_word_1175 = 0x11400000 | ((rd_79 & REG_W) == 0 ? 0x80000000LL : 0) | o_234 | ((((uint64_t)(v_346 >> 12)) << 10) | ((((uint64_t)(x_23 & 31)) << 5) | (rd_79 & 31)));
                         if (asm_pc < asm_limit) {
                             *(uint32_t *)asm_pc = a_word_1175;
                             asm_pc = asm_pc + 4;
@@ -121039,12 +121089,26 @@ exit_src_73:;
     v_349 = nd_191->a;
     (!({
     k_37 = (int32_t)(opt_nodes + v_349)->tkind;
+    if (((int32_t)(opt_nodes + v_349)->op == O_CONST) && ({
+    o_235 = (uint64_t)(opt_nodes + v_349)->aux;
+    (!((o_235 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_349)->aux); })) {
+        r_is_no_forwarder_target_3 = true;
+        goto exit_is_no_forwarder_target_3;
+    }
     r_is_no_forwarder_target_3 = (k_37 == T_SMI) || ((k_37 == T_BOOL) || ((k_37 == T_NIL) || ((k_37 == T_CHAR) || ((k_37 == T_FLOAT) && ((int32_t)(opt_nodes + v_349)->op == O_CONST)))));
+exit_is_no_forwarder_target_3:;
     r_is_no_forwarder_target_3; })) && ({
     v_350 = nd_191->b;
     !({
     k_38 = (int32_t)(opt_nodes + v_350)->tkind;
+    if (((int32_t)(opt_nodes + v_350)->op == O_CONST) && ({
+    o_236 = (uint64_t)(opt_nodes + v_350)->aux;
+    (!((o_236 & 7) == 0)) || forwards_eagerly((uint64_t)(opt_nodes + v_350)->aux); })) {
+        r_is_no_forwarder_target_4 = true;
+        goto exit_is_no_forwarder_target_4;
+    }
     r_is_no_forwarder_target_4 = (k_38 == T_SMI) || ((k_38 == T_BOOL) || ((k_38 == T_NIL) || ((k_38 == T_CHAR) || ((k_38 == T_FLOAT) && ((int32_t)(opt_nodes + v_350)->op == O_CONST)))));
+exit_is_no_forwarder_target_4:;
     r_is_no_forwarder_target_4; }); }); })) {
                     i_51 = x_23 | (y_6 << 8);
                     l_27 = ({
@@ -121055,15 +121119,15 @@ exit_src_73:;
         r_out_37 = new_label();
         goto exit_out_37;
     }
-    o_233 = cg_outs + cg_out_count;
-    o_233->kind = OUT_FOLLOW;
-    o_233->node = v_331;
-    o_233->index = i_51;
-    o_233->label = new_label();
-    o_233->resume = -1;
-    o_233->pos = v_331 >= 0 ? (opt_nodes + v_331)->pos : 0;
+    o_237 = cg_outs + cg_out_count;
+    o_237->kind = OUT_FOLLOW;
+    o_237->node = v_331;
+    o_237->index = i_51;
+    o_237->label = new_label();
+    o_237->resume = -1;
+    o_237->pos = v_331 >= 0 ? (opt_nodes + v_331)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_37 = o_233->label;
+    r_out_37 = o_237->label;
 exit_out_37:;
     r_out_37; });
                     back_6 = new_label();
@@ -121763,15 +121827,15 @@ exit_src_75:;
         r_out_38 = new_label();
         goto exit_out_38;
     }
-    o_234 = cg_outs + cg_out_count;
-    o_234->kind = OUT_BOTTOM;
-    o_234->node = n;
-    o_234->index = 0;
-    o_234->label = new_label();
-    o_234->resume = -1;
-    o_234->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_238 = cg_outs + cg_out_count;
+    o_238->kind = OUT_BOTTOM;
+    o_238->node = n;
+    o_238->index = 0;
+    o_238->label = new_label();
+    o_238->resume = -1;
+    o_238->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_38 = o_234->label;
+    r_out_38 = o_238->label;
 exit_out_38:;
     r_out_38; });
         off_367 = (int64_t)&((jit_state *)0)->frames;
@@ -121876,15 +121940,15 @@ exit_entry_pc:;
         r_out_39 = new_label();
         goto exit_out_39;
     }
-    o_236 = cg_outs + cg_out_count;
-    o_236->kind = OUT_WIDOW;
-    o_236->node = n;
-    o_236->index = 0;
-    o_236->label = new_label();
-    o_236->resume = -1;
-    o_236->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_240 = cg_outs + cg_out_count;
+    o_240->kind = OUT_WIDOW;
+    o_240->node = n;
+    o_240->index = 0;
+    o_240->label = new_label();
+    o_240->resume = -1;
+    o_240->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_39 = o_236->label;
+    r_out_39 = o_240->label;
 exit_out_39:;
     r_out_39; });
             (cg_outs + (cg_out_count - 1))->resume = back_7;
@@ -122006,15 +122070,15 @@ exit_offset_to_274:;
         r_out_40 = new_label();
         goto exit_out_40;
     }
-    o_238 = cg_outs + cg_out_count;
-    o_238->kind = OUT_DEOPT;
-    o_238->node = n;
-    o_238->index = k_41;
-    o_238->label = new_label();
-    o_238->resume = -1;
-    o_238->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
+    o_242 = cg_outs + cg_out_count;
+    o_242->kind = OUT_DEOPT;
+    o_242->node = n;
+    o_242->index = k_41;
+    o_242->label = new_label();
+    o_242->resume = -1;
+    o_242->pos = n >= 0 ? (opt_nodes + n)->pos : 0;
     cg_out_count = cg_out_count + 1;
-    r_out_40 = o_238->label;
+    r_out_40 = o_242->label;
 exit_out_40:;
     r_out_40; });
     if (!((jit_flags & JIT_FLAG_DEOPT) != 0)) {

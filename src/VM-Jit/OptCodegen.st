@@ -861,9 +861,10 @@ conditionOf: n
 	^k caseOf: {[2] -> [COND_LT]. [3] -> [COND_GT]. [4] -> [COND_LE]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]
 !
 isNoForwarderTarget: v
-	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false."
+	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false, a constant becomeForward: forwards eagerly (a class, a Symbol...)."
 	| k |
 	k := (ir node: v) tkind asInt32.
+	((ir node: v) op asInt32 = O_CONST and: [(self isPtr: (ir node: v) aux asUInt64) not or: [memory forwardsEagerly: (ir node: v) aux asUInt64]]) ifTrue: [^true].
 	^k = T_SMI or: [k = T_BOOL or: [k = T_NIL or: [k = T_CHAR or: [(k = T_FLOAT and: [(ir node: v) op asInt32 = O_CONST])]]]]
 !
 emitCompare: n

@@ -291,6 +291,7 @@ void forward(oop from, oop to)
             remember(active_ctx);
         }
     }
+    refresh_literals();
     become_from = nil_oop;
     become_to = nil_oop;
 }

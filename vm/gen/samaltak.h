@@ -1731,6 +1731,7 @@ void print_class_name(oop a_class, FILE *f);
 void print_symbol(oop s, FILE *f);
 frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode);
 frame *push_frame_entry(cache_entry *e, int32_t n);
+void refresh_literals(void);
 void interpreter_roots(void (*fn)(oop *));
 int selector_argc(oop a_selector);
 oop sender_of(oop c, int64_t p, oop stop);

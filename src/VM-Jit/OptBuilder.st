@@ -2211,19 +2211,16 @@ isBehavior: o
 !
 noteConstant: v
 	"The code may fold v's class or fields: becomeForward: of v must invalidate it, so v goes into its pool (as a dependency) even if no instruction keeps it; code that cannot record it is not made."
-	| found |
 	((self isPtr: v) and: [(memory forwardsEagerly: v) not]) ifFalse: [^self].
-	self noteDependency: v.
-	found := false.
-	0 to: obDepCount - 1 do: [:i | (obDeps at: i) = v ifTrue: [found := true]].
-	found ifFalse: [self bail]
+	self noteDependency: v
 !
 noteDependency: sel
 	"The code depends on what sel finds (inlined or speculated): a method change for sel invalidates it."
 	0 to: obDepCount - 1 do: [:i | (obDeps at: i) = sel ifTrue: [^self]].
-	obDepCount < OPT_MAX_DEPS ifTrue: [
-		obDeps at: obDepCount put: sel.
-		obDepCount := obDepCount + 1]
+	"a dependency that cannot be recorded: no code"
+	obDepCount < OPT_MAX_DEPS ifFalse: [^self bail].
+	obDeps at: obDepCount put: sel.
+	obDepCount := obDepCount + 1
 !
 depCount
 	^obDepCount

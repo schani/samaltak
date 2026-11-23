@@ -1215,8 +1215,6 @@ static int32_t constant(oop w)
     oop p;
     oop v;
     int32_t i_2;
-    bool found;
-    int32_t i_3;
     int32_t i;
     int64_t k;
     int32_t n_2;
@@ -1238,18 +1236,7 @@ static int32_t constant(oop w)
             goto exit_note_dependency;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = v;
-        ob_dep_count = ob_dep_count + 1;
-    }
-exit_note_dependency:;
-    found = false;
-    for (i_3 = 0; i_3 <= ob_dep_count - 1; i_3++) {
-        if (ob_deps[i_3] == v) {
-            found = true;
-        }
-    }
-    if (!found) {
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
         if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
             fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
         }
@@ -1259,7 +1246,11 @@ exit_note_dependency:;
             ob_no_foreign_count = ob_no_foreign_count + 1;
         }
         ob_bailed = true;
+        goto exit_note_dependency;
     }
+    ob_deps[ob_dep_count] = v;
+    ob_dep_count = ob_dep_count + 1;
+exit_note_dependency:;
 exit_note_constant:;
     i = (int32_t)(((v * 2654435761LL) >> 8) & 255);
     k = 0;
@@ -12047,10 +12038,20 @@ static bool inline_send(uint64_t sel, int32_t argc, int32_t kind, int32_t k, int
             goto exit_note_dependency;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = sel;
-        ob_dep_count = ob_dep_count + 1;
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+        goto exit_note_dependency;
     }
+    ob_deps[ob_dep_count] = sel;
+    ob_dep_count = ob_dep_count + 1;
 exit_note_dependency:;
     var_2 = (opt_acts + a)->var_base + r;
     if ((var_2 < OPT_MAX_VARS) && (ob_arg_flags[var_2] == 2)) {
@@ -13431,10 +13432,20 @@ exit_known_class_of:;
             goto exit_note_dependency_2;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = sel;
-        ob_dep_count = ob_dep_count + 1;
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+        goto exit_note_dependency_2;
     }
+    ob_deps[ob_dep_count] = sel;
+    ob_dep_count = ob_dep_count + 1;
 exit_note_dependency_2:;
     var_14 = (opt_acts + a)->var_base + r;
     if ((var_14 < OPT_MAX_VARS) && (ob_arg_flags[var_14] == 2)) {
@@ -14852,10 +14863,20 @@ exit_guard:;
             goto exit_note_dependency_3;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = sel;
-        ob_dep_count = ob_dep_count + 1;
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+        goto exit_note_dependency_3;
     }
+    ob_deps[ob_dep_count] = sel;
+    ob_dep_count = ob_dep_count + 1;
 exit_note_dependency_3:;
     var_26 = (opt_acts + a)->var_base + r;
     if ((var_26 < OPT_MAX_VARS) && (ob_arg_flags[var_26] == 2)) {
@@ -16559,10 +16580,20 @@ exit_type_2:;
             goto exit_note_dependency_4;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = sel;
-        ob_dep_count = ob_dep_count + 1;
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+        goto exit_note_dependency_4;
     }
+    ob_deps[ob_dep_count] = sel;
+    ob_dep_count = ob_dep_count + 1;
 exit_note_dependency_4:;
     var_39 = (opt_acts + a)->var_base + r;
     if ((var_39 < OPT_MAX_VARS) && (ob_arg_flags[var_39] == 2)) {
@@ -19176,10 +19207,20 @@ static bool send_performed(uint64_t sel, int32_t rcv, oop cls, int32_t n, int32_
             goto exit_note_dependency;
         }
     }
-    if (ob_dep_count < OPT_MAX_DEPS) {
-        ob_deps[ob_dep_count] = sel;
-        ob_dep_count = ob_dep_count + 1;
+    if (!(ob_dep_count < OPT_MAX_DEPS)) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+        goto exit_note_dependency;
     }
+    ob_deps[ob_dep_count] = sel;
+    ob_dep_count = ob_dep_count + 1;
 exit_note_dependency:;
     var_3 = (opt_acts + a)->var_base + r;
     if ((var_3 < OPT_MAX_VARS) && (ob_arg_flags[var_3] == 2)) {
