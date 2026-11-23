@@ -219,6 +219,41 @@ indexableSize: o
 	(f = 10 or: [f = 11]) ifTrue: [^self word32Size: o].
 	f >= F_BYTES ifTrue: [^self byteSize: o].
 	^0
+!
+isEagerKind: s
+	"s is one of the classes whose instances the VM reads directly."
+	<function>
+	| md |
+	s = (self special: SO_COMPILEDMETHOD) ifTrue: [^true].
+	s = self clsContext ifTrue: [^true].
+	s = self clsBlock ifTrue: [^true].
+	s = (self special: SO_ASSOCIATION) ifTrue: [^true].
+	s = (self special: SO_PROCESS) ifTrue: [^true].
+	s = (self loadRef: (self special: SO_SEMAPHORE) at: BEH_SUPERCLASS) ifTrue: [^true].
+	s = (self special: SO_MESSAGE) ifTrue: [^true].
+	s = (self rawClass: (self special: SO_PROCESSOR)) ifTrue: [^true].
+	md := self loadRef: self clsArray at: BEH_METHODDICT.
+	"(during a scavenge a young method dictionary may have been copied already)"
+	(((self header: md) bitAnd: H_FORWARDED) ~= 0 and: [((self rawClass: md) bitAnd: 7) = 0]) ifTrue: [md := self rawClass: md].
+	^s = (self rawClass: md)
+!
+forwardsEagerly: o
+	"o is read by the VM without a send or a class check, so becomeForward: replaces the references to it at once (a full GC and a heap scan) instead of leaving a forwarder: nil, true, false and the other special objects, classes and metaclasses, and the instances of the VM's kinds (CompiledMethod, Context, BlockClosure, Association, Symbol, Process, LinkedList and Semaphore, ProcessorScheduler, Message, MethodDictionary)."
+	<function>
+	| sp c meta s |
+	sp := self specialsOop.
+	o = sp ifTrue: [^true].
+	o = (self loadRef: (self special: SO_PROCESSOR) at: SCHED_LISTS) ifTrue: [^true].
+	0 to: (self numSlots: sp) asInt64 - 1 do: [:i | (self loadRef: sp at: i) = o ifTrue: [^true]].
+	c := self rawClass: o.
+	meta := self rawClass: (self rawClass: self clsArray).
+	(c = meta or: [(self rawClass: c) = meta]) ifTrue: [^true].
+	(c = (self special: SO_BYTESYMBOL) or: [c = (self special: SO_WIDESYMBOL)]) ifTrue: [^true].
+	s := c.
+	[(self isPtr: s) and: [s ~= self nilOop]] whileTrue: [
+		(self isEagerKind: s) ifTrue: [^true].
+		s := self loadRef: s at: BEH_SUPERCLASS].
+	^false
 ! !
 
 !ObjectMemory methodsFor: 'allocation'!

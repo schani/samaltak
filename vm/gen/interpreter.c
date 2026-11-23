@@ -100,8 +100,12 @@ void interpreter_after_gc(void)
     frame *f;
     oop m;
     uint64_t o;
-    oop o_2;
-    uint64_t o_3;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     refresh_tag_classes();
     refresh_prim_base();
     for (i = 0; i <= nframes - 1; i++) {
@@ -109,9 +113,21 @@ void interpreter_after_gc(void)
         m = f->method;
         o = *(uint64_t *)(m + 16 + 24);
         f->ip = (uint8_t *)(o + 16) + f->pc;
-        o_2 = f->method;
-        o_3 = *(uint64_t *)(o_2 + 16 + 16);
-        f->lits = (oop *)(o_3 + 16);
+        m_2 = f->method;
+        o_2 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+        f->lits = (oop *)(o_2 + 16);
     }
 }
 
@@ -168,6 +184,10 @@ static void block_activate(int32_t n, bool from_array)
     uint64_t o_6;
     uint64_t o_7;
     uint64_t o_8;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow_3;
+    uint64_t p_3;
     uint64_t o_9;
     int64_t i_3;
     count = n;
@@ -260,7 +280,19 @@ exit_frame_code_for:;
     o_7 = *(uint64_t *)(m + 16 + 24);
     o_8 = *(uint64_t *)(cl + 16 + 8);
     f->ip = (uint8_t *)(o_7 + 16) + (((int64_t)o_8) >> 1);
-    o_9 = *(uint64_t *)(m + 16 + 16);
+    o_9 = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_3 = l;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     f->lits = (oop *)(o_9 + 16);
     f->sp = (int32_t)(count + ntemps);
     for (i_3 = count; i_3 <= count + ntemps - 1; i_3++) {
@@ -439,6 +471,10 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     uint64_t bc;
     uint64_t na;
     uint64_t nt;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p_3;
     uint64_t o;
     uint64_t o_2;
     uint8_t *b;
@@ -449,6 +485,10 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     bool qc;
     uint64_t qv;
     size_t size;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_2;
+    uint64_t p_4;
     uint64_t lits_oop;
     int v;
     oop v_2;
@@ -471,7 +511,19 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     na = *(uint64_t *)(m + 16 + 32);
     nt = *(uint64_t *)(m + 16 + 40);
     e->bcs = (uint8_t *)(bc + 16);
-    o = *(uint64_t *)(m + 16 + 16);
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_3 = l;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_3;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     e->lits = (oop *)(o + 16);
     e->ntemps = (int32_t)(((int64_t)nt) >> 1);
     o_2 = *(uint64_t *)(m + 16 + 48);
@@ -506,7 +558,19 @@ static cache_entry *fill_cache(oop a_class, oop a_selector)
     if ((p == 0) && (((bc & 7) == 0) && ((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES))) {
         b = (uint8_t *)(bc + 16);
         size = byte_size(bc);
-        lits_oop = *(uint64_t *)(m + 16 + 16);
+        lits_oop = ({
+    l_2 = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_4 = l_2;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_4;
+    r_follow_2; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
         if ((size == 1) && (b[0] == 0x7A)) {
             qc = true;
         } else if ((size == 2) && ((b[1] == 0x79) && ((b[0] >= 0x71) && (b[0] <= 0x75)))) {
@@ -818,7 +882,11 @@ void interpret(void)
     oop p;
     oop v;
     oop m;
-    oop o_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow_2;
+    uint64_t p_2;
+    uint64_t o_2;
     oop o_3;
     oop o_4;
     uint64_t o_5;
@@ -1091,7 +1159,7 @@ void interpret(void)
     uint8_t r_next_bytecode_114;
     bool c;
     uint8_t j;
-    uint8_t *p_2;
+    uint8_t *p_3;
     int16_t o_55;
     oop *s_2;
     oop m_2;
@@ -1100,11 +1168,15 @@ void interpret(void)
     int64_t v_100;
     oop *s_3;
     oop o_58;
-    oop r_follow_2;
-    oop p_3;
+    oop r_follow_3;
+    oop p_4;
     oop v_101;
     oop m_3;
-    oop o_59;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_4;
+    uint64_t p_5;
+    uint64_t o_59;
     oop o_60;
     oop o_61;
     uint64_t o_62;
@@ -1116,11 +1188,15 @@ void interpret(void)
     int64_t v_103;
     oop *s_5;
     oop o_65;
-    oop r_follow_3;
-    oop p_4;
+    oop r_follow_5;
+    oop p_6;
     oop v_104;
     oop m_5;
-    oop o_66;
+    uint64_t r_literals_of_3;
+    uint64_t l_3;
+    uint64_t r_follow_6;
+    uint64_t p_7;
+    uint64_t o_66;
     oop o_67;
     oop o_68;
     uint64_t o_69;
@@ -1132,11 +1208,15 @@ void interpret(void)
     int64_t v_106;
     oop *s_7;
     oop o_72;
-    oop r_follow_4;
-    oop p_5;
+    oop r_follow_7;
+    oop p_8;
     oop v_107;
     oop m_7;
-    oop o_73;
+    uint64_t r_literals_of_4;
+    uint64_t l_4;
+    uint64_t r_follow_8;
+    uint64_t p_9;
+    uint64_t o_73;
     oop o_74;
     oop o_75;
     uint64_t o_76;
@@ -1152,11 +1232,15 @@ void interpret(void)
     int64_t v_109;
     oop *s_9;
     oop o_79;
-    oop r_follow_5;
-    oop p_6;
+    oop r_follow_9;
+    oop p_10;
     oop v_110;
     oop m_9;
-    oop o_80;
+    uint64_t r_literals_of_5;
+    uint64_t l_5;
+    uint64_t r_follow_10;
+    uint64_t p_11;
+    uint64_t o_80;
     oop o_81;
     oop o_82;
     uint64_t o_83;
@@ -1173,11 +1257,15 @@ void interpret(void)
     int64_t v_113;
     oop *s_11;
     oop o_86;
-    oop r_follow_6;
-    oop p_7;
+    oop r_follow_11;
+    oop p_12;
     oop v_114;
     oop m_11;
-    oop o_87;
+    uint64_t r_literals_of_6;
+    uint64_t l_6;
+    uint64_t r_follow_12;
+    uint64_t p_13;
+    uint64_t o_87;
     oop o_88;
     oop o_89;
     uint64_t o_90;
@@ -1186,22 +1274,30 @@ void interpret(void)
     oop o_92;
     oop *s_12;
     oop o_93;
-    oop r_follow_7;
-    oop p_8;
+    oop r_follow_13;
+    oop p_14;
     oop v_115;
     oop m_12;
-    oop o_94;
+    uint64_t r_literals_of_7;
+    uint64_t l_7;
+    uint64_t r_follow_14;
+    uint64_t p_15;
+    uint64_t o_94;
     oop o_95;
     oop o_96;
     uint64_t o_97;
     oop o_98;
     oop *s_13;
     oop o_99;
-    oop r_follow_8;
-    oop p_9;
+    oop r_follow_15;
+    oop p_16;
     oop v_116;
     oop m_13;
-    oop o_100;
+    uint64_t r_literals_of_8;
+    uint64_t l_8;
+    uint64_t r_follow_16;
+    uint64_t p_17;
+    uint64_t o_100;
     oop o_101;
     oop o_102;
     uint64_t o_103;
@@ -1213,11 +1309,15 @@ void interpret(void)
     int64_t v_118;
     oop *s_15;
     oop o_106;
-    oop r_follow_9;
-    oop p_10;
+    oop r_follow_17;
+    oop p_18;
     oop v_119;
     oop m_15;
-    oop o_107;
+    uint64_t r_literals_of_9;
+    uint64_t l_9;
+    uint64_t r_follow_18;
+    uint64_t p_19;
+    uint64_t o_107;
     oop o_108;
     oop o_109;
     uint64_t o_110;
@@ -1235,15 +1335,19 @@ void interpret(void)
     int32_t j_2;
     oop m_17;
     int64_t r_method_prim;
-    uint64_t p_11;
+    uint64_t p_20;
     int32_t m_16;
     oop *s_16;
     oop o_114;
-    oop r_follow_10;
-    oop p_12;
+    oop r_follow_19;
+    oop p_21;
     oop v_121;
     oop m_18;
-    oop o_115;
+    uint64_t r_literals_of_10;
+    uint64_t l_10;
+    uint64_t r_follow_20;
+    uint64_t p_22;
+    uint64_t o_115;
     oop o_116;
     oop o_117;
     uint64_t o_118;
@@ -1255,11 +1359,15 @@ void interpret(void)
     int64_t v_123;
     oop *s_18;
     oop o_121;
-    oop r_follow_11;
-    oop p_13;
+    oop r_follow_21;
+    oop p_23;
     oop v_124;
     oop m_20;
-    oop o_122;
+    uint64_t r_literals_of_11;
+    uint64_t l_11;
+    uint64_t r_follow_22;
+    uint64_t p_24;
+    uint64_t o_122;
     oop o_123;
     oop o_124;
     uint64_t o_125;
@@ -1273,11 +1381,15 @@ void interpret(void)
     int64_t v_126;
     oop *s_20;
     oop o_128;
-    oop r_follow_12;
-    oop p_14;
+    oop r_follow_23;
+    oop p_25;
     oop v_127;
     oop m_22;
-    oop o_129;
+    uint64_t r_literals_of_12;
+    uint64_t l_12;
+    uint64_t r_follow_24;
+    uint64_t p_26;
+    uint64_t o_129;
     oop o_130;
     oop o_131;
     uint64_t o_132;
@@ -1290,21 +1402,25 @@ void interpret(void)
     oop c_3;
     uint64_t m_23;
     int64_t r_method_prim_2;
-    uint64_t p_15;
+    uint64_t p_27;
     int32_t top_2;
     int32_t r_unwind_frame_from_2;
     int32_t j_3;
     oop m_24;
     int64_t r_method_prim_3;
-    uint64_t p_16;
+    uint64_t p_28;
     uint64_t next;
     oop *s_21;
     oop o_136;
-    oop r_follow_13;
-    oop p_17;
+    oop r_follow_25;
+    oop p_29;
     oop v_128;
     oop m_25;
-    oop o_137;
+    uint64_t r_literals_of_13;
+    uint64_t l_13;
+    uint64_t r_follow_26;
+    uint64_t p_30;
+    uint64_t o_137;
     oop o_138;
     oop o_139;
     uint64_t o_140;
@@ -1316,11 +1432,15 @@ void interpret(void)
     int64_t v_130;
     oop *s_23;
     oop o_143;
-    oop r_follow_14;
-    oop p_18;
+    oop r_follow_27;
+    oop p_31;
     oop v_131;
     oop m_27;
-    oop o_144;
+    uint64_t r_literals_of_14;
+    uint64_t l_14;
+    uint64_t r_follow_28;
+    uint64_t p_32;
+    uint64_t o_144;
     oop o_145;
     oop o_146;
     uint64_t o_147;
@@ -1337,11 +1457,15 @@ void interpret(void)
     oop v_133;
     oop *s_25;
     oop o_150;
-    oop r_follow_15;
-    oop p_19;
+    oop r_follow_29;
+    oop p_33;
     oop v_136;
     oop m_29;
-    oop o_151;
+    uint64_t r_literals_of_15;
+    uint64_t l_15;
+    uint64_t r_follow_30;
+    uint64_t p_34;
+    uint64_t o_151;
     oop o_152;
     oop o_153;
     uint64_t o_154;
@@ -1370,11 +1494,15 @@ void interpret(void)
     uint8_t r_next_bytecode_135;
     oop *s_26;
     oop o_160;
-    oop r_follow_16;
-    oop p_20;
+    oop r_follow_31;
+    oop p_35;
     oop v_145;
     oop m_30;
-    oop o_161;
+    uint64_t r_literals_of_16;
+    uint64_t l_16;
+    uint64_t r_follow_32;
+    uint64_t p_36;
+    uint64_t o_161;
     oop o_162;
     oop o_163;
     uint64_t o_164;
@@ -1413,11 +1541,15 @@ void interpret(void)
     uint64_t b;
     oop *s_29;
     oop o_172;
-    oop r_follow_17;
-    oop p_21;
+    oop r_follow_33;
+    oop p_37;
     oop v_152;
     oop m_32;
-    oop o_173;
+    uint64_t r_literals_of_17;
+    uint64_t l_17;
+    uint64_t r_follow_34;
+    uint64_t p_38;
+    uint64_t o_173;
     oop o_174;
     oop o_175;
     uint64_t o_176;
@@ -1435,11 +1567,15 @@ void interpret(void)
     int64_t v_155;
     oop *s_31;
     oop o_181;
-    oop r_follow_18;
-    oop p_22;
+    oop r_follow_35;
+    oop p_39;
     oop v_156;
     oop m_35;
-    oop o_182;
+    uint64_t r_literals_of_18;
+    uint64_t l_18;
+    uint64_t r_follow_36;
+    uint64_t p_40;
+    uint64_t o_182;
     oop o_183;
     oop o_184;
     uint64_t o_185;
@@ -1451,11 +1587,15 @@ void interpret(void)
     int64_t v_158;
     oop *s_33;
     oop o_188;
-    oop r_follow_19;
-    oop p_23;
+    oop r_follow_37;
+    oop p_41;
     oop v_159;
     oop m_37;
-    oop o_189;
+    uint64_t r_literals_of_19;
+    uint64_t l_19;
+    uint64_t r_follow_38;
+    uint64_t p_42;
+    uint64_t o_189;
     oop o_190;
     oop o_191;
     uint64_t o_192;
@@ -1467,11 +1607,15 @@ void interpret(void)
     int64_t v_161;
     oop *s_35;
     oop o_195;
-    oop r_follow_20;
-    oop p_24;
+    oop r_follow_39;
+    oop p_43;
     oop v_162;
     oop m_39;
-    oop o_196;
+    uint64_t r_literals_of_20;
+    uint64_t l_20;
+    uint64_t r_follow_40;
+    uint64_t p_44;
+    uint64_t o_196;
     oop o_197;
     oop o_198;
     uint64_t o_199;
@@ -1486,11 +1630,15 @@ void interpret(void)
     int64_t v_165;
     oop *s_37;
     oop o_203;
-    oop r_follow_21;
-    oop p_25;
+    oop r_follow_41;
+    oop p_45;
     oop v_166;
     oop m_41;
-    oop o_204;
+    uint64_t r_literals_of_21;
+    uint64_t l_21;
+    uint64_t r_follow_42;
+    uint64_t p_46;
+    uint64_t o_204;
     oop o_205;
     oop o_206;
     uint64_t o_207;
@@ -1502,11 +1650,15 @@ void interpret(void)
     int64_t v_168;
     oop *s_39;
     oop o_210;
-    oop r_follow_22;
-    oop p_26;
+    oop r_follow_43;
+    oop p_47;
     oop v_169;
     oop m_43;
-    oop o_211;
+    uint64_t r_literals_of_22;
+    uint64_t l_22;
+    uint64_t r_follow_44;
+    uint64_t p_48;
+    uint64_t o_211;
     oop o_212;
     oop o_213;
     uint64_t o_214;
@@ -1518,11 +1670,15 @@ void interpret(void)
     int64_t v_171;
     oop *s_41;
     oop o_217;
-    oop r_follow_23;
-    oop p_27;
+    oop r_follow_45;
+    oop p_49;
     oop v_172;
     oop m_45;
-    oop o_218;
+    uint64_t r_literals_of_23;
+    uint64_t l_23;
+    uint64_t r_follow_46;
+    uint64_t p_50;
+    uint64_t o_218;
     oop o_219;
     oop o_220;
     uint64_t o_221;
@@ -1537,11 +1693,15 @@ void interpret(void)
     int64_t v_175;
     oop *s_43;
     oop o_225;
-    oop r_follow_24;
-    oop p_28;
+    oop r_follow_47;
+    oop p_51;
     oop v_176;
     oop m_47;
-    oop o_226;
+    uint64_t r_literals_of_24;
+    uint64_t l_24;
+    uint64_t r_follow_48;
+    uint64_t p_52;
+    uint64_t o_226;
     oop o_227;
     oop o_228;
     uint64_t o_229;
@@ -1553,11 +1713,15 @@ void interpret(void)
     int64_t v_178;
     oop *s_45;
     oop o_232;
-    oop r_follow_25;
-    oop p_29;
+    oop r_follow_49;
+    oop p_53;
     oop v_179;
     oop m_49;
-    oop o_233;
+    uint64_t r_literals_of_25;
+    uint64_t l_25;
+    uint64_t r_follow_50;
+    uint64_t p_54;
+    uint64_t o_233;
     oop o_234;
     oop o_235;
     uint64_t o_236;
@@ -1569,11 +1733,15 @@ void interpret(void)
     int64_t v_181;
     oop *s_47;
     oop o_239;
-    oop r_follow_26;
-    oop p_30;
+    oop r_follow_51;
+    oop p_55;
     oop v_182;
     oop m_51;
-    oop o_240;
+    uint64_t r_literals_of_26;
+    uint64_t l_26;
+    uint64_t r_follow_52;
+    uint64_t p_56;
+    uint64_t o_240;
     oop o_241;
     oop o_242;
     uint64_t o_243;
@@ -1594,7 +1762,7 @@ void interpret(void)
     uint8_t r_next_bytecode_146;
     bool c_6;
     uint8_t j_4;
-    uint8_t *p_31;
+    uint8_t *p_57;
     int16_t o_245;
     oop *s_48;
     oop m_52;
@@ -1603,11 +1771,15 @@ void interpret(void)
     int64_t v_186;
     oop *s_49;
     oop o_248;
-    oop r_follow_27;
-    oop p_32;
+    oop r_follow_53;
+    oop p_58;
     oop v_187;
     oop m_53;
-    oop o_249;
+    uint64_t r_literals_of_27;
+    uint64_t l_27;
+    uint64_t r_follow_54;
+    uint64_t p_59;
+    uint64_t o_249;
     oop o_250;
     oop o_251;
     uint64_t o_252;
@@ -1619,11 +1791,15 @@ void interpret(void)
     int64_t v_189;
     oop *s_51;
     oop o_255;
-    oop r_follow_28;
-    oop p_33;
+    oop r_follow_55;
+    oop p_60;
     oop v_190;
     oop m_55;
-    oop o_256;
+    uint64_t r_literals_of_28;
+    uint64_t l_28;
+    uint64_t r_follow_56;
+    uint64_t p_61;
+    uint64_t o_256;
     oop o_257;
     oop o_258;
     uint64_t o_259;
@@ -1635,11 +1811,15 @@ void interpret(void)
     int64_t v_192;
     oop *s_53;
     oop o_262;
-    oop r_follow_29;
-    oop p_34;
+    oop r_follow_57;
+    oop p_62;
     oop v_193;
     oop m_57;
-    oop o_263;
+    uint64_t r_literals_of_29;
+    uint64_t l_29;
+    uint64_t r_follow_58;
+    uint64_t p_63;
+    uint64_t o_263;
     oop o_264;
     oop o_265;
     uint64_t o_266;
@@ -1656,11 +1836,15 @@ void interpret(void)
     uint64_t a_3;
     oop *s_55;
     oop o_269;
-    oop r_follow_30;
-    oop p_35;
+    oop r_follow_59;
+    oop p_64;
     oop v_196;
     oop m_59;
-    oop o_270;
+    uint64_t r_literals_of_30;
+    uint64_t l_30;
+    uint64_t r_follow_60;
+    uint64_t p_65;
+    uint64_t o_270;
     oop o_271;
     oop o_272;
     uint64_t o_273;
@@ -1688,7 +1872,7 @@ void interpret(void)
     oop o_277;
     bool c_9;
     uint8_t j_5;
-    uint8_t *p_36;
+    uint8_t *p_66;
     int16_t o_278;
     oop *s_56;
     oop m_60;
@@ -1697,11 +1881,15 @@ void interpret(void)
     int64_t v_201;
     oop *s_57;
     oop o_280;
-    oop r_follow_31;
-    oop p_37;
+    oop r_follow_61;
+    oop p_67;
     oop v_202;
     oop m_61;
-    oop o_281;
+    uint64_t r_literals_of_31;
+    uint64_t l_31;
+    uint64_t r_follow_62;
+    uint64_t p_68;
+    uint64_t o_281;
     oop o_282;
     oop o_283;
     uint64_t o_284;
@@ -1713,11 +1901,15 @@ void interpret(void)
     int64_t v_204;
     oop *s_59;
     oop o_287;
-    oop r_follow_32;
-    oop p_38;
+    oop r_follow_63;
+    oop p_69;
     oop v_205;
     oop m_63;
-    oop o_288;
+    uint64_t r_literals_of_32;
+    uint64_t l_32;
+    uint64_t r_follow_64;
+    uint64_t p_70;
+    uint64_t o_288;
     oop o_289;
     oop o_290;
     uint64_t o_291;
@@ -1729,11 +1921,15 @@ void interpret(void)
     int64_t v_207;
     oop *s_61;
     oop o_294;
-    oop r_follow_33;
-    oop p_39;
+    oop r_follow_65;
+    oop p_71;
     oop v_208;
     oop m_65;
-    oop o_295;
+    uint64_t r_literals_of_33;
+    uint64_t l_33;
+    uint64_t r_follow_66;
+    uint64_t p_72;
+    uint64_t o_295;
     oop o_296;
     oop o_297;
     uint64_t o_298;
@@ -1746,7 +1942,7 @@ void interpret(void)
     oop o_300;
     bool c_10;
     uint8_t j_6;
-    uint8_t *p_40;
+    uint8_t *p_73;
     int16_t o_301;
     oop *s_62;
     oop m_66;
@@ -1755,11 +1951,15 @@ void interpret(void)
     int64_t v_211;
     oop *s_63;
     oop o_303;
-    oop r_follow_34;
-    oop p_41;
+    oop r_follow_67;
+    oop p_74;
     oop v_212;
     oop m_67;
-    oop o_304;
+    uint64_t r_literals_of_34;
+    uint64_t l_34;
+    uint64_t r_follow_68;
+    uint64_t p_75;
+    uint64_t o_304;
     oop o_305;
     oop o_306;
     uint64_t o_307;
@@ -1771,11 +1971,15 @@ void interpret(void)
     int64_t v_214;
     oop *s_65;
     oop o_310;
-    oop r_follow_35;
-    oop p_42;
+    oop r_follow_69;
+    oop p_76;
     oop v_215;
     oop m_69;
-    oop o_311;
+    uint64_t r_literals_of_35;
+    uint64_t l_35;
+    uint64_t r_follow_70;
+    uint64_t p_77;
+    uint64_t o_311;
     oop o_312;
     oop o_313;
     uint64_t o_314;
@@ -1787,11 +1991,15 @@ void interpret(void)
     int64_t v_217;
     oop *s_67;
     oop o_317;
-    oop r_follow_36;
-    oop p_43;
+    oop r_follow_71;
+    oop p_78;
     oop v_218;
     oop m_71;
-    oop o_318;
+    uint64_t r_literals_of_36;
+    uint64_t l_36;
+    uint64_t r_follow_72;
+    uint64_t p_79;
+    uint64_t o_318;
     oop o_319;
     oop o_320;
     uint64_t o_321;
@@ -1804,7 +2012,7 @@ void interpret(void)
     oop o_323;
     bool c_11;
     uint8_t j_7;
-    uint8_t *p_44;
+    uint8_t *p_80;
     int16_t o_324;
     oop *s_68;
     oop m_72;
@@ -1813,11 +2021,15 @@ void interpret(void)
     int64_t v_221;
     oop *s_69;
     oop o_326;
-    oop r_follow_37;
-    oop p_45;
+    oop r_follow_73;
+    oop p_81;
     oop v_222;
     oop m_73;
-    oop o_327;
+    uint64_t r_literals_of_37;
+    uint64_t l_37;
+    uint64_t r_follow_74;
+    uint64_t p_82;
+    uint64_t o_327;
     oop o_328;
     oop o_329;
     uint64_t o_330;
@@ -1829,11 +2041,15 @@ void interpret(void)
     int64_t v_224;
     oop *s_71;
     oop o_333;
-    oop r_follow_38;
-    oop p_46;
+    oop r_follow_75;
+    oop p_83;
     oop v_225;
     oop m_75;
-    oop o_334;
+    uint64_t r_literals_of_38;
+    uint64_t l_38;
+    uint64_t r_follow_76;
+    uint64_t p_84;
+    uint64_t o_334;
     oop o_335;
     oop o_336;
     uint64_t o_337;
@@ -1845,11 +2061,15 @@ void interpret(void)
     int64_t v_227;
     oop *s_73;
     oop o_340;
-    oop r_follow_39;
-    oop p_47;
+    oop r_follow_77;
+    oop p_85;
     oop v_228;
     oop m_77;
-    oop o_341;
+    uint64_t r_literals_of_39;
+    uint64_t l_39;
+    uint64_t r_follow_78;
+    uint64_t p_86;
+    uint64_t o_341;
     oop o_342;
     oop o_343;
     uint64_t o_344;
@@ -1862,7 +2082,7 @@ void interpret(void)
     oop o_346;
     bool c_12;
     uint8_t j_8;
-    uint8_t *p_48;
+    uint8_t *p_87;
     int16_t o_347;
     oop *s_74;
     oop m_78;
@@ -1871,11 +2091,15 @@ void interpret(void)
     int64_t v_231;
     oop *s_75;
     oop o_349;
-    oop r_follow_40;
-    oop p_49;
+    oop r_follow_79;
+    oop p_88;
     oop v_232;
     oop m_79;
-    oop o_350;
+    uint64_t r_literals_of_40;
+    uint64_t l_40;
+    uint64_t r_follow_80;
+    uint64_t p_89;
+    uint64_t o_350;
     oop o_351;
     oop o_352;
     uint64_t o_353;
@@ -1887,11 +2111,15 @@ void interpret(void)
     int64_t v_234;
     oop *s_77;
     oop o_356;
-    oop r_follow_41;
-    oop p_50;
+    oop r_follow_81;
+    oop p_90;
     oop v_235;
     oop m_81;
-    oop o_357;
+    uint64_t r_literals_of_41;
+    uint64_t l_41;
+    uint64_t r_follow_82;
+    uint64_t p_91;
+    uint64_t o_357;
     oop o_358;
     oop o_359;
     uint64_t o_360;
@@ -1903,11 +2131,15 @@ void interpret(void)
     int64_t v_237;
     oop *s_79;
     oop o_363;
-    oop r_follow_42;
-    oop p_51;
+    oop r_follow_83;
+    oop p_92;
     oop v_238;
     oop m_83;
-    oop o_364;
+    uint64_t r_literals_of_42;
+    uint64_t l_42;
+    uint64_t r_follow_84;
+    uint64_t p_93;
+    uint64_t o_364;
     oop o_365;
     oop o_366;
     uint64_t o_367;
@@ -1936,7 +2168,7 @@ void interpret(void)
     oop o_371;
     bool c_15;
     uint8_t j_9;
-    uint8_t *p_52;
+    uint8_t *p_94;
     int16_t o_372;
     oop *s_80;
     oop m_84;
@@ -1945,11 +2177,15 @@ void interpret(void)
     int64_t v_243;
     oop *s_81;
     oop o_374;
-    oop r_follow_43;
-    oop p_53;
+    oop r_follow_85;
+    oop p_95;
     oop v_244;
     oop m_85;
-    oop o_375;
+    uint64_t r_literals_of_43;
+    uint64_t l_43;
+    uint64_t r_follow_86;
+    uint64_t p_96;
+    uint64_t o_375;
     oop o_376;
     oop o_377;
     uint64_t o_378;
@@ -1961,11 +2197,15 @@ void interpret(void)
     int64_t v_246;
     oop *s_83;
     oop o_381;
-    oop r_follow_44;
-    oop p_54;
+    oop r_follow_87;
+    oop p_97;
     oop v_247;
     oop m_87;
-    oop o_382;
+    uint64_t r_literals_of_44;
+    uint64_t l_44;
+    uint64_t r_follow_88;
+    uint64_t p_98;
+    uint64_t o_382;
     oop o_383;
     oop o_384;
     uint64_t o_385;
@@ -1977,11 +2217,15 @@ void interpret(void)
     int64_t v_249;
     oop *s_85;
     oop o_388;
-    oop r_follow_45;
-    oop p_55;
+    oop r_follow_89;
+    oop p_99;
     oop v_250;
     oop m_89;
-    oop o_389;
+    uint64_t r_literals_of_45;
+    uint64_t l_45;
+    uint64_t r_follow_90;
+    uint64_t p_100;
+    uint64_t o_389;
     oop o_390;
     oop o_391;
     uint64_t o_392;
@@ -1994,7 +2238,7 @@ void interpret(void)
     oop o_394;
     bool c_16;
     uint8_t j_10;
-    uint8_t *p_56;
+    uint8_t *p_101;
     int16_t o_395;
     oop *s_86;
     oop m_90;
@@ -2003,11 +2247,15 @@ void interpret(void)
     int64_t v_253;
     oop *s_87;
     oop o_397;
-    oop r_follow_46;
-    oop p_57;
+    oop r_follow_91;
+    oop p_102;
     oop v_254;
     oop m_91;
-    oop o_398;
+    uint64_t r_literals_of_46;
+    uint64_t l_46;
+    uint64_t r_follow_92;
+    uint64_t p_103;
+    uint64_t o_398;
     oop o_399;
     oop o_400;
     uint64_t o_401;
@@ -2019,11 +2267,15 @@ void interpret(void)
     int64_t v_256;
     oop *s_89;
     oop o_404;
-    oop r_follow_47;
-    oop p_58;
+    oop r_follow_93;
+    oop p_104;
     oop v_257;
     oop m_93;
-    oop o_405;
+    uint64_t r_literals_of_47;
+    uint64_t l_47;
+    uint64_t r_follow_94;
+    uint64_t p_105;
+    uint64_t o_405;
     oop o_406;
     oop o_407;
     uint64_t o_408;
@@ -2035,11 +2287,15 @@ void interpret(void)
     int64_t v_259;
     oop *s_91;
     oop o_411;
-    oop r_follow_48;
-    oop p_59;
+    oop r_follow_95;
+    oop p_106;
     oop v_260;
     oop m_95;
-    oop o_412;
+    uint64_t r_literals_of_48;
+    uint64_t l_48;
+    uint64_t r_follow_96;
+    uint64_t p_107;
+    uint64_t o_412;
     oop o_413;
     oop o_414;
     uint64_t o_415;
@@ -2052,7 +2308,7 @@ void interpret(void)
     oop o_417;
     bool c_17;
     uint8_t j_11;
-    uint8_t *p_60;
+    uint8_t *p_108;
     int16_t o_418;
     oop *s_92;
     oop m_96;
@@ -2061,11 +2317,15 @@ void interpret(void)
     int64_t v_263;
     oop *s_93;
     oop o_420;
-    oop r_follow_49;
-    oop p_61;
+    oop r_follow_97;
+    oop p_109;
     oop v_264;
     oop m_97;
-    oop o_421;
+    uint64_t r_literals_of_49;
+    uint64_t l_49;
+    uint64_t r_follow_98;
+    uint64_t p_110;
+    uint64_t o_421;
     oop o_422;
     oop o_423;
     uint64_t o_424;
@@ -2077,11 +2337,15 @@ void interpret(void)
     int64_t v_266;
     oop *s_95;
     oop o_427;
-    oop r_follow_50;
-    oop p_62;
+    oop r_follow_99;
+    oop p_111;
     oop v_267;
     oop m_99;
-    oop o_428;
+    uint64_t r_literals_of_50;
+    uint64_t l_50;
+    uint64_t r_follow_100;
+    uint64_t p_112;
+    uint64_t o_428;
     oop o_429;
     oop o_430;
     uint64_t o_431;
@@ -2093,11 +2357,15 @@ void interpret(void)
     int64_t v_269;
     oop *s_97;
     oop o_434;
-    oop r_follow_51;
-    oop p_63;
+    oop r_follow_101;
+    oop p_113;
     oop v_270;
     oop m_101;
-    oop o_435;
+    uint64_t r_literals_of_51;
+    uint64_t l_51;
+    uint64_t r_follow_102;
+    uint64_t p_114;
+    uint64_t o_435;
     oop o_436;
     oop o_437;
     uint64_t o_438;
@@ -2110,7 +2378,7 @@ void interpret(void)
     oop o_440;
     bool c_18;
     uint8_t j_12;
-    uint8_t *p_64;
+    uint8_t *p_115;
     int16_t o_441;
     oop *s_98;
     oop m_102;
@@ -2119,11 +2387,15 @@ void interpret(void)
     int64_t v_273;
     oop *s_99;
     oop o_443;
-    oop r_follow_52;
-    oop p_65;
+    oop r_follow_103;
+    oop p_116;
     oop v_274;
     oop m_103;
-    oop o_444;
+    uint64_t r_literals_of_52;
+    uint64_t l_52;
+    uint64_t r_follow_104;
+    uint64_t p_117;
+    uint64_t o_444;
     oop o_445;
     oop o_446;
     uint64_t o_447;
@@ -2135,11 +2407,15 @@ void interpret(void)
     int64_t v_276;
     oop *s_101;
     oop o_450;
-    oop r_follow_53;
-    oop p_66;
+    oop r_follow_105;
+    oop p_118;
     oop v_277;
     oop m_105;
-    oop o_451;
+    uint64_t r_literals_of_53;
+    uint64_t l_53;
+    uint64_t r_follow_106;
+    uint64_t p_119;
+    uint64_t o_451;
     oop o_452;
     oop o_453;
     uint64_t o_454;
@@ -2151,11 +2427,15 @@ void interpret(void)
     int64_t v_279;
     oop *s_103;
     oop o_457;
-    oop r_follow_54;
-    oop p_67;
+    oop r_follow_107;
+    oop p_120;
     oop v_280;
     oop m_107;
-    oop o_458;
+    uint64_t r_literals_of_54;
+    uint64_t l_54;
+    uint64_t r_follow_108;
+    uint64_t p_121;
+    uint64_t o_458;
     oop o_459;
     oop o_460;
     uint64_t o_461;
@@ -2187,7 +2467,7 @@ void interpret(void)
     oop o_465;
     bool c_21;
     uint8_t j_13;
-    uint8_t *p_68;
+    uint8_t *p_122;
     int16_t o_466;
     oop *s_104;
     oop m_108;
@@ -2196,11 +2476,15 @@ void interpret(void)
     int64_t v_288;
     oop *s_105;
     oop o_468;
-    oop r_follow_55;
-    oop p_69;
+    oop r_follow_109;
+    oop p_123;
     oop v_289;
     oop m_109;
-    oop o_469;
+    uint64_t r_literals_of_55;
+    uint64_t l_55;
+    uint64_t r_follow_110;
+    uint64_t p_124;
+    uint64_t o_469;
     oop o_470;
     oop o_471;
     uint64_t o_472;
@@ -2212,11 +2496,15 @@ void interpret(void)
     int64_t v_291;
     oop *s_107;
     oop o_475;
-    oop r_follow_56;
-    oop p_70;
+    oop r_follow_111;
+    oop p_125;
     oop v_292;
     oop m_111;
-    oop o_476;
+    uint64_t r_literals_of_56;
+    uint64_t l_56;
+    uint64_t r_follow_112;
+    uint64_t p_126;
+    uint64_t o_476;
     oop o_477;
     oop o_478;
     uint64_t o_479;
@@ -2228,11 +2516,15 @@ void interpret(void)
     int64_t v_294;
     oop *s_109;
     oop o_482;
-    oop r_follow_57;
-    oop p_71;
+    oop r_follow_113;
+    oop p_127;
     oop v_295;
     oop m_113;
-    oop o_483;
+    uint64_t r_literals_of_57;
+    uint64_t l_57;
+    uint64_t r_follow_114;
+    uint64_t p_128;
+    uint64_t o_483;
     oop o_484;
     oop o_485;
     uint64_t o_486;
@@ -2246,7 +2538,7 @@ void interpret(void)
     oop o_488;
     bool c_22;
     uint8_t j_14;
-    uint8_t *p_72;
+    uint8_t *p_129;
     int16_t o_489;
     oop *s_110;
     oop m_114;
@@ -2255,11 +2547,15 @@ void interpret(void)
     int64_t v_299;
     oop *s_111;
     oop o_491;
-    oop r_follow_58;
-    oop p_73;
+    oop r_follow_115;
+    oop p_130;
     oop v_300;
     oop m_115;
-    oop o_492;
+    uint64_t r_literals_of_58;
+    uint64_t l_58;
+    uint64_t r_follow_116;
+    uint64_t p_131;
+    uint64_t o_492;
     oop o_493;
     oop o_494;
     uint64_t o_495;
@@ -2271,11 +2567,15 @@ void interpret(void)
     int64_t v_302;
     oop *s_113;
     oop o_498;
-    oop r_follow_59;
-    oop p_74;
+    oop r_follow_117;
+    oop p_132;
     oop v_303;
     oop m_117;
-    oop o_499;
+    uint64_t r_literals_of_59;
+    uint64_t l_59;
+    uint64_t r_follow_118;
+    uint64_t p_133;
+    uint64_t o_499;
     oop o_500;
     oop o_501;
     uint64_t o_502;
@@ -2287,11 +2587,15 @@ void interpret(void)
     int64_t v_305;
     oop *s_115;
     oop o_505;
-    oop r_follow_60;
-    oop p_75;
+    oop r_follow_119;
+    oop p_134;
     oop v_306;
     oop m_119;
-    oop o_506;
+    uint64_t r_literals_of_60;
+    uint64_t l_60;
+    uint64_t r_follow_120;
+    uint64_t p_135;
+    uint64_t o_506;
     oop o_507;
     oop o_508;
     uint64_t o_509;
@@ -2305,7 +2609,7 @@ void interpret(void)
     oop o_511;
     bool c_23;
     uint8_t j_15;
-    uint8_t *p_76;
+    uint8_t *p_136;
     int16_t o_512;
     oop *s_116;
     oop m_120;
@@ -2314,11 +2618,15 @@ void interpret(void)
     int64_t v_310;
     oop *s_117;
     oop o_514;
-    oop r_follow_61;
-    oop p_77;
+    oop r_follow_121;
+    oop p_137;
     oop v_311;
     oop m_121;
-    oop o_515;
+    uint64_t r_literals_of_61;
+    uint64_t l_61;
+    uint64_t r_follow_122;
+    uint64_t p_138;
+    uint64_t o_515;
     oop o_516;
     oop o_517;
     uint64_t o_518;
@@ -2330,11 +2638,15 @@ void interpret(void)
     int64_t v_313;
     oop *s_119;
     oop o_521;
-    oop r_follow_62;
-    oop p_78;
+    oop r_follow_123;
+    oop p_139;
     oop v_314;
     oop m_123;
-    oop o_522;
+    uint64_t r_literals_of_62;
+    uint64_t l_62;
+    uint64_t r_follow_124;
+    uint64_t p_140;
+    uint64_t o_522;
     oop o_523;
     oop o_524;
     uint64_t o_525;
@@ -2346,11 +2658,15 @@ void interpret(void)
     int64_t v_316;
     oop *s_121;
     oop o_528;
-    oop r_follow_63;
-    oop p_79;
+    oop r_follow_125;
+    oop p_141;
     oop v_317;
     oop m_125;
-    oop o_529;
+    uint64_t r_literals_of_63;
+    uint64_t l_63;
+    uint64_t r_follow_126;
+    uint64_t p_142;
+    uint64_t o_529;
     oop o_530;
     oop o_531;
     uint64_t o_532;
@@ -2364,7 +2680,7 @@ void interpret(void)
     oop o_534;
     bool c_24;
     uint8_t j_16;
-    uint8_t *p_80;
+    uint8_t *p_143;
     int16_t o_535;
     oop *s_122;
     oop m_126;
@@ -2373,11 +2689,15 @@ void interpret(void)
     int64_t v_321;
     oop *s_123;
     oop o_537;
-    oop r_follow_64;
-    oop p_81;
+    oop r_follow_127;
+    oop p_144;
     oop v_322;
     oop m_127;
-    oop o_538;
+    uint64_t r_literals_of_64;
+    uint64_t l_64;
+    uint64_t r_follow_128;
+    uint64_t p_145;
+    uint64_t o_538;
     oop o_539;
     oop o_540;
     uint64_t o_541;
@@ -2389,11 +2709,15 @@ void interpret(void)
     int64_t v_324;
     oop *s_125;
     oop o_544;
-    oop r_follow_65;
-    oop p_82;
+    oop r_follow_129;
+    oop p_146;
     oop v_325;
     oop m_129;
-    oop o_545;
+    uint64_t r_literals_of_65;
+    uint64_t l_65;
+    uint64_t r_follow_130;
+    uint64_t p_147;
+    uint64_t o_545;
     oop o_546;
     oop o_547;
     uint64_t o_548;
@@ -2405,11 +2729,15 @@ void interpret(void)
     int64_t v_327;
     oop *s_127;
     oop o_551;
-    oop r_follow_66;
-    oop p_83;
+    oop r_follow_131;
+    oop p_148;
     oop v_328;
     oop m_131;
-    oop o_552;
+    uint64_t r_literals_of_66;
+    uint64_t l_66;
+    uint64_t r_follow_132;
+    uint64_t p_149;
+    uint64_t o_552;
     oop o_553;
     oop o_554;
     uint64_t o_555;
@@ -2468,7 +2796,7 @@ void interpret(void)
     oop o_559;
     bool c_25;
     uint8_t nx_7;
-    uint8_t *p_84;
+    uint8_t *p_150;
     int16_t o_560;
     oop *s_128;
     oop m_132;
@@ -2477,11 +2805,15 @@ void interpret(void)
     int64_t v_333;
     oop *s_129;
     oop o_562;
-    oop r_follow_67;
-    oop p_85;
+    oop r_follow_133;
+    oop p_151;
     oop v_334;
     oop m_133;
-    oop o_563;
+    uint64_t r_literals_of_67;
+    uint64_t l_67;
+    uint64_t r_follow_134;
+    uint64_t p_152;
+    uint64_t o_563;
     oop o_564;
     oop o_565;
     uint64_t o_566;
@@ -2493,11 +2825,15 @@ void interpret(void)
     int64_t v_336;
     oop *s_131;
     oop o_569;
-    oop r_follow_68;
-    oop p_86;
+    oop r_follow_135;
+    oop p_153;
     oop v_337;
     oop m_135;
-    oop o_570;
+    uint64_t r_literals_of_68;
+    uint64_t l_68;
+    uint64_t r_follow_136;
+    uint64_t p_154;
+    uint64_t o_570;
     oop o_571;
     oop o_572;
     uint64_t o_573;
@@ -2509,11 +2845,15 @@ void interpret(void)
     int64_t v_339;
     oop *s_133;
     oop o_576;
-    oop r_follow_69;
-    oop p_87;
+    oop r_follow_137;
+    oop p_155;
     oop v_340;
     oop m_137;
-    oop o_577;
+    uint64_t r_literals_of_69;
+    uint64_t l_69;
+    uint64_t r_follow_138;
+    uint64_t p_156;
+    uint64_t o_577;
     oop o_578;
     oop o_579;
     uint64_t o_580;
@@ -2527,7 +2867,7 @@ void interpret(void)
     oop b_30;
     double y;
     uint8_t nx_8;
-    uint8_t *p_88;
+    uint8_t *p_157;
     int16_t o_582;
     oop *s_134;
     oop m_138;
@@ -2536,11 +2876,15 @@ void interpret(void)
     int64_t v_342;
     oop *s_135;
     oop o_584;
-    oop r_follow_70;
-    oop p_89;
+    oop r_follow_139;
+    oop p_158;
     oop v_343;
     oop m_139;
-    oop o_585;
+    uint64_t r_literals_of_70;
+    uint64_t l_70;
+    uint64_t r_follow_140;
+    uint64_t p_159;
+    uint64_t o_585;
     oop o_586;
     oop o_587;
     uint64_t o_588;
@@ -2552,11 +2896,15 @@ void interpret(void)
     int64_t v_345;
     oop *s_137;
     oop o_591;
-    oop r_follow_71;
-    oop p_90;
+    oop r_follow_141;
+    oop p_160;
     oop v_346;
     oop m_141;
-    oop o_592;
+    uint64_t r_literals_of_71;
+    uint64_t l_71;
+    uint64_t r_follow_142;
+    uint64_t p_161;
+    uint64_t o_592;
     oop o_593;
     oop o_594;
     uint64_t o_595;
@@ -2568,11 +2916,15 @@ void interpret(void)
     int64_t v_348;
     oop *s_139;
     oop o_598;
-    oop r_follow_72;
-    oop p_91;
+    oop r_follow_143;
+    oop p_162;
     oop v_349;
     oop m_143;
-    oop o_599;
+    uint64_t r_literals_of_72;
+    uint64_t l_72;
+    uint64_t r_follow_144;
+    uint64_t p_163;
+    uint64_t o_599;
     oop o_600;
     oop o_601;
     uint64_t o_602;
@@ -2584,7 +2936,7 @@ void interpret(void)
     oop o_604;
     bool c_26;
     uint8_t nx_9;
-    uint8_t *p_92;
+    uint8_t *p_164;
     int16_t o_605;
     oop *s_140;
     oop m_144;
@@ -2593,11 +2945,15 @@ void interpret(void)
     int64_t v_351;
     oop *s_141;
     oop o_607;
-    oop r_follow_73;
-    oop p_93;
+    oop r_follow_145;
+    oop p_165;
     oop v_352;
     oop m_145;
-    oop o_608;
+    uint64_t r_literals_of_73;
+    uint64_t l_73;
+    uint64_t r_follow_146;
+    uint64_t p_166;
+    uint64_t o_608;
     oop o_609;
     oop o_610;
     uint64_t o_611;
@@ -2609,11 +2965,15 @@ void interpret(void)
     int64_t v_354;
     oop *s_143;
     oop o_614;
-    oop r_follow_74;
-    oop p_94;
+    oop r_follow_147;
+    oop p_167;
     oop v_355;
     oop m_147;
-    oop o_615;
+    uint64_t r_literals_of_74;
+    uint64_t l_74;
+    uint64_t r_follow_148;
+    uint64_t p_168;
+    uint64_t o_615;
     oop o_616;
     oop o_617;
     uint64_t o_618;
@@ -2625,11 +2985,15 @@ void interpret(void)
     int64_t v_357;
     oop *s_145;
     oop o_621;
-    oop r_follow_75;
-    oop p_95;
+    oop r_follow_149;
+    oop p_169;
     oop v_358;
     oop m_149;
-    oop o_622;
+    uint64_t r_literals_of_75;
+    uint64_t l_75;
+    uint64_t r_follow_150;
+    uint64_t p_170;
+    uint64_t o_622;
     oop o_623;
     oop o_624;
     uint64_t o_625;
@@ -2643,7 +3007,7 @@ void interpret(void)
     oop b_33;
     double y_2;
     uint8_t nx_10;
-    uint8_t *p_96;
+    uint8_t *p_171;
     int16_t o_627;
     oop *s_146;
     oop m_150;
@@ -2652,11 +3016,15 @@ void interpret(void)
     int64_t v_360;
     oop *s_147;
     oop o_629;
-    oop r_follow_76;
-    oop p_97;
+    oop r_follow_151;
+    oop p_172;
     oop v_361;
     oop m_151;
-    oop o_630;
+    uint64_t r_literals_of_76;
+    uint64_t l_76;
+    uint64_t r_follow_152;
+    uint64_t p_173;
+    uint64_t o_630;
     oop o_631;
     oop o_632;
     uint64_t o_633;
@@ -2668,11 +3036,15 @@ void interpret(void)
     int64_t v_363;
     oop *s_149;
     oop o_636;
-    oop r_follow_77;
-    oop p_98;
+    oop r_follow_153;
+    oop p_174;
     oop v_364;
     oop m_153;
-    oop o_637;
+    uint64_t r_literals_of_77;
+    uint64_t l_77;
+    uint64_t r_follow_154;
+    uint64_t p_175;
+    uint64_t o_637;
     oop o_638;
     oop o_639;
     uint64_t o_640;
@@ -2684,11 +3056,15 @@ void interpret(void)
     int64_t v_366;
     oop *s_151;
     oop o_643;
-    oop r_follow_78;
-    oop p_99;
+    oop r_follow_155;
+    oop p_176;
     oop v_367;
     oop m_155;
-    oop o_644;
+    uint64_t r_literals_of_78;
+    uint64_t l_78;
+    uint64_t r_follow_156;
+    uint64_t p_177;
+    uint64_t o_644;
     oop o_645;
     oop o_646;
     uint64_t o_647;
@@ -2700,7 +3076,7 @@ void interpret(void)
     oop o_649;
     bool c_27;
     uint8_t nx_11;
-    uint8_t *p_100;
+    uint8_t *p_178;
     int16_t o_650;
     oop *s_152;
     oop m_156;
@@ -2709,11 +3085,15 @@ void interpret(void)
     int64_t v_369;
     oop *s_153;
     oop o_652;
-    oop r_follow_79;
-    oop p_101;
+    oop r_follow_157;
+    oop p_179;
     oop v_370;
     oop m_157;
-    oop o_653;
+    uint64_t r_literals_of_79;
+    uint64_t l_79;
+    uint64_t r_follow_158;
+    uint64_t p_180;
+    uint64_t o_653;
     oop o_654;
     oop o_655;
     uint64_t o_656;
@@ -2725,11 +3105,15 @@ void interpret(void)
     int64_t v_372;
     oop *s_155;
     oop o_659;
-    oop r_follow_80;
-    oop p_102;
+    oop r_follow_159;
+    oop p_181;
     oop v_373;
     oop m_159;
-    oop o_660;
+    uint64_t r_literals_of_80;
+    uint64_t l_80;
+    uint64_t r_follow_160;
+    uint64_t p_182;
+    uint64_t o_660;
     oop o_661;
     oop o_662;
     uint64_t o_663;
@@ -2741,11 +3125,15 @@ void interpret(void)
     int64_t v_375;
     oop *s_157;
     oop o_666;
-    oop r_follow_81;
-    oop p_103;
+    oop r_follow_161;
+    oop p_183;
     oop v_376;
     oop m_161;
-    oop o_667;
+    uint64_t r_literals_of_81;
+    uint64_t l_81;
+    uint64_t r_follow_162;
+    uint64_t p_184;
+    uint64_t o_667;
     oop o_668;
     oop o_669;
     uint64_t o_670;
@@ -2759,7 +3147,7 @@ void interpret(void)
     oop b_36;
     double y_3;
     uint8_t nx_12;
-    uint8_t *p_104;
+    uint8_t *p_185;
     int16_t o_672;
     oop *s_158;
     oop m_162;
@@ -2768,11 +3156,15 @@ void interpret(void)
     int64_t v_378;
     oop *s_159;
     oop o_674;
-    oop r_follow_82;
-    oop p_105;
+    oop r_follow_163;
+    oop p_186;
     oop v_379;
     oop m_163;
-    oop o_675;
+    uint64_t r_literals_of_82;
+    uint64_t l_82;
+    uint64_t r_follow_164;
+    uint64_t p_187;
+    uint64_t o_675;
     oop o_676;
     oop o_677;
     uint64_t o_678;
@@ -2784,11 +3176,15 @@ void interpret(void)
     int64_t v_381;
     oop *s_161;
     oop o_681;
-    oop r_follow_83;
-    oop p_106;
+    oop r_follow_165;
+    oop p_188;
     oop v_382;
     oop m_165;
-    oop o_682;
+    uint64_t r_literals_of_83;
+    uint64_t l_83;
+    uint64_t r_follow_166;
+    uint64_t p_189;
+    uint64_t o_682;
     oop o_683;
     oop o_684;
     uint64_t o_685;
@@ -2800,11 +3196,15 @@ void interpret(void)
     int64_t v_384;
     oop *s_163;
     oop o_688;
-    oop r_follow_84;
-    oop p_107;
+    oop r_follow_167;
+    oop p_190;
     oop v_385;
     oop m_167;
-    oop o_689;
+    uint64_t r_literals_of_84;
+    uint64_t l_84;
+    uint64_t r_follow_168;
+    uint64_t p_191;
+    uint64_t o_689;
     oop o_690;
     oop o_691;
     uint64_t o_692;
@@ -2816,7 +3216,7 @@ void interpret(void)
     oop o_694;
     bool c_28;
     uint8_t nx_13;
-    uint8_t *p_108;
+    uint8_t *p_192;
     int16_t o_695;
     oop *s_164;
     oop m_168;
@@ -2825,11 +3225,15 @@ void interpret(void)
     int64_t v_387;
     oop *s_165;
     oop o_697;
-    oop r_follow_85;
-    oop p_109;
+    oop r_follow_169;
+    oop p_193;
     oop v_388;
     oop m_169;
-    oop o_698;
+    uint64_t r_literals_of_85;
+    uint64_t l_85;
+    uint64_t r_follow_170;
+    uint64_t p_194;
+    uint64_t o_698;
     oop o_699;
     oop o_700;
     uint64_t o_701;
@@ -2841,11 +3245,15 @@ void interpret(void)
     int64_t v_390;
     oop *s_167;
     oop o_704;
-    oop r_follow_86;
-    oop p_110;
+    oop r_follow_171;
+    oop p_195;
     oop v_391;
     oop m_171;
-    oop o_705;
+    uint64_t r_literals_of_86;
+    uint64_t l_86;
+    uint64_t r_follow_172;
+    uint64_t p_196;
+    uint64_t o_705;
     oop o_706;
     oop o_707;
     uint64_t o_708;
@@ -2857,11 +3265,15 @@ void interpret(void)
     int64_t v_393;
     oop *s_169;
     oop o_711;
-    oop r_follow_87;
-    oop p_111;
+    oop r_follow_173;
+    oop p_197;
     oop v_394;
     oop m_173;
-    oop o_712;
+    uint64_t r_literals_of_87;
+    uint64_t l_87;
+    uint64_t r_follow_174;
+    uint64_t p_198;
+    uint64_t o_712;
     oop o_713;
     oop o_714;
     uint64_t o_715;
@@ -2875,7 +3287,7 @@ void interpret(void)
     oop b_39;
     double y_4;
     uint8_t nx_14;
-    uint8_t *p_112;
+    uint8_t *p_199;
     int16_t o_717;
     oop *s_170;
     oop m_174;
@@ -2884,11 +3296,15 @@ void interpret(void)
     int64_t v_396;
     oop *s_171;
     oop o_719;
-    oop r_follow_88;
-    oop p_113;
+    oop r_follow_175;
+    oop p_200;
     oop v_397;
     oop m_175;
-    oop o_720;
+    uint64_t r_literals_of_88;
+    uint64_t l_88;
+    uint64_t r_follow_176;
+    uint64_t p_201;
+    uint64_t o_720;
     oop o_721;
     oop o_722;
     uint64_t o_723;
@@ -2900,11 +3316,15 @@ void interpret(void)
     int64_t v_399;
     oop *s_173;
     oop o_726;
-    oop r_follow_89;
-    oop p_114;
+    oop r_follow_177;
+    oop p_202;
     oop v_400;
     oop m_177;
-    oop o_727;
+    uint64_t r_literals_of_89;
+    uint64_t l_89;
+    uint64_t r_follow_178;
+    uint64_t p_203;
+    uint64_t o_727;
     oop o_728;
     oop o_729;
     uint64_t o_730;
@@ -2916,11 +3336,15 @@ void interpret(void)
     int64_t v_402;
     oop *s_175;
     oop o_733;
-    oop r_follow_90;
-    oop p_115;
+    oop r_follow_179;
+    oop p_204;
     oop v_403;
     oop m_179;
-    oop o_734;
+    uint64_t r_literals_of_90;
+    uint64_t l_90;
+    uint64_t r_follow_180;
+    uint64_t p_205;
+    uint64_t o_734;
     oop o_735;
     oop o_736;
     uint64_t o_737;
@@ -2932,7 +3356,7 @@ void interpret(void)
     oop o_739;
     bool c_29;
     uint8_t nx_15;
-    uint8_t *p_116;
+    uint8_t *p_206;
     int16_t o_740;
     oop *s_176;
     oop m_180;
@@ -2941,11 +3365,15 @@ void interpret(void)
     int64_t v_405;
     oop *s_177;
     oop o_742;
-    oop r_follow_91;
-    oop p_117;
+    oop r_follow_181;
+    oop p_207;
     oop v_406;
     oop m_181;
-    oop o_743;
+    uint64_t r_literals_of_91;
+    uint64_t l_91;
+    uint64_t r_follow_182;
+    uint64_t p_208;
+    uint64_t o_743;
     oop o_744;
     oop o_745;
     uint64_t o_746;
@@ -2957,11 +3385,15 @@ void interpret(void)
     int64_t v_408;
     oop *s_179;
     oop o_749;
-    oop r_follow_92;
-    oop p_118;
+    oop r_follow_183;
+    oop p_209;
     oop v_409;
     oop m_183;
-    oop o_750;
+    uint64_t r_literals_of_92;
+    uint64_t l_92;
+    uint64_t r_follow_184;
+    uint64_t p_210;
+    uint64_t o_750;
     oop o_751;
     oop o_752;
     uint64_t o_753;
@@ -2973,11 +3405,15 @@ void interpret(void)
     int64_t v_411;
     oop *s_181;
     oop o_756;
-    oop r_follow_93;
-    oop p_119;
+    oop r_follow_185;
+    oop p_211;
     oop v_412;
     oop m_185;
-    oop o_757;
+    uint64_t r_literals_of_93;
+    uint64_t l_93;
+    uint64_t r_follow_186;
+    uint64_t p_212;
+    uint64_t o_757;
     oop o_758;
     oop o_759;
     uint64_t o_760;
@@ -2991,7 +3427,7 @@ void interpret(void)
     oop b_42;
     double y_5;
     uint8_t nx_16;
-    uint8_t *p_120;
+    uint8_t *p_213;
     int16_t o_762;
     oop *s_182;
     oop m_186;
@@ -3000,11 +3436,15 @@ void interpret(void)
     int64_t v_414;
     oop *s_183;
     oop o_764;
-    oop r_follow_94;
-    oop p_121;
+    oop r_follow_187;
+    oop p_214;
     oop v_415;
     oop m_187;
-    oop o_765;
+    uint64_t r_literals_of_94;
+    uint64_t l_94;
+    uint64_t r_follow_188;
+    uint64_t p_215;
+    uint64_t o_765;
     oop o_766;
     oop o_767;
     uint64_t o_768;
@@ -3016,11 +3456,15 @@ void interpret(void)
     int64_t v_417;
     oop *s_185;
     oop o_771;
-    oop r_follow_95;
-    oop p_122;
+    oop r_follow_189;
+    oop p_216;
     oop v_418;
     oop m_189;
-    oop o_772;
+    uint64_t r_literals_of_95;
+    uint64_t l_95;
+    uint64_t r_follow_190;
+    uint64_t p_217;
+    uint64_t o_772;
     oop o_773;
     oop o_774;
     uint64_t o_775;
@@ -3032,11 +3476,15 @@ void interpret(void)
     int64_t v_420;
     oop *s_187;
     oop o_778;
-    oop r_follow_96;
-    oop p_123;
+    oop r_follow_191;
+    oop p_218;
     oop v_421;
     oop m_191;
-    oop o_779;
+    uint64_t r_literals_of_96;
+    uint64_t l_96;
+    uint64_t r_follow_192;
+    uint64_t p_219;
+    uint64_t o_779;
     oop o_780;
     oop o_781;
     uint64_t o_782;
@@ -3048,7 +3496,7 @@ void interpret(void)
     oop o_784;
     bool c_30;
     uint8_t nx_17;
-    uint8_t *p_124;
+    uint8_t *p_220;
     int16_t o_785;
     oop *s_188;
     oop m_192;
@@ -3057,11 +3505,15 @@ void interpret(void)
     int64_t v_423;
     oop *s_189;
     oop o_787;
-    oop r_follow_97;
-    oop p_125;
+    oop r_follow_193;
+    oop p_221;
     oop v_424;
     oop m_193;
-    oop o_788;
+    uint64_t r_literals_of_97;
+    uint64_t l_97;
+    uint64_t r_follow_194;
+    uint64_t p_222;
+    uint64_t o_788;
     oop o_789;
     oop o_790;
     uint64_t o_791;
@@ -3073,11 +3525,15 @@ void interpret(void)
     int64_t v_426;
     oop *s_191;
     oop o_794;
-    oop r_follow_98;
-    oop p_126;
+    oop r_follow_195;
+    oop p_223;
     oop v_427;
     oop m_195;
-    oop o_795;
+    uint64_t r_literals_of_98;
+    uint64_t l_98;
+    uint64_t r_follow_196;
+    uint64_t p_224;
+    uint64_t o_795;
     oop o_796;
     oop o_797;
     uint64_t o_798;
@@ -3089,11 +3545,15 @@ void interpret(void)
     int64_t v_429;
     oop *s_193;
     oop o_801;
-    oop r_follow_99;
-    oop p_127;
+    oop r_follow_197;
+    oop p_225;
     oop v_430;
     oop m_197;
-    oop o_802;
+    uint64_t r_literals_of_99;
+    uint64_t l_99;
+    uint64_t r_follow_198;
+    uint64_t p_226;
+    uint64_t o_802;
     oop o_803;
     oop o_804;
     uint64_t o_805;
@@ -3107,7 +3567,7 @@ void interpret(void)
     oop b_45;
     double y_6;
     uint8_t nx_18;
-    uint8_t *p_128;
+    uint8_t *p_227;
     int16_t o_807;
     oop *s_194;
     oop m_198;
@@ -3116,11 +3576,15 @@ void interpret(void)
     int64_t v_432;
     oop *s_195;
     oop o_809;
-    oop r_follow_100;
-    oop p_129;
+    oop r_follow_199;
+    oop p_228;
     oop v_433;
     oop m_199;
-    oop o_810;
+    uint64_t r_literals_of_100;
+    uint64_t l_100;
+    uint64_t r_follow_200;
+    uint64_t p_229;
+    uint64_t o_810;
     oop o_811;
     oop o_812;
     uint64_t o_813;
@@ -3132,11 +3596,15 @@ void interpret(void)
     int64_t v_435;
     oop *s_197;
     oop o_816;
-    oop r_follow_101;
-    oop p_130;
+    oop r_follow_201;
+    oop p_230;
     oop v_436;
     oop m_201;
-    oop o_817;
+    uint64_t r_literals_of_101;
+    uint64_t l_101;
+    uint64_t r_follow_202;
+    uint64_t p_231;
+    uint64_t o_817;
     oop o_818;
     oop o_819;
     uint64_t o_820;
@@ -3148,11 +3616,15 @@ void interpret(void)
     int64_t v_438;
     oop *s_199;
     oop o_823;
-    oop r_follow_102;
-    oop p_131;
+    oop r_follow_203;
+    oop p_232;
     oop v_439;
     oop m_203;
-    oop o_824;
+    uint64_t r_literals_of_102;
+    uint64_t l_102;
+    uint64_t r_follow_204;
+    uint64_t p_233;
+    uint64_t o_824;
     oop o_825;
     oop o_826;
     uint64_t o_827;
@@ -3301,13 +3773,13 @@ void interpret(void)
     oop a_42;
     oop b_64;
     bool r_is;
-    oop r_follow_103;
-    oop p_132;
-    oop r_follow_104;
-    oop p_133;
+    oop r_follow_205;
+    oop p_234;
+    oop r_follow_206;
+    oop p_235;
     bool c_34;
     uint8_t nx_33;
-    uint8_t *p_134;
+    uint8_t *p_236;
     int16_t o_837;
     oop *s_201;
     oop m_204;
@@ -3316,11 +3788,15 @@ void interpret(void)
     int64_t v_465;
     oop *s_202;
     oop o_839;
-    oop r_follow_105;
-    oop p_135;
+    oop r_follow_207;
+    oop p_237;
     oop v_466;
     oop m_205;
-    oop o_840;
+    uint64_t r_literals_of_103;
+    uint64_t l_103;
+    uint64_t r_follow_208;
+    uint64_t p_238;
+    uint64_t o_840;
     oop o_841;
     oop o_842;
     uint64_t o_843;
@@ -3332,11 +3808,15 @@ void interpret(void)
     int64_t v_468;
     oop *s_204;
     oop o_846;
-    oop r_follow_106;
-    oop p_136;
+    oop r_follow_209;
+    oop p_239;
     oop v_469;
     oop m_207;
-    oop o_847;
+    uint64_t r_literals_of_104;
+    uint64_t l_104;
+    uint64_t r_follow_210;
+    uint64_t p_240;
+    uint64_t o_847;
     oop o_848;
     oop o_849;
     uint64_t o_850;
@@ -3348,11 +3828,15 @@ void interpret(void)
     int64_t v_471;
     oop *s_206;
     oop o_853;
-    oop r_follow_107;
-    oop p_137;
+    oop r_follow_211;
+    oop p_241;
     oop v_472;
     oop m_209;
-    oop o_854;
+    uint64_t r_literals_of_105;
+    uint64_t l_105;
+    uint64_t r_follow_212;
+    uint64_t p_242;
+    uint64_t o_854;
     oop o_855;
     oop o_856;
     uint64_t o_857;
@@ -3362,13 +3846,13 @@ void interpret(void)
     oop a_43;
     oop b_65;
     bool r_is_2;
-    oop r_follow_108;
-    oop p_138;
-    oop r_follow_109;
-    oop p_139;
+    oop r_follow_213;
+    oop p_243;
+    oop r_follow_214;
+    oop p_244;
     bool c_35;
     uint8_t nx_34;
-    uint8_t *p_140;
+    uint8_t *p_245;
     int16_t o_859;
     oop *s_207;
     oop m_210;
@@ -3377,11 +3861,15 @@ void interpret(void)
     int64_t v_474;
     oop *s_208;
     oop o_861;
-    oop r_follow_110;
-    oop p_141;
+    oop r_follow_215;
+    oop p_246;
     oop v_475;
     oop m_211;
-    oop o_862;
+    uint64_t r_literals_of_106;
+    uint64_t l_106;
+    uint64_t r_follow_216;
+    uint64_t p_247;
+    uint64_t o_862;
     oop o_863;
     oop o_864;
     uint64_t o_865;
@@ -3393,11 +3881,15 @@ void interpret(void)
     int64_t v_477;
     oop *s_210;
     oop o_868;
-    oop r_follow_111;
-    oop p_142;
+    oop r_follow_217;
+    oop p_248;
     oop v_478;
     oop m_213;
-    oop o_869;
+    uint64_t r_literals_of_107;
+    uint64_t l_107;
+    uint64_t r_follow_218;
+    uint64_t p_249;
+    uint64_t o_869;
     oop o_870;
     oop o_871;
     uint64_t o_872;
@@ -3409,11 +3901,15 @@ void interpret(void)
     int64_t v_480;
     oop *s_212;
     oop o_875;
-    oop r_follow_112;
-    oop p_143;
+    oop r_follow_219;
+    oop p_250;
     oop v_481;
     oop m_215;
-    oop o_876;
+    uint64_t r_literals_of_108;
+    uint64_t l_108;
+    uint64_t r_follow_220;
+    uint64_t p_251;
+    uint64_t o_876;
     oop o_877;
     oop o_878;
     uint64_t o_879;
@@ -3434,11 +3930,15 @@ void interpret(void)
     int64_t v_485;
     oop *s_215;
     oop o_883;
-    oop r_follow_113;
-    oop p_144;
+    oop r_follow_221;
+    oop p_252;
     oop v_486;
     oop m_218;
-    oop o_884;
+    uint64_t r_literals_of_109;
+    uint64_t l_109;
+    uint64_t r_follow_222;
+    uint64_t p_253;
+    uint64_t o_884;
     oop o_885;
     oop o_886;
     uint64_t o_887;
@@ -3451,11 +3951,15 @@ void interpret(void)
     int64_t v_488;
     oop *s_217;
     oop o_890;
-    oop r_follow_114;
-    oop p_145;
+    oop r_follow_223;
+    oop p_254;
     oop v_489;
     oop m_220;
-    oop o_891;
+    uint64_t r_literals_of_110;
+    uint64_t l_110;
+    uint64_t r_follow_224;
+    uint64_t p_255;
+    uint64_t o_891;
     oop o_892;
     oop o_893;
     uint64_t o_894;
@@ -3475,11 +3979,15 @@ void interpret(void)
     int64_t v_493;
     oop *s_220;
     oop o_898;
-    oop r_follow_115;
-    oop p_146;
+    oop r_follow_225;
+    oop p_256;
     oop v_494;
     oop m_223;
-    oop o_899;
+    uint64_t r_literals_of_111;
+    uint64_t l_111;
+    uint64_t r_follow_226;
+    uint64_t p_257;
+    uint64_t o_899;
     oop o_900;
     oop o_901;
     uint64_t o_902;
@@ -3492,11 +4000,15 @@ void interpret(void)
     int64_t v_496;
     oop *s_222;
     oop o_905;
-    oop r_follow_116;
-    oop p_147;
+    oop r_follow_227;
+    oop p_258;
     oop v_497;
     oop m_225;
-    oop o_906;
+    uint64_t r_literals_of_112;
+    uint64_t l_112;
+    uint64_t r_follow_228;
+    uint64_t p_259;
+    uint64_t o_906;
     oop o_907;
     oop o_908;
     uint64_t o_909;
@@ -3516,11 +4028,15 @@ void interpret(void)
     int64_t v_501;
     oop *s_225;
     oop o_913;
-    oop r_follow_117;
-    oop p_148;
+    oop r_follow_229;
+    oop p_260;
     oop v_502;
     oop m_228;
-    oop o_914;
+    uint64_t r_literals_of_113;
+    uint64_t l_113;
+    uint64_t r_follow_230;
+    uint64_t p_261;
+    uint64_t o_914;
     oop o_915;
     oop o_916;
     uint64_t o_917;
@@ -3533,11 +4049,15 @@ void interpret(void)
     int64_t v_504;
     oop *s_227;
     oop o_920;
-    oop r_follow_118;
-    oop p_149;
+    oop r_follow_231;
+    oop p_262;
     oop v_505;
     oop m_230;
-    oop o_921;
+    uint64_t r_literals_of_114;
+    uint64_t l_114;
+    uint64_t r_follow_232;
+    uint64_t p_263;
+    uint64_t o_921;
     oop o_922;
     oop o_923;
     uint64_t o_924;
@@ -3548,8 +4068,8 @@ void interpret(void)
     oop b_67;
     uint8_t r_next_bytecode_245;
     oop r_36;
-    oop r_follow_119;
-    oop p_150;
+    oop r_follow_233;
+    oop p_264;
     uint8_t r_next_bytecode_246;
     oop *s_228;
     oop m_231;
@@ -3558,14 +4078,22 @@ void interpret(void)
     int64_t v_507;
     int32_t a_44;
     uint64_t o_927;
+    uint64_t r_literals_of_115;
+    uint64_t l_115;
+    uint64_t r_follow_234;
+    uint64_t p_265;
     uint64_t o_928;
     oop *s_229;
     oop o_929;
-    oop r_follow_120;
-    oop p_151;
+    oop r_follow_235;
+    oop p_266;
     oop v_508;
     oop m_232;
-    oop o_930;
+    uint64_t r_literals_of_116;
+    uint64_t l_116;
+    uint64_t r_follow_236;
+    uint64_t p_267;
+    uint64_t o_930;
     oop o_931;
     oop o_932;
     uint64_t o_933;
@@ -3585,15 +4113,19 @@ void interpret(void)
     uint64_t marked_2;
     uint64_t m_234;
     int64_t r_method_prim_4;
-    uint64_t p_152;
+    uint64_t p_268;
     uint64_t next_2;
     oop *s_231;
     oop o_938;
-    oop r_follow_121;
-    oop p_153;
+    oop r_follow_237;
+    oop p_269;
     oop v_511;
     oop m_235;
-    oop o_939;
+    uint64_t r_literals_of_117;
+    uint64_t l_117;
+    uint64_t r_follow_238;
+    uint64_t p_270;
+    uint64_t o_939;
     oop o_940;
     oop o_941;
     uint64_t o_942;
@@ -3605,11 +4137,15 @@ void interpret(void)
     int64_t v_513;
     oop *s_233;
     oop o_945;
-    oop r_follow_122;
-    oop p_154;
+    oop r_follow_239;
+    oop p_271;
     oop v_514;
     oop m_237;
-    oop o_946;
+    uint64_t r_literals_of_118;
+    uint64_t l_118;
+    uint64_t r_follow_240;
+    uint64_t p_272;
+    uint64_t o_946;
     oop o_947;
     oop o_948;
     uint64_t o_949;
@@ -3620,11 +4156,15 @@ void interpret(void)
     oop o_951;
     oop *s_235;
     oop o_952;
-    oop r_follow_123;
-    oop p_155;
+    oop r_follow_241;
+    oop p_273;
     oop v_515;
     oop m_238;
-    oop o_953;
+    uint64_t r_literals_of_119;
+    uint64_t l_119;
+    uint64_t r_follow_242;
+    uint64_t p_274;
+    uint64_t o_953;
     oop o_954;
     oop o_955;
     uint64_t o_956;
@@ -3636,11 +4176,15 @@ void interpret(void)
     int64_t v_517;
     oop *s_237;
     oop o_959;
-    oop r_follow_124;
-    oop p_156;
+    oop r_follow_243;
+    oop p_275;
     oop v_518;
     oop m_240;
-    oop o_960;
+    uint64_t r_literals_of_120;
+    uint64_t l_120;
+    uint64_t r_follow_244;
+    uint64_t p_276;
+    uint64_t o_960;
     oop o_961;
     oop o_962;
     uint64_t o_963;
@@ -3662,11 +4206,15 @@ void interpret(void)
     int64_t v_520;
     oop *s_240;
     oop o_966;
-    oop r_follow_125;
-    oop p_157;
+    oop r_follow_245;
+    oop p_277;
     oop v_521;
     oop m_242;
-    oop o_967;
+    uint64_t r_literals_of_121;
+    uint64_t l_121;
+    uint64_t r_follow_246;
+    uint64_t p_278;
+    uint64_t o_967;
     oop o_968;
     oop o_969;
     uint64_t o_970;
@@ -3679,11 +4227,15 @@ void interpret(void)
     int64_t v_523;
     oop *s_242;
     oop o_973;
-    oop r_follow_126;
-    oop p_158;
+    oop r_follow_247;
+    oop p_279;
     oop v_524;
     oop m_244;
-    oop o_974;
+    uint64_t r_literals_of_122;
+    uint64_t l_122;
+    uint64_t r_follow_248;
+    uint64_t p_280;
+    uint64_t o_974;
     oop o_975;
     oop o_976;
     uint64_t o_977;
@@ -3693,7 +4245,7 @@ void interpret(void)
     oop mk_2;
     uint8_t r_next_bytecode_251;
     int64_t r_method_prim_5;
-    uint64_t p_159;
+    uint64_t p_281;
     oop v_525;
     oop *s_243;
     oop m_245;
@@ -3702,11 +4254,15 @@ void interpret(void)
     int64_t v_527;
     oop *s_244;
     oop o_980;
-    oop r_follow_127;
-    oop p_160;
+    oop r_follow_249;
+    oop p_282;
     oop v_528;
     oop m_246;
-    oop o_981;
+    uint64_t r_literals_of_123;
+    uint64_t l_123;
+    uint64_t r_follow_250;
+    uint64_t p_283;
+    uint64_t o_981;
     oop o_982;
     oop o_983;
     uint64_t o_984;
@@ -3726,11 +4282,15 @@ void interpret(void)
     int64_t v_531;
     oop *s_246;
     oop o_987;
-    oop r_follow_128;
-    oop p_161;
+    oop r_follow_251;
+    oop p_284;
     oop v_532;
     oop m_248;
-    oop o_988;
+    uint64_t r_literals_of_124;
+    uint64_t l_124;
+    uint64_t r_follow_252;
+    uint64_t p_285;
+    uint64_t o_988;
     oop o_989;
     oop o_990;
     uint64_t o_991;
@@ -3744,11 +4304,15 @@ void interpret(void)
     int64_t v_534;
     oop *s_248;
     oop o_994;
-    oop r_follow_129;
-    oop p_162;
+    oop r_follow_253;
+    oop p_286;
     oop v_535;
     oop m_250;
-    oop o_995;
+    uint64_t r_literals_of_125;
+    uint64_t l_125;
+    uint64_t r_follow_254;
+    uint64_t p_287;
+    uint64_t o_995;
     oop o_996;
     oop o_997;
     uint64_t o_998;
@@ -3761,11 +4325,15 @@ void interpret(void)
     int64_t v_537;
     oop *s_250;
     oop o_1001;
-    oop r_follow_130;
-    oop p_163;
+    oop r_follow_255;
+    oop p_288;
     oop v_538;
     oop m_252;
-    oop o_1002;
+    uint64_t r_literals_of_126;
+    uint64_t l_126;
+    uint64_t r_follow_256;
+    uint64_t p_289;
+    uint64_t o_1002;
     oop o_1003;
     oop o_1004;
     uint64_t o_1005;
@@ -3773,11 +4341,15 @@ void interpret(void)
     uint8_t r_next_bytecode_255;
     oop *s_251;
     oop o_1007;
-    oop r_follow_131;
-    oop p_164;
+    oop r_follow_257;
+    oop p_290;
     oop v_539;
     oop m_253;
-    oop o_1008;
+    uint64_t r_literals_of_127;
+    uint64_t l_127;
+    uint64_t r_follow_258;
+    uint64_t p_291;
+    uint64_t o_1008;
     oop o_1009;
     oop o_1010;
     uint64_t o_1011;
@@ -3790,11 +4362,15 @@ void interpret(void)
     int64_t v_541;
     oop *s_253;
     oop o_1014;
-    oop r_follow_132;
-    oop p_165;
+    oop r_follow_259;
+    oop p_292;
     oop v_542;
     oop m_255;
-    oop o_1015;
+    uint64_t r_literals_of_128;
+    uint64_t l_128;
+    uint64_t r_follow_260;
+    uint64_t p_293;
+    uint64_t o_1015;
     oop o_1016;
     oop o_1017;
     uint64_t o_1018;
@@ -3802,33 +4378,45 @@ void interpret(void)
     uint8_t r_next_bytecode_256;
     oop *s_254;
     oop o_1020;
-    oop r_follow_133;
-    oop p_166;
+    oop r_follow_261;
+    oop p_294;
     oop v_543;
     oop m_256;
-    oop o_1021;
+    uint64_t r_literals_of_129;
+    uint64_t l_129;
+    uint64_t r_follow_262;
+    uint64_t p_295;
+    uint64_t o_1021;
     oop o_1022;
     oop o_1023;
     uint64_t o_1024;
     oop o_1025;
     oop *s_255;
     oop o_1026;
-    oop r_follow_134;
-    oop p_167;
+    oop r_follow_263;
+    oop p_296;
     oop v_544;
     oop m_257;
-    oop o_1027;
+    uint64_t r_literals_of_130;
+    uint64_t l_130;
+    uint64_t r_follow_264;
+    uint64_t p_297;
+    uint64_t o_1027;
     oop o_1028;
     oop o_1029;
     uint64_t o_1030;
     oop o_1031;
     uint64_t o_1032;
+    uint64_t r_literals_of_131;
+    uint64_t l_131;
+    uint64_t r_follow_265;
+    uint64_t p_298;
     uint64_t o_1033;
     int64_t r_method_prim_6;
-    uint64_t p_168;
+    uint64_t p_299;
     oop o_1034;
-    oop r_follow_135;
-    oop p_169;
+    oop r_follow_266;
+    oop p_300;
     oop r_40;
     oop dnu;
     oop *s_256;
@@ -3845,11 +4433,15 @@ void interpret(void)
     uint64_t args;
     oop *s_258;
     oop o_1037;
-    oop r_follow_136;
-    oop p_170;
+    oop r_follow_267;
+    oop p_301;
     oop v_549;
     oop m_260;
-    oop o_1038;
+    uint64_t r_literals_of_132;
+    uint64_t l_132;
+    uint64_t r_follow_268;
+    uint64_t p_302;
+    uint64_t o_1038;
     oop o_1039;
     oop o_1040;
     uint64_t o_1041;
@@ -3859,11 +4451,15 @@ void interpret(void)
     int64_t isize_2;
     oop *s_259;
     oop o_1044;
-    oop r_follow_137;
-    oop p_171;
+    oop r_follow_269;
+    oop p_303;
     oop v_550;
     oop m_261;
-    oop o_1045;
+    uint64_t r_literals_of_133;
+    uint64_t l_133;
+    uint64_t r_follow_270;
+    uint64_t p_304;
+    uint64_t o_1045;
     oop o_1046;
     oop o_1047;
     uint64_t o_1048;
@@ -3894,7 +4490,19 @@ void interpret(void)
         }
     }
     m = s[CTX_METHOD];
-    o_2 = ((oop *)(m + 16))[CM_LITERALS];
+    o_2 = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     lits = (oop *)(o_2 + 16);
     fp = s + CTX_FIXED;
     o_3 = s[CTX_STACKP];
@@ -4870,8 +5478,8 @@ op_push_one:;
             ip = ip + 1;
             j = *ip;
             if ((j == 0x92) || (j == 0x91)) {
-                p_2 = ip + 1;
-                o_55 = *(int16_t *)(uint64_t)p_2;
+                p_3 = ip + 1;
+                o_55 = *(int16_t *)(uint64_t)p_3;
                 sp = sp - 1;
                 ip = ip + 3;
                 if (c == (j == 0x91)) {
@@ -4904,19 +5512,31 @@ op_push_one:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_58 = s_3[CTX_RECEIVER];
                                     v_101 = ({
-    p_3 = o_58;
-    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
-        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    p_4 = o_58;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_2 = p_3;
-    r_follow_2; });
+    r_follow_3 = p_4;
+    r_follow_3; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_101;
                                     if (((v_101 & 7) == 0) && (((uint64_t)(v_101 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_3 = s_3[CTX_METHOD];
-                                o_59 = ((oop *)(m_3 + 16))[CM_LITERALS];
+                                o_59 = ({
+    l_2 = *(uint64_t *)(m_3 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_5 = l_2;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_5;
+    r_follow_4; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
                                 lits = (oop *)(o_59 + 16);
                                 fp = s_3 + CTX_FIXED;
                                 o_60 = s_3[CTX_STACKP];
@@ -4961,19 +5581,31 @@ op_push_one:;
                                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                         o_65 = s_5[CTX_RECEIVER];
                                         v_104 = ({
-    p_4 = o_65;
-    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
-        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    p_6 = o_65;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_3 = p_4;
-    r_follow_3; });
+    r_follow_5 = p_6;
+    r_follow_5; });
                                         *(uint64_t *)(active_ctx + 16 + 40) = v_104;
                                         if (((v_104 & 7) == 0) && (((uint64_t)(v_104 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                             remember(active_ctx);
                                         }
                                     }
                                     m_5 = s_5[CTX_METHOD];
-                                    o_66 = ((oop *)(m_5 + 16))[CM_LITERALS];
+                                    o_66 = ({
+    l_3 = *(uint64_t *)(m_5 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_3 = ({
+    p_7 = l_3;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_6 = p_7;
+    r_follow_6; });
+    }
+    r_literals_of_3 = l_3;
+    r_literals_of_3; });
                                     lits = (oop *)(o_66 + 16);
                                     fp = s_5 + CTX_FIXED;
                                     o_67 = s_5[CTX_STACKP];
@@ -5010,19 +5642,31 @@ op_push_one:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_72 = s_7[CTX_RECEIVER];
                                     v_107 = ({
-    p_5 = o_72;
-    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
-        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    p_8 = o_72;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_4 = p_5;
-    r_follow_4; });
+    r_follow_7 = p_8;
+    r_follow_7; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_107;
                                     if (((v_107 & 7) == 0) && (((uint64_t)(v_107 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_7 = s_7[CTX_METHOD];
-                                o_73 = ((oop *)(m_7 + 16))[CM_LITERALS];
+                                o_73 = ({
+    l_4 = *(uint64_t *)(m_7 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_4 = ({
+    p_9 = l_4;
+    while (((p_9 & 7) == 0) && (((*(uint64_t *)p_9) & H_FORWARDED) != 0)) {
+        p_9 = (*(uint64_t *)(p_9 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_8 = p_9;
+    r_follow_8; });
+    }
+    r_literals_of_4 = l_4;
+    r_literals_of_4; });
                                 lits = (oop *)(o_73 + 16);
                                 fp = s_7 + CTX_FIXED;
                                 o_74 = s_7[CTX_STACKP];
@@ -5094,19 +5738,31 @@ op_push_this_context:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_79 = s_9[CTX_RECEIVER];
             v_110 = ({
-    p_6 = o_79;
-    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
-        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    p_10 = o_79;
+    while (((p_10 & 7) == 0) && (((*(uint64_t *)p_10) & H_FORWARDED) != 0)) {
+        p_10 = (*(uint64_t *)(p_10 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_5 = p_6;
-    r_follow_5; });
+    r_follow_9 = p_10;
+    r_follow_9; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_110;
             if (((v_110 & 7) == 0) && (((uint64_t)(v_110 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_9 = s_9[CTX_METHOD];
-        o_80 = ((oop *)(m_9 + 16))[CM_LITERALS];
+        o_80 = ({
+    l_5 = *(uint64_t *)(m_9 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_5 = ({
+    p_11 = l_5;
+    while (((p_11 & 7) == 0) && (((*(uint64_t *)p_11) & H_FORWARDED) != 0)) {
+        p_11 = (*(uint64_t *)(p_11 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_10 = p_11;
+    r_follow_10; });
+    }
+    r_literals_of_5 = l_5;
+    r_literals_of_5; });
         lits = (oop *)(o_80 + 16);
         fp = s_9 + CTX_FIXED;
         o_81 = s_9[CTX_STACKP];
@@ -5184,19 +5840,31 @@ op_return_top:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_86 = s_11[CTX_RECEIVER];
                         v_114 = ({
-    p_7 = o_86;
-    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
-        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    p_12 = o_86;
+    while (((p_12 & 7) == 0) && (((*(uint64_t *)p_12) & H_FORWARDED) != 0)) {
+        p_12 = (*(uint64_t *)(p_12 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_6 = p_7;
-    r_follow_6; });
+    r_follow_11 = p_12;
+    r_follow_11; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_114;
                         if (((v_114 & 7) == 0) && (((uint64_t)(v_114 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_11 = s_11[CTX_METHOD];
-                    o_87 = ((oop *)(m_11 + 16))[CM_LITERALS];
+                    o_87 = ({
+    l_6 = *(uint64_t *)(m_11 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_6 = ({
+    p_13 = l_6;
+    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
+        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_12 = p_13;
+    r_follow_12; });
+    }
+    r_literals_of_6 = l_6;
+    r_literals_of_6; });
                     lits = (oop *)(o_87 + 16);
                     fp = s_11 + CTX_FIXED;
                     o_88 = s_11[CTX_STACKP];
@@ -5229,19 +5897,31 @@ op_return_top:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_93 = s_12[CTX_RECEIVER];
                 v_115 = ({
-    p_8 = o_93;
-    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
-        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
+    p_14 = o_93;
+    while (((p_14 & 7) == 0) && (((*(uint64_t *)p_14) & H_FORWARDED) != 0)) {
+        p_14 = (*(uint64_t *)(p_14 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_7 = p_8;
-    r_follow_7; });
+    r_follow_13 = p_14;
+    r_follow_13; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_115;
                 if (((v_115 & 7) == 0) && (((uint64_t)(v_115 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_12 = s_12[CTX_METHOD];
-            o_94 = ((oop *)(m_12 + 16))[CM_LITERALS];
+            o_94 = ({
+    l_7 = *(uint64_t *)(m_12 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_7 = ({
+    p_15 = l_7;
+    while (((p_15 & 7) == 0) && (((*(uint64_t *)p_15) & H_FORWARDED) != 0)) {
+        p_15 = (*(uint64_t *)(p_15 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_14 = p_15;
+    r_follow_14; });
+    }
+    r_literals_of_7 = l_7;
+    r_literals_of_7; });
             lits = (oop *)(o_94 + 16);
             fp = s_12 + CTX_FIXED;
             o_95 = s_12[CTX_STACKP];
@@ -5272,19 +5952,31 @@ op_return_top:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_99 = s_13[CTX_RECEIVER];
             v_116 = ({
-    p_9 = o_99;
-    while (((p_9 & 7) == 0) && (((*(uint64_t *)p_9) & H_FORWARDED) != 0)) {
-        p_9 = (*(uint64_t *)(p_9 + 8)) & 18446744073709551609ULL;
+    p_16 = o_99;
+    while (((p_16 & 7) == 0) && (((*(uint64_t *)p_16) & H_FORWARDED) != 0)) {
+        p_16 = (*(uint64_t *)(p_16 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_8 = p_9;
-    r_follow_8; });
+    r_follow_15 = p_16;
+    r_follow_15; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_116;
             if (((v_116 & 7) == 0) && (((uint64_t)(v_116 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_13 = s_13[CTX_METHOD];
-        o_100 = ((oop *)(m_13 + 16))[CM_LITERALS];
+        o_100 = ({
+    l_8 = *(uint64_t *)(m_13 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_8 = ({
+    p_17 = l_8;
+    while (((p_17 & 7) == 0) && (((*(uint64_t *)p_17) & H_FORWARDED) != 0)) {
+        p_17 = (*(uint64_t *)(p_17 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_16 = p_17;
+    r_follow_16; });
+    }
+    r_literals_of_8 = l_8;
+    r_literals_of_8; });
         lits = (oop *)(o_100 + 16);
         fp = s_13 + CTX_FIXED;
         o_101 = s_13[CTX_STACKP];
@@ -5321,19 +6013,31 @@ op_return_top:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_106 = s_15[CTX_RECEIVER];
                     v_119 = ({
-    p_10 = o_106;
-    while (((p_10 & 7) == 0) && (((*(uint64_t *)p_10) & H_FORWARDED) != 0)) {
-        p_10 = (*(uint64_t *)(p_10 + 8)) & 18446744073709551609ULL;
+    p_18 = o_106;
+    while (((p_18 & 7) == 0) && (((*(uint64_t *)p_18) & H_FORWARDED) != 0)) {
+        p_18 = (*(uint64_t *)(p_18 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_9 = p_10;
-    r_follow_9; });
+    r_follow_17 = p_18;
+    r_follow_17; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_119;
                     if (((v_119 & 7) == 0) && (((uint64_t)(v_119 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_15 = s_15[CTX_METHOD];
-                o_107 = ((oop *)(m_15 + 16))[CM_LITERALS];
+                o_107 = ({
+    l_9 = *(uint64_t *)(m_15 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_9 = ({
+    p_19 = l_9;
+    while (((p_19 & 7) == 0) && (((*(uint64_t *)p_19) & H_FORWARDED) != 0)) {
+        p_19 = (*(uint64_t *)(p_19 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_18 = p_19;
+    r_follow_18; });
+    }
+    r_literals_of_9 = l_9;
+    r_literals_of_9; });
                 lits = (oop *)(o_107 + 16);
                 fp = s_15 + CTX_FIXED;
                 o_108 = s_15[CTX_STACKP];
@@ -5386,8 +6090,8 @@ op_non_local_return:;
     for (j_2 = top; j_2 >= h; j_2--) {
         m_17 = (frames + j_2)->method;
         if ((({
-    p_11 = *(uint64_t *)(m_17 + 16 + 56);
-    r_method_prim = (p_11 & 1) != 0 ? ((int64_t)p_11) >> 1 : 0;
+    p_20 = *(uint64_t *)(m_17 + 16 + 56);
+    r_method_prim = (p_20 & 1) != 0 ? ((int64_t)p_20) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER) {
             r_unwind_frame_from = j_2;
             goto exit_unwind_frame_from;
@@ -5411,19 +6115,31 @@ exit_unwind_frame_from:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_114 = s_16[CTX_RECEIVER];
                 v_121 = ({
-    p_12 = o_114;
-    while (((p_12 & 7) == 0) && (((*(uint64_t *)p_12) & H_FORWARDED) != 0)) {
-        p_12 = (*(uint64_t *)(p_12 + 8)) & 18446744073709551609ULL;
+    p_21 = o_114;
+    while (((p_21 & 7) == 0) && (((*(uint64_t *)p_21) & H_FORWARDED) != 0)) {
+        p_21 = (*(uint64_t *)(p_21 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_10 = p_12;
-    r_follow_10; });
+    r_follow_19 = p_21;
+    r_follow_19; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_121;
                 if (((v_121 & 7) == 0) && (((uint64_t)(v_121 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_18 = s_16[CTX_METHOD];
-            o_115 = ((oop *)(m_18 + 16))[CM_LITERALS];
+            o_115 = ({
+    l_10 = *(uint64_t *)(m_18 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_10 = ({
+    p_22 = l_10;
+    while (((p_22 & 7) == 0) && (((*(uint64_t *)p_22) & H_FORWARDED) != 0)) {
+        p_22 = (*(uint64_t *)(p_22 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_20 = p_22;
+    r_follow_20; });
+    }
+    r_literals_of_10 = l_10;
+    r_literals_of_10; });
             lits = (oop *)(o_115 + 16);
             fp = s_16 + CTX_FIXED;
             o_116 = s_16[CTX_STACKP];
@@ -5460,19 +6176,31 @@ exit_unwind_frame_from:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_121 = s_18[CTX_RECEIVER];
                         v_124 = ({
-    p_13 = o_121;
-    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
-        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
+    p_23 = o_121;
+    while (((p_23 & 7) == 0) && (((*(uint64_t *)p_23) & H_FORWARDED) != 0)) {
+        p_23 = (*(uint64_t *)(p_23 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_11 = p_13;
-    r_follow_11; });
+    r_follow_21 = p_23;
+    r_follow_21; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_124;
                         if (((v_124 & 7) == 0) && (((uint64_t)(v_124 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_20 = s_18[CTX_METHOD];
-                    o_122 = ((oop *)(m_20 + 16))[CM_LITERALS];
+                    o_122 = ({
+    l_11 = *(uint64_t *)(m_20 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_11 = ({
+    p_24 = l_11;
+    while (((p_24 & 7) == 0) && (((*(uint64_t *)p_24) & H_FORWARDED) != 0)) {
+        p_24 = (*(uint64_t *)(p_24 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_22 = p_24;
+    r_follow_22; });
+    }
+    r_literals_of_11 = l_11;
+    r_literals_of_11; });
                     lits = (oop *)(o_122 + 16);
                     fp = s_18 + CTX_FIXED;
                     o_123 = s_18[CTX_STACKP];
@@ -5530,19 +6258,31 @@ exit_unwind_frame_from:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_128 = s_20[CTX_RECEIVER];
                     v_127 = ({
-    p_14 = o_128;
-    while (((p_14 & 7) == 0) && (((*(uint64_t *)p_14) & H_FORWARDED) != 0)) {
-        p_14 = (*(uint64_t *)(p_14 + 8)) & 18446744073709551609ULL;
+    p_25 = o_128;
+    while (((p_25 & 7) == 0) && (((*(uint64_t *)p_25) & H_FORWARDED) != 0)) {
+        p_25 = (*(uint64_t *)(p_25 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_12 = p_14;
-    r_follow_12; });
+    r_follow_23 = p_25;
+    r_follow_23; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_127;
                     if (((v_127 & 7) == 0) && (((uint64_t)(v_127 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_22 = s_20[CTX_METHOD];
-                o_129 = ((oop *)(m_22 + 16))[CM_LITERALS];
+                o_129 = ({
+    l_12 = *(uint64_t *)(m_22 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_12 = ({
+    p_26 = l_12;
+    while (((p_26 & 7) == 0) && (((*(uint64_t *)p_26) & H_FORWARDED) != 0)) {
+        p_26 = (*(uint64_t *)(p_26 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_24 = p_26;
+    r_follow_24; });
+    }
+    r_literals_of_12 = l_12;
+    r_literals_of_12; });
                 lits = (oop *)(o_129 + 16);
                 fp = s_20 + CTX_FIXED;
                 o_130 = s_20[CTX_STACKP];
@@ -5582,8 +6322,8 @@ exit_unwind_frame_from:;
         if ((mk == nil_oop) && ({
     m_23 = *(uint64_t *)(c_3 + 16 + 24);
     (({
-    p_15 = *(uint64_t *)(m_23 + 16 + 56);
-    r_method_prim_2 = (p_15 & 1) != 0 ? ((int64_t)p_15) >> 1 : 0;
+    p_27 = *(uint64_t *)(m_23 + 16 + 56);
+    r_method_prim_2 = (p_27 & 1) != 0 ? ((int64_t)p_27) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER; })) {
             mk = c_3;
         }
@@ -5597,8 +6337,8 @@ exit_unwind_frame_from:;
     for (j_3 = top_2; j_3 >= 0; j_3--) {
         m_24 = (frames + j_3)->method;
         if ((({
-    p_16 = *(uint64_t *)(m_24 + 16 + 56);
-    r_method_prim_3 = (p_16 & 1) != 0 ? ((int64_t)p_16) >> 1 : 0;
+    p_28 = *(uint64_t *)(m_24 + 16 + 56);
+    r_method_prim_3 = (p_28 & 1) != 0 ? ((int64_t)p_28) >> 1 : 0;
     r_method_prim_3; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER) {
             r_unwind_frame_from_2 = j_3;
             goto exit_unwind_frame_from_2;
@@ -5636,19 +6376,31 @@ exit_unwind_frame_from_2:;
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         o_136 = s_21[CTX_RECEIVER];
         v_128 = ({
-    p_17 = o_136;
-    while (((p_17 & 7) == 0) && (((*(uint64_t *)p_17) & H_FORWARDED) != 0)) {
-        p_17 = (*(uint64_t *)(p_17 + 8)) & 18446744073709551609ULL;
+    p_29 = o_136;
+    while (((p_29 & 7) == 0) && (((*(uint64_t *)p_29) & H_FORWARDED) != 0)) {
+        p_29 = (*(uint64_t *)(p_29 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_13 = p_17;
-    r_follow_13; });
+    r_follow_25 = p_29;
+    r_follow_25; });
         *(uint64_t *)(active_ctx + 16 + 40) = v_128;
         if (((v_128 & 7) == 0) && (((uint64_t)(v_128 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
             remember(active_ctx);
         }
     }
     m_25 = s_21[CTX_METHOD];
-    o_137 = ((oop *)(m_25 + 16))[CM_LITERALS];
+    o_137 = ({
+    l_13 = *(uint64_t *)(m_25 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_13 = ({
+    p_30 = l_13;
+    while (((p_30 & 7) == 0) && (((*(uint64_t *)p_30) & H_FORWARDED) != 0)) {
+        p_30 = (*(uint64_t *)(p_30 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_26 = p_30;
+    r_follow_26; });
+    }
+    r_literals_of_13 = l_13;
+    r_literals_of_13; });
     lits = (oop *)(o_137 + 16);
     fp = s_21 + CTX_FIXED;
     o_138 = s_21[CTX_STACKP];
@@ -5685,19 +6437,31 @@ exit_unwind_frame_from_2:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_143 = s_23[CTX_RECEIVER];
                 v_131 = ({
-    p_18 = o_143;
-    while (((p_18 & 7) == 0) && (((*(uint64_t *)p_18) & H_FORWARDED) != 0)) {
-        p_18 = (*(uint64_t *)(p_18 + 8)) & 18446744073709551609ULL;
+    p_31 = o_143;
+    while (((p_31 & 7) == 0) && (((*(uint64_t *)p_31) & H_FORWARDED) != 0)) {
+        p_31 = (*(uint64_t *)(p_31 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_14 = p_18;
-    r_follow_14; });
+    r_follow_27 = p_31;
+    r_follow_27; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_131;
                 if (((v_131 & 7) == 0) && (((uint64_t)(v_131 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_27 = s_23[CTX_METHOD];
-            o_144 = ((oop *)(m_27 + 16))[CM_LITERALS];
+            o_144 = ({
+    l_14 = *(uint64_t *)(m_27 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_14 = ({
+    p_32 = l_14;
+    while (((p_32 & 7) == 0) && (((*(uint64_t *)p_32) & H_FORWARDED) != 0)) {
+        p_32 = (*(uint64_t *)(p_32 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_28 = p_32;
+    r_follow_28; });
+    }
+    r_literals_of_14 = l_14;
+    r_literals_of_14; });
             lits = (oop *)(o_144 + 16);
             fp = s_23 + CTX_FIXED;
             o_145 = s_23[CTX_STACKP];
@@ -5757,19 +6521,31 @@ op_push_inst_var_x:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_150 = s_25[CTX_RECEIVER];
                 v_136 = ({
-    p_19 = o_150;
-    while (((p_19 & 7) == 0) && (((*(uint64_t *)p_19) & H_FORWARDED) != 0)) {
-        p_19 = (*(uint64_t *)(p_19 + 8)) & 18446744073709551609ULL;
+    p_33 = o_150;
+    while (((p_33 & 7) == 0) && (((*(uint64_t *)p_33) & H_FORWARDED) != 0)) {
+        p_33 = (*(uint64_t *)(p_33 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_15 = p_19;
-    r_follow_15; });
+    r_follow_29 = p_33;
+    r_follow_29; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_136;
                 if (((v_136 & 7) == 0) && (((uint64_t)(v_136 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_29 = s_25[CTX_METHOD];
-            o_151 = ((oop *)(m_29 + 16))[CM_LITERALS];
+            o_151 = ({
+    l_15 = *(uint64_t *)(m_29 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_15 = ({
+    p_34 = l_15;
+    while (((p_34 & 7) == 0) && (((*(uint64_t *)p_34) & H_FORWARDED) != 0)) {
+        p_34 = (*(uint64_t *)(p_34 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_30 = p_34;
+    r_follow_30; });
+    }
+    r_literals_of_15 = l_15;
+    r_literals_of_15; });
             lits = (oop *)(o_151 + 16);
             fp = s_25 + CTX_FIXED;
             o_152 = s_25[CTX_STACKP];
@@ -5888,19 +6664,31 @@ op_store_context_inst_var_x:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_160 = s_26[CTX_RECEIVER];
                 v_145 = ({
-    p_20 = o_160;
-    while (((p_20 & 7) == 0) && (((*(uint64_t *)p_20) & H_FORWARDED) != 0)) {
-        p_20 = (*(uint64_t *)(p_20 + 8)) & 18446744073709551609ULL;
+    p_35 = o_160;
+    while (((p_35 & 7) == 0) && (((*(uint64_t *)p_35) & H_FORWARDED) != 0)) {
+        p_35 = (*(uint64_t *)(p_35 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_16 = p_20;
-    r_follow_16; });
+    r_follow_31 = p_35;
+    r_follow_31; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_145;
                 if (((v_145 & 7) == 0) && (((uint64_t)(v_145 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_30 = s_26[CTX_METHOD];
-            o_161 = ((oop *)(m_30 + 16))[CM_LITERALS];
+            o_161 = ({
+    l_16 = *(uint64_t *)(m_30 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_16 = ({
+    p_36 = l_16;
+    while (((p_36 & 7) == 0) && (((*(uint64_t *)p_36) & H_FORWARDED) != 0)) {
+        p_36 = (*(uint64_t *)(p_36 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_32 = p_36;
+    r_follow_32; });
+    }
+    r_literals_of_16 = l_16;
+    r_literals_of_16; });
             lits = (oop *)(o_161 + 16);
             fp = s_26 + CTX_FIXED;
             o_162 = s_26[CTX_STACKP];
@@ -6034,19 +6822,31 @@ op_closure:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_172 = s_29[CTX_RECEIVER];
             v_152 = ({
-    p_21 = o_172;
-    while (((p_21 & 7) == 0) && (((*(uint64_t *)p_21) & H_FORWARDED) != 0)) {
-        p_21 = (*(uint64_t *)(p_21 + 8)) & 18446744073709551609ULL;
+    p_37 = o_172;
+    while (((p_37 & 7) == 0) && (((*(uint64_t *)p_37) & H_FORWARDED) != 0)) {
+        p_37 = (*(uint64_t *)(p_37 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_17 = p_21;
-    r_follow_17; });
+    r_follow_33 = p_37;
+    r_follow_33; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_152;
             if (((v_152 & 7) == 0) && (((uint64_t)(v_152 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_32 = s_29[CTX_METHOD];
-        o_173 = ((oop *)(m_32 + 16))[CM_LITERALS];
+        o_173 = ({
+    l_17 = *(uint64_t *)(m_32 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_17 = ({
+    p_38 = l_17;
+    while (((p_38 & 7) == 0) && (((*(uint64_t *)p_38) & H_FORWARDED) != 0)) {
+        p_38 = (*(uint64_t *)(p_38 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_34 = p_38;
+    r_follow_34; });
+    }
+    r_literals_of_17 = l_17;
+    r_literals_of_17; });
         lits = (oop *)(o_173 + 16);
         fp = s_29 + CTX_FIXED;
         o_174 = s_29[CTX_STACKP];
@@ -6112,19 +6912,31 @@ op_jump:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_181 = s_31[CTX_RECEIVER];
                     v_156 = ({
-    p_22 = o_181;
-    while (((p_22 & 7) == 0) && (((*(uint64_t *)p_22) & H_FORWARDED) != 0)) {
-        p_22 = (*(uint64_t *)(p_22 + 8)) & 18446744073709551609ULL;
+    p_39 = o_181;
+    while (((p_39 & 7) == 0) && (((*(uint64_t *)p_39) & H_FORWARDED) != 0)) {
+        p_39 = (*(uint64_t *)(p_39 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_18 = p_22;
-    r_follow_18; });
+    r_follow_35 = p_39;
+    r_follow_35; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_156;
                     if (((v_156 & 7) == 0) && (((uint64_t)(v_156 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_35 = s_31[CTX_METHOD];
-                o_182 = ((oop *)(m_35 + 16))[CM_LITERALS];
+                o_182 = ({
+    l_18 = *(uint64_t *)(m_35 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_18 = ({
+    p_40 = l_18;
+    while (((p_40 & 7) == 0) && (((*(uint64_t *)p_40) & H_FORWARDED) != 0)) {
+        p_40 = (*(uint64_t *)(p_40 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_36 = p_40;
+    r_follow_36; });
+    }
+    r_literals_of_18 = l_18;
+    r_literals_of_18; });
                 lits = (oop *)(o_182 + 16);
                 fp = s_31 + CTX_FIXED;
                 o_183 = s_31[CTX_STACKP];
@@ -6169,19 +6981,31 @@ op_jump:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_188 = s_33[CTX_RECEIVER];
                         v_159 = ({
-    p_23 = o_188;
-    while (((p_23 & 7) == 0) && (((*(uint64_t *)p_23) & H_FORWARDED) != 0)) {
-        p_23 = (*(uint64_t *)(p_23 + 8)) & 18446744073709551609ULL;
+    p_41 = o_188;
+    while (((p_41 & 7) == 0) && (((*(uint64_t *)p_41) & H_FORWARDED) != 0)) {
+        p_41 = (*(uint64_t *)(p_41 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_19 = p_23;
-    r_follow_19; });
+    r_follow_37 = p_41;
+    r_follow_37; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_159;
                         if (((v_159 & 7) == 0) && (((uint64_t)(v_159 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_37 = s_33[CTX_METHOD];
-                    o_189 = ((oop *)(m_37 + 16))[CM_LITERALS];
+                    o_189 = ({
+    l_19 = *(uint64_t *)(m_37 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_19 = ({
+    p_42 = l_19;
+    while (((p_42 & 7) == 0) && (((*(uint64_t *)p_42) & H_FORWARDED) != 0)) {
+        p_42 = (*(uint64_t *)(p_42 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_38 = p_42;
+    r_follow_38; });
+    }
+    r_literals_of_19 = l_19;
+    r_literals_of_19; });
                     lits = (oop *)(o_189 + 16);
                     fp = s_33 + CTX_FIXED;
                     o_190 = s_33[CTX_STACKP];
@@ -6218,19 +7042,31 @@ op_jump:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_195 = s_35[CTX_RECEIVER];
                     v_162 = ({
-    p_24 = o_195;
-    while (((p_24 & 7) == 0) && (((*(uint64_t *)p_24) & H_FORWARDED) != 0)) {
-        p_24 = (*(uint64_t *)(p_24 + 8)) & 18446744073709551609ULL;
+    p_43 = o_195;
+    while (((p_43 & 7) == 0) && (((*(uint64_t *)p_43) & H_FORWARDED) != 0)) {
+        p_43 = (*(uint64_t *)(p_43 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_20 = p_24;
-    r_follow_20; });
+    r_follow_39 = p_43;
+    r_follow_39; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_162;
                     if (((v_162 & 7) == 0) && (((uint64_t)(v_162 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_39 = s_35[CTX_METHOD];
-                o_196 = ((oop *)(m_39 + 16))[CM_LITERALS];
+                o_196 = ({
+    l_20 = *(uint64_t *)(m_39 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_20 = ({
+    p_44 = l_20;
+    while (((p_44 & 7) == 0) && (((*(uint64_t *)p_44) & H_FORWARDED) != 0)) {
+        p_44 = (*(uint64_t *)(p_44 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_40 = p_44;
+    r_follow_40; });
+    }
+    r_literals_of_20 = l_20;
+    r_literals_of_20; });
                 lits = (oop *)(o_196 + 16);
                 fp = s_35 + CTX_FIXED;
                 o_197 = s_35[CTX_STACKP];
@@ -6287,19 +7123,31 @@ op_conditional_jump_91:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_203 = s_37[CTX_RECEIVER];
                         v_166 = ({
-    p_25 = o_203;
-    while (((p_25 & 7) == 0) && (((*(uint64_t *)p_25) & H_FORWARDED) != 0)) {
-        p_25 = (*(uint64_t *)(p_25 + 8)) & 18446744073709551609ULL;
+    p_45 = o_203;
+    while (((p_45 & 7) == 0) && (((*(uint64_t *)p_45) & H_FORWARDED) != 0)) {
+        p_45 = (*(uint64_t *)(p_45 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_21 = p_25;
-    r_follow_21; });
+    r_follow_41 = p_45;
+    r_follow_41; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_166;
                         if (((v_166 & 7) == 0) && (((uint64_t)(v_166 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_41 = s_37[CTX_METHOD];
-                    o_204 = ((oop *)(m_41 + 16))[CM_LITERALS];
+                    o_204 = ({
+    l_21 = *(uint64_t *)(m_41 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_21 = ({
+    p_46 = l_21;
+    while (((p_46 & 7) == 0) && (((*(uint64_t *)p_46) & H_FORWARDED) != 0)) {
+        p_46 = (*(uint64_t *)(p_46 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_42 = p_46;
+    r_follow_42; });
+    }
+    r_literals_of_21 = l_21;
+    r_literals_of_21; });
                     lits = (oop *)(o_204 + 16);
                     fp = s_37 + CTX_FIXED;
                     o_205 = s_37[CTX_STACKP];
@@ -6344,19 +7192,31 @@ op_conditional_jump_91:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_210 = s_39[CTX_RECEIVER];
                             v_169 = ({
-    p_26 = o_210;
-    while (((p_26 & 7) == 0) && (((*(uint64_t *)p_26) & H_FORWARDED) != 0)) {
-        p_26 = (*(uint64_t *)(p_26 + 8)) & 18446744073709551609ULL;
+    p_47 = o_210;
+    while (((p_47 & 7) == 0) && (((*(uint64_t *)p_47) & H_FORWARDED) != 0)) {
+        p_47 = (*(uint64_t *)(p_47 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_22 = p_26;
-    r_follow_22; });
+    r_follow_43 = p_47;
+    r_follow_43; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_169;
                             if (((v_169 & 7) == 0) && (((uint64_t)(v_169 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_43 = s_39[CTX_METHOD];
-                        o_211 = ((oop *)(m_43 + 16))[CM_LITERALS];
+                        o_211 = ({
+    l_22 = *(uint64_t *)(m_43 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_22 = ({
+    p_48 = l_22;
+    while (((p_48 & 7) == 0) && (((*(uint64_t *)p_48) & H_FORWARDED) != 0)) {
+        p_48 = (*(uint64_t *)(p_48 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_44 = p_48;
+    r_follow_44; });
+    }
+    r_literals_of_22 = l_22;
+    r_literals_of_22; });
                         lits = (oop *)(o_211 + 16);
                         fp = s_39 + CTX_FIXED;
                         o_212 = s_39[CTX_STACKP];
@@ -6393,19 +7253,31 @@ op_conditional_jump_91:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_217 = s_41[CTX_RECEIVER];
                         v_172 = ({
-    p_27 = o_217;
-    while (((p_27 & 7) == 0) && (((*(uint64_t *)p_27) & H_FORWARDED) != 0)) {
-        p_27 = (*(uint64_t *)(p_27 + 8)) & 18446744073709551609ULL;
+    p_49 = o_217;
+    while (((p_49 & 7) == 0) && (((*(uint64_t *)p_49) & H_FORWARDED) != 0)) {
+        p_49 = (*(uint64_t *)(p_49 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_23 = p_27;
-    r_follow_23; });
+    r_follow_45 = p_49;
+    r_follow_45; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_172;
                         if (((v_172 & 7) == 0) && (((uint64_t)(v_172 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_45 = s_41[CTX_METHOD];
-                    o_218 = ((oop *)(m_45 + 16))[CM_LITERALS];
+                    o_218 = ({
+    l_23 = *(uint64_t *)(m_45 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_23 = ({
+    p_50 = l_23;
+    while (((p_50 & 7) == 0) && (((*(uint64_t *)p_50) & H_FORWARDED) != 0)) {
+        p_50 = (*(uint64_t *)(p_50 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_46 = p_50;
+    r_follow_46; });
+    }
+    r_literals_of_23 = l_23;
+    r_literals_of_23; });
                     lits = (oop *)(o_218 + 16);
                     fp = s_41 + CTX_FIXED;
                     o_219 = s_41[CTX_STACKP];
@@ -6470,19 +7342,31 @@ op_conditional_jump_92:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_225 = s_43[CTX_RECEIVER];
                         v_176 = ({
-    p_28 = o_225;
-    while (((p_28 & 7) == 0) && (((*(uint64_t *)p_28) & H_FORWARDED) != 0)) {
-        p_28 = (*(uint64_t *)(p_28 + 8)) & 18446744073709551609ULL;
+    p_51 = o_225;
+    while (((p_51 & 7) == 0) && (((*(uint64_t *)p_51) & H_FORWARDED) != 0)) {
+        p_51 = (*(uint64_t *)(p_51 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_24 = p_28;
-    r_follow_24; });
+    r_follow_47 = p_51;
+    r_follow_47; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_176;
                         if (((v_176 & 7) == 0) && (((uint64_t)(v_176 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_47 = s_43[CTX_METHOD];
-                    o_226 = ((oop *)(m_47 + 16))[CM_LITERALS];
+                    o_226 = ({
+    l_24 = *(uint64_t *)(m_47 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_24 = ({
+    p_52 = l_24;
+    while (((p_52 & 7) == 0) && (((*(uint64_t *)p_52) & H_FORWARDED) != 0)) {
+        p_52 = (*(uint64_t *)(p_52 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_48 = p_52;
+    r_follow_48; });
+    }
+    r_literals_of_24 = l_24;
+    r_literals_of_24; });
                     lits = (oop *)(o_226 + 16);
                     fp = s_43 + CTX_FIXED;
                     o_227 = s_43[CTX_STACKP];
@@ -6527,19 +7411,31 @@ op_conditional_jump_92:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_232 = s_45[CTX_RECEIVER];
                             v_179 = ({
-    p_29 = o_232;
-    while (((p_29 & 7) == 0) && (((*(uint64_t *)p_29) & H_FORWARDED) != 0)) {
-        p_29 = (*(uint64_t *)(p_29 + 8)) & 18446744073709551609ULL;
+    p_53 = o_232;
+    while (((p_53 & 7) == 0) && (((*(uint64_t *)p_53) & H_FORWARDED) != 0)) {
+        p_53 = (*(uint64_t *)(p_53 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_25 = p_29;
-    r_follow_25; });
+    r_follow_49 = p_53;
+    r_follow_49; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_179;
                             if (((v_179 & 7) == 0) && (((uint64_t)(v_179 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_49 = s_45[CTX_METHOD];
-                        o_233 = ((oop *)(m_49 + 16))[CM_LITERALS];
+                        o_233 = ({
+    l_25 = *(uint64_t *)(m_49 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_25 = ({
+    p_54 = l_25;
+    while (((p_54 & 7) == 0) && (((*(uint64_t *)p_54) & H_FORWARDED) != 0)) {
+        p_54 = (*(uint64_t *)(p_54 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_50 = p_54;
+    r_follow_50; });
+    }
+    r_literals_of_25 = l_25;
+    r_literals_of_25; });
                         lits = (oop *)(o_233 + 16);
                         fp = s_45 + CTX_FIXED;
                         o_234 = s_45[CTX_STACKP];
@@ -6576,19 +7472,31 @@ op_conditional_jump_92:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_239 = s_47[CTX_RECEIVER];
                         v_182 = ({
-    p_30 = o_239;
-    while (((p_30 & 7) == 0) && (((*(uint64_t *)p_30) & H_FORWARDED) != 0)) {
-        p_30 = (*(uint64_t *)(p_30 + 8)) & 18446744073709551609ULL;
+    p_55 = o_239;
+    while (((p_55 & 7) == 0) && (((*(uint64_t *)p_55) & H_FORWARDED) != 0)) {
+        p_55 = (*(uint64_t *)(p_55 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_26 = p_30;
-    r_follow_26; });
+    r_follow_51 = p_55;
+    r_follow_51; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_182;
                         if (((v_182 & 7) == 0) && (((uint64_t)(v_182 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_51 = s_47[CTX_METHOD];
-                    o_240 = ((oop *)(m_51 + 16))[CM_LITERALS];
+                    o_240 = ({
+    l_26 = *(uint64_t *)(m_51 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_26 = ({
+    p_56 = l_26;
+    while (((p_56 & 7) == 0) && (((*(uint64_t *)p_56) & H_FORWARDED) != 0)) {
+        p_56 = (*(uint64_t *)(p_56 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_52 = p_56;
+    r_follow_52; });
+    }
+    r_literals_of_26 = l_26;
+    r_literals_of_26; });
                     lits = (oop *)(o_240 + 16);
                     fp = s_47 + CTX_FIXED;
                     o_241 = s_47[CTX_STACKP];
@@ -6670,8 +7578,8 @@ op_push_integer:;
             ip = ip + 1;
             j_4 = *ip;
             if ((j_4 == 0x92) || (j_4 == 0x91)) {
-                p_31 = ip + 1;
-                o_245 = *(int16_t *)(uint64_t)p_31;
+                p_57 = ip + 1;
+                o_245 = *(int16_t *)(uint64_t)p_57;
                 sp = sp - 1;
                 ip = ip + 3;
                 if (c_6 == (j_4 == 0x91)) {
@@ -6704,19 +7612,31 @@ op_push_integer:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_248 = s_49[CTX_RECEIVER];
                                     v_187 = ({
-    p_32 = o_248;
-    while (((p_32 & 7) == 0) && (((*(uint64_t *)p_32) & H_FORWARDED) != 0)) {
-        p_32 = (*(uint64_t *)(p_32 + 8)) & 18446744073709551609ULL;
+    p_58 = o_248;
+    while (((p_58 & 7) == 0) && (((*(uint64_t *)p_58) & H_FORWARDED) != 0)) {
+        p_58 = (*(uint64_t *)(p_58 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_27 = p_32;
-    r_follow_27; });
+    r_follow_53 = p_58;
+    r_follow_53; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_187;
                                     if (((v_187 & 7) == 0) && (((uint64_t)(v_187 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_53 = s_49[CTX_METHOD];
-                                o_249 = ((oop *)(m_53 + 16))[CM_LITERALS];
+                                o_249 = ({
+    l_27 = *(uint64_t *)(m_53 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_27 = ({
+    p_59 = l_27;
+    while (((p_59 & 7) == 0) && (((*(uint64_t *)p_59) & H_FORWARDED) != 0)) {
+        p_59 = (*(uint64_t *)(p_59 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_54 = p_59;
+    r_follow_54; });
+    }
+    r_literals_of_27 = l_27;
+    r_literals_of_27; });
                                 lits = (oop *)(o_249 + 16);
                                 fp = s_49 + CTX_FIXED;
                                 o_250 = s_49[CTX_STACKP];
@@ -6761,19 +7681,31 @@ op_push_integer:;
                                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                         o_255 = s_51[CTX_RECEIVER];
                                         v_190 = ({
-    p_33 = o_255;
-    while (((p_33 & 7) == 0) && (((*(uint64_t *)p_33) & H_FORWARDED) != 0)) {
-        p_33 = (*(uint64_t *)(p_33 + 8)) & 18446744073709551609ULL;
+    p_60 = o_255;
+    while (((p_60 & 7) == 0) && (((*(uint64_t *)p_60) & H_FORWARDED) != 0)) {
+        p_60 = (*(uint64_t *)(p_60 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_28 = p_33;
-    r_follow_28; });
+    r_follow_55 = p_60;
+    r_follow_55; });
                                         *(uint64_t *)(active_ctx + 16 + 40) = v_190;
                                         if (((v_190 & 7) == 0) && (((uint64_t)(v_190 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                             remember(active_ctx);
                                         }
                                     }
                                     m_55 = s_51[CTX_METHOD];
-                                    o_256 = ((oop *)(m_55 + 16))[CM_LITERALS];
+                                    o_256 = ({
+    l_28 = *(uint64_t *)(m_55 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_28 = ({
+    p_61 = l_28;
+    while (((p_61 & 7) == 0) && (((*(uint64_t *)p_61) & H_FORWARDED) != 0)) {
+        p_61 = (*(uint64_t *)(p_61 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_56 = p_61;
+    r_follow_56; });
+    }
+    r_literals_of_28 = l_28;
+    r_literals_of_28; });
                                     lits = (oop *)(o_256 + 16);
                                     fp = s_51 + CTX_FIXED;
                                     o_257 = s_51[CTX_STACKP];
@@ -6810,19 +7742,31 @@ op_push_integer:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_262 = s_53[CTX_RECEIVER];
                                     v_193 = ({
-    p_34 = o_262;
-    while (((p_34 & 7) == 0) && (((*(uint64_t *)p_34) & H_FORWARDED) != 0)) {
-        p_34 = (*(uint64_t *)(p_34 + 8)) & 18446744073709551609ULL;
+    p_62 = o_262;
+    while (((p_62 & 7) == 0) && (((*(uint64_t *)p_62) & H_FORWARDED) != 0)) {
+        p_62 = (*(uint64_t *)(p_62 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_29 = p_34;
-    r_follow_29; });
+    r_follow_57 = p_62;
+    r_follow_57; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_193;
                                     if (((v_193 & 7) == 0) && (((uint64_t)(v_193 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_57 = s_53[CTX_METHOD];
-                                o_263 = ((oop *)(m_57 + 16))[CM_LITERALS];
+                                o_263 = ({
+    l_29 = *(uint64_t *)(m_57 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_29 = ({
+    p_63 = l_29;
+    while (((p_63 & 7) == 0) && (((*(uint64_t *)p_63) & H_FORWARDED) != 0)) {
+        p_63 = (*(uint64_t *)(p_63 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_58 = p_63;
+    r_follow_58; });
+    }
+    r_literals_of_29 = l_29;
+    r_literals_of_29; });
                                 lits = (oop *)(o_263 + 16);
                                 fp = s_53 + CTX_FIXED;
                                 o_264 = s_53[CTX_STACKP];
@@ -6888,19 +7832,31 @@ op_make_array:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_269 = s_55[CTX_RECEIVER];
             v_196 = ({
-    p_35 = o_269;
-    while (((p_35 & 7) == 0) && (((*(uint64_t *)p_35) & H_FORWARDED) != 0)) {
-        p_35 = (*(uint64_t *)(p_35 + 8)) & 18446744073709551609ULL;
+    p_64 = o_269;
+    while (((p_64 & 7) == 0) && (((*(uint64_t *)p_64) & H_FORWARDED) != 0)) {
+        p_64 = (*(uint64_t *)(p_64 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_30 = p_35;
-    r_follow_30; });
+    r_follow_59 = p_64;
+    r_follow_59; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_196;
             if (((v_196 & 7) == 0) && (((uint64_t)(v_196 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_59 = s_55[CTX_METHOD];
-        o_270 = ((oop *)(m_59 + 16))[CM_LITERALS];
+        o_270 = ({
+    l_30 = *(uint64_t *)(m_59 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_30 = ({
+    p_65 = l_30;
+    while (((p_65 & 7) == 0) && (((*(uint64_t *)p_65) & H_FORWARDED) != 0)) {
+        p_65 = (*(uint64_t *)(p_65 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_60 = p_65;
+    r_follow_60; });
+    }
+    r_literals_of_30 = l_30;
+    r_literals_of_30; });
         lits = (oop *)(o_270 + 16);
         fp = s_55 + CTX_FIXED;
         o_271 = s_55[CTX_STACKP];
@@ -7016,8 +7972,8 @@ op_fused_arithmetic_9c:;
         c_9 = (int64_t)a_6 < (int64_t)b_4;
         j_5 = ip[2];
         if ((j_5 == 0x92) || (j_5 == 0x91)) {
-            p_36 = ip + 3;
-            o_278 = *(int16_t *)(uint64_t)p_36;
+            p_66 = ip + 3;
+            o_278 = *(int16_t *)(uint64_t)p_66;
             ip = ip + 5;
             if (c_9 == (j_5 == 0x91)) {
                 ip = ip + o_278;
@@ -7049,19 +8005,31 @@ op_fused_arithmetic_9c:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_280 = s_57[CTX_RECEIVER];
                                 v_202 = ({
-    p_37 = o_280;
-    while (((p_37 & 7) == 0) && (((*(uint64_t *)p_37) & H_FORWARDED) != 0)) {
-        p_37 = (*(uint64_t *)(p_37 + 8)) & 18446744073709551609ULL;
+    p_67 = o_280;
+    while (((p_67 & 7) == 0) && (((*(uint64_t *)p_67) & H_FORWARDED) != 0)) {
+        p_67 = (*(uint64_t *)(p_67 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_31 = p_37;
-    r_follow_31; });
+    r_follow_61 = p_67;
+    r_follow_61; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_202;
                                 if (((v_202 & 7) == 0) && (((uint64_t)(v_202 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_61 = s_57[CTX_METHOD];
-                            o_281 = ((oop *)(m_61 + 16))[CM_LITERALS];
+                            o_281 = ({
+    l_31 = *(uint64_t *)(m_61 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_31 = ({
+    p_68 = l_31;
+    while (((p_68 & 7) == 0) && (((*(uint64_t *)p_68) & H_FORWARDED) != 0)) {
+        p_68 = (*(uint64_t *)(p_68 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_62 = p_68;
+    r_follow_62; });
+    }
+    r_literals_of_31 = l_31;
+    r_literals_of_31; });
                             lits = (oop *)(o_281 + 16);
                             fp = s_57 + CTX_FIXED;
                             o_282 = s_57[CTX_STACKP];
@@ -7106,19 +8074,31 @@ op_fused_arithmetic_9c:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_287 = s_59[CTX_RECEIVER];
                                     v_205 = ({
-    p_38 = o_287;
-    while (((p_38 & 7) == 0) && (((*(uint64_t *)p_38) & H_FORWARDED) != 0)) {
-        p_38 = (*(uint64_t *)(p_38 + 8)) & 18446744073709551609ULL;
+    p_69 = o_287;
+    while (((p_69 & 7) == 0) && (((*(uint64_t *)p_69) & H_FORWARDED) != 0)) {
+        p_69 = (*(uint64_t *)(p_69 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_32 = p_38;
-    r_follow_32; });
+    r_follow_63 = p_69;
+    r_follow_63; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_205;
                                     if (((v_205 & 7) == 0) && (((uint64_t)(v_205 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_63 = s_59[CTX_METHOD];
-                                o_288 = ((oop *)(m_63 + 16))[CM_LITERALS];
+                                o_288 = ({
+    l_32 = *(uint64_t *)(m_63 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_32 = ({
+    p_70 = l_32;
+    while (((p_70 & 7) == 0) && (((*(uint64_t *)p_70) & H_FORWARDED) != 0)) {
+        p_70 = (*(uint64_t *)(p_70 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_64 = p_70;
+    r_follow_64; });
+    }
+    r_literals_of_32 = l_32;
+    r_literals_of_32; });
                                 lits = (oop *)(o_288 + 16);
                                 fp = s_59 + CTX_FIXED;
                                 o_289 = s_59[CTX_STACKP];
@@ -7155,19 +8135,31 @@ op_fused_arithmetic_9c:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_294 = s_61[CTX_RECEIVER];
                                 v_208 = ({
-    p_39 = o_294;
-    while (((p_39 & 7) == 0) && (((*(uint64_t *)p_39) & H_FORWARDED) != 0)) {
-        p_39 = (*(uint64_t *)(p_39 + 8)) & 18446744073709551609ULL;
+    p_71 = o_294;
+    while (((p_71 & 7) == 0) && (((*(uint64_t *)p_71) & H_FORWARDED) != 0)) {
+        p_71 = (*(uint64_t *)(p_71 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_33 = p_39;
-    r_follow_33; });
+    r_follow_65 = p_71;
+    r_follow_65; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_208;
                                 if (((v_208 & 7) == 0) && (((uint64_t)(v_208 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_65 = s_61[CTX_METHOD];
-                            o_295 = ((oop *)(m_65 + 16))[CM_LITERALS];
+                            o_295 = ({
+    l_33 = *(uint64_t *)(m_65 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_33 = ({
+    p_72 = l_33;
+    while (((p_72 & 7) == 0) && (((*(uint64_t *)p_72) & H_FORWARDED) != 0)) {
+        p_72 = (*(uint64_t *)(p_72 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_66 = p_72;
+    r_follow_66; });
+    }
+    r_literals_of_33 = l_33;
+    r_literals_of_33; });
                             lits = (oop *)(o_295 + 16);
                             fp = s_61 + CTX_FIXED;
                             o_296 = s_61[CTX_STACKP];
@@ -7214,8 +8206,8 @@ op_fused_arithmetic_9d:;
         c_10 = (int64_t)a_7 > (int64_t)b_5;
         j_6 = ip[2];
         if ((j_6 == 0x92) || (j_6 == 0x91)) {
-            p_40 = ip + 3;
-            o_301 = *(int16_t *)(uint64_t)p_40;
+            p_73 = ip + 3;
+            o_301 = *(int16_t *)(uint64_t)p_73;
             ip = ip + 5;
             if (c_10 == (j_6 == 0x91)) {
                 ip = ip + o_301;
@@ -7247,19 +8239,31 @@ op_fused_arithmetic_9d:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_303 = s_63[CTX_RECEIVER];
                                 v_212 = ({
-    p_41 = o_303;
-    while (((p_41 & 7) == 0) && (((*(uint64_t *)p_41) & H_FORWARDED) != 0)) {
-        p_41 = (*(uint64_t *)(p_41 + 8)) & 18446744073709551609ULL;
+    p_74 = o_303;
+    while (((p_74 & 7) == 0) && (((*(uint64_t *)p_74) & H_FORWARDED) != 0)) {
+        p_74 = (*(uint64_t *)(p_74 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_34 = p_41;
-    r_follow_34; });
+    r_follow_67 = p_74;
+    r_follow_67; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_212;
                                 if (((v_212 & 7) == 0) && (((uint64_t)(v_212 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_67 = s_63[CTX_METHOD];
-                            o_304 = ((oop *)(m_67 + 16))[CM_LITERALS];
+                            o_304 = ({
+    l_34 = *(uint64_t *)(m_67 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_34 = ({
+    p_75 = l_34;
+    while (((p_75 & 7) == 0) && (((*(uint64_t *)p_75) & H_FORWARDED) != 0)) {
+        p_75 = (*(uint64_t *)(p_75 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_68 = p_75;
+    r_follow_68; });
+    }
+    r_literals_of_34 = l_34;
+    r_literals_of_34; });
                             lits = (oop *)(o_304 + 16);
                             fp = s_63 + CTX_FIXED;
                             o_305 = s_63[CTX_STACKP];
@@ -7304,19 +8308,31 @@ op_fused_arithmetic_9d:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_310 = s_65[CTX_RECEIVER];
                                     v_215 = ({
-    p_42 = o_310;
-    while (((p_42 & 7) == 0) && (((*(uint64_t *)p_42) & H_FORWARDED) != 0)) {
-        p_42 = (*(uint64_t *)(p_42 + 8)) & 18446744073709551609ULL;
+    p_76 = o_310;
+    while (((p_76 & 7) == 0) && (((*(uint64_t *)p_76) & H_FORWARDED) != 0)) {
+        p_76 = (*(uint64_t *)(p_76 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_35 = p_42;
-    r_follow_35; });
+    r_follow_69 = p_76;
+    r_follow_69; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_215;
                                     if (((v_215 & 7) == 0) && (((uint64_t)(v_215 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_69 = s_65[CTX_METHOD];
-                                o_311 = ((oop *)(m_69 + 16))[CM_LITERALS];
+                                o_311 = ({
+    l_35 = *(uint64_t *)(m_69 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_35 = ({
+    p_77 = l_35;
+    while (((p_77 & 7) == 0) && (((*(uint64_t *)p_77) & H_FORWARDED) != 0)) {
+        p_77 = (*(uint64_t *)(p_77 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_70 = p_77;
+    r_follow_70; });
+    }
+    r_literals_of_35 = l_35;
+    r_literals_of_35; });
                                 lits = (oop *)(o_311 + 16);
                                 fp = s_65 + CTX_FIXED;
                                 o_312 = s_65[CTX_STACKP];
@@ -7353,19 +8369,31 @@ op_fused_arithmetic_9d:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_317 = s_67[CTX_RECEIVER];
                                 v_218 = ({
-    p_43 = o_317;
-    while (((p_43 & 7) == 0) && (((*(uint64_t *)p_43) & H_FORWARDED) != 0)) {
-        p_43 = (*(uint64_t *)(p_43 + 8)) & 18446744073709551609ULL;
+    p_78 = o_317;
+    while (((p_78 & 7) == 0) && (((*(uint64_t *)p_78) & H_FORWARDED) != 0)) {
+        p_78 = (*(uint64_t *)(p_78 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_36 = p_43;
-    r_follow_36; });
+    r_follow_71 = p_78;
+    r_follow_71; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_218;
                                 if (((v_218 & 7) == 0) && (((uint64_t)(v_218 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_71 = s_67[CTX_METHOD];
-                            o_318 = ((oop *)(m_71 + 16))[CM_LITERALS];
+                            o_318 = ({
+    l_36 = *(uint64_t *)(m_71 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_36 = ({
+    p_79 = l_36;
+    while (((p_79 & 7) == 0) && (((*(uint64_t *)p_79) & H_FORWARDED) != 0)) {
+        p_79 = (*(uint64_t *)(p_79 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_72 = p_79;
+    r_follow_72; });
+    }
+    r_literals_of_36 = l_36;
+    r_literals_of_36; });
                             lits = (oop *)(o_318 + 16);
                             fp = s_67 + CTX_FIXED;
                             o_319 = s_67[CTX_STACKP];
@@ -7412,8 +8440,8 @@ op_fused_arithmetic_9e:;
         c_11 = (int64_t)a_8 <= (int64_t)b_6;
         j_7 = ip[2];
         if ((j_7 == 0x92) || (j_7 == 0x91)) {
-            p_44 = ip + 3;
-            o_324 = *(int16_t *)(uint64_t)p_44;
+            p_80 = ip + 3;
+            o_324 = *(int16_t *)(uint64_t)p_80;
             ip = ip + 5;
             if (c_11 == (j_7 == 0x91)) {
                 ip = ip + o_324;
@@ -7445,19 +8473,31 @@ op_fused_arithmetic_9e:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_326 = s_69[CTX_RECEIVER];
                                 v_222 = ({
-    p_45 = o_326;
-    while (((p_45 & 7) == 0) && (((*(uint64_t *)p_45) & H_FORWARDED) != 0)) {
-        p_45 = (*(uint64_t *)(p_45 + 8)) & 18446744073709551609ULL;
+    p_81 = o_326;
+    while (((p_81 & 7) == 0) && (((*(uint64_t *)p_81) & H_FORWARDED) != 0)) {
+        p_81 = (*(uint64_t *)(p_81 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_37 = p_45;
-    r_follow_37; });
+    r_follow_73 = p_81;
+    r_follow_73; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_222;
                                 if (((v_222 & 7) == 0) && (((uint64_t)(v_222 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_73 = s_69[CTX_METHOD];
-                            o_327 = ((oop *)(m_73 + 16))[CM_LITERALS];
+                            o_327 = ({
+    l_37 = *(uint64_t *)(m_73 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_37 = ({
+    p_82 = l_37;
+    while (((p_82 & 7) == 0) && (((*(uint64_t *)p_82) & H_FORWARDED) != 0)) {
+        p_82 = (*(uint64_t *)(p_82 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_74 = p_82;
+    r_follow_74; });
+    }
+    r_literals_of_37 = l_37;
+    r_literals_of_37; });
                             lits = (oop *)(o_327 + 16);
                             fp = s_69 + CTX_FIXED;
                             o_328 = s_69[CTX_STACKP];
@@ -7502,19 +8542,31 @@ op_fused_arithmetic_9e:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_333 = s_71[CTX_RECEIVER];
                                     v_225 = ({
-    p_46 = o_333;
-    while (((p_46 & 7) == 0) && (((*(uint64_t *)p_46) & H_FORWARDED) != 0)) {
-        p_46 = (*(uint64_t *)(p_46 + 8)) & 18446744073709551609ULL;
+    p_83 = o_333;
+    while (((p_83 & 7) == 0) && (((*(uint64_t *)p_83) & H_FORWARDED) != 0)) {
+        p_83 = (*(uint64_t *)(p_83 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_38 = p_46;
-    r_follow_38; });
+    r_follow_75 = p_83;
+    r_follow_75; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_225;
                                     if (((v_225 & 7) == 0) && (((uint64_t)(v_225 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_75 = s_71[CTX_METHOD];
-                                o_334 = ((oop *)(m_75 + 16))[CM_LITERALS];
+                                o_334 = ({
+    l_38 = *(uint64_t *)(m_75 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_38 = ({
+    p_84 = l_38;
+    while (((p_84 & 7) == 0) && (((*(uint64_t *)p_84) & H_FORWARDED) != 0)) {
+        p_84 = (*(uint64_t *)(p_84 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_76 = p_84;
+    r_follow_76; });
+    }
+    r_literals_of_38 = l_38;
+    r_literals_of_38; });
                                 lits = (oop *)(o_334 + 16);
                                 fp = s_71 + CTX_FIXED;
                                 o_335 = s_71[CTX_STACKP];
@@ -7551,19 +8603,31 @@ op_fused_arithmetic_9e:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_340 = s_73[CTX_RECEIVER];
                                 v_228 = ({
-    p_47 = o_340;
-    while (((p_47 & 7) == 0) && (((*(uint64_t *)p_47) & H_FORWARDED) != 0)) {
-        p_47 = (*(uint64_t *)(p_47 + 8)) & 18446744073709551609ULL;
+    p_85 = o_340;
+    while (((p_85 & 7) == 0) && (((*(uint64_t *)p_85) & H_FORWARDED) != 0)) {
+        p_85 = (*(uint64_t *)(p_85 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_39 = p_47;
-    r_follow_39; });
+    r_follow_77 = p_85;
+    r_follow_77; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_228;
                                 if (((v_228 & 7) == 0) && (((uint64_t)(v_228 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_77 = s_73[CTX_METHOD];
-                            o_341 = ((oop *)(m_77 + 16))[CM_LITERALS];
+                            o_341 = ({
+    l_39 = *(uint64_t *)(m_77 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_39 = ({
+    p_86 = l_39;
+    while (((p_86 & 7) == 0) && (((*(uint64_t *)p_86) & H_FORWARDED) != 0)) {
+        p_86 = (*(uint64_t *)(p_86 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_78 = p_86;
+    r_follow_78; });
+    }
+    r_literals_of_39 = l_39;
+    r_literals_of_39; });
                             lits = (oop *)(o_341 + 16);
                             fp = s_73 + CTX_FIXED;
                             o_342 = s_73[CTX_STACKP];
@@ -7610,8 +8674,8 @@ op_fused_arithmetic_9f:;
         c_12 = (int64_t)a_9 >= (int64_t)b_7;
         j_8 = ip[2];
         if ((j_8 == 0x92) || (j_8 == 0x91)) {
-            p_48 = ip + 3;
-            o_347 = *(int16_t *)(uint64_t)p_48;
+            p_87 = ip + 3;
+            o_347 = *(int16_t *)(uint64_t)p_87;
             ip = ip + 5;
             if (c_12 == (j_8 == 0x91)) {
                 ip = ip + o_347;
@@ -7643,19 +8707,31 @@ op_fused_arithmetic_9f:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_349 = s_75[CTX_RECEIVER];
                                 v_232 = ({
-    p_49 = o_349;
-    while (((p_49 & 7) == 0) && (((*(uint64_t *)p_49) & H_FORWARDED) != 0)) {
-        p_49 = (*(uint64_t *)(p_49 + 8)) & 18446744073709551609ULL;
+    p_88 = o_349;
+    while (((p_88 & 7) == 0) && (((*(uint64_t *)p_88) & H_FORWARDED) != 0)) {
+        p_88 = (*(uint64_t *)(p_88 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_40 = p_49;
-    r_follow_40; });
+    r_follow_79 = p_88;
+    r_follow_79; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_232;
                                 if (((v_232 & 7) == 0) && (((uint64_t)(v_232 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_79 = s_75[CTX_METHOD];
-                            o_350 = ((oop *)(m_79 + 16))[CM_LITERALS];
+                            o_350 = ({
+    l_40 = *(uint64_t *)(m_79 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_40 = ({
+    p_89 = l_40;
+    while (((p_89 & 7) == 0) && (((*(uint64_t *)p_89) & H_FORWARDED) != 0)) {
+        p_89 = (*(uint64_t *)(p_89 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_80 = p_89;
+    r_follow_80; });
+    }
+    r_literals_of_40 = l_40;
+    r_literals_of_40; });
                             lits = (oop *)(o_350 + 16);
                             fp = s_75 + CTX_FIXED;
                             o_351 = s_75[CTX_STACKP];
@@ -7700,19 +8776,31 @@ op_fused_arithmetic_9f:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_356 = s_77[CTX_RECEIVER];
                                     v_235 = ({
-    p_50 = o_356;
-    while (((p_50 & 7) == 0) && (((*(uint64_t *)p_50) & H_FORWARDED) != 0)) {
-        p_50 = (*(uint64_t *)(p_50 + 8)) & 18446744073709551609ULL;
+    p_90 = o_356;
+    while (((p_90 & 7) == 0) && (((*(uint64_t *)p_90) & H_FORWARDED) != 0)) {
+        p_90 = (*(uint64_t *)(p_90 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_41 = p_50;
-    r_follow_41; });
+    r_follow_81 = p_90;
+    r_follow_81; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_235;
                                     if (((v_235 & 7) == 0) && (((uint64_t)(v_235 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_81 = s_77[CTX_METHOD];
-                                o_357 = ((oop *)(m_81 + 16))[CM_LITERALS];
+                                o_357 = ({
+    l_41 = *(uint64_t *)(m_81 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_41 = ({
+    p_91 = l_41;
+    while (((p_91 & 7) == 0) && (((*(uint64_t *)p_91) & H_FORWARDED) != 0)) {
+        p_91 = (*(uint64_t *)(p_91 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_82 = p_91;
+    r_follow_82; });
+    }
+    r_literals_of_41 = l_41;
+    r_literals_of_41; });
                                 lits = (oop *)(o_357 + 16);
                                 fp = s_77 + CTX_FIXED;
                                 o_358 = s_77[CTX_STACKP];
@@ -7749,19 +8837,31 @@ op_fused_arithmetic_9f:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_363 = s_79[CTX_RECEIVER];
                                 v_238 = ({
-    p_51 = o_363;
-    while (((p_51 & 7) == 0) && (((*(uint64_t *)p_51) & H_FORWARDED) != 0)) {
-        p_51 = (*(uint64_t *)(p_51 + 8)) & 18446744073709551609ULL;
+    p_92 = o_363;
+    while (((p_92 & 7) == 0) && (((*(uint64_t *)p_92) & H_FORWARDED) != 0)) {
+        p_92 = (*(uint64_t *)(p_92 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_42 = p_51;
-    r_follow_42; });
+    r_follow_83 = p_92;
+    r_follow_83; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_238;
                                 if (((v_238 & 7) == 0) && (((uint64_t)(v_238 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_83 = s_79[CTX_METHOD];
-                            o_364 = ((oop *)(m_83 + 16))[CM_LITERALS];
+                            o_364 = ({
+    l_42 = *(uint64_t *)(m_83 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_42 = ({
+    p_93 = l_42;
+    while (((p_93 & 7) == 0) && (((*(uint64_t *)p_93) & H_FORWARDED) != 0)) {
+        p_93 = (*(uint64_t *)(p_93 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_84 = p_93;
+    r_follow_84; });
+    }
+    r_literals_of_42 = l_42;
+    r_literals_of_42; });
                             lits = (oop *)(o_364 + 16);
                             fp = s_79 + CTX_FIXED;
                             o_365 = s_79[CTX_STACKP];
@@ -7869,8 +8969,8 @@ op_fused_arithmetic_f2:;
         c_15 = (int64_t)a_12 < (int64_t)b_10;
         j_9 = ip[2];
         if ((j_9 == 0x92) || (j_9 == 0x91)) {
-            p_52 = ip + 3;
-            o_372 = *(int16_t *)(uint64_t)p_52;
+            p_94 = ip + 3;
+            o_372 = *(int16_t *)(uint64_t)p_94;
             ip = ip + 5;
             if (c_15 == (j_9 == 0x91)) {
                 ip = ip + o_372;
@@ -7902,19 +9002,31 @@ op_fused_arithmetic_f2:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_374 = s_81[CTX_RECEIVER];
                                 v_244 = ({
-    p_53 = o_374;
-    while (((p_53 & 7) == 0) && (((*(uint64_t *)p_53) & H_FORWARDED) != 0)) {
-        p_53 = (*(uint64_t *)(p_53 + 8)) & 18446744073709551609ULL;
+    p_95 = o_374;
+    while (((p_95 & 7) == 0) && (((*(uint64_t *)p_95) & H_FORWARDED) != 0)) {
+        p_95 = (*(uint64_t *)(p_95 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_43 = p_53;
-    r_follow_43; });
+    r_follow_85 = p_95;
+    r_follow_85; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_244;
                                 if (((v_244 & 7) == 0) && (((uint64_t)(v_244 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_85 = s_81[CTX_METHOD];
-                            o_375 = ((oop *)(m_85 + 16))[CM_LITERALS];
+                            o_375 = ({
+    l_43 = *(uint64_t *)(m_85 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_43 = ({
+    p_96 = l_43;
+    while (((p_96 & 7) == 0) && (((*(uint64_t *)p_96) & H_FORWARDED) != 0)) {
+        p_96 = (*(uint64_t *)(p_96 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_86 = p_96;
+    r_follow_86; });
+    }
+    r_literals_of_43 = l_43;
+    r_literals_of_43; });
                             lits = (oop *)(o_375 + 16);
                             fp = s_81 + CTX_FIXED;
                             o_376 = s_81[CTX_STACKP];
@@ -7959,19 +9071,31 @@ op_fused_arithmetic_f2:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_381 = s_83[CTX_RECEIVER];
                                     v_247 = ({
-    p_54 = o_381;
-    while (((p_54 & 7) == 0) && (((*(uint64_t *)p_54) & H_FORWARDED) != 0)) {
-        p_54 = (*(uint64_t *)(p_54 + 8)) & 18446744073709551609ULL;
+    p_97 = o_381;
+    while (((p_97 & 7) == 0) && (((*(uint64_t *)p_97) & H_FORWARDED) != 0)) {
+        p_97 = (*(uint64_t *)(p_97 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_44 = p_54;
-    r_follow_44; });
+    r_follow_87 = p_97;
+    r_follow_87; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_247;
                                     if (((v_247 & 7) == 0) && (((uint64_t)(v_247 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_87 = s_83[CTX_METHOD];
-                                o_382 = ((oop *)(m_87 + 16))[CM_LITERALS];
+                                o_382 = ({
+    l_44 = *(uint64_t *)(m_87 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_44 = ({
+    p_98 = l_44;
+    while (((p_98 & 7) == 0) && (((*(uint64_t *)p_98) & H_FORWARDED) != 0)) {
+        p_98 = (*(uint64_t *)(p_98 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_88 = p_98;
+    r_follow_88; });
+    }
+    r_literals_of_44 = l_44;
+    r_literals_of_44; });
                                 lits = (oop *)(o_382 + 16);
                                 fp = s_83 + CTX_FIXED;
                                 o_383 = s_83[CTX_STACKP];
@@ -8008,19 +9132,31 @@ op_fused_arithmetic_f2:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_388 = s_85[CTX_RECEIVER];
                                 v_250 = ({
-    p_55 = o_388;
-    while (((p_55 & 7) == 0) && (((*(uint64_t *)p_55) & H_FORWARDED) != 0)) {
-        p_55 = (*(uint64_t *)(p_55 + 8)) & 18446744073709551609ULL;
+    p_99 = o_388;
+    while (((p_99 & 7) == 0) && (((*(uint64_t *)p_99) & H_FORWARDED) != 0)) {
+        p_99 = (*(uint64_t *)(p_99 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_45 = p_55;
-    r_follow_45; });
+    r_follow_89 = p_99;
+    r_follow_89; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_250;
                                 if (((v_250 & 7) == 0) && (((uint64_t)(v_250 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_89 = s_85[CTX_METHOD];
-                            o_389 = ((oop *)(m_89 + 16))[CM_LITERALS];
+                            o_389 = ({
+    l_45 = *(uint64_t *)(m_89 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_45 = ({
+    p_100 = l_45;
+    while (((p_100 & 7) == 0) && (((*(uint64_t *)p_100) & H_FORWARDED) != 0)) {
+        p_100 = (*(uint64_t *)(p_100 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_90 = p_100;
+    r_follow_90; });
+    }
+    r_literals_of_45 = l_45;
+    r_literals_of_45; });
                             lits = (oop *)(o_389 + 16);
                             fp = s_85 + CTX_FIXED;
                             o_390 = s_85[CTX_STACKP];
@@ -8067,8 +9203,8 @@ op_fused_arithmetic_f3:;
         c_16 = (int64_t)a_13 > (int64_t)b_11;
         j_10 = ip[2];
         if ((j_10 == 0x92) || (j_10 == 0x91)) {
-            p_56 = ip + 3;
-            o_395 = *(int16_t *)(uint64_t)p_56;
+            p_101 = ip + 3;
+            o_395 = *(int16_t *)(uint64_t)p_101;
             ip = ip + 5;
             if (c_16 == (j_10 == 0x91)) {
                 ip = ip + o_395;
@@ -8100,19 +9236,31 @@ op_fused_arithmetic_f3:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_397 = s_87[CTX_RECEIVER];
                                 v_254 = ({
-    p_57 = o_397;
-    while (((p_57 & 7) == 0) && (((*(uint64_t *)p_57) & H_FORWARDED) != 0)) {
-        p_57 = (*(uint64_t *)(p_57 + 8)) & 18446744073709551609ULL;
+    p_102 = o_397;
+    while (((p_102 & 7) == 0) && (((*(uint64_t *)p_102) & H_FORWARDED) != 0)) {
+        p_102 = (*(uint64_t *)(p_102 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_46 = p_57;
-    r_follow_46; });
+    r_follow_91 = p_102;
+    r_follow_91; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_254;
                                 if (((v_254 & 7) == 0) && (((uint64_t)(v_254 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_91 = s_87[CTX_METHOD];
-                            o_398 = ((oop *)(m_91 + 16))[CM_LITERALS];
+                            o_398 = ({
+    l_46 = *(uint64_t *)(m_91 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_46 = ({
+    p_103 = l_46;
+    while (((p_103 & 7) == 0) && (((*(uint64_t *)p_103) & H_FORWARDED) != 0)) {
+        p_103 = (*(uint64_t *)(p_103 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_92 = p_103;
+    r_follow_92; });
+    }
+    r_literals_of_46 = l_46;
+    r_literals_of_46; });
                             lits = (oop *)(o_398 + 16);
                             fp = s_87 + CTX_FIXED;
                             o_399 = s_87[CTX_STACKP];
@@ -8157,19 +9305,31 @@ op_fused_arithmetic_f3:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_404 = s_89[CTX_RECEIVER];
                                     v_257 = ({
-    p_58 = o_404;
-    while (((p_58 & 7) == 0) && (((*(uint64_t *)p_58) & H_FORWARDED) != 0)) {
-        p_58 = (*(uint64_t *)(p_58 + 8)) & 18446744073709551609ULL;
+    p_104 = o_404;
+    while (((p_104 & 7) == 0) && (((*(uint64_t *)p_104) & H_FORWARDED) != 0)) {
+        p_104 = (*(uint64_t *)(p_104 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_47 = p_58;
-    r_follow_47; });
+    r_follow_93 = p_104;
+    r_follow_93; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_257;
                                     if (((v_257 & 7) == 0) && (((uint64_t)(v_257 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_93 = s_89[CTX_METHOD];
-                                o_405 = ((oop *)(m_93 + 16))[CM_LITERALS];
+                                o_405 = ({
+    l_47 = *(uint64_t *)(m_93 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_47 = ({
+    p_105 = l_47;
+    while (((p_105 & 7) == 0) && (((*(uint64_t *)p_105) & H_FORWARDED) != 0)) {
+        p_105 = (*(uint64_t *)(p_105 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_94 = p_105;
+    r_follow_94; });
+    }
+    r_literals_of_47 = l_47;
+    r_literals_of_47; });
                                 lits = (oop *)(o_405 + 16);
                                 fp = s_89 + CTX_FIXED;
                                 o_406 = s_89[CTX_STACKP];
@@ -8206,19 +9366,31 @@ op_fused_arithmetic_f3:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_411 = s_91[CTX_RECEIVER];
                                 v_260 = ({
-    p_59 = o_411;
-    while (((p_59 & 7) == 0) && (((*(uint64_t *)p_59) & H_FORWARDED) != 0)) {
-        p_59 = (*(uint64_t *)(p_59 + 8)) & 18446744073709551609ULL;
+    p_106 = o_411;
+    while (((p_106 & 7) == 0) && (((*(uint64_t *)p_106) & H_FORWARDED) != 0)) {
+        p_106 = (*(uint64_t *)(p_106 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_48 = p_59;
-    r_follow_48; });
+    r_follow_95 = p_106;
+    r_follow_95; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_260;
                                 if (((v_260 & 7) == 0) && (((uint64_t)(v_260 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_95 = s_91[CTX_METHOD];
-                            o_412 = ((oop *)(m_95 + 16))[CM_LITERALS];
+                            o_412 = ({
+    l_48 = *(uint64_t *)(m_95 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_48 = ({
+    p_107 = l_48;
+    while (((p_107 & 7) == 0) && (((*(uint64_t *)p_107) & H_FORWARDED) != 0)) {
+        p_107 = (*(uint64_t *)(p_107 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_96 = p_107;
+    r_follow_96; });
+    }
+    r_literals_of_48 = l_48;
+    r_literals_of_48; });
                             lits = (oop *)(o_412 + 16);
                             fp = s_91 + CTX_FIXED;
                             o_413 = s_91[CTX_STACKP];
@@ -8265,8 +9437,8 @@ op_fused_arithmetic_f4:;
         c_17 = (int64_t)a_14 <= (int64_t)b_12;
         j_11 = ip[2];
         if ((j_11 == 0x92) || (j_11 == 0x91)) {
-            p_60 = ip + 3;
-            o_418 = *(int16_t *)(uint64_t)p_60;
+            p_108 = ip + 3;
+            o_418 = *(int16_t *)(uint64_t)p_108;
             ip = ip + 5;
             if (c_17 == (j_11 == 0x91)) {
                 ip = ip + o_418;
@@ -8298,19 +9470,31 @@ op_fused_arithmetic_f4:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_420 = s_93[CTX_RECEIVER];
                                 v_264 = ({
-    p_61 = o_420;
-    while (((p_61 & 7) == 0) && (((*(uint64_t *)p_61) & H_FORWARDED) != 0)) {
-        p_61 = (*(uint64_t *)(p_61 + 8)) & 18446744073709551609ULL;
+    p_109 = o_420;
+    while (((p_109 & 7) == 0) && (((*(uint64_t *)p_109) & H_FORWARDED) != 0)) {
+        p_109 = (*(uint64_t *)(p_109 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_49 = p_61;
-    r_follow_49; });
+    r_follow_97 = p_109;
+    r_follow_97; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_264;
                                 if (((v_264 & 7) == 0) && (((uint64_t)(v_264 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_97 = s_93[CTX_METHOD];
-                            o_421 = ((oop *)(m_97 + 16))[CM_LITERALS];
+                            o_421 = ({
+    l_49 = *(uint64_t *)(m_97 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_49 = ({
+    p_110 = l_49;
+    while (((p_110 & 7) == 0) && (((*(uint64_t *)p_110) & H_FORWARDED) != 0)) {
+        p_110 = (*(uint64_t *)(p_110 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_98 = p_110;
+    r_follow_98; });
+    }
+    r_literals_of_49 = l_49;
+    r_literals_of_49; });
                             lits = (oop *)(o_421 + 16);
                             fp = s_93 + CTX_FIXED;
                             o_422 = s_93[CTX_STACKP];
@@ -8355,19 +9539,31 @@ op_fused_arithmetic_f4:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_427 = s_95[CTX_RECEIVER];
                                     v_267 = ({
-    p_62 = o_427;
-    while (((p_62 & 7) == 0) && (((*(uint64_t *)p_62) & H_FORWARDED) != 0)) {
-        p_62 = (*(uint64_t *)(p_62 + 8)) & 18446744073709551609ULL;
+    p_111 = o_427;
+    while (((p_111 & 7) == 0) && (((*(uint64_t *)p_111) & H_FORWARDED) != 0)) {
+        p_111 = (*(uint64_t *)(p_111 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_50 = p_62;
-    r_follow_50; });
+    r_follow_99 = p_111;
+    r_follow_99; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_267;
                                     if (((v_267 & 7) == 0) && (((uint64_t)(v_267 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_99 = s_95[CTX_METHOD];
-                                o_428 = ((oop *)(m_99 + 16))[CM_LITERALS];
+                                o_428 = ({
+    l_50 = *(uint64_t *)(m_99 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_50 = ({
+    p_112 = l_50;
+    while (((p_112 & 7) == 0) && (((*(uint64_t *)p_112) & H_FORWARDED) != 0)) {
+        p_112 = (*(uint64_t *)(p_112 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_100 = p_112;
+    r_follow_100; });
+    }
+    r_literals_of_50 = l_50;
+    r_literals_of_50; });
                                 lits = (oop *)(o_428 + 16);
                                 fp = s_95 + CTX_FIXED;
                                 o_429 = s_95[CTX_STACKP];
@@ -8404,19 +9600,31 @@ op_fused_arithmetic_f4:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_434 = s_97[CTX_RECEIVER];
                                 v_270 = ({
-    p_63 = o_434;
-    while (((p_63 & 7) == 0) && (((*(uint64_t *)p_63) & H_FORWARDED) != 0)) {
-        p_63 = (*(uint64_t *)(p_63 + 8)) & 18446744073709551609ULL;
+    p_113 = o_434;
+    while (((p_113 & 7) == 0) && (((*(uint64_t *)p_113) & H_FORWARDED) != 0)) {
+        p_113 = (*(uint64_t *)(p_113 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_51 = p_63;
-    r_follow_51; });
+    r_follow_101 = p_113;
+    r_follow_101; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_270;
                                 if (((v_270 & 7) == 0) && (((uint64_t)(v_270 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_101 = s_97[CTX_METHOD];
-                            o_435 = ((oop *)(m_101 + 16))[CM_LITERALS];
+                            o_435 = ({
+    l_51 = *(uint64_t *)(m_101 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_51 = ({
+    p_114 = l_51;
+    while (((p_114 & 7) == 0) && (((*(uint64_t *)p_114) & H_FORWARDED) != 0)) {
+        p_114 = (*(uint64_t *)(p_114 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_102 = p_114;
+    r_follow_102; });
+    }
+    r_literals_of_51 = l_51;
+    r_literals_of_51; });
                             lits = (oop *)(o_435 + 16);
                             fp = s_97 + CTX_FIXED;
                             o_436 = s_97[CTX_STACKP];
@@ -8463,8 +9671,8 @@ op_fused_arithmetic_f5:;
         c_18 = (int64_t)a_15 >= (int64_t)b_13;
         j_12 = ip[2];
         if ((j_12 == 0x92) || (j_12 == 0x91)) {
-            p_64 = ip + 3;
-            o_441 = *(int16_t *)(uint64_t)p_64;
+            p_115 = ip + 3;
+            o_441 = *(int16_t *)(uint64_t)p_115;
             ip = ip + 5;
             if (c_18 == (j_12 == 0x91)) {
                 ip = ip + o_441;
@@ -8496,19 +9704,31 @@ op_fused_arithmetic_f5:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_443 = s_99[CTX_RECEIVER];
                                 v_274 = ({
-    p_65 = o_443;
-    while (((p_65 & 7) == 0) && (((*(uint64_t *)p_65) & H_FORWARDED) != 0)) {
-        p_65 = (*(uint64_t *)(p_65 + 8)) & 18446744073709551609ULL;
+    p_116 = o_443;
+    while (((p_116 & 7) == 0) && (((*(uint64_t *)p_116) & H_FORWARDED) != 0)) {
+        p_116 = (*(uint64_t *)(p_116 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_52 = p_65;
-    r_follow_52; });
+    r_follow_103 = p_116;
+    r_follow_103; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_274;
                                 if (((v_274 & 7) == 0) && (((uint64_t)(v_274 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_103 = s_99[CTX_METHOD];
-                            o_444 = ((oop *)(m_103 + 16))[CM_LITERALS];
+                            o_444 = ({
+    l_52 = *(uint64_t *)(m_103 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_52 = ({
+    p_117 = l_52;
+    while (((p_117 & 7) == 0) && (((*(uint64_t *)p_117) & H_FORWARDED) != 0)) {
+        p_117 = (*(uint64_t *)(p_117 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_104 = p_117;
+    r_follow_104; });
+    }
+    r_literals_of_52 = l_52;
+    r_literals_of_52; });
                             lits = (oop *)(o_444 + 16);
                             fp = s_99 + CTX_FIXED;
                             o_445 = s_99[CTX_STACKP];
@@ -8553,19 +9773,31 @@ op_fused_arithmetic_f5:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_450 = s_101[CTX_RECEIVER];
                                     v_277 = ({
-    p_66 = o_450;
-    while (((p_66 & 7) == 0) && (((*(uint64_t *)p_66) & H_FORWARDED) != 0)) {
-        p_66 = (*(uint64_t *)(p_66 + 8)) & 18446744073709551609ULL;
+    p_118 = o_450;
+    while (((p_118 & 7) == 0) && (((*(uint64_t *)p_118) & H_FORWARDED) != 0)) {
+        p_118 = (*(uint64_t *)(p_118 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_53 = p_66;
-    r_follow_53; });
+    r_follow_105 = p_118;
+    r_follow_105; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_277;
                                     if (((v_277 & 7) == 0) && (((uint64_t)(v_277 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_105 = s_101[CTX_METHOD];
-                                o_451 = ((oop *)(m_105 + 16))[CM_LITERALS];
+                                o_451 = ({
+    l_53 = *(uint64_t *)(m_105 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_53 = ({
+    p_119 = l_53;
+    while (((p_119 & 7) == 0) && (((*(uint64_t *)p_119) & H_FORWARDED) != 0)) {
+        p_119 = (*(uint64_t *)(p_119 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_106 = p_119;
+    r_follow_106; });
+    }
+    r_literals_of_53 = l_53;
+    r_literals_of_53; });
                                 lits = (oop *)(o_451 + 16);
                                 fp = s_101 + CTX_FIXED;
                                 o_452 = s_101[CTX_STACKP];
@@ -8602,19 +9834,31 @@ op_fused_arithmetic_f5:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_457 = s_103[CTX_RECEIVER];
                                 v_280 = ({
-    p_67 = o_457;
-    while (((p_67 & 7) == 0) && (((*(uint64_t *)p_67) & H_FORWARDED) != 0)) {
-        p_67 = (*(uint64_t *)(p_67 + 8)) & 18446744073709551609ULL;
+    p_120 = o_457;
+    while (((p_120 & 7) == 0) && (((*(uint64_t *)p_120) & H_FORWARDED) != 0)) {
+        p_120 = (*(uint64_t *)(p_120 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_54 = p_67;
-    r_follow_54; });
+    r_follow_107 = p_120;
+    r_follow_107; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_280;
                                 if (((v_280 & 7) == 0) && (((uint64_t)(v_280 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_107 = s_103[CTX_METHOD];
-                            o_458 = ((oop *)(m_107 + 16))[CM_LITERALS];
+                            o_458 = ({
+    l_54 = *(uint64_t *)(m_107 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_54 = ({
+    p_121 = l_54;
+    while (((p_121 & 7) == 0) && (((*(uint64_t *)p_121) & H_FORWARDED) != 0)) {
+        p_121 = (*(uint64_t *)(p_121 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_108 = p_121;
+    r_follow_108; });
+    }
+    r_literals_of_54 = l_54;
+    r_literals_of_54; });
                             lits = (oop *)(o_458 + 16);
                             fp = s_103 + CTX_FIXED;
                             o_459 = s_103[CTX_STACKP];
@@ -8728,8 +9972,8 @@ op_fused_arithmetic_f8:;
         c_21 = (int64_t)a_18 < (int64_t)b_16;
         j_13 = ip[2];
         if ((j_13 == 0x92) || (j_13 == 0x91)) {
-            p_68 = ip + 3;
-            o_466 = *(int16_t *)(uint64_t)p_68;
+            p_122 = ip + 3;
+            o_466 = *(int16_t *)(uint64_t)p_122;
             ip = ip + 5;
             if (c_21 == (j_13 == 0x91)) {
                 ip = ip + o_466;
@@ -8761,19 +10005,31 @@ op_fused_arithmetic_f8:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_468 = s_105[CTX_RECEIVER];
                                 v_289 = ({
-    p_69 = o_468;
-    while (((p_69 & 7) == 0) && (((*(uint64_t *)p_69) & H_FORWARDED) != 0)) {
-        p_69 = (*(uint64_t *)(p_69 + 8)) & 18446744073709551609ULL;
+    p_123 = o_468;
+    while (((p_123 & 7) == 0) && (((*(uint64_t *)p_123) & H_FORWARDED) != 0)) {
+        p_123 = (*(uint64_t *)(p_123 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_55 = p_69;
-    r_follow_55; });
+    r_follow_109 = p_123;
+    r_follow_109; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_289;
                                 if (((v_289 & 7) == 0) && (((uint64_t)(v_289 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_109 = s_105[CTX_METHOD];
-                            o_469 = ((oop *)(m_109 + 16))[CM_LITERALS];
+                            o_469 = ({
+    l_55 = *(uint64_t *)(m_109 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_55 = ({
+    p_124 = l_55;
+    while (((p_124 & 7) == 0) && (((*(uint64_t *)p_124) & H_FORWARDED) != 0)) {
+        p_124 = (*(uint64_t *)(p_124 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_110 = p_124;
+    r_follow_110; });
+    }
+    r_literals_of_55 = l_55;
+    r_literals_of_55; });
                             lits = (oop *)(o_469 + 16);
                             fp = s_105 + CTX_FIXED;
                             o_470 = s_105[CTX_STACKP];
@@ -8818,19 +10074,31 @@ op_fused_arithmetic_f8:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_475 = s_107[CTX_RECEIVER];
                                     v_292 = ({
-    p_70 = o_475;
-    while (((p_70 & 7) == 0) && (((*(uint64_t *)p_70) & H_FORWARDED) != 0)) {
-        p_70 = (*(uint64_t *)(p_70 + 8)) & 18446744073709551609ULL;
+    p_125 = o_475;
+    while (((p_125 & 7) == 0) && (((*(uint64_t *)p_125) & H_FORWARDED) != 0)) {
+        p_125 = (*(uint64_t *)(p_125 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_56 = p_70;
-    r_follow_56; });
+    r_follow_111 = p_125;
+    r_follow_111; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_292;
                                     if (((v_292 & 7) == 0) && (((uint64_t)(v_292 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_111 = s_107[CTX_METHOD];
-                                o_476 = ((oop *)(m_111 + 16))[CM_LITERALS];
+                                o_476 = ({
+    l_56 = *(uint64_t *)(m_111 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_56 = ({
+    p_126 = l_56;
+    while (((p_126 & 7) == 0) && (((*(uint64_t *)p_126) & H_FORWARDED) != 0)) {
+        p_126 = (*(uint64_t *)(p_126 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_112 = p_126;
+    r_follow_112; });
+    }
+    r_literals_of_56 = l_56;
+    r_literals_of_56; });
                                 lits = (oop *)(o_476 + 16);
                                 fp = s_107 + CTX_FIXED;
                                 o_477 = s_107[CTX_STACKP];
@@ -8867,19 +10135,31 @@ op_fused_arithmetic_f8:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_482 = s_109[CTX_RECEIVER];
                                 v_295 = ({
-    p_71 = o_482;
-    while (((p_71 & 7) == 0) && (((*(uint64_t *)p_71) & H_FORWARDED) != 0)) {
-        p_71 = (*(uint64_t *)(p_71 + 8)) & 18446744073709551609ULL;
+    p_127 = o_482;
+    while (((p_127 & 7) == 0) && (((*(uint64_t *)p_127) & H_FORWARDED) != 0)) {
+        p_127 = (*(uint64_t *)(p_127 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_57 = p_71;
-    r_follow_57; });
+    r_follow_113 = p_127;
+    r_follow_113; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_295;
                                 if (((v_295 & 7) == 0) && (((uint64_t)(v_295 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_113 = s_109[CTX_METHOD];
-                            o_483 = ((oop *)(m_113 + 16))[CM_LITERALS];
+                            o_483 = ({
+    l_57 = *(uint64_t *)(m_113 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_57 = ({
+    p_128 = l_57;
+    while (((p_128 & 7) == 0) && (((*(uint64_t *)p_128) & H_FORWARDED) != 0)) {
+        p_128 = (*(uint64_t *)(p_128 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_114 = p_128;
+    r_follow_114; });
+    }
+    r_literals_of_57 = l_57;
+    r_literals_of_57; });
                             lits = (oop *)(o_483 + 16);
                             fp = s_109 + CTX_FIXED;
                             o_484 = s_109[CTX_STACKP];
@@ -8928,8 +10208,8 @@ op_fused_arithmetic_f9:;
         c_22 = (int64_t)a_19 > (int64_t)b_17;
         j_14 = ip[2];
         if ((j_14 == 0x92) || (j_14 == 0x91)) {
-            p_72 = ip + 3;
-            o_489 = *(int16_t *)(uint64_t)p_72;
+            p_129 = ip + 3;
+            o_489 = *(int16_t *)(uint64_t)p_129;
             ip = ip + 5;
             if (c_22 == (j_14 == 0x91)) {
                 ip = ip + o_489;
@@ -8961,19 +10241,31 @@ op_fused_arithmetic_f9:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_491 = s_111[CTX_RECEIVER];
                                 v_300 = ({
-    p_73 = o_491;
-    while (((p_73 & 7) == 0) && (((*(uint64_t *)p_73) & H_FORWARDED) != 0)) {
-        p_73 = (*(uint64_t *)(p_73 + 8)) & 18446744073709551609ULL;
+    p_130 = o_491;
+    while (((p_130 & 7) == 0) && (((*(uint64_t *)p_130) & H_FORWARDED) != 0)) {
+        p_130 = (*(uint64_t *)(p_130 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_58 = p_73;
-    r_follow_58; });
+    r_follow_115 = p_130;
+    r_follow_115; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_300;
                                 if (((v_300 & 7) == 0) && (((uint64_t)(v_300 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_115 = s_111[CTX_METHOD];
-                            o_492 = ((oop *)(m_115 + 16))[CM_LITERALS];
+                            o_492 = ({
+    l_58 = *(uint64_t *)(m_115 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_58 = ({
+    p_131 = l_58;
+    while (((p_131 & 7) == 0) && (((*(uint64_t *)p_131) & H_FORWARDED) != 0)) {
+        p_131 = (*(uint64_t *)(p_131 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_116 = p_131;
+    r_follow_116; });
+    }
+    r_literals_of_58 = l_58;
+    r_literals_of_58; });
                             lits = (oop *)(o_492 + 16);
                             fp = s_111 + CTX_FIXED;
                             o_493 = s_111[CTX_STACKP];
@@ -9018,19 +10310,31 @@ op_fused_arithmetic_f9:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_498 = s_113[CTX_RECEIVER];
                                     v_303 = ({
-    p_74 = o_498;
-    while (((p_74 & 7) == 0) && (((*(uint64_t *)p_74) & H_FORWARDED) != 0)) {
-        p_74 = (*(uint64_t *)(p_74 + 8)) & 18446744073709551609ULL;
+    p_132 = o_498;
+    while (((p_132 & 7) == 0) && (((*(uint64_t *)p_132) & H_FORWARDED) != 0)) {
+        p_132 = (*(uint64_t *)(p_132 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_59 = p_74;
-    r_follow_59; });
+    r_follow_117 = p_132;
+    r_follow_117; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_303;
                                     if (((v_303 & 7) == 0) && (((uint64_t)(v_303 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_117 = s_113[CTX_METHOD];
-                                o_499 = ((oop *)(m_117 + 16))[CM_LITERALS];
+                                o_499 = ({
+    l_59 = *(uint64_t *)(m_117 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_59 = ({
+    p_133 = l_59;
+    while (((p_133 & 7) == 0) && (((*(uint64_t *)p_133) & H_FORWARDED) != 0)) {
+        p_133 = (*(uint64_t *)(p_133 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_118 = p_133;
+    r_follow_118; });
+    }
+    r_literals_of_59 = l_59;
+    r_literals_of_59; });
                                 lits = (oop *)(o_499 + 16);
                                 fp = s_113 + CTX_FIXED;
                                 o_500 = s_113[CTX_STACKP];
@@ -9067,19 +10371,31 @@ op_fused_arithmetic_f9:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_505 = s_115[CTX_RECEIVER];
                                 v_306 = ({
-    p_75 = o_505;
-    while (((p_75 & 7) == 0) && (((*(uint64_t *)p_75) & H_FORWARDED) != 0)) {
-        p_75 = (*(uint64_t *)(p_75 + 8)) & 18446744073709551609ULL;
+    p_134 = o_505;
+    while (((p_134 & 7) == 0) && (((*(uint64_t *)p_134) & H_FORWARDED) != 0)) {
+        p_134 = (*(uint64_t *)(p_134 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_60 = p_75;
-    r_follow_60; });
+    r_follow_119 = p_134;
+    r_follow_119; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_306;
                                 if (((v_306 & 7) == 0) && (((uint64_t)(v_306 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_119 = s_115[CTX_METHOD];
-                            o_506 = ((oop *)(m_119 + 16))[CM_LITERALS];
+                            o_506 = ({
+    l_60 = *(uint64_t *)(m_119 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_60 = ({
+    p_135 = l_60;
+    while (((p_135 & 7) == 0) && (((*(uint64_t *)p_135) & H_FORWARDED) != 0)) {
+        p_135 = (*(uint64_t *)(p_135 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_120 = p_135;
+    r_follow_120; });
+    }
+    r_literals_of_60 = l_60;
+    r_literals_of_60; });
                             lits = (oop *)(o_506 + 16);
                             fp = s_115 + CTX_FIXED;
                             o_507 = s_115[CTX_STACKP];
@@ -9128,8 +10444,8 @@ op_fused_arithmetic_fa:;
         c_23 = (int64_t)a_20 <= (int64_t)b_18;
         j_15 = ip[2];
         if ((j_15 == 0x92) || (j_15 == 0x91)) {
-            p_76 = ip + 3;
-            o_512 = *(int16_t *)(uint64_t)p_76;
+            p_136 = ip + 3;
+            o_512 = *(int16_t *)(uint64_t)p_136;
             ip = ip + 5;
             if (c_23 == (j_15 == 0x91)) {
                 ip = ip + o_512;
@@ -9161,19 +10477,31 @@ op_fused_arithmetic_fa:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_514 = s_117[CTX_RECEIVER];
                                 v_311 = ({
-    p_77 = o_514;
-    while (((p_77 & 7) == 0) && (((*(uint64_t *)p_77) & H_FORWARDED) != 0)) {
-        p_77 = (*(uint64_t *)(p_77 + 8)) & 18446744073709551609ULL;
+    p_137 = o_514;
+    while (((p_137 & 7) == 0) && (((*(uint64_t *)p_137) & H_FORWARDED) != 0)) {
+        p_137 = (*(uint64_t *)(p_137 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_61 = p_77;
-    r_follow_61; });
+    r_follow_121 = p_137;
+    r_follow_121; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_311;
                                 if (((v_311 & 7) == 0) && (((uint64_t)(v_311 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_121 = s_117[CTX_METHOD];
-                            o_515 = ((oop *)(m_121 + 16))[CM_LITERALS];
+                            o_515 = ({
+    l_61 = *(uint64_t *)(m_121 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_61 = ({
+    p_138 = l_61;
+    while (((p_138 & 7) == 0) && (((*(uint64_t *)p_138) & H_FORWARDED) != 0)) {
+        p_138 = (*(uint64_t *)(p_138 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_122 = p_138;
+    r_follow_122; });
+    }
+    r_literals_of_61 = l_61;
+    r_literals_of_61; });
                             lits = (oop *)(o_515 + 16);
                             fp = s_117 + CTX_FIXED;
                             o_516 = s_117[CTX_STACKP];
@@ -9218,19 +10546,31 @@ op_fused_arithmetic_fa:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_521 = s_119[CTX_RECEIVER];
                                     v_314 = ({
-    p_78 = o_521;
-    while (((p_78 & 7) == 0) && (((*(uint64_t *)p_78) & H_FORWARDED) != 0)) {
-        p_78 = (*(uint64_t *)(p_78 + 8)) & 18446744073709551609ULL;
+    p_139 = o_521;
+    while (((p_139 & 7) == 0) && (((*(uint64_t *)p_139) & H_FORWARDED) != 0)) {
+        p_139 = (*(uint64_t *)(p_139 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_62 = p_78;
-    r_follow_62; });
+    r_follow_123 = p_139;
+    r_follow_123; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_314;
                                     if (((v_314 & 7) == 0) && (((uint64_t)(v_314 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_123 = s_119[CTX_METHOD];
-                                o_522 = ((oop *)(m_123 + 16))[CM_LITERALS];
+                                o_522 = ({
+    l_62 = *(uint64_t *)(m_123 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_62 = ({
+    p_140 = l_62;
+    while (((p_140 & 7) == 0) && (((*(uint64_t *)p_140) & H_FORWARDED) != 0)) {
+        p_140 = (*(uint64_t *)(p_140 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_124 = p_140;
+    r_follow_124; });
+    }
+    r_literals_of_62 = l_62;
+    r_literals_of_62; });
                                 lits = (oop *)(o_522 + 16);
                                 fp = s_119 + CTX_FIXED;
                                 o_523 = s_119[CTX_STACKP];
@@ -9267,19 +10607,31 @@ op_fused_arithmetic_fa:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_528 = s_121[CTX_RECEIVER];
                                 v_317 = ({
-    p_79 = o_528;
-    while (((p_79 & 7) == 0) && (((*(uint64_t *)p_79) & H_FORWARDED) != 0)) {
-        p_79 = (*(uint64_t *)(p_79 + 8)) & 18446744073709551609ULL;
+    p_141 = o_528;
+    while (((p_141 & 7) == 0) && (((*(uint64_t *)p_141) & H_FORWARDED) != 0)) {
+        p_141 = (*(uint64_t *)(p_141 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_63 = p_79;
-    r_follow_63; });
+    r_follow_125 = p_141;
+    r_follow_125; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_317;
                                 if (((v_317 & 7) == 0) && (((uint64_t)(v_317 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_125 = s_121[CTX_METHOD];
-                            o_529 = ((oop *)(m_125 + 16))[CM_LITERALS];
+                            o_529 = ({
+    l_63 = *(uint64_t *)(m_125 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_63 = ({
+    p_142 = l_63;
+    while (((p_142 & 7) == 0) && (((*(uint64_t *)p_142) & H_FORWARDED) != 0)) {
+        p_142 = (*(uint64_t *)(p_142 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_126 = p_142;
+    r_follow_126; });
+    }
+    r_literals_of_63 = l_63;
+    r_literals_of_63; });
                             lits = (oop *)(o_529 + 16);
                             fp = s_121 + CTX_FIXED;
                             o_530 = s_121[CTX_STACKP];
@@ -9328,8 +10680,8 @@ op_fused_arithmetic_fb:;
         c_24 = (int64_t)a_21 >= (int64_t)b_19;
         j_16 = ip[2];
         if ((j_16 == 0x92) || (j_16 == 0x91)) {
-            p_80 = ip + 3;
-            o_535 = *(int16_t *)(uint64_t)p_80;
+            p_143 = ip + 3;
+            o_535 = *(int16_t *)(uint64_t)p_143;
             ip = ip + 5;
             if (c_24 == (j_16 == 0x91)) {
                 ip = ip + o_535;
@@ -9361,19 +10713,31 @@ op_fused_arithmetic_fb:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_537 = s_123[CTX_RECEIVER];
                                 v_322 = ({
-    p_81 = o_537;
-    while (((p_81 & 7) == 0) && (((*(uint64_t *)p_81) & H_FORWARDED) != 0)) {
-        p_81 = (*(uint64_t *)(p_81 + 8)) & 18446744073709551609ULL;
+    p_144 = o_537;
+    while (((p_144 & 7) == 0) && (((*(uint64_t *)p_144) & H_FORWARDED) != 0)) {
+        p_144 = (*(uint64_t *)(p_144 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_64 = p_81;
-    r_follow_64; });
+    r_follow_127 = p_144;
+    r_follow_127; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_322;
                                 if (((v_322 & 7) == 0) && (((uint64_t)(v_322 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_127 = s_123[CTX_METHOD];
-                            o_538 = ((oop *)(m_127 + 16))[CM_LITERALS];
+                            o_538 = ({
+    l_64 = *(uint64_t *)(m_127 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_64 = ({
+    p_145 = l_64;
+    while (((p_145 & 7) == 0) && (((*(uint64_t *)p_145) & H_FORWARDED) != 0)) {
+        p_145 = (*(uint64_t *)(p_145 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_128 = p_145;
+    r_follow_128; });
+    }
+    r_literals_of_64 = l_64;
+    r_literals_of_64; });
                             lits = (oop *)(o_538 + 16);
                             fp = s_123 + CTX_FIXED;
                             o_539 = s_123[CTX_STACKP];
@@ -9418,19 +10782,31 @@ op_fused_arithmetic_fb:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_544 = s_125[CTX_RECEIVER];
                                     v_325 = ({
-    p_82 = o_544;
-    while (((p_82 & 7) == 0) && (((*(uint64_t *)p_82) & H_FORWARDED) != 0)) {
-        p_82 = (*(uint64_t *)(p_82 + 8)) & 18446744073709551609ULL;
+    p_146 = o_544;
+    while (((p_146 & 7) == 0) && (((*(uint64_t *)p_146) & H_FORWARDED) != 0)) {
+        p_146 = (*(uint64_t *)(p_146 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_65 = p_82;
-    r_follow_65; });
+    r_follow_129 = p_146;
+    r_follow_129; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_325;
                                     if (((v_325 & 7) == 0) && (((uint64_t)(v_325 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_129 = s_125[CTX_METHOD];
-                                o_545 = ((oop *)(m_129 + 16))[CM_LITERALS];
+                                o_545 = ({
+    l_65 = *(uint64_t *)(m_129 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_65 = ({
+    p_147 = l_65;
+    while (((p_147 & 7) == 0) && (((*(uint64_t *)p_147) & H_FORWARDED) != 0)) {
+        p_147 = (*(uint64_t *)(p_147 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_130 = p_147;
+    r_follow_130; });
+    }
+    r_literals_of_65 = l_65;
+    r_literals_of_65; });
                                 lits = (oop *)(o_545 + 16);
                                 fp = s_125 + CTX_FIXED;
                                 o_546 = s_125[CTX_STACKP];
@@ -9467,19 +10843,31 @@ op_fused_arithmetic_fb:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_551 = s_127[CTX_RECEIVER];
                                 v_328 = ({
-    p_83 = o_551;
-    while (((p_83 & 7) == 0) && (((*(uint64_t *)p_83) & H_FORWARDED) != 0)) {
-        p_83 = (*(uint64_t *)(p_83 + 8)) & 18446744073709551609ULL;
+    p_148 = o_551;
+    while (((p_148 & 7) == 0) && (((*(uint64_t *)p_148) & H_FORWARDED) != 0)) {
+        p_148 = (*(uint64_t *)(p_148 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_66 = p_83;
-    r_follow_66; });
+    r_follow_131 = p_148;
+    r_follow_131; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_328;
                                 if (((v_328 & 7) == 0) && (((uint64_t)(v_328 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_131 = s_127[CTX_METHOD];
-                            o_552 = ((oop *)(m_131 + 16))[CM_LITERALS];
+                            o_552 = ({
+    l_66 = *(uint64_t *)(m_131 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_66 = ({
+    p_149 = l_66;
+    while (((p_149 & 7) == 0) && (((*(uint64_t *)p_149) & H_FORWARDED) != 0)) {
+        p_149 = (*(uint64_t *)(p_149 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_132 = p_149;
+    r_follow_132; });
+    }
+    r_literals_of_66 = l_66;
+    r_literals_of_66; });
                             lits = (oop *)(o_552 + 16);
                             fp = s_127 + CTX_FIXED;
                             o_553 = s_127[CTX_STACKP];
@@ -9705,8 +11093,8 @@ op_less_than:;
         c_25 = (int64_t)a_24 < (int64_t)b_28;
         nx_7 = *ip;
         if ((nx_7 == 0x92) || (nx_7 == 0x91)) {
-            p_84 = ip + 1;
-            o_560 = *(int16_t *)(uint64_t)p_84;
+            p_150 = ip + 1;
+            o_560 = *(int16_t *)(uint64_t)p_150;
             sp = sp - 2;
             ip = ip + 3;
             if (c_25 == (nx_7 == 0x91)) {
@@ -9739,19 +11127,31 @@ op_less_than:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_562 = s_129[CTX_RECEIVER];
                                 v_334 = ({
-    p_85 = o_562;
-    while (((p_85 & 7) == 0) && (((*(uint64_t *)p_85) & H_FORWARDED) != 0)) {
-        p_85 = (*(uint64_t *)(p_85 + 8)) & 18446744073709551609ULL;
+    p_151 = o_562;
+    while (((p_151 & 7) == 0) && (((*(uint64_t *)p_151) & H_FORWARDED) != 0)) {
+        p_151 = (*(uint64_t *)(p_151 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_67 = p_85;
-    r_follow_67; });
+    r_follow_133 = p_151;
+    r_follow_133; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_334;
                                 if (((v_334 & 7) == 0) && (((uint64_t)(v_334 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_133 = s_129[CTX_METHOD];
-                            o_563 = ((oop *)(m_133 + 16))[CM_LITERALS];
+                            o_563 = ({
+    l_67 = *(uint64_t *)(m_133 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_67 = ({
+    p_152 = l_67;
+    while (((p_152 & 7) == 0) && (((*(uint64_t *)p_152) & H_FORWARDED) != 0)) {
+        p_152 = (*(uint64_t *)(p_152 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_134 = p_152;
+    r_follow_134; });
+    }
+    r_literals_of_67 = l_67;
+    r_literals_of_67; });
                             lits = (oop *)(o_563 + 16);
                             fp = s_129 + CTX_FIXED;
                             o_564 = s_129[CTX_STACKP];
@@ -9796,19 +11196,31 @@ op_less_than:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_569 = s_131[CTX_RECEIVER];
                                     v_337 = ({
-    p_86 = o_569;
-    while (((p_86 & 7) == 0) && (((*(uint64_t *)p_86) & H_FORWARDED) != 0)) {
-        p_86 = (*(uint64_t *)(p_86 + 8)) & 18446744073709551609ULL;
+    p_153 = o_569;
+    while (((p_153 & 7) == 0) && (((*(uint64_t *)p_153) & H_FORWARDED) != 0)) {
+        p_153 = (*(uint64_t *)(p_153 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_68 = p_86;
-    r_follow_68; });
+    r_follow_135 = p_153;
+    r_follow_135; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_337;
                                     if (((v_337 & 7) == 0) && (((uint64_t)(v_337 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_135 = s_131[CTX_METHOD];
-                                o_570 = ((oop *)(m_135 + 16))[CM_LITERALS];
+                                o_570 = ({
+    l_68 = *(uint64_t *)(m_135 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_68 = ({
+    p_154 = l_68;
+    while (((p_154 & 7) == 0) && (((*(uint64_t *)p_154) & H_FORWARDED) != 0)) {
+        p_154 = (*(uint64_t *)(p_154 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_136 = p_154;
+    r_follow_136; });
+    }
+    r_literals_of_68 = l_68;
+    r_literals_of_68; });
                                 lits = (oop *)(o_570 + 16);
                                 fp = s_131 + CTX_FIXED;
                                 o_571 = s_131[CTX_STACKP];
@@ -9845,19 +11257,31 @@ op_less_than:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_576 = s_133[CTX_RECEIVER];
                                 v_340 = ({
-    p_87 = o_576;
-    while (((p_87 & 7) == 0) && (((*(uint64_t *)p_87) & H_FORWARDED) != 0)) {
-        p_87 = (*(uint64_t *)(p_87 + 8)) & 18446744073709551609ULL;
+    p_155 = o_576;
+    while (((p_155 & 7) == 0) && (((*(uint64_t *)p_155) & H_FORWARDED) != 0)) {
+        p_155 = (*(uint64_t *)(p_155 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_69 = p_87;
-    r_follow_69; });
+    r_follow_137 = p_155;
+    r_follow_137; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_340;
                                 if (((v_340 & 7) == 0) && (((uint64_t)(v_340 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_137 = s_133[CTX_METHOD];
-                            o_577 = ((oop *)(m_137 + 16))[CM_LITERALS];
+                            o_577 = ({
+    l_69 = *(uint64_t *)(m_137 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_69 = ({
+    p_156 = l_69;
+    while (((p_156 & 7) == 0) && (((*(uint64_t *)p_156) & H_FORWARDED) != 0)) {
+        p_156 = (*(uint64_t *)(p_156 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_138 = p_156;
+    r_follow_138; });
+    }
+    r_literals_of_69 = l_69;
+    r_literals_of_69; });
                             lits = (oop *)(o_577 + 16);
                             fp = s_133 + CTX_FIXED;
                             o_578 = s_133[CTX_STACKP];
@@ -9916,8 +11340,8 @@ exit_num_val_6:;
         c_25 = x < y;
         nx_8 = *ip;
         if ((nx_8 == 0x92) || (nx_8 == 0x91)) {
-            p_88 = ip + 1;
-            o_582 = *(int16_t *)(uint64_t)p_88;
+            p_157 = ip + 1;
+            o_582 = *(int16_t *)(uint64_t)p_157;
             sp = sp - 2;
             ip = ip + 3;
             if (c_25 == (nx_8 == 0x91)) {
@@ -9950,19 +11374,31 @@ exit_num_val_6:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_584 = s_135[CTX_RECEIVER];
                                 v_343 = ({
-    p_89 = o_584;
-    while (((p_89 & 7) == 0) && (((*(uint64_t *)p_89) & H_FORWARDED) != 0)) {
-        p_89 = (*(uint64_t *)(p_89 + 8)) & 18446744073709551609ULL;
+    p_158 = o_584;
+    while (((p_158 & 7) == 0) && (((*(uint64_t *)p_158) & H_FORWARDED) != 0)) {
+        p_158 = (*(uint64_t *)(p_158 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_70 = p_89;
-    r_follow_70; });
+    r_follow_139 = p_158;
+    r_follow_139; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_343;
                                 if (((v_343 & 7) == 0) && (((uint64_t)(v_343 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_139 = s_135[CTX_METHOD];
-                            o_585 = ((oop *)(m_139 + 16))[CM_LITERALS];
+                            o_585 = ({
+    l_70 = *(uint64_t *)(m_139 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_70 = ({
+    p_159 = l_70;
+    while (((p_159 & 7) == 0) && (((*(uint64_t *)p_159) & H_FORWARDED) != 0)) {
+        p_159 = (*(uint64_t *)(p_159 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_140 = p_159;
+    r_follow_140; });
+    }
+    r_literals_of_70 = l_70;
+    r_literals_of_70; });
                             lits = (oop *)(o_585 + 16);
                             fp = s_135 + CTX_FIXED;
                             o_586 = s_135[CTX_STACKP];
@@ -10007,19 +11443,31 @@ exit_num_val_6:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_591 = s_137[CTX_RECEIVER];
                                     v_346 = ({
-    p_90 = o_591;
-    while (((p_90 & 7) == 0) && (((*(uint64_t *)p_90) & H_FORWARDED) != 0)) {
-        p_90 = (*(uint64_t *)(p_90 + 8)) & 18446744073709551609ULL;
+    p_160 = o_591;
+    while (((p_160 & 7) == 0) && (((*(uint64_t *)p_160) & H_FORWARDED) != 0)) {
+        p_160 = (*(uint64_t *)(p_160 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_71 = p_90;
-    r_follow_71; });
+    r_follow_141 = p_160;
+    r_follow_141; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_346;
                                     if (((v_346 & 7) == 0) && (((uint64_t)(v_346 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_141 = s_137[CTX_METHOD];
-                                o_592 = ((oop *)(m_141 + 16))[CM_LITERALS];
+                                o_592 = ({
+    l_71 = *(uint64_t *)(m_141 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_71 = ({
+    p_161 = l_71;
+    while (((p_161 & 7) == 0) && (((*(uint64_t *)p_161) & H_FORWARDED) != 0)) {
+        p_161 = (*(uint64_t *)(p_161 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_142 = p_161;
+    r_follow_142; });
+    }
+    r_literals_of_71 = l_71;
+    r_literals_of_71; });
                                 lits = (oop *)(o_592 + 16);
                                 fp = s_137 + CTX_FIXED;
                                 o_593 = s_137[CTX_STACKP];
@@ -10056,19 +11504,31 @@ exit_num_val_6:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_598 = s_139[CTX_RECEIVER];
                                 v_349 = ({
-    p_91 = o_598;
-    while (((p_91 & 7) == 0) && (((*(uint64_t *)p_91) & H_FORWARDED) != 0)) {
-        p_91 = (*(uint64_t *)(p_91 + 8)) & 18446744073709551609ULL;
+    p_162 = o_598;
+    while (((p_162 & 7) == 0) && (((*(uint64_t *)p_162) & H_FORWARDED) != 0)) {
+        p_162 = (*(uint64_t *)(p_162 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_72 = p_91;
-    r_follow_72; });
+    r_follow_143 = p_162;
+    r_follow_143; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_349;
                                 if (((v_349 & 7) == 0) && (((uint64_t)(v_349 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_143 = s_139[CTX_METHOD];
-                            o_599 = ((oop *)(m_143 + 16))[CM_LITERALS];
+                            o_599 = ({
+    l_72 = *(uint64_t *)(m_143 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_72 = ({
+    p_163 = l_72;
+    while (((p_163 & 7) == 0) && (((*(uint64_t *)p_163) & H_FORWARDED) != 0)) {
+        p_163 = (*(uint64_t *)(p_163 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_144 = p_163;
+    r_follow_144; });
+    }
+    r_literals_of_72 = l_72;
+    r_literals_of_72; });
                             lits = (oop *)(o_599 + 16);
                             fp = s_139 + CTX_FIXED;
                             o_600 = s_139[CTX_STACKP];
@@ -10114,8 +11574,8 @@ op_greater_than:;
         c_26 = (int64_t)a_25 > (int64_t)b_31;
         nx_9 = *ip;
         if ((nx_9 == 0x92) || (nx_9 == 0x91)) {
-            p_92 = ip + 1;
-            o_605 = *(int16_t *)(uint64_t)p_92;
+            p_164 = ip + 1;
+            o_605 = *(int16_t *)(uint64_t)p_164;
             sp = sp - 2;
             ip = ip + 3;
             if (c_26 == (nx_9 == 0x91)) {
@@ -10148,19 +11608,31 @@ op_greater_than:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_607 = s_141[CTX_RECEIVER];
                                 v_352 = ({
-    p_93 = o_607;
-    while (((p_93 & 7) == 0) && (((*(uint64_t *)p_93) & H_FORWARDED) != 0)) {
-        p_93 = (*(uint64_t *)(p_93 + 8)) & 18446744073709551609ULL;
+    p_165 = o_607;
+    while (((p_165 & 7) == 0) && (((*(uint64_t *)p_165) & H_FORWARDED) != 0)) {
+        p_165 = (*(uint64_t *)(p_165 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_73 = p_93;
-    r_follow_73; });
+    r_follow_145 = p_165;
+    r_follow_145; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_352;
                                 if (((v_352 & 7) == 0) && (((uint64_t)(v_352 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_145 = s_141[CTX_METHOD];
-                            o_608 = ((oop *)(m_145 + 16))[CM_LITERALS];
+                            o_608 = ({
+    l_73 = *(uint64_t *)(m_145 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_73 = ({
+    p_166 = l_73;
+    while (((p_166 & 7) == 0) && (((*(uint64_t *)p_166) & H_FORWARDED) != 0)) {
+        p_166 = (*(uint64_t *)(p_166 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_146 = p_166;
+    r_follow_146; });
+    }
+    r_literals_of_73 = l_73;
+    r_literals_of_73; });
                             lits = (oop *)(o_608 + 16);
                             fp = s_141 + CTX_FIXED;
                             o_609 = s_141[CTX_STACKP];
@@ -10205,19 +11677,31 @@ op_greater_than:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_614 = s_143[CTX_RECEIVER];
                                     v_355 = ({
-    p_94 = o_614;
-    while (((p_94 & 7) == 0) && (((*(uint64_t *)p_94) & H_FORWARDED) != 0)) {
-        p_94 = (*(uint64_t *)(p_94 + 8)) & 18446744073709551609ULL;
+    p_167 = o_614;
+    while (((p_167 & 7) == 0) && (((*(uint64_t *)p_167) & H_FORWARDED) != 0)) {
+        p_167 = (*(uint64_t *)(p_167 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_74 = p_94;
-    r_follow_74; });
+    r_follow_147 = p_167;
+    r_follow_147; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_355;
                                     if (((v_355 & 7) == 0) && (((uint64_t)(v_355 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_147 = s_143[CTX_METHOD];
-                                o_615 = ((oop *)(m_147 + 16))[CM_LITERALS];
+                                o_615 = ({
+    l_74 = *(uint64_t *)(m_147 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_74 = ({
+    p_168 = l_74;
+    while (((p_168 & 7) == 0) && (((*(uint64_t *)p_168) & H_FORWARDED) != 0)) {
+        p_168 = (*(uint64_t *)(p_168 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_148 = p_168;
+    r_follow_148; });
+    }
+    r_literals_of_74 = l_74;
+    r_literals_of_74; });
                                 lits = (oop *)(o_615 + 16);
                                 fp = s_143 + CTX_FIXED;
                                 o_616 = s_143[CTX_STACKP];
@@ -10254,19 +11738,31 @@ op_greater_than:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_621 = s_145[CTX_RECEIVER];
                                 v_358 = ({
-    p_95 = o_621;
-    while (((p_95 & 7) == 0) && (((*(uint64_t *)p_95) & H_FORWARDED) != 0)) {
-        p_95 = (*(uint64_t *)(p_95 + 8)) & 18446744073709551609ULL;
+    p_169 = o_621;
+    while (((p_169 & 7) == 0) && (((*(uint64_t *)p_169) & H_FORWARDED) != 0)) {
+        p_169 = (*(uint64_t *)(p_169 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_75 = p_95;
-    r_follow_75; });
+    r_follow_149 = p_169;
+    r_follow_149; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_358;
                                 if (((v_358 & 7) == 0) && (((uint64_t)(v_358 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_149 = s_145[CTX_METHOD];
-                            o_622 = ((oop *)(m_149 + 16))[CM_LITERALS];
+                            o_622 = ({
+    l_75 = *(uint64_t *)(m_149 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_75 = ({
+    p_170 = l_75;
+    while (((p_170 & 7) == 0) && (((*(uint64_t *)p_170) & H_FORWARDED) != 0)) {
+        p_170 = (*(uint64_t *)(p_170 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_150 = p_170;
+    r_follow_150; });
+    }
+    r_literals_of_75 = l_75;
+    r_literals_of_75; });
                             lits = (oop *)(o_622 + 16);
                             fp = s_145 + CTX_FIXED;
                             o_623 = s_145[CTX_STACKP];
@@ -10325,8 +11821,8 @@ exit_num_val_8:;
         c_26 = x_2 > y_2;
         nx_10 = *ip;
         if ((nx_10 == 0x92) || (nx_10 == 0x91)) {
-            p_96 = ip + 1;
-            o_627 = *(int16_t *)(uint64_t)p_96;
+            p_171 = ip + 1;
+            o_627 = *(int16_t *)(uint64_t)p_171;
             sp = sp - 2;
             ip = ip + 3;
             if (c_26 == (nx_10 == 0x91)) {
@@ -10359,19 +11855,31 @@ exit_num_val_8:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_629 = s_147[CTX_RECEIVER];
                                 v_361 = ({
-    p_97 = o_629;
-    while (((p_97 & 7) == 0) && (((*(uint64_t *)p_97) & H_FORWARDED) != 0)) {
-        p_97 = (*(uint64_t *)(p_97 + 8)) & 18446744073709551609ULL;
+    p_172 = o_629;
+    while (((p_172 & 7) == 0) && (((*(uint64_t *)p_172) & H_FORWARDED) != 0)) {
+        p_172 = (*(uint64_t *)(p_172 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_76 = p_97;
-    r_follow_76; });
+    r_follow_151 = p_172;
+    r_follow_151; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_361;
                                 if (((v_361 & 7) == 0) && (((uint64_t)(v_361 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_151 = s_147[CTX_METHOD];
-                            o_630 = ((oop *)(m_151 + 16))[CM_LITERALS];
+                            o_630 = ({
+    l_76 = *(uint64_t *)(m_151 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_76 = ({
+    p_173 = l_76;
+    while (((p_173 & 7) == 0) && (((*(uint64_t *)p_173) & H_FORWARDED) != 0)) {
+        p_173 = (*(uint64_t *)(p_173 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_152 = p_173;
+    r_follow_152; });
+    }
+    r_literals_of_76 = l_76;
+    r_literals_of_76; });
                             lits = (oop *)(o_630 + 16);
                             fp = s_147 + CTX_FIXED;
                             o_631 = s_147[CTX_STACKP];
@@ -10416,19 +11924,31 @@ exit_num_val_8:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_636 = s_149[CTX_RECEIVER];
                                     v_364 = ({
-    p_98 = o_636;
-    while (((p_98 & 7) == 0) && (((*(uint64_t *)p_98) & H_FORWARDED) != 0)) {
-        p_98 = (*(uint64_t *)(p_98 + 8)) & 18446744073709551609ULL;
+    p_174 = o_636;
+    while (((p_174 & 7) == 0) && (((*(uint64_t *)p_174) & H_FORWARDED) != 0)) {
+        p_174 = (*(uint64_t *)(p_174 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_77 = p_98;
-    r_follow_77; });
+    r_follow_153 = p_174;
+    r_follow_153; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_364;
                                     if (((v_364 & 7) == 0) && (((uint64_t)(v_364 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_153 = s_149[CTX_METHOD];
-                                o_637 = ((oop *)(m_153 + 16))[CM_LITERALS];
+                                o_637 = ({
+    l_77 = *(uint64_t *)(m_153 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_77 = ({
+    p_175 = l_77;
+    while (((p_175 & 7) == 0) && (((*(uint64_t *)p_175) & H_FORWARDED) != 0)) {
+        p_175 = (*(uint64_t *)(p_175 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_154 = p_175;
+    r_follow_154; });
+    }
+    r_literals_of_77 = l_77;
+    r_literals_of_77; });
                                 lits = (oop *)(o_637 + 16);
                                 fp = s_149 + CTX_FIXED;
                                 o_638 = s_149[CTX_STACKP];
@@ -10465,19 +11985,31 @@ exit_num_val_8:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_643 = s_151[CTX_RECEIVER];
                                 v_367 = ({
-    p_99 = o_643;
-    while (((p_99 & 7) == 0) && (((*(uint64_t *)p_99) & H_FORWARDED) != 0)) {
-        p_99 = (*(uint64_t *)(p_99 + 8)) & 18446744073709551609ULL;
+    p_176 = o_643;
+    while (((p_176 & 7) == 0) && (((*(uint64_t *)p_176) & H_FORWARDED) != 0)) {
+        p_176 = (*(uint64_t *)(p_176 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_78 = p_99;
-    r_follow_78; });
+    r_follow_155 = p_176;
+    r_follow_155; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_367;
                                 if (((v_367 & 7) == 0) && (((uint64_t)(v_367 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_155 = s_151[CTX_METHOD];
-                            o_644 = ((oop *)(m_155 + 16))[CM_LITERALS];
+                            o_644 = ({
+    l_78 = *(uint64_t *)(m_155 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_78 = ({
+    p_177 = l_78;
+    while (((p_177 & 7) == 0) && (((*(uint64_t *)p_177) & H_FORWARDED) != 0)) {
+        p_177 = (*(uint64_t *)(p_177 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_156 = p_177;
+    r_follow_156; });
+    }
+    r_literals_of_78 = l_78;
+    r_literals_of_78; });
                             lits = (oop *)(o_644 + 16);
                             fp = s_151 + CTX_FIXED;
                             o_645 = s_151[CTX_STACKP];
@@ -10523,8 +12055,8 @@ op_less_or_equal:;
         c_27 = (int64_t)a_26 <= (int64_t)b_34;
         nx_11 = *ip;
         if ((nx_11 == 0x92) || (nx_11 == 0x91)) {
-            p_100 = ip + 1;
-            o_650 = *(int16_t *)(uint64_t)p_100;
+            p_178 = ip + 1;
+            o_650 = *(int16_t *)(uint64_t)p_178;
             sp = sp - 2;
             ip = ip + 3;
             if (c_27 == (nx_11 == 0x91)) {
@@ -10557,19 +12089,31 @@ op_less_or_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_652 = s_153[CTX_RECEIVER];
                                 v_370 = ({
-    p_101 = o_652;
-    while (((p_101 & 7) == 0) && (((*(uint64_t *)p_101) & H_FORWARDED) != 0)) {
-        p_101 = (*(uint64_t *)(p_101 + 8)) & 18446744073709551609ULL;
+    p_179 = o_652;
+    while (((p_179 & 7) == 0) && (((*(uint64_t *)p_179) & H_FORWARDED) != 0)) {
+        p_179 = (*(uint64_t *)(p_179 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_79 = p_101;
-    r_follow_79; });
+    r_follow_157 = p_179;
+    r_follow_157; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_370;
                                 if (((v_370 & 7) == 0) && (((uint64_t)(v_370 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_157 = s_153[CTX_METHOD];
-                            o_653 = ((oop *)(m_157 + 16))[CM_LITERALS];
+                            o_653 = ({
+    l_79 = *(uint64_t *)(m_157 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_79 = ({
+    p_180 = l_79;
+    while (((p_180 & 7) == 0) && (((*(uint64_t *)p_180) & H_FORWARDED) != 0)) {
+        p_180 = (*(uint64_t *)(p_180 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_158 = p_180;
+    r_follow_158; });
+    }
+    r_literals_of_79 = l_79;
+    r_literals_of_79; });
                             lits = (oop *)(o_653 + 16);
                             fp = s_153 + CTX_FIXED;
                             o_654 = s_153[CTX_STACKP];
@@ -10614,19 +12158,31 @@ op_less_or_equal:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_659 = s_155[CTX_RECEIVER];
                                     v_373 = ({
-    p_102 = o_659;
-    while (((p_102 & 7) == 0) && (((*(uint64_t *)p_102) & H_FORWARDED) != 0)) {
-        p_102 = (*(uint64_t *)(p_102 + 8)) & 18446744073709551609ULL;
+    p_181 = o_659;
+    while (((p_181 & 7) == 0) && (((*(uint64_t *)p_181) & H_FORWARDED) != 0)) {
+        p_181 = (*(uint64_t *)(p_181 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_80 = p_102;
-    r_follow_80; });
+    r_follow_159 = p_181;
+    r_follow_159; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_373;
                                     if (((v_373 & 7) == 0) && (((uint64_t)(v_373 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_159 = s_155[CTX_METHOD];
-                                o_660 = ((oop *)(m_159 + 16))[CM_LITERALS];
+                                o_660 = ({
+    l_80 = *(uint64_t *)(m_159 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_80 = ({
+    p_182 = l_80;
+    while (((p_182 & 7) == 0) && (((*(uint64_t *)p_182) & H_FORWARDED) != 0)) {
+        p_182 = (*(uint64_t *)(p_182 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_160 = p_182;
+    r_follow_160; });
+    }
+    r_literals_of_80 = l_80;
+    r_literals_of_80; });
                                 lits = (oop *)(o_660 + 16);
                                 fp = s_155 + CTX_FIXED;
                                 o_661 = s_155[CTX_STACKP];
@@ -10663,19 +12219,31 @@ op_less_or_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_666 = s_157[CTX_RECEIVER];
                                 v_376 = ({
-    p_103 = o_666;
-    while (((p_103 & 7) == 0) && (((*(uint64_t *)p_103) & H_FORWARDED) != 0)) {
-        p_103 = (*(uint64_t *)(p_103 + 8)) & 18446744073709551609ULL;
+    p_183 = o_666;
+    while (((p_183 & 7) == 0) && (((*(uint64_t *)p_183) & H_FORWARDED) != 0)) {
+        p_183 = (*(uint64_t *)(p_183 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_81 = p_103;
-    r_follow_81; });
+    r_follow_161 = p_183;
+    r_follow_161; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_376;
                                 if (((v_376 & 7) == 0) && (((uint64_t)(v_376 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_161 = s_157[CTX_METHOD];
-                            o_667 = ((oop *)(m_161 + 16))[CM_LITERALS];
+                            o_667 = ({
+    l_81 = *(uint64_t *)(m_161 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_81 = ({
+    p_184 = l_81;
+    while (((p_184 & 7) == 0) && (((*(uint64_t *)p_184) & H_FORWARDED) != 0)) {
+        p_184 = (*(uint64_t *)(p_184 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_162 = p_184;
+    r_follow_162; });
+    }
+    r_literals_of_81 = l_81;
+    r_literals_of_81; });
                             lits = (oop *)(o_667 + 16);
                             fp = s_157 + CTX_FIXED;
                             o_668 = s_157[CTX_STACKP];
@@ -10734,8 +12302,8 @@ exit_num_val_10:;
         c_27 = x_3 <= y_3;
         nx_12 = *ip;
         if ((nx_12 == 0x92) || (nx_12 == 0x91)) {
-            p_104 = ip + 1;
-            o_672 = *(int16_t *)(uint64_t)p_104;
+            p_185 = ip + 1;
+            o_672 = *(int16_t *)(uint64_t)p_185;
             sp = sp - 2;
             ip = ip + 3;
             if (c_27 == (nx_12 == 0x91)) {
@@ -10768,19 +12336,31 @@ exit_num_val_10:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_674 = s_159[CTX_RECEIVER];
                                 v_379 = ({
-    p_105 = o_674;
-    while (((p_105 & 7) == 0) && (((*(uint64_t *)p_105) & H_FORWARDED) != 0)) {
-        p_105 = (*(uint64_t *)(p_105 + 8)) & 18446744073709551609ULL;
+    p_186 = o_674;
+    while (((p_186 & 7) == 0) && (((*(uint64_t *)p_186) & H_FORWARDED) != 0)) {
+        p_186 = (*(uint64_t *)(p_186 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_82 = p_105;
-    r_follow_82; });
+    r_follow_163 = p_186;
+    r_follow_163; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_379;
                                 if (((v_379 & 7) == 0) && (((uint64_t)(v_379 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_163 = s_159[CTX_METHOD];
-                            o_675 = ((oop *)(m_163 + 16))[CM_LITERALS];
+                            o_675 = ({
+    l_82 = *(uint64_t *)(m_163 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_82 = ({
+    p_187 = l_82;
+    while (((p_187 & 7) == 0) && (((*(uint64_t *)p_187) & H_FORWARDED) != 0)) {
+        p_187 = (*(uint64_t *)(p_187 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_164 = p_187;
+    r_follow_164; });
+    }
+    r_literals_of_82 = l_82;
+    r_literals_of_82; });
                             lits = (oop *)(o_675 + 16);
                             fp = s_159 + CTX_FIXED;
                             o_676 = s_159[CTX_STACKP];
@@ -10825,19 +12405,31 @@ exit_num_val_10:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_681 = s_161[CTX_RECEIVER];
                                     v_382 = ({
-    p_106 = o_681;
-    while (((p_106 & 7) == 0) && (((*(uint64_t *)p_106) & H_FORWARDED) != 0)) {
-        p_106 = (*(uint64_t *)(p_106 + 8)) & 18446744073709551609ULL;
+    p_188 = o_681;
+    while (((p_188 & 7) == 0) && (((*(uint64_t *)p_188) & H_FORWARDED) != 0)) {
+        p_188 = (*(uint64_t *)(p_188 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_83 = p_106;
-    r_follow_83; });
+    r_follow_165 = p_188;
+    r_follow_165; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_382;
                                     if (((v_382 & 7) == 0) && (((uint64_t)(v_382 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_165 = s_161[CTX_METHOD];
-                                o_682 = ((oop *)(m_165 + 16))[CM_LITERALS];
+                                o_682 = ({
+    l_83 = *(uint64_t *)(m_165 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_83 = ({
+    p_189 = l_83;
+    while (((p_189 & 7) == 0) && (((*(uint64_t *)p_189) & H_FORWARDED) != 0)) {
+        p_189 = (*(uint64_t *)(p_189 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_166 = p_189;
+    r_follow_166; });
+    }
+    r_literals_of_83 = l_83;
+    r_literals_of_83; });
                                 lits = (oop *)(o_682 + 16);
                                 fp = s_161 + CTX_FIXED;
                                 o_683 = s_161[CTX_STACKP];
@@ -10874,19 +12466,31 @@ exit_num_val_10:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_688 = s_163[CTX_RECEIVER];
                                 v_385 = ({
-    p_107 = o_688;
-    while (((p_107 & 7) == 0) && (((*(uint64_t *)p_107) & H_FORWARDED) != 0)) {
-        p_107 = (*(uint64_t *)(p_107 + 8)) & 18446744073709551609ULL;
+    p_190 = o_688;
+    while (((p_190 & 7) == 0) && (((*(uint64_t *)p_190) & H_FORWARDED) != 0)) {
+        p_190 = (*(uint64_t *)(p_190 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_84 = p_107;
-    r_follow_84; });
+    r_follow_167 = p_190;
+    r_follow_167; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_385;
                                 if (((v_385 & 7) == 0) && (((uint64_t)(v_385 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_167 = s_163[CTX_METHOD];
-                            o_689 = ((oop *)(m_167 + 16))[CM_LITERALS];
+                            o_689 = ({
+    l_84 = *(uint64_t *)(m_167 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_84 = ({
+    p_191 = l_84;
+    while (((p_191 & 7) == 0) && (((*(uint64_t *)p_191) & H_FORWARDED) != 0)) {
+        p_191 = (*(uint64_t *)(p_191 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_168 = p_191;
+    r_follow_168; });
+    }
+    r_literals_of_84 = l_84;
+    r_literals_of_84; });
                             lits = (oop *)(o_689 + 16);
                             fp = s_163 + CTX_FIXED;
                             o_690 = s_163[CTX_STACKP];
@@ -10932,8 +12536,8 @@ op_greater_or_equal:;
         c_28 = (int64_t)a_27 >= (int64_t)b_37;
         nx_13 = *ip;
         if ((nx_13 == 0x92) || (nx_13 == 0x91)) {
-            p_108 = ip + 1;
-            o_695 = *(int16_t *)(uint64_t)p_108;
+            p_192 = ip + 1;
+            o_695 = *(int16_t *)(uint64_t)p_192;
             sp = sp - 2;
             ip = ip + 3;
             if (c_28 == (nx_13 == 0x91)) {
@@ -10966,19 +12570,31 @@ op_greater_or_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_697 = s_165[CTX_RECEIVER];
                                 v_388 = ({
-    p_109 = o_697;
-    while (((p_109 & 7) == 0) && (((*(uint64_t *)p_109) & H_FORWARDED) != 0)) {
-        p_109 = (*(uint64_t *)(p_109 + 8)) & 18446744073709551609ULL;
+    p_193 = o_697;
+    while (((p_193 & 7) == 0) && (((*(uint64_t *)p_193) & H_FORWARDED) != 0)) {
+        p_193 = (*(uint64_t *)(p_193 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_85 = p_109;
-    r_follow_85; });
+    r_follow_169 = p_193;
+    r_follow_169; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_388;
                                 if (((v_388 & 7) == 0) && (((uint64_t)(v_388 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_169 = s_165[CTX_METHOD];
-                            o_698 = ((oop *)(m_169 + 16))[CM_LITERALS];
+                            o_698 = ({
+    l_85 = *(uint64_t *)(m_169 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_85 = ({
+    p_194 = l_85;
+    while (((p_194 & 7) == 0) && (((*(uint64_t *)p_194) & H_FORWARDED) != 0)) {
+        p_194 = (*(uint64_t *)(p_194 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_170 = p_194;
+    r_follow_170; });
+    }
+    r_literals_of_85 = l_85;
+    r_literals_of_85; });
                             lits = (oop *)(o_698 + 16);
                             fp = s_165 + CTX_FIXED;
                             o_699 = s_165[CTX_STACKP];
@@ -11023,19 +12639,31 @@ op_greater_or_equal:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_704 = s_167[CTX_RECEIVER];
                                     v_391 = ({
-    p_110 = o_704;
-    while (((p_110 & 7) == 0) && (((*(uint64_t *)p_110) & H_FORWARDED) != 0)) {
-        p_110 = (*(uint64_t *)(p_110 + 8)) & 18446744073709551609ULL;
+    p_195 = o_704;
+    while (((p_195 & 7) == 0) && (((*(uint64_t *)p_195) & H_FORWARDED) != 0)) {
+        p_195 = (*(uint64_t *)(p_195 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_86 = p_110;
-    r_follow_86; });
+    r_follow_171 = p_195;
+    r_follow_171; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_391;
                                     if (((v_391 & 7) == 0) && (((uint64_t)(v_391 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_171 = s_167[CTX_METHOD];
-                                o_705 = ((oop *)(m_171 + 16))[CM_LITERALS];
+                                o_705 = ({
+    l_86 = *(uint64_t *)(m_171 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_86 = ({
+    p_196 = l_86;
+    while (((p_196 & 7) == 0) && (((*(uint64_t *)p_196) & H_FORWARDED) != 0)) {
+        p_196 = (*(uint64_t *)(p_196 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_172 = p_196;
+    r_follow_172; });
+    }
+    r_literals_of_86 = l_86;
+    r_literals_of_86; });
                                 lits = (oop *)(o_705 + 16);
                                 fp = s_167 + CTX_FIXED;
                                 o_706 = s_167[CTX_STACKP];
@@ -11072,19 +12700,31 @@ op_greater_or_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_711 = s_169[CTX_RECEIVER];
                                 v_394 = ({
-    p_111 = o_711;
-    while (((p_111 & 7) == 0) && (((*(uint64_t *)p_111) & H_FORWARDED) != 0)) {
-        p_111 = (*(uint64_t *)(p_111 + 8)) & 18446744073709551609ULL;
+    p_197 = o_711;
+    while (((p_197 & 7) == 0) && (((*(uint64_t *)p_197) & H_FORWARDED) != 0)) {
+        p_197 = (*(uint64_t *)(p_197 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_87 = p_111;
-    r_follow_87; });
+    r_follow_173 = p_197;
+    r_follow_173; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_394;
                                 if (((v_394 & 7) == 0) && (((uint64_t)(v_394 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_173 = s_169[CTX_METHOD];
-                            o_712 = ((oop *)(m_173 + 16))[CM_LITERALS];
+                            o_712 = ({
+    l_87 = *(uint64_t *)(m_173 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_87 = ({
+    p_198 = l_87;
+    while (((p_198 & 7) == 0) && (((*(uint64_t *)p_198) & H_FORWARDED) != 0)) {
+        p_198 = (*(uint64_t *)(p_198 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_174 = p_198;
+    r_follow_174; });
+    }
+    r_literals_of_87 = l_87;
+    r_literals_of_87; });
                             lits = (oop *)(o_712 + 16);
                             fp = s_169 + CTX_FIXED;
                             o_713 = s_169[CTX_STACKP];
@@ -11143,8 +12783,8 @@ exit_num_val_12:;
         c_28 = x_4 >= y_4;
         nx_14 = *ip;
         if ((nx_14 == 0x92) || (nx_14 == 0x91)) {
-            p_112 = ip + 1;
-            o_717 = *(int16_t *)(uint64_t)p_112;
+            p_199 = ip + 1;
+            o_717 = *(int16_t *)(uint64_t)p_199;
             sp = sp - 2;
             ip = ip + 3;
             if (c_28 == (nx_14 == 0x91)) {
@@ -11177,19 +12817,31 @@ exit_num_val_12:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_719 = s_171[CTX_RECEIVER];
                                 v_397 = ({
-    p_113 = o_719;
-    while (((p_113 & 7) == 0) && (((*(uint64_t *)p_113) & H_FORWARDED) != 0)) {
-        p_113 = (*(uint64_t *)(p_113 + 8)) & 18446744073709551609ULL;
+    p_200 = o_719;
+    while (((p_200 & 7) == 0) && (((*(uint64_t *)p_200) & H_FORWARDED) != 0)) {
+        p_200 = (*(uint64_t *)(p_200 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_88 = p_113;
-    r_follow_88; });
+    r_follow_175 = p_200;
+    r_follow_175; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_397;
                                 if (((v_397 & 7) == 0) && (((uint64_t)(v_397 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_175 = s_171[CTX_METHOD];
-                            o_720 = ((oop *)(m_175 + 16))[CM_LITERALS];
+                            o_720 = ({
+    l_88 = *(uint64_t *)(m_175 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_88 = ({
+    p_201 = l_88;
+    while (((p_201 & 7) == 0) && (((*(uint64_t *)p_201) & H_FORWARDED) != 0)) {
+        p_201 = (*(uint64_t *)(p_201 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_176 = p_201;
+    r_follow_176; });
+    }
+    r_literals_of_88 = l_88;
+    r_literals_of_88; });
                             lits = (oop *)(o_720 + 16);
                             fp = s_171 + CTX_FIXED;
                             o_721 = s_171[CTX_STACKP];
@@ -11234,19 +12886,31 @@ exit_num_val_12:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_726 = s_173[CTX_RECEIVER];
                                     v_400 = ({
-    p_114 = o_726;
-    while (((p_114 & 7) == 0) && (((*(uint64_t *)p_114) & H_FORWARDED) != 0)) {
-        p_114 = (*(uint64_t *)(p_114 + 8)) & 18446744073709551609ULL;
+    p_202 = o_726;
+    while (((p_202 & 7) == 0) && (((*(uint64_t *)p_202) & H_FORWARDED) != 0)) {
+        p_202 = (*(uint64_t *)(p_202 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_89 = p_114;
-    r_follow_89; });
+    r_follow_177 = p_202;
+    r_follow_177; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_400;
                                     if (((v_400 & 7) == 0) && (((uint64_t)(v_400 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_177 = s_173[CTX_METHOD];
-                                o_727 = ((oop *)(m_177 + 16))[CM_LITERALS];
+                                o_727 = ({
+    l_89 = *(uint64_t *)(m_177 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_89 = ({
+    p_203 = l_89;
+    while (((p_203 & 7) == 0) && (((*(uint64_t *)p_203) & H_FORWARDED) != 0)) {
+        p_203 = (*(uint64_t *)(p_203 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_178 = p_203;
+    r_follow_178; });
+    }
+    r_literals_of_89 = l_89;
+    r_literals_of_89; });
                                 lits = (oop *)(o_727 + 16);
                                 fp = s_173 + CTX_FIXED;
                                 o_728 = s_173[CTX_STACKP];
@@ -11283,19 +12947,31 @@ exit_num_val_12:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_733 = s_175[CTX_RECEIVER];
                                 v_403 = ({
-    p_115 = o_733;
-    while (((p_115 & 7) == 0) && (((*(uint64_t *)p_115) & H_FORWARDED) != 0)) {
-        p_115 = (*(uint64_t *)(p_115 + 8)) & 18446744073709551609ULL;
+    p_204 = o_733;
+    while (((p_204 & 7) == 0) && (((*(uint64_t *)p_204) & H_FORWARDED) != 0)) {
+        p_204 = (*(uint64_t *)(p_204 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_90 = p_115;
-    r_follow_90; });
+    r_follow_179 = p_204;
+    r_follow_179; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_403;
                                 if (((v_403 & 7) == 0) && (((uint64_t)(v_403 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_179 = s_175[CTX_METHOD];
-                            o_734 = ((oop *)(m_179 + 16))[CM_LITERALS];
+                            o_734 = ({
+    l_90 = *(uint64_t *)(m_179 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_90 = ({
+    p_205 = l_90;
+    while (((p_205 & 7) == 0) && (((*(uint64_t *)p_205) & H_FORWARDED) != 0)) {
+        p_205 = (*(uint64_t *)(p_205 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_180 = p_205;
+    r_follow_180; });
+    }
+    r_literals_of_90 = l_90;
+    r_literals_of_90; });
                             lits = (oop *)(o_734 + 16);
                             fp = s_175 + CTX_FIXED;
                             o_735 = s_175[CTX_STACKP];
@@ -11341,8 +13017,8 @@ op_equal:;
         c_29 = a_28 == b_40;
         nx_15 = *ip;
         if ((nx_15 == 0x92) || (nx_15 == 0x91)) {
-            p_116 = ip + 1;
-            o_740 = *(int16_t *)(uint64_t)p_116;
+            p_206 = ip + 1;
+            o_740 = *(int16_t *)(uint64_t)p_206;
             sp = sp - 2;
             ip = ip + 3;
             if (c_29 == (nx_15 == 0x91)) {
@@ -11375,19 +13051,31 @@ op_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_742 = s_177[CTX_RECEIVER];
                                 v_406 = ({
-    p_117 = o_742;
-    while (((p_117 & 7) == 0) && (((*(uint64_t *)p_117) & H_FORWARDED) != 0)) {
-        p_117 = (*(uint64_t *)(p_117 + 8)) & 18446744073709551609ULL;
+    p_207 = o_742;
+    while (((p_207 & 7) == 0) && (((*(uint64_t *)p_207) & H_FORWARDED) != 0)) {
+        p_207 = (*(uint64_t *)(p_207 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_91 = p_117;
-    r_follow_91; });
+    r_follow_181 = p_207;
+    r_follow_181; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_406;
                                 if (((v_406 & 7) == 0) && (((uint64_t)(v_406 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_181 = s_177[CTX_METHOD];
-                            o_743 = ((oop *)(m_181 + 16))[CM_LITERALS];
+                            o_743 = ({
+    l_91 = *(uint64_t *)(m_181 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_91 = ({
+    p_208 = l_91;
+    while (((p_208 & 7) == 0) && (((*(uint64_t *)p_208) & H_FORWARDED) != 0)) {
+        p_208 = (*(uint64_t *)(p_208 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_182 = p_208;
+    r_follow_182; });
+    }
+    r_literals_of_91 = l_91;
+    r_literals_of_91; });
                             lits = (oop *)(o_743 + 16);
                             fp = s_177 + CTX_FIXED;
                             o_744 = s_177[CTX_STACKP];
@@ -11432,19 +13120,31 @@ op_equal:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_749 = s_179[CTX_RECEIVER];
                                     v_409 = ({
-    p_118 = o_749;
-    while (((p_118 & 7) == 0) && (((*(uint64_t *)p_118) & H_FORWARDED) != 0)) {
-        p_118 = (*(uint64_t *)(p_118 + 8)) & 18446744073709551609ULL;
+    p_209 = o_749;
+    while (((p_209 & 7) == 0) && (((*(uint64_t *)p_209) & H_FORWARDED) != 0)) {
+        p_209 = (*(uint64_t *)(p_209 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_92 = p_118;
-    r_follow_92; });
+    r_follow_183 = p_209;
+    r_follow_183; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_409;
                                     if (((v_409 & 7) == 0) && (((uint64_t)(v_409 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_183 = s_179[CTX_METHOD];
-                                o_750 = ((oop *)(m_183 + 16))[CM_LITERALS];
+                                o_750 = ({
+    l_92 = *(uint64_t *)(m_183 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_92 = ({
+    p_210 = l_92;
+    while (((p_210 & 7) == 0) && (((*(uint64_t *)p_210) & H_FORWARDED) != 0)) {
+        p_210 = (*(uint64_t *)(p_210 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_184 = p_210;
+    r_follow_184; });
+    }
+    r_literals_of_92 = l_92;
+    r_literals_of_92; });
                                 lits = (oop *)(o_750 + 16);
                                 fp = s_179 + CTX_FIXED;
                                 o_751 = s_179[CTX_STACKP];
@@ -11481,19 +13181,31 @@ op_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_756 = s_181[CTX_RECEIVER];
                                 v_412 = ({
-    p_119 = o_756;
-    while (((p_119 & 7) == 0) && (((*(uint64_t *)p_119) & H_FORWARDED) != 0)) {
-        p_119 = (*(uint64_t *)(p_119 + 8)) & 18446744073709551609ULL;
+    p_211 = o_756;
+    while (((p_211 & 7) == 0) && (((*(uint64_t *)p_211) & H_FORWARDED) != 0)) {
+        p_211 = (*(uint64_t *)(p_211 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_93 = p_119;
-    r_follow_93; });
+    r_follow_185 = p_211;
+    r_follow_185; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_412;
                                 if (((v_412 & 7) == 0) && (((uint64_t)(v_412 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_185 = s_181[CTX_METHOD];
-                            o_757 = ((oop *)(m_185 + 16))[CM_LITERALS];
+                            o_757 = ({
+    l_93 = *(uint64_t *)(m_185 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_93 = ({
+    p_212 = l_93;
+    while (((p_212 & 7) == 0) && (((*(uint64_t *)p_212) & H_FORWARDED) != 0)) {
+        p_212 = (*(uint64_t *)(p_212 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_186 = p_212;
+    r_follow_186; });
+    }
+    r_literals_of_93 = l_93;
+    r_literals_of_93; });
                             lits = (oop *)(o_757 + 16);
                             fp = s_181 + CTX_FIXED;
                             o_758 = s_181[CTX_STACKP];
@@ -11552,8 +13264,8 @@ exit_num_val_14:;
         c_29 = x_5 == y_5;
         nx_16 = *ip;
         if ((nx_16 == 0x92) || (nx_16 == 0x91)) {
-            p_120 = ip + 1;
-            o_762 = *(int16_t *)(uint64_t)p_120;
+            p_213 = ip + 1;
+            o_762 = *(int16_t *)(uint64_t)p_213;
             sp = sp - 2;
             ip = ip + 3;
             if (c_29 == (nx_16 == 0x91)) {
@@ -11586,19 +13298,31 @@ exit_num_val_14:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_764 = s_183[CTX_RECEIVER];
                                 v_415 = ({
-    p_121 = o_764;
-    while (((p_121 & 7) == 0) && (((*(uint64_t *)p_121) & H_FORWARDED) != 0)) {
-        p_121 = (*(uint64_t *)(p_121 + 8)) & 18446744073709551609ULL;
+    p_214 = o_764;
+    while (((p_214 & 7) == 0) && (((*(uint64_t *)p_214) & H_FORWARDED) != 0)) {
+        p_214 = (*(uint64_t *)(p_214 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_94 = p_121;
-    r_follow_94; });
+    r_follow_187 = p_214;
+    r_follow_187; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_415;
                                 if (((v_415 & 7) == 0) && (((uint64_t)(v_415 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_187 = s_183[CTX_METHOD];
-                            o_765 = ((oop *)(m_187 + 16))[CM_LITERALS];
+                            o_765 = ({
+    l_94 = *(uint64_t *)(m_187 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_94 = ({
+    p_215 = l_94;
+    while (((p_215 & 7) == 0) && (((*(uint64_t *)p_215) & H_FORWARDED) != 0)) {
+        p_215 = (*(uint64_t *)(p_215 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_188 = p_215;
+    r_follow_188; });
+    }
+    r_literals_of_94 = l_94;
+    r_literals_of_94; });
                             lits = (oop *)(o_765 + 16);
                             fp = s_183 + CTX_FIXED;
                             o_766 = s_183[CTX_STACKP];
@@ -11643,19 +13367,31 @@ exit_num_val_14:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_771 = s_185[CTX_RECEIVER];
                                     v_418 = ({
-    p_122 = o_771;
-    while (((p_122 & 7) == 0) && (((*(uint64_t *)p_122) & H_FORWARDED) != 0)) {
-        p_122 = (*(uint64_t *)(p_122 + 8)) & 18446744073709551609ULL;
+    p_216 = o_771;
+    while (((p_216 & 7) == 0) && (((*(uint64_t *)p_216) & H_FORWARDED) != 0)) {
+        p_216 = (*(uint64_t *)(p_216 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_95 = p_122;
-    r_follow_95; });
+    r_follow_189 = p_216;
+    r_follow_189; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_418;
                                     if (((v_418 & 7) == 0) && (((uint64_t)(v_418 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_189 = s_185[CTX_METHOD];
-                                o_772 = ((oop *)(m_189 + 16))[CM_LITERALS];
+                                o_772 = ({
+    l_95 = *(uint64_t *)(m_189 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_95 = ({
+    p_217 = l_95;
+    while (((p_217 & 7) == 0) && (((*(uint64_t *)p_217) & H_FORWARDED) != 0)) {
+        p_217 = (*(uint64_t *)(p_217 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_190 = p_217;
+    r_follow_190; });
+    }
+    r_literals_of_95 = l_95;
+    r_literals_of_95; });
                                 lits = (oop *)(o_772 + 16);
                                 fp = s_185 + CTX_FIXED;
                                 o_773 = s_185[CTX_STACKP];
@@ -11692,19 +13428,31 @@ exit_num_val_14:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_778 = s_187[CTX_RECEIVER];
                                 v_421 = ({
-    p_123 = o_778;
-    while (((p_123 & 7) == 0) && (((*(uint64_t *)p_123) & H_FORWARDED) != 0)) {
-        p_123 = (*(uint64_t *)(p_123 + 8)) & 18446744073709551609ULL;
+    p_218 = o_778;
+    while (((p_218 & 7) == 0) && (((*(uint64_t *)p_218) & H_FORWARDED) != 0)) {
+        p_218 = (*(uint64_t *)(p_218 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_96 = p_123;
-    r_follow_96; });
+    r_follow_191 = p_218;
+    r_follow_191; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_421;
                                 if (((v_421 & 7) == 0) && (((uint64_t)(v_421 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_191 = s_187[CTX_METHOD];
-                            o_779 = ((oop *)(m_191 + 16))[CM_LITERALS];
+                            o_779 = ({
+    l_96 = *(uint64_t *)(m_191 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_96 = ({
+    p_219 = l_96;
+    while (((p_219 & 7) == 0) && (((*(uint64_t *)p_219) & H_FORWARDED) != 0)) {
+        p_219 = (*(uint64_t *)(p_219 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_192 = p_219;
+    r_follow_192; });
+    }
+    r_literals_of_96 = l_96;
+    r_literals_of_96; });
                             lits = (oop *)(o_779 + 16);
                             fp = s_187 + CTX_FIXED;
                             o_780 = s_187[CTX_STACKP];
@@ -11750,8 +13498,8 @@ op_not_equal:;
         c_30 = a_29 != b_43;
         nx_17 = *ip;
         if ((nx_17 == 0x92) || (nx_17 == 0x91)) {
-            p_124 = ip + 1;
-            o_785 = *(int16_t *)(uint64_t)p_124;
+            p_220 = ip + 1;
+            o_785 = *(int16_t *)(uint64_t)p_220;
             sp = sp - 2;
             ip = ip + 3;
             if (c_30 == (nx_17 == 0x91)) {
@@ -11784,19 +13532,31 @@ op_not_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_787 = s_189[CTX_RECEIVER];
                                 v_424 = ({
-    p_125 = o_787;
-    while (((p_125 & 7) == 0) && (((*(uint64_t *)p_125) & H_FORWARDED) != 0)) {
-        p_125 = (*(uint64_t *)(p_125 + 8)) & 18446744073709551609ULL;
+    p_221 = o_787;
+    while (((p_221 & 7) == 0) && (((*(uint64_t *)p_221) & H_FORWARDED) != 0)) {
+        p_221 = (*(uint64_t *)(p_221 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_97 = p_125;
-    r_follow_97; });
+    r_follow_193 = p_221;
+    r_follow_193; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_424;
                                 if (((v_424 & 7) == 0) && (((uint64_t)(v_424 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_193 = s_189[CTX_METHOD];
-                            o_788 = ((oop *)(m_193 + 16))[CM_LITERALS];
+                            o_788 = ({
+    l_97 = *(uint64_t *)(m_193 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_97 = ({
+    p_222 = l_97;
+    while (((p_222 & 7) == 0) && (((*(uint64_t *)p_222) & H_FORWARDED) != 0)) {
+        p_222 = (*(uint64_t *)(p_222 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_194 = p_222;
+    r_follow_194; });
+    }
+    r_literals_of_97 = l_97;
+    r_literals_of_97; });
                             lits = (oop *)(o_788 + 16);
                             fp = s_189 + CTX_FIXED;
                             o_789 = s_189[CTX_STACKP];
@@ -11841,19 +13601,31 @@ op_not_equal:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_794 = s_191[CTX_RECEIVER];
                                     v_427 = ({
-    p_126 = o_794;
-    while (((p_126 & 7) == 0) && (((*(uint64_t *)p_126) & H_FORWARDED) != 0)) {
-        p_126 = (*(uint64_t *)(p_126 + 8)) & 18446744073709551609ULL;
+    p_223 = o_794;
+    while (((p_223 & 7) == 0) && (((*(uint64_t *)p_223) & H_FORWARDED) != 0)) {
+        p_223 = (*(uint64_t *)(p_223 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_98 = p_126;
-    r_follow_98; });
+    r_follow_195 = p_223;
+    r_follow_195; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_427;
                                     if (((v_427 & 7) == 0) && (((uint64_t)(v_427 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_195 = s_191[CTX_METHOD];
-                                o_795 = ((oop *)(m_195 + 16))[CM_LITERALS];
+                                o_795 = ({
+    l_98 = *(uint64_t *)(m_195 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_98 = ({
+    p_224 = l_98;
+    while (((p_224 & 7) == 0) && (((*(uint64_t *)p_224) & H_FORWARDED) != 0)) {
+        p_224 = (*(uint64_t *)(p_224 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_196 = p_224;
+    r_follow_196; });
+    }
+    r_literals_of_98 = l_98;
+    r_literals_of_98; });
                                 lits = (oop *)(o_795 + 16);
                                 fp = s_191 + CTX_FIXED;
                                 o_796 = s_191[CTX_STACKP];
@@ -11890,19 +13662,31 @@ op_not_equal:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_801 = s_193[CTX_RECEIVER];
                                 v_430 = ({
-    p_127 = o_801;
-    while (((p_127 & 7) == 0) && (((*(uint64_t *)p_127) & H_FORWARDED) != 0)) {
-        p_127 = (*(uint64_t *)(p_127 + 8)) & 18446744073709551609ULL;
+    p_225 = o_801;
+    while (((p_225 & 7) == 0) && (((*(uint64_t *)p_225) & H_FORWARDED) != 0)) {
+        p_225 = (*(uint64_t *)(p_225 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_99 = p_127;
-    r_follow_99; });
+    r_follow_197 = p_225;
+    r_follow_197; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_430;
                                 if (((v_430 & 7) == 0) && (((uint64_t)(v_430 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_197 = s_193[CTX_METHOD];
-                            o_802 = ((oop *)(m_197 + 16))[CM_LITERALS];
+                            o_802 = ({
+    l_99 = *(uint64_t *)(m_197 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_99 = ({
+    p_226 = l_99;
+    while (((p_226 & 7) == 0) && (((*(uint64_t *)p_226) & H_FORWARDED) != 0)) {
+        p_226 = (*(uint64_t *)(p_226 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_198 = p_226;
+    r_follow_198; });
+    }
+    r_literals_of_99 = l_99;
+    r_literals_of_99; });
                             lits = (oop *)(o_802 + 16);
                             fp = s_193 + CTX_FIXED;
                             o_803 = s_193[CTX_STACKP];
@@ -11961,8 +13745,8 @@ exit_num_val_16:;
         c_30 = x_6 != y_6;
         nx_18 = *ip;
         if ((nx_18 == 0x92) || (nx_18 == 0x91)) {
-            p_128 = ip + 1;
-            o_807 = *(int16_t *)(uint64_t)p_128;
+            p_227 = ip + 1;
+            o_807 = *(int16_t *)(uint64_t)p_227;
             sp = sp - 2;
             ip = ip + 3;
             if (c_30 == (nx_18 == 0x91)) {
@@ -11995,19 +13779,31 @@ exit_num_val_16:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_809 = s_195[CTX_RECEIVER];
                                 v_433 = ({
-    p_129 = o_809;
-    while (((p_129 & 7) == 0) && (((*(uint64_t *)p_129) & H_FORWARDED) != 0)) {
-        p_129 = (*(uint64_t *)(p_129 + 8)) & 18446744073709551609ULL;
+    p_228 = o_809;
+    while (((p_228 & 7) == 0) && (((*(uint64_t *)p_228) & H_FORWARDED) != 0)) {
+        p_228 = (*(uint64_t *)(p_228 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_100 = p_129;
-    r_follow_100; });
+    r_follow_199 = p_228;
+    r_follow_199; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_433;
                                 if (((v_433 & 7) == 0) && (((uint64_t)(v_433 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_199 = s_195[CTX_METHOD];
-                            o_810 = ((oop *)(m_199 + 16))[CM_LITERALS];
+                            o_810 = ({
+    l_100 = *(uint64_t *)(m_199 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_100 = ({
+    p_229 = l_100;
+    while (((p_229 & 7) == 0) && (((*(uint64_t *)p_229) & H_FORWARDED) != 0)) {
+        p_229 = (*(uint64_t *)(p_229 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_200 = p_229;
+    r_follow_200; });
+    }
+    r_literals_of_100 = l_100;
+    r_literals_of_100; });
                             lits = (oop *)(o_810 + 16);
                             fp = s_195 + CTX_FIXED;
                             o_811 = s_195[CTX_STACKP];
@@ -12052,19 +13848,31 @@ exit_num_val_16:;
                                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                     o_816 = s_197[CTX_RECEIVER];
                                     v_436 = ({
-    p_130 = o_816;
-    while (((p_130 & 7) == 0) && (((*(uint64_t *)p_130) & H_FORWARDED) != 0)) {
-        p_130 = (*(uint64_t *)(p_130 + 8)) & 18446744073709551609ULL;
+    p_230 = o_816;
+    while (((p_230 & 7) == 0) && (((*(uint64_t *)p_230) & H_FORWARDED) != 0)) {
+        p_230 = (*(uint64_t *)(p_230 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_101 = p_130;
-    r_follow_101; });
+    r_follow_201 = p_230;
+    r_follow_201; });
                                     *(uint64_t *)(active_ctx + 16 + 40) = v_436;
                                     if (((v_436 & 7) == 0) && (((uint64_t)(v_436 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                         remember(active_ctx);
                                     }
                                 }
                                 m_201 = s_197[CTX_METHOD];
-                                o_817 = ((oop *)(m_201 + 16))[CM_LITERALS];
+                                o_817 = ({
+    l_101 = *(uint64_t *)(m_201 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_101 = ({
+    p_231 = l_101;
+    while (((p_231 & 7) == 0) && (((*(uint64_t *)p_231) & H_FORWARDED) != 0)) {
+        p_231 = (*(uint64_t *)(p_231 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_202 = p_231;
+    r_follow_202; });
+    }
+    r_literals_of_101 = l_101;
+    r_literals_of_101; });
                                 lits = (oop *)(o_817 + 16);
                                 fp = s_197 + CTX_FIXED;
                                 o_818 = s_197[CTX_STACKP];
@@ -12101,19 +13909,31 @@ exit_num_val_16:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_823 = s_199[CTX_RECEIVER];
                                 v_439 = ({
-    p_131 = o_823;
-    while (((p_131 & 7) == 0) && (((*(uint64_t *)p_131) & H_FORWARDED) != 0)) {
-        p_131 = (*(uint64_t *)(p_131 + 8)) & 18446744073709551609ULL;
+    p_232 = o_823;
+    while (((p_232 & 7) == 0) && (((*(uint64_t *)p_232) & H_FORWARDED) != 0)) {
+        p_232 = (*(uint64_t *)(p_232 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_102 = p_131;
-    r_follow_102; });
+    r_follow_203 = p_232;
+    r_follow_203; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_439;
                                 if (((v_439 & 7) == 0) && (((uint64_t)(v_439 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_203 = s_199[CTX_METHOD];
-                            o_824 = ((oop *)(m_203 + 16))[CM_LITERALS];
+                            o_824 = ({
+    l_102 = *(uint64_t *)(m_203 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_102 = ({
+    p_233 = l_102;
+    while (((p_233 & 7) == 0) && (((*(uint64_t *)p_233) & H_FORWARDED) != 0)) {
+        p_233 = (*(uint64_t *)(p_233 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_204 = p_233;
+    r_follow_204; });
+    }
+    r_literals_of_102 = l_102;
+    r_literals_of_102; });
                             lits = (oop *)(o_824 + 16);
                             fp = s_199 + CTX_FIXED;
                             o_825 = s_199[CTX_STACKP];
@@ -12669,24 +14489,24 @@ op_identical:;
         goto exit_is;
     }
     r_is = ({
-    p_132 = a_42;
-    while (((p_132 & 7) == 0) && (((*(uint64_t *)p_132) & H_FORWARDED) != 0)) {
-        p_132 = (*(uint64_t *)(p_132 + 8)) & 18446744073709551609ULL;
+    p_234 = a_42;
+    while (((p_234 & 7) == 0) && (((*(uint64_t *)p_234) & H_FORWARDED) != 0)) {
+        p_234 = (*(uint64_t *)(p_234 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_103 = p_132;
-    r_follow_103; }) == ({
-    p_133 = b_64;
-    while (((p_133 & 7) == 0) && (((*(uint64_t *)p_133) & H_FORWARDED) != 0)) {
-        p_133 = (*(uint64_t *)(p_133 + 8)) & 18446744073709551609ULL;
+    r_follow_205 = p_234;
+    r_follow_205; }) == ({
+    p_235 = b_64;
+    while (((p_235 & 7) == 0) && (((*(uint64_t *)p_235) & H_FORWARDED) != 0)) {
+        p_235 = (*(uint64_t *)(p_235 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_104 = p_133;
-    r_follow_104; });
+    r_follow_206 = p_235;
+    r_follow_206; });
 exit_is:;
     r_is; });
     nx_33 = *ip;
     if ((nx_33 == 0x92) || (nx_33 == 0x91)) {
-        p_134 = ip + 1;
-        o_837 = *(int16_t *)(uint64_t)p_134;
+        p_236 = ip + 1;
+        o_837 = *(int16_t *)(uint64_t)p_236;
         sp = sp - 2;
         ip = ip + 3;
         if (c_34 == (nx_33 == 0x91)) {
@@ -12719,19 +14539,31 @@ exit_is:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_839 = s_202[CTX_RECEIVER];
                             v_466 = ({
-    p_135 = o_839;
-    while (((p_135 & 7) == 0) && (((*(uint64_t *)p_135) & H_FORWARDED) != 0)) {
-        p_135 = (*(uint64_t *)(p_135 + 8)) & 18446744073709551609ULL;
+    p_237 = o_839;
+    while (((p_237 & 7) == 0) && (((*(uint64_t *)p_237) & H_FORWARDED) != 0)) {
+        p_237 = (*(uint64_t *)(p_237 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_105 = p_135;
-    r_follow_105; });
+    r_follow_207 = p_237;
+    r_follow_207; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_466;
                             if (((v_466 & 7) == 0) && (((uint64_t)(v_466 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_205 = s_202[CTX_METHOD];
-                        o_840 = ((oop *)(m_205 + 16))[CM_LITERALS];
+                        o_840 = ({
+    l_103 = *(uint64_t *)(m_205 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_103 = ({
+    p_238 = l_103;
+    while (((p_238 & 7) == 0) && (((*(uint64_t *)p_238) & H_FORWARDED) != 0)) {
+        p_238 = (*(uint64_t *)(p_238 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_208 = p_238;
+    r_follow_208; });
+    }
+    r_literals_of_103 = l_103;
+    r_literals_of_103; });
                         lits = (oop *)(o_840 + 16);
                         fp = s_202 + CTX_FIXED;
                         o_841 = s_202[CTX_STACKP];
@@ -12776,19 +14608,31 @@ exit_is:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_846 = s_204[CTX_RECEIVER];
                                 v_469 = ({
-    p_136 = o_846;
-    while (((p_136 & 7) == 0) && (((*(uint64_t *)p_136) & H_FORWARDED) != 0)) {
-        p_136 = (*(uint64_t *)(p_136 + 8)) & 18446744073709551609ULL;
+    p_239 = o_846;
+    while (((p_239 & 7) == 0) && (((*(uint64_t *)p_239) & H_FORWARDED) != 0)) {
+        p_239 = (*(uint64_t *)(p_239 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_106 = p_136;
-    r_follow_106; });
+    r_follow_209 = p_239;
+    r_follow_209; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_469;
                                 if (((v_469 & 7) == 0) && (((uint64_t)(v_469 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_207 = s_204[CTX_METHOD];
-                            o_847 = ((oop *)(m_207 + 16))[CM_LITERALS];
+                            o_847 = ({
+    l_104 = *(uint64_t *)(m_207 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_104 = ({
+    p_240 = l_104;
+    while (((p_240 & 7) == 0) && (((*(uint64_t *)p_240) & H_FORWARDED) != 0)) {
+        p_240 = (*(uint64_t *)(p_240 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_210 = p_240;
+    r_follow_210; });
+    }
+    r_literals_of_104 = l_104;
+    r_literals_of_104; });
                             lits = (oop *)(o_847 + 16);
                             fp = s_204 + CTX_FIXED;
                             o_848 = s_204[CTX_STACKP];
@@ -12825,19 +14669,31 @@ exit_is:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_853 = s_206[CTX_RECEIVER];
                             v_472 = ({
-    p_137 = o_853;
-    while (((p_137 & 7) == 0) && (((*(uint64_t *)p_137) & H_FORWARDED) != 0)) {
-        p_137 = (*(uint64_t *)(p_137 + 8)) & 18446744073709551609ULL;
+    p_241 = o_853;
+    while (((p_241 & 7) == 0) && (((*(uint64_t *)p_241) & H_FORWARDED) != 0)) {
+        p_241 = (*(uint64_t *)(p_241 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_107 = p_137;
-    r_follow_107; });
+    r_follow_211 = p_241;
+    r_follow_211; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_472;
                             if (((v_472 & 7) == 0) && (((uint64_t)(v_472 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_209 = s_206[CTX_METHOD];
-                        o_854 = ((oop *)(m_209 + 16))[CM_LITERALS];
+                        o_854 = ({
+    l_105 = *(uint64_t *)(m_209 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_105 = ({
+    p_242 = l_105;
+    while (((p_242 & 7) == 0) && (((*(uint64_t *)p_242) & H_FORWARDED) != 0)) {
+        p_242 = (*(uint64_t *)(p_242 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_212 = p_242;
+    r_follow_212; });
+    }
+    r_literals_of_105 = l_105;
+    r_literals_of_105; });
                         lits = (oop *)(o_854 + 16);
                         fp = s_206 + CTX_FIXED;
                         o_855 = s_206[CTX_STACKP];
@@ -12880,24 +14736,24 @@ op_not_identical:;
         goto exit_is_2;
     }
     r_is_2 = ({
-    p_138 = a_43;
-    while (((p_138 & 7) == 0) && (((*(uint64_t *)p_138) & H_FORWARDED) != 0)) {
-        p_138 = (*(uint64_t *)(p_138 + 8)) & 18446744073709551609ULL;
+    p_243 = a_43;
+    while (((p_243 & 7) == 0) && (((*(uint64_t *)p_243) & H_FORWARDED) != 0)) {
+        p_243 = (*(uint64_t *)(p_243 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_108 = p_138;
-    r_follow_108; }) == ({
-    p_139 = b_65;
-    while (((p_139 & 7) == 0) && (((*(uint64_t *)p_139) & H_FORWARDED) != 0)) {
-        p_139 = (*(uint64_t *)(p_139 + 8)) & 18446744073709551609ULL;
+    r_follow_213 = p_243;
+    r_follow_213; }) == ({
+    p_244 = b_65;
+    while (((p_244 & 7) == 0) && (((*(uint64_t *)p_244) & H_FORWARDED) != 0)) {
+        p_244 = (*(uint64_t *)(p_244 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_109 = p_139;
-    r_follow_109; });
+    r_follow_214 = p_244;
+    r_follow_214; });
 exit_is_2:;
     r_is_2; });
     nx_34 = *ip;
     if ((nx_34 == 0x92) || (nx_34 == 0x91)) {
-        p_140 = ip + 1;
-        o_859 = *(int16_t *)(uint64_t)p_140;
+        p_245 = ip + 1;
+        o_859 = *(int16_t *)(uint64_t)p_245;
         sp = sp - 2;
         ip = ip + 3;
         if (c_35 == (nx_34 == 0x91)) {
@@ -12930,19 +14786,31 @@ exit_is_2:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_861 = s_208[CTX_RECEIVER];
                             v_475 = ({
-    p_141 = o_861;
-    while (((p_141 & 7) == 0) && (((*(uint64_t *)p_141) & H_FORWARDED) != 0)) {
-        p_141 = (*(uint64_t *)(p_141 + 8)) & 18446744073709551609ULL;
+    p_246 = o_861;
+    while (((p_246 & 7) == 0) && (((*(uint64_t *)p_246) & H_FORWARDED) != 0)) {
+        p_246 = (*(uint64_t *)(p_246 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_110 = p_141;
-    r_follow_110; });
+    r_follow_215 = p_246;
+    r_follow_215; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_475;
                             if (((v_475 & 7) == 0) && (((uint64_t)(v_475 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_211 = s_208[CTX_METHOD];
-                        o_862 = ((oop *)(m_211 + 16))[CM_LITERALS];
+                        o_862 = ({
+    l_106 = *(uint64_t *)(m_211 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_106 = ({
+    p_247 = l_106;
+    while (((p_247 & 7) == 0) && (((*(uint64_t *)p_247) & H_FORWARDED) != 0)) {
+        p_247 = (*(uint64_t *)(p_247 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_216 = p_247;
+    r_follow_216; });
+    }
+    r_literals_of_106 = l_106;
+    r_literals_of_106; });
                         lits = (oop *)(o_862 + 16);
                         fp = s_208 + CTX_FIXED;
                         o_863 = s_208[CTX_STACKP];
@@ -12987,19 +14855,31 @@ exit_is_2:;
                             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                                 o_868 = s_210[CTX_RECEIVER];
                                 v_478 = ({
-    p_142 = o_868;
-    while (((p_142 & 7) == 0) && (((*(uint64_t *)p_142) & H_FORWARDED) != 0)) {
-        p_142 = (*(uint64_t *)(p_142 + 8)) & 18446744073709551609ULL;
+    p_248 = o_868;
+    while (((p_248 & 7) == 0) && (((*(uint64_t *)p_248) & H_FORWARDED) != 0)) {
+        p_248 = (*(uint64_t *)(p_248 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_111 = p_142;
-    r_follow_111; });
+    r_follow_217 = p_248;
+    r_follow_217; });
                                 *(uint64_t *)(active_ctx + 16 + 40) = v_478;
                                 if (((v_478 & 7) == 0) && (((uint64_t)(v_478 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                     remember(active_ctx);
                                 }
                             }
                             m_213 = s_210[CTX_METHOD];
-                            o_869 = ((oop *)(m_213 + 16))[CM_LITERALS];
+                            o_869 = ({
+    l_107 = *(uint64_t *)(m_213 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_107 = ({
+    p_249 = l_107;
+    while (((p_249 & 7) == 0) && (((*(uint64_t *)p_249) & H_FORWARDED) != 0)) {
+        p_249 = (*(uint64_t *)(p_249 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_218 = p_249;
+    r_follow_218; });
+    }
+    r_literals_of_107 = l_107;
+    r_literals_of_107; });
                             lits = (oop *)(o_869 + 16);
                             fp = s_210 + CTX_FIXED;
                             o_870 = s_210[CTX_STACKP];
@@ -13036,19 +14916,31 @@ exit_is_2:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_875 = s_212[CTX_RECEIVER];
                             v_481 = ({
-    p_143 = o_875;
-    while (((p_143 & 7) == 0) && (((*(uint64_t *)p_143) & H_FORWARDED) != 0)) {
-        p_143 = (*(uint64_t *)(p_143 + 8)) & 18446744073709551609ULL;
+    p_250 = o_875;
+    while (((p_250 & 7) == 0) && (((*(uint64_t *)p_250) & H_FORWARDED) != 0)) {
+        p_250 = (*(uint64_t *)(p_250 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_112 = p_143;
-    r_follow_112; });
+    r_follow_219 = p_250;
+    r_follow_219; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_481;
                             if (((v_481 & 7) == 0) && (((uint64_t)(v_481 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_215 = s_212[CTX_METHOD];
-                        o_876 = ((oop *)(m_215 + 16))[CM_LITERALS];
+                        o_876 = ({
+    l_108 = *(uint64_t *)(m_215 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_108 = ({
+    p_251 = l_108;
+    while (((p_251 & 7) == 0) && (((*(uint64_t *)p_251) & H_FORWARDED) != 0)) {
+        p_251 = (*(uint64_t *)(p_251 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_220 = p_251;
+    r_follow_220; });
+    }
+    r_literals_of_108 = l_108;
+    r_literals_of_108; });
                         lits = (oop *)(o_876 + 16);
                         fp = s_212 + CTX_FIXED;
                         o_877 = s_212[CTX_STACKP];
@@ -13129,19 +15021,31 @@ op_bc_value_b5:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_883 = s_215[CTX_RECEIVER];
                     v_486 = ({
-    p_144 = o_883;
-    while (((p_144 & 7) == 0) && (((*(uint64_t *)p_144) & H_FORWARDED) != 0)) {
-        p_144 = (*(uint64_t *)(p_144 + 8)) & 18446744073709551609ULL;
+    p_252 = o_883;
+    while (((p_252 & 7) == 0) && (((*(uint64_t *)p_252) & H_FORWARDED) != 0)) {
+        p_252 = (*(uint64_t *)(p_252 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_113 = p_144;
-    r_follow_113; });
+    r_follow_221 = p_252;
+    r_follow_221; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_486;
                     if (((v_486 & 7) == 0) && (((uint64_t)(v_486 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_218 = s_215[CTX_METHOD];
-                o_884 = ((oop *)(m_218 + 16))[CM_LITERALS];
+                o_884 = ({
+    l_109 = *(uint64_t *)(m_218 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_109 = ({
+    p_253 = l_109;
+    while (((p_253 & 7) == 0) && (((*(uint64_t *)p_253) & H_FORWARDED) != 0)) {
+        p_253 = (*(uint64_t *)(p_253 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_222 = p_253;
+    r_follow_222; });
+    }
+    r_literals_of_109 = l_109;
+    r_literals_of_109; });
                 lits = (oop *)(o_884 + 16);
                 fp = s_215 + CTX_FIXED;
                 o_885 = s_215[CTX_STACKP];
@@ -13189,19 +15093,31 @@ op_bc_value_b5:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_890 = s_217[CTX_RECEIVER];
                     v_489 = ({
-    p_145 = o_890;
-    while (((p_145 & 7) == 0) && (((*(uint64_t *)p_145) & H_FORWARDED) != 0)) {
-        p_145 = (*(uint64_t *)(p_145 + 8)) & 18446744073709551609ULL;
+    p_254 = o_890;
+    while (((p_254 & 7) == 0) && (((*(uint64_t *)p_254) & H_FORWARDED) != 0)) {
+        p_254 = (*(uint64_t *)(p_254 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_114 = p_145;
-    r_follow_114; });
+    r_follow_223 = p_254;
+    r_follow_223; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_489;
                     if (((v_489 & 7) == 0) && (((uint64_t)(v_489 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_220 = s_217[CTX_METHOD];
-                o_891 = ((oop *)(m_220 + 16))[CM_LITERALS];
+                o_891 = ({
+    l_110 = *(uint64_t *)(m_220 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_110 = ({
+    p_255 = l_110;
+    while (((p_255 & 7) == 0) && (((*(uint64_t *)p_255) & H_FORWARDED) != 0)) {
+        p_255 = (*(uint64_t *)(p_255 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_224 = p_255;
+    r_follow_224; });
+    }
+    r_literals_of_110 = l_110;
+    r_literals_of_110; });
                 lits = (oop *)(o_891 + 16);
                 fp = s_217 + CTX_FIXED;
                 o_892 = s_217[CTX_STACKP];
@@ -13275,19 +15191,31 @@ op_bc_value_b6:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_898 = s_220[CTX_RECEIVER];
                     v_494 = ({
-    p_146 = o_898;
-    while (((p_146 & 7) == 0) && (((*(uint64_t *)p_146) & H_FORWARDED) != 0)) {
-        p_146 = (*(uint64_t *)(p_146 + 8)) & 18446744073709551609ULL;
+    p_256 = o_898;
+    while (((p_256 & 7) == 0) && (((*(uint64_t *)p_256) & H_FORWARDED) != 0)) {
+        p_256 = (*(uint64_t *)(p_256 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_115 = p_146;
-    r_follow_115; });
+    r_follow_225 = p_256;
+    r_follow_225; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_494;
                     if (((v_494 & 7) == 0) && (((uint64_t)(v_494 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_223 = s_220[CTX_METHOD];
-                o_899 = ((oop *)(m_223 + 16))[CM_LITERALS];
+                o_899 = ({
+    l_111 = *(uint64_t *)(m_223 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_111 = ({
+    p_257 = l_111;
+    while (((p_257 & 7) == 0) && (((*(uint64_t *)p_257) & H_FORWARDED) != 0)) {
+        p_257 = (*(uint64_t *)(p_257 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_226 = p_257;
+    r_follow_226; });
+    }
+    r_literals_of_111 = l_111;
+    r_literals_of_111; });
                 lits = (oop *)(o_899 + 16);
                 fp = s_220 + CTX_FIXED;
                 o_900 = s_220[CTX_STACKP];
@@ -13335,19 +15263,31 @@ op_bc_value_b6:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_905 = s_222[CTX_RECEIVER];
                     v_497 = ({
-    p_147 = o_905;
-    while (((p_147 & 7) == 0) && (((*(uint64_t *)p_147) & H_FORWARDED) != 0)) {
-        p_147 = (*(uint64_t *)(p_147 + 8)) & 18446744073709551609ULL;
+    p_258 = o_905;
+    while (((p_258 & 7) == 0) && (((*(uint64_t *)p_258) & H_FORWARDED) != 0)) {
+        p_258 = (*(uint64_t *)(p_258 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_116 = p_147;
-    r_follow_116; });
+    r_follow_227 = p_258;
+    r_follow_227; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_497;
                     if (((v_497 & 7) == 0) && (((uint64_t)(v_497 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_225 = s_222[CTX_METHOD];
-                o_906 = ((oop *)(m_225 + 16))[CM_LITERALS];
+                o_906 = ({
+    l_112 = *(uint64_t *)(m_225 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_112 = ({
+    p_259 = l_112;
+    while (((p_259 & 7) == 0) && (((*(uint64_t *)p_259) & H_FORWARDED) != 0)) {
+        p_259 = (*(uint64_t *)(p_259 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_228 = p_259;
+    r_follow_228; });
+    }
+    r_literals_of_112 = l_112;
+    r_literals_of_112; });
                 lits = (oop *)(o_906 + 16);
                 fp = s_222 + CTX_FIXED;
                 o_907 = s_222[CTX_STACKP];
@@ -13421,19 +15361,31 @@ op_bc_value_be:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_913 = s_225[CTX_RECEIVER];
                     v_502 = ({
-    p_148 = o_913;
-    while (((p_148 & 7) == 0) && (((*(uint64_t *)p_148) & H_FORWARDED) != 0)) {
-        p_148 = (*(uint64_t *)(p_148 + 8)) & 18446744073709551609ULL;
+    p_260 = o_913;
+    while (((p_260 & 7) == 0) && (((*(uint64_t *)p_260) & H_FORWARDED) != 0)) {
+        p_260 = (*(uint64_t *)(p_260 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_117 = p_148;
-    r_follow_117; });
+    r_follow_229 = p_260;
+    r_follow_229; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_502;
                     if (((v_502 & 7) == 0) && (((uint64_t)(v_502 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_228 = s_225[CTX_METHOD];
-                o_914 = ((oop *)(m_228 + 16))[CM_LITERALS];
+                o_914 = ({
+    l_113 = *(uint64_t *)(m_228 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_113 = ({
+    p_261 = l_113;
+    while (((p_261 & 7) == 0) && (((*(uint64_t *)p_261) & H_FORWARDED) != 0)) {
+        p_261 = (*(uint64_t *)(p_261 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_230 = p_261;
+    r_follow_230; });
+    }
+    r_literals_of_113 = l_113;
+    r_literals_of_113; });
                 lits = (oop *)(o_914 + 16);
                 fp = s_225 + CTX_FIXED;
                 o_915 = s_225[CTX_STACKP];
@@ -13481,19 +15433,31 @@ op_bc_value_be:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_920 = s_227[CTX_RECEIVER];
                     v_505 = ({
-    p_149 = o_920;
-    while (((p_149 & 7) == 0) && (((*(uint64_t *)p_149) & H_FORWARDED) != 0)) {
-        p_149 = (*(uint64_t *)(p_149 + 8)) & 18446744073709551609ULL;
+    p_262 = o_920;
+    while (((p_262 & 7) == 0) && (((*(uint64_t *)p_262) & H_FORWARDED) != 0)) {
+        p_262 = (*(uint64_t *)(p_262 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_118 = p_149;
-    r_follow_118; });
+    r_follow_231 = p_262;
+    r_follow_231; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_505;
                     if (((v_505 & 7) == 0) && (((uint64_t)(v_505 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_230 = s_227[CTX_METHOD];
-                o_921 = ((oop *)(m_230 + 16))[CM_LITERALS];
+                o_921 = ({
+    l_114 = *(uint64_t *)(m_230 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_114 = ({
+    p_263 = l_114;
+    while (((p_263 & 7) == 0) && (((*(uint64_t *)p_263) & H_FORWARDED) != 0)) {
+        p_263 = (*(uint64_t *)(p_263 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_232 = p_263;
+    r_follow_232; });
+    }
+    r_literals_of_114 = l_114;
+    r_literals_of_114; });
                 lits = (oop *)(o_921 + 16);
                 fp = s_227 + CTX_FIXED;
                 o_922 = s_227[CTX_STACKP];
@@ -13540,12 +15504,12 @@ op_bc_class:;
     r_36 = *sp;
     if (__builtin_expect(((r_36 & 7) == 0) && (((*(uint64_t *)(r_36 + 8)) & 7) != 0), 0)) {
         r_36 = ({
-    p_150 = r_36;
-    while (((p_150 & 7) == 0) && (((*(uint64_t *)p_150) & H_FORWARDED) != 0)) {
-        p_150 = (*(uint64_t *)(p_150 + 8)) & 18446744073709551609ULL;
+    p_264 = r_36;
+    while (((p_264 & 7) == 0) && (((*(uint64_t *)p_264) & H_FORWARDED) != 0)) {
+        p_264 = (*(uint64_t *)(p_264 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_119 = p_150;
-    r_follow_119; });
+    r_follow_233 = p_264;
+    r_follow_233; });
     }
     *sp = (r_36 & 7) == 0 ? *(uint64_t *)(r_36 + 8) : (r_36 & 1) != 0 ? cls_smallint : class_of(r_36);
     goto *ops[({
@@ -13591,25 +15555,49 @@ activate:;
         tmp_roots[0] = nil_oop;
         o_927 = *(uint64_t *)(new_method + 16 + 24);
         new_bcs = (uint8_t *)(o_927 + 16);
-        o_928 = *(uint64_t *)(new_method + 16 + 16);
+        o_928 = ({
+    l_115 = *(uint64_t *)(new_method + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_115 = ({
+    p_265 = l_115;
+    while (((p_265 & 7) == 0) && (((*(uint64_t *)p_265) & H_FORWARDED) != 0)) {
+        p_265 = (*(uint64_t *)(p_265 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_234 = p_265;
+    r_follow_234; });
+    }
+    r_literals_of_115 = l_115;
+    r_literals_of_115; });
         new_lits = (oop *)(o_928 + 16);
         s_229 = (oop *)(active_ctx + 16);
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_929 = s_229[CTX_RECEIVER];
             v_508 = ({
-    p_151 = o_929;
-    while (((p_151 & 7) == 0) && (((*(uint64_t *)p_151) & H_FORWARDED) != 0)) {
-        p_151 = (*(uint64_t *)(p_151 + 8)) & 18446744073709551609ULL;
+    p_266 = o_929;
+    while (((p_266 & 7) == 0) && (((*(uint64_t *)p_266) & H_FORWARDED) != 0)) {
+        p_266 = (*(uint64_t *)(p_266 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_120 = p_151;
-    r_follow_120; });
+    r_follow_235 = p_266;
+    r_follow_235; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_508;
             if (((v_508 & 7) == 0) && (((uint64_t)(v_508 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_232 = s_229[CTX_METHOD];
-        o_930 = ((oop *)(m_232 + 16))[CM_LITERALS];
+        o_930 = ({
+    l_116 = *(uint64_t *)(m_232 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_116 = ({
+    p_267 = l_116;
+    while (((p_267 & 7) == 0) && (((*(uint64_t *)p_267) & H_FORWARDED) != 0)) {
+        p_267 = (*(uint64_t *)(p_267 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_236 = p_267;
+    r_follow_236; });
+    }
+    r_literals_of_116 = l_116;
+    r_literals_of_116; });
         lits = (oop *)(o_930 + 16);
         fp = s_229 + CTX_FIXED;
         o_931 = s_229[CTX_STACKP];
@@ -13675,8 +15663,8 @@ context_non_local_return:;
         if ((marked_2 == 0) && ({
     m_234 = *(uint64_t *)(c_39 + 16 + 24);
     (({
-    p_152 = *(uint64_t *)(m_234 + 16 + 56);
-    r_method_prim_4 = (p_152 & 1) != 0 ? ((int64_t)p_152) >> 1 : 0;
+    p_268 = *(uint64_t *)(m_234 + 16 + 56);
+    r_method_prim_4 = (p_268 & 1) != 0 ? ((int64_t)p_268) >> 1 : 0;
     r_method_prim_4; }) & CM_PRIM_MASK) == PRIM_ENSURE_MARKER; })) {
             marked_2 = c_39;
         }
@@ -13713,19 +15701,31 @@ context_non_local_return:;
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         o_938 = s_231[CTX_RECEIVER];
         v_511 = ({
-    p_153 = o_938;
-    while (((p_153 & 7) == 0) && (((*(uint64_t *)p_153) & H_FORWARDED) != 0)) {
-        p_153 = (*(uint64_t *)(p_153 + 8)) & 18446744073709551609ULL;
+    p_269 = o_938;
+    while (((p_269 & 7) == 0) && (((*(uint64_t *)p_269) & H_FORWARDED) != 0)) {
+        p_269 = (*(uint64_t *)(p_269 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_121 = p_153;
-    r_follow_121; });
+    r_follow_237 = p_269;
+    r_follow_237; });
         *(uint64_t *)(active_ctx + 16 + 40) = v_511;
         if (((v_511 & 7) == 0) && (((uint64_t)(v_511 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
             remember(active_ctx);
         }
     }
     m_235 = s_231[CTX_METHOD];
-    o_939 = ((oop *)(m_235 + 16))[CM_LITERALS];
+    o_939 = ({
+    l_117 = *(uint64_t *)(m_235 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_117 = ({
+    p_270 = l_117;
+    while (((p_270 & 7) == 0) && (((*(uint64_t *)p_270) & H_FORWARDED) != 0)) {
+        p_270 = (*(uint64_t *)(p_270 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_238 = p_270;
+    r_follow_238; });
+    }
+    r_literals_of_117 = l_117;
+    r_literals_of_117; });
     lits = (oop *)(o_939 + 16);
     fp = s_231 + CTX_FIXED;
     o_940 = s_231[CTX_STACKP];
@@ -13762,19 +15762,31 @@ context_non_local_return:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_945 = s_233[CTX_RECEIVER];
                 v_514 = ({
-    p_154 = o_945;
-    while (((p_154 & 7) == 0) && (((*(uint64_t *)p_154) & H_FORWARDED) != 0)) {
-        p_154 = (*(uint64_t *)(p_154 + 8)) & 18446744073709551609ULL;
+    p_271 = o_945;
+    while (((p_271 & 7) == 0) && (((*(uint64_t *)p_271) & H_FORWARDED) != 0)) {
+        p_271 = (*(uint64_t *)(p_271 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_122 = p_154;
-    r_follow_122; });
+    r_follow_239 = p_271;
+    r_follow_239; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_514;
                 if (((v_514 & 7) == 0) && (((uint64_t)(v_514 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_237 = s_233[CTX_METHOD];
-            o_946 = ((oop *)(m_237 + 16))[CM_LITERALS];
+            o_946 = ({
+    l_118 = *(uint64_t *)(m_237 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_118 = ({
+    p_272 = l_118;
+    while (((p_272 & 7) == 0) && (((*(uint64_t *)p_272) & H_FORWARDED) != 0)) {
+        p_272 = (*(uint64_t *)(p_272 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_240 = p_272;
+    r_follow_240; });
+    }
+    r_literals_of_118 = l_118;
+    r_literals_of_118; });
             lits = (oop *)(o_946 + 16);
             fp = s_233 + CTX_FIXED;
             o_947 = s_233[CTX_STACKP];
@@ -13813,19 +15825,31 @@ context_return:;
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         o_952 = s_235[CTX_RECEIVER];
         v_515 = ({
-    p_155 = o_952;
-    while (((p_155 & 7) == 0) && (((*(uint64_t *)p_155) & H_FORWARDED) != 0)) {
-        p_155 = (*(uint64_t *)(p_155 + 8)) & 18446744073709551609ULL;
+    p_273 = o_952;
+    while (((p_273 & 7) == 0) && (((*(uint64_t *)p_273) & H_FORWARDED) != 0)) {
+        p_273 = (*(uint64_t *)(p_273 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_123 = p_155;
-    r_follow_123; });
+    r_follow_241 = p_273;
+    r_follow_241; });
         *(uint64_t *)(active_ctx + 16 + 40) = v_515;
         if (((v_515 & 7) == 0) && (((uint64_t)(v_515 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
             remember(active_ctx);
         }
     }
     m_238 = s_235[CTX_METHOD];
-    o_953 = ((oop *)(m_238 + 16))[CM_LITERALS];
+    o_953 = ({
+    l_119 = *(uint64_t *)(m_238 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_119 = ({
+    p_274 = l_119;
+    while (((p_274 & 7) == 0) && (((*(uint64_t *)p_274) & H_FORWARDED) != 0)) {
+        p_274 = (*(uint64_t *)(p_274 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_242 = p_274;
+    r_follow_242; });
+    }
+    r_literals_of_119 = l_119;
+    r_literals_of_119; });
     lits = (oop *)(o_953 + 16);
     fp = s_235 + CTX_FIXED;
     o_954 = s_235[CTX_STACKP];
@@ -13862,19 +15886,31 @@ context_return:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_959 = s_237[CTX_RECEIVER];
                 v_518 = ({
-    p_156 = o_959;
-    while (((p_156 & 7) == 0) && (((*(uint64_t *)p_156) & H_FORWARDED) != 0)) {
-        p_156 = (*(uint64_t *)(p_156 + 8)) & 18446744073709551609ULL;
+    p_275 = o_959;
+    while (((p_275 & 7) == 0) && (((*(uint64_t *)p_275) & H_FORWARDED) != 0)) {
+        p_275 = (*(uint64_t *)(p_275 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_124 = p_156;
-    r_follow_124; });
+    r_follow_243 = p_275;
+    r_follow_243; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_518;
                 if (((v_518 & 7) == 0) && (((uint64_t)(v_518 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_240 = s_237[CTX_METHOD];
-            o_960 = ((oop *)(m_240 + 16))[CM_LITERALS];
+            o_960 = ({
+    l_120 = *(uint64_t *)(m_240 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_120 = ({
+    p_276 = l_120;
+    while (((p_276 & 7) == 0) && (((*(uint64_t *)p_276) & H_FORWARDED) != 0)) {
+        p_276 = (*(uint64_t *)(p_276 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_244 = p_276;
+    r_follow_244; });
+    }
+    r_literals_of_120 = l_120;
+    r_literals_of_120; });
             lits = (oop *)(o_960 + 16);
             fp = s_237 + CTX_FIXED;
             o_961 = s_237[CTX_STACKP];
@@ -13976,19 +16012,31 @@ enter_frame:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_966 = s_240[CTX_RECEIVER];
                 v_521 = ({
-    p_157 = o_966;
-    while (((p_157 & 7) == 0) && (((*(uint64_t *)p_157) & H_FORWARDED) != 0)) {
-        p_157 = (*(uint64_t *)(p_157 + 8)) & 18446744073709551609ULL;
+    p_277 = o_966;
+    while (((p_277 & 7) == 0) && (((*(uint64_t *)p_277) & H_FORWARDED) != 0)) {
+        p_277 = (*(uint64_t *)(p_277 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_125 = p_157;
-    r_follow_125; });
+    r_follow_245 = p_277;
+    r_follow_245; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_521;
                 if (((v_521 & 7) == 0) && (((uint64_t)(v_521 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_242 = s_240[CTX_METHOD];
-            o_967 = ((oop *)(m_242 + 16))[CM_LITERALS];
+            o_967 = ({
+    l_121 = *(uint64_t *)(m_242 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_121 = ({
+    p_278 = l_121;
+    while (((p_278 & 7) == 0) && (((*(uint64_t *)p_278) & H_FORWARDED) != 0)) {
+        p_278 = (*(uint64_t *)(p_278 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_246 = p_278;
+    r_follow_246; });
+    }
+    r_literals_of_121 = l_121;
+    r_literals_of_121; });
             lits = (oop *)(o_967 + 16);
             fp = s_240 + CTX_FIXED;
             o_968 = s_240[CTX_STACKP];
@@ -14036,19 +16084,31 @@ enter_frame:;
             if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                 o_973 = s_242[CTX_RECEIVER];
                 v_524 = ({
-    p_158 = o_973;
-    while (((p_158 & 7) == 0) && (((*(uint64_t *)p_158) & H_FORWARDED) != 0)) {
-        p_158 = (*(uint64_t *)(p_158 + 8)) & 18446744073709551609ULL;
+    p_279 = o_973;
+    while (((p_279 & 7) == 0) && (((*(uint64_t *)p_279) & H_FORWARDED) != 0)) {
+        p_279 = (*(uint64_t *)(p_279 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_126 = p_158;
-    r_follow_126; });
+    r_follow_247 = p_279;
+    r_follow_247; });
                 *(uint64_t *)(active_ctx + 16 + 40) = v_524;
                 if (((v_524 & 7) == 0) && (((uint64_t)(v_524 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                     remember(active_ctx);
                 }
             }
             m_244 = s_242[CTX_METHOD];
-            o_974 = ((oop *)(m_244 + 16))[CM_LITERALS];
+            o_974 = ({
+    l_122 = *(uint64_t *)(m_244 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_122 = ({
+    p_280 = l_122;
+    while (((p_280 & 7) == 0) && (((*(uint64_t *)p_280) & H_FORWARDED) != 0)) {
+        p_280 = (*(uint64_t *)(p_280 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_248 = p_280;
+    r_follow_248; });
+    }
+    r_literals_of_122 = l_122;
+    r_literals_of_122; });
             lits = (oop *)(o_974 + 16);
             fp = s_242 + CTX_FIXED;
             o_975 = s_242[CTX_STACKP];
@@ -14127,8 +16187,8 @@ have_entry:;
     r_next_bytecode_251; })];
         }
         if ((prim_error_code >= 0) && ((new_temps > 0) && ((({
-    p_159 = *(uint64_t *)(new_method + 16 + 56);
-    r_method_prim_5 = (p_159 & 1) != 0 ? ((int64_t)p_159) >> 1 : 0;
+    p_281 = *(uint64_t *)(new_method + 16 + 56);
+    r_method_prim_5 = (p_281 & 1) != 0 ? ((int64_t)p_281) >> 1 : 0;
     r_method_prim_5; }) & CM_PRIM_ERROR_FLAG) != 0))) {
             new_ecode = prim_error_code;
         }
@@ -14165,19 +16225,31 @@ have_entry:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_980 = s_244[CTX_RECEIVER];
                     v_528 = ({
-    p_160 = o_980;
-    while (((p_160 & 7) == 0) && (((*(uint64_t *)p_160) & H_FORWARDED) != 0)) {
-        p_160 = (*(uint64_t *)(p_160 + 8)) & 18446744073709551609ULL;
+    p_282 = o_980;
+    while (((p_282 & 7) == 0) && (((*(uint64_t *)p_282) & H_FORWARDED) != 0)) {
+        p_282 = (*(uint64_t *)(p_282 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_127 = p_160;
-    r_follow_127; });
+    r_follow_249 = p_282;
+    r_follow_249; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_528;
                     if (((v_528 & 7) == 0) && (((uint64_t)(v_528 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_246 = s_244[CTX_METHOD];
-                o_981 = ((oop *)(m_246 + 16))[CM_LITERALS];
+                o_981 = ({
+    l_123 = *(uint64_t *)(m_246 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_123 = ({
+    p_283 = l_123;
+    while (((p_283 & 7) == 0) && (((*(uint64_t *)p_283) & H_FORWARDED) != 0)) {
+        p_283 = (*(uint64_t *)(p_283 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_250 = p_283;
+    r_follow_250; });
+    }
+    r_literals_of_123 = l_123;
+    r_literals_of_123; });
                 lits = (oop *)(o_981 + 16);
                 fp = s_244 + CTX_FIXED;
                 o_982 = s_244[CTX_STACKP];
@@ -14245,19 +16317,31 @@ have_entry:;
                         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                             o_987 = s_246[CTX_RECEIVER];
                             v_532 = ({
-    p_161 = o_987;
-    while (((p_161 & 7) == 0) && (((*(uint64_t *)p_161) & H_FORWARDED) != 0)) {
-        p_161 = (*(uint64_t *)(p_161 + 8)) & 18446744073709551609ULL;
+    p_284 = o_987;
+    while (((p_284 & 7) == 0) && (((*(uint64_t *)p_284) & H_FORWARDED) != 0)) {
+        p_284 = (*(uint64_t *)(p_284 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_128 = p_161;
-    r_follow_128; });
+    r_follow_251 = p_284;
+    r_follow_251; });
                             *(uint64_t *)(active_ctx + 16 + 40) = v_532;
                             if (((v_532 & 7) == 0) && (((uint64_t)(v_532 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                                 remember(active_ctx);
                             }
                         }
                         m_248 = s_246[CTX_METHOD];
-                        o_988 = ((oop *)(m_248 + 16))[CM_LITERALS];
+                        o_988 = ({
+    l_124 = *(uint64_t *)(m_248 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_124 = ({
+    p_285 = l_124;
+    while (((p_285 & 7) == 0) && (((*(uint64_t *)p_285) & H_FORWARDED) != 0)) {
+        p_285 = (*(uint64_t *)(p_285 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_252 = p_285;
+    r_follow_252; });
+    }
+    r_literals_of_124 = l_124;
+    r_literals_of_124; });
                         lits = (oop *)(o_988 + 16);
                         fp = s_246 + CTX_FIXED;
                         o_989 = s_246[CTX_STACKP];
@@ -14313,19 +16397,31 @@ have_entry:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_994 = s_248[CTX_RECEIVER];
                         v_535 = ({
-    p_162 = o_994;
-    while (((p_162 & 7) == 0) && (((*(uint64_t *)p_162) & H_FORWARDED) != 0)) {
-        p_162 = (*(uint64_t *)(p_162 + 8)) & 18446744073709551609ULL;
+    p_286 = o_994;
+    while (((p_286 & 7) == 0) && (((*(uint64_t *)p_286) & H_FORWARDED) != 0)) {
+        p_286 = (*(uint64_t *)(p_286 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_129 = p_162;
-    r_follow_129; });
+    r_follow_253 = p_286;
+    r_follow_253; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_535;
                         if (((v_535 & 7) == 0) && (((uint64_t)(v_535 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_250 = s_248[CTX_METHOD];
-                    o_995 = ((oop *)(m_250 + 16))[CM_LITERALS];
+                    o_995 = ({
+    l_125 = *(uint64_t *)(m_250 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_125 = ({
+    p_287 = l_125;
+    while (((p_287 & 7) == 0) && (((*(uint64_t *)p_287) & H_FORWARDED) != 0)) {
+        p_287 = (*(uint64_t *)(p_287 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_254 = p_287;
+    r_follow_254; });
+    }
+    r_literals_of_125 = l_125;
+    r_literals_of_125; });
                     lits = (oop *)(o_995 + 16);
                     fp = s_248 + CTX_FIXED;
                     o_996 = s_248[CTX_STACKP];
@@ -14388,19 +16484,31 @@ have_entry:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_1001 = s_250[CTX_RECEIVER];
                         v_538 = ({
-    p_163 = o_1001;
-    while (((p_163 & 7) == 0) && (((*(uint64_t *)p_163) & H_FORWARDED) != 0)) {
-        p_163 = (*(uint64_t *)(p_163 + 8)) & 18446744073709551609ULL;
+    p_288 = o_1001;
+    while (((p_288 & 7) == 0) && (((*(uint64_t *)p_288) & H_FORWARDED) != 0)) {
+        p_288 = (*(uint64_t *)(p_288 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_130 = p_163;
-    r_follow_130; });
+    r_follow_255 = p_288;
+    r_follow_255; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_538;
                         if (((v_538 & 7) == 0) && (((uint64_t)(v_538 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_252 = s_250[CTX_METHOD];
-                    o_1002 = ((oop *)(m_252 + 16))[CM_LITERALS];
+                    o_1002 = ({
+    l_126 = *(uint64_t *)(m_252 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_126 = ({
+    p_289 = l_126;
+    while (((p_289 & 7) == 0) && (((*(uint64_t *)p_289) & H_FORWARDED) != 0)) {
+        p_289 = (*(uint64_t *)(p_289 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_256 = p_289;
+    r_follow_256; });
+    }
+    r_literals_of_126 = l_126;
+    r_literals_of_126; });
                     lits = (oop *)(o_1002 + 16);
                     fp = s_250 + CTX_FIXED;
                     o_1003 = s_250[CTX_STACKP];
@@ -14438,19 +16546,31 @@ have_entry:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_1007 = s_251[CTX_RECEIVER];
                     v_539 = ({
-    p_164 = o_1007;
-    while (((p_164 & 7) == 0) && (((*(uint64_t *)p_164) & H_FORWARDED) != 0)) {
-        p_164 = (*(uint64_t *)(p_164 + 8)) & 18446744073709551609ULL;
+    p_290 = o_1007;
+    while (((p_290 & 7) == 0) && (((*(uint64_t *)p_290) & H_FORWARDED) != 0)) {
+        p_290 = (*(uint64_t *)(p_290 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_131 = p_164;
-    r_follow_131; });
+    r_follow_257 = p_290;
+    r_follow_257; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_539;
                     if (((v_539 & 7) == 0) && (((uint64_t)(v_539 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_253 = s_251[CTX_METHOD];
-                o_1008 = ((oop *)(m_253 + 16))[CM_LITERALS];
+                o_1008 = ({
+    l_127 = *(uint64_t *)(m_253 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_127 = ({
+    p_291 = l_127;
+    while (((p_291 & 7) == 0) && (((*(uint64_t *)p_291) & H_FORWARDED) != 0)) {
+        p_291 = (*(uint64_t *)(p_291 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_258 = p_291;
+    r_follow_258; });
+    }
+    r_literals_of_127 = l_127;
+    r_literals_of_127; });
                 lits = (oop *)(o_1008 + 16);
                 fp = s_251 + CTX_FIXED;
                 o_1009 = s_251[CTX_STACKP];
@@ -14495,19 +16615,31 @@ have_entry:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_1014 = s_253[CTX_RECEIVER];
                         v_542 = ({
-    p_165 = o_1014;
-    while (((p_165 & 7) == 0) && (((*(uint64_t *)p_165) & H_FORWARDED) != 0)) {
-        p_165 = (*(uint64_t *)(p_165 + 8)) & 18446744073709551609ULL;
+    p_292 = o_1014;
+    while (((p_292 & 7) == 0) && (((*(uint64_t *)p_292) & H_FORWARDED) != 0)) {
+        p_292 = (*(uint64_t *)(p_292 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_132 = p_165;
-    r_follow_132; });
+    r_follow_259 = p_292;
+    r_follow_259; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_542;
                         if (((v_542 & 7) == 0) && (((uint64_t)(v_542 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_255 = s_253[CTX_METHOD];
-                    o_1015 = ((oop *)(m_255 + 16))[CM_LITERALS];
+                    o_1015 = ({
+    l_128 = *(uint64_t *)(m_255 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_128 = ({
+    p_293 = l_128;
+    while (((p_293 & 7) == 0) && (((*(uint64_t *)p_293) & H_FORWARDED) != 0)) {
+        p_293 = (*(uint64_t *)(p_293 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_260 = p_293;
+    r_follow_260; });
+    }
+    r_literals_of_128 = l_128;
+    r_literals_of_128; });
                     lits = (oop *)(o_1015 + 16);
                     fp = s_253 + CTX_FIXED;
                     o_1016 = s_253[CTX_STACKP];
@@ -14541,19 +16673,31 @@ have_entry:;
                 if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                     o_1020 = s_254[CTX_RECEIVER];
                     v_543 = ({
-    p_166 = o_1020;
-    while (((p_166 & 7) == 0) && (((*(uint64_t *)p_166) & H_FORWARDED) != 0)) {
-        p_166 = (*(uint64_t *)(p_166 + 8)) & 18446744073709551609ULL;
+    p_294 = o_1020;
+    while (((p_294 & 7) == 0) && (((*(uint64_t *)p_294) & H_FORWARDED) != 0)) {
+        p_294 = (*(uint64_t *)(p_294 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_133 = p_166;
-    r_follow_133; });
+    r_follow_261 = p_294;
+    r_follow_261; });
                     *(uint64_t *)(active_ctx + 16 + 40) = v_543;
                     if (((v_543 & 7) == 0) && (((uint64_t)(v_543 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                         remember(active_ctx);
                     }
                 }
                 m_256 = s_254[CTX_METHOD];
-                o_1021 = ((oop *)(m_256 + 16))[CM_LITERALS];
+                o_1021 = ({
+    l_129 = *(uint64_t *)(m_256 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_129 = ({
+    p_295 = l_129;
+    while (((p_295 & 7) == 0) && (((*(uint64_t *)p_295) & H_FORWARDED) != 0)) {
+        p_295 = (*(uint64_t *)(p_295 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_262 = p_295;
+    r_follow_262; });
+    }
+    r_literals_of_129 = l_129;
+    r_literals_of_129; });
                 lits = (oop *)(o_1021 + 16);
                 fp = s_254 + CTX_FIXED;
                 o_1022 = s_254[CTX_STACKP];
@@ -14585,19 +16729,31 @@ have_entry:;
                     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
                         o_1026 = s_255[CTX_RECEIVER];
                         v_544 = ({
-    p_167 = o_1026;
-    while (((p_167 & 7) == 0) && (((*(uint64_t *)p_167) & H_FORWARDED) != 0)) {
-        p_167 = (*(uint64_t *)(p_167 + 8)) & 18446744073709551609ULL;
+    p_296 = o_1026;
+    while (((p_296 & 7) == 0) && (((*(uint64_t *)p_296) & H_FORWARDED) != 0)) {
+        p_296 = (*(uint64_t *)(p_296 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_134 = p_167;
-    r_follow_134; });
+    r_follow_263 = p_296;
+    r_follow_263; });
                         *(uint64_t *)(active_ctx + 16 + 40) = v_544;
                         if (((v_544 & 7) == 0) && (((uint64_t)(v_544 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                             remember(active_ctx);
                         }
                     }
                     m_257 = s_255[CTX_METHOD];
-                    o_1027 = ((oop *)(m_257 + 16))[CM_LITERALS];
+                    o_1027 = ({
+    l_130 = *(uint64_t *)(m_257 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_130 = ({
+    p_297 = l_130;
+    while (((p_297 & 7) == 0) && (((*(uint64_t *)p_297) & H_FORWARDED) != 0)) {
+        p_297 = (*(uint64_t *)(p_297 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_264 = p_297;
+    r_follow_264; });
+    }
+    r_literals_of_130 = l_130;
+    r_literals_of_130; });
                     lits = (oop *)(o_1027 + 16);
                     fp = s_255 + CTX_FIXED;
                     o_1028 = s_255[CTX_STACKP];
@@ -14618,11 +16774,23 @@ have_entry:;
             tmp_roots[0] = nil_oop;
             o_1032 = *(uint64_t *)(new_method + 16 + 24);
             new_bcs = (uint8_t *)(o_1032 + 16);
-            o_1033 = *(uint64_t *)(new_method + 16 + 16);
+            o_1033 = ({
+    l_131 = *(uint64_t *)(new_method + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_131 = ({
+    p_298 = l_131;
+    while (((p_298 & 7) == 0) && (((*(uint64_t *)p_298) & H_FORWARDED) != 0)) {
+        p_298 = (*(uint64_t *)(p_298 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_265 = p_298;
+    r_follow_265; });
+    }
+    r_literals_of_131 = l_131;
+    r_literals_of_131; });
             new_lits = (oop *)(o_1033 + 16);
             if ((prim_error_code >= 0) && ((new_temps > 0) && ((({
-    p_168 = *(uint64_t *)(new_method + 16 + 56);
-    r_method_prim_6 = (p_168 & 1) != 0 ? ((int64_t)p_168) >> 1 : 0;
+    p_299 = *(uint64_t *)(new_method + 16 + 56);
+    r_method_prim_6 = (p_299 & 1) != 0 ? ((int64_t)p_299) >> 1 : 0;
     r_method_prim_6; }) & CM_PRIM_ERROR_FLAG) != 0))) {
                 new_ecode = prim_error_code;
             }
@@ -14634,12 +16802,12 @@ send_does_not_understand:;
     if (__builtin_expect((cls & 7) == FWD_TAG, 0)) {
         o_1034 = sp[-argc];
         sp[-argc] = ({
-    p_169 = o_1034;
-    while (((p_169 & 7) == 0) && (((*(uint64_t *)p_169) & H_FORWARDED) != 0)) {
-        p_169 = (*(uint64_t *)(p_169 + 8)) & 18446744073709551609ULL;
+    p_300 = o_1034;
+    while (((p_300 & 7) == 0) && (((*(uint64_t *)p_300) & H_FORWARDED) != 0)) {
+        p_300 = (*(uint64_t *)(p_300 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_135 = p_169;
-    r_follow_135; });
+    r_follow_266 = p_300;
+    r_follow_266; });
         r_40 = sp[-argc];
         cls = (r_40 & 7) != 0 ? tag_class[r_40 & 7] : *(uint64_t *)(r_40 + 8);
         goto do_lookup;
@@ -14698,19 +16866,31 @@ send_does_not_understand:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_1037 = s_258[CTX_RECEIVER];
             v_549 = ({
-    p_170 = o_1037;
-    while (((p_170 & 7) == 0) && (((*(uint64_t *)p_170) & H_FORWARDED) != 0)) {
-        p_170 = (*(uint64_t *)(p_170 + 8)) & 18446744073709551609ULL;
+    p_301 = o_1037;
+    while (((p_301 & 7) == 0) && (((*(uint64_t *)p_301) & H_FORWARDED) != 0)) {
+        p_301 = (*(uint64_t *)(p_301 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_136 = p_170;
-    r_follow_136; });
+    r_follow_267 = p_301;
+    r_follow_267; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_549;
             if (((v_549 & 7) == 0) && (((uint64_t)(v_549 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_260 = s_258[CTX_METHOD];
-        o_1038 = ((oop *)(m_260 + 16))[CM_LITERALS];
+        o_1038 = ({
+    l_132 = *(uint64_t *)(m_260 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_132 = ({
+    p_302 = l_132;
+    while (((p_302 & 7) == 0) && (((*(uint64_t *)p_302) & H_FORWARDED) != 0)) {
+        p_302 = (*(uint64_t *)(p_302 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_268 = p_302;
+    r_follow_268; });
+    }
+    r_literals_of_132 = l_132;
+    r_literals_of_132; });
         lits = (oop *)(o_1038 + 16);
         fp = s_258 + CTX_FIXED;
         o_1039 = s_258[CTX_STACKP];
@@ -14746,19 +16926,31 @@ send_does_not_understand:;
         if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
             o_1044 = s_259[CTX_RECEIVER];
             v_550 = ({
-    p_171 = o_1044;
-    while (((p_171 & 7) == 0) && (((*(uint64_t *)p_171) & H_FORWARDED) != 0)) {
-        p_171 = (*(uint64_t *)(p_171 + 8)) & 18446744073709551609ULL;
+    p_303 = o_1044;
+    while (((p_303 & 7) == 0) && (((*(uint64_t *)p_303) & H_FORWARDED) != 0)) {
+        p_303 = (*(uint64_t *)(p_303 + 8)) & 18446744073709551609ULL;
     }
-    r_follow_137 = p_171;
-    r_follow_137; });
+    r_follow_269 = p_303;
+    r_follow_269; });
             *(uint64_t *)(active_ctx + 16 + 40) = v_550;
             if (((v_550 & 7) == 0) && (((uint64_t)(v_550 - young_lo) < young_hi - young_lo) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0)))) {
                 remember(active_ctx);
             }
         }
         m_261 = s_259[CTX_METHOD];
-        o_1045 = ((oop *)(m_261 + 16))[CM_LITERALS];
+        o_1045 = ({
+    l_133 = *(uint64_t *)(m_261 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_133 = ({
+    p_304 = l_133;
+    while (((p_304 & 7) == 0) && (((*(uint64_t *)p_304) & H_FORWARDED) != 0)) {
+        p_304 = (*(uint64_t *)(p_304 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_270 = p_304;
+    r_follow_270; });
+    }
+    r_literals_of_133 = l_133;
+    r_literals_of_133; });
         lits = (oop *)(o_1045 + 16);
         fp = s_259 + CTX_FIXED;
         o_1046 = s_259[CTX_STACKP];
@@ -15154,6 +17346,10 @@ frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode)
     oop *nfp;
     frame *g;
     uint64_t o_3;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o_4;
     int64_t i;
     f = frames + (nframes - 1);
@@ -15177,7 +17373,19 @@ frame *push_frame(oop m, int32_t n, uint64_t c, int32_t ecode)
     g->fp = nfp;
     o_3 = *(uint64_t *)(m + 16 + 24);
     g->ip = (uint8_t *)(o_3 + 16);
-    o_4 = *(uint64_t *)(m + 16 + 16);
+    o_4 = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     g->lits = (oop *)(o_4 + 16);
     g->sp = (int32_t)(n + ntemps);
     for (i = n; i <= n + ntemps - 1; i++) {
@@ -15520,6 +17728,10 @@ frame *thaw_for(uint64_t code)
     oop p;
     uint64_t o_4;
     oop o_5;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t o_6;
     c = active_ctx;
     s = (oop *)(c + 16);
@@ -15553,7 +17765,19 @@ frame *thaw_for(uint64_t code)
     o_4 = *(uint64_t *)(m + 16 + 24);
     o_5 = s[CTX_PC];
     f->ip = (uint8_t *)(o_4 + 16) + (((int64_t)o_5) >> 1);
-    o_6 = *(uint64_t *)(m + 16 + 16);
+    o_6 = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     f->lits = (oop *)(o_6 + 16);
     f->sp = (int32_t)n;
     s[CTX_SENDER] = 1ULL;

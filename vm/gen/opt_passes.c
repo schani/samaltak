@@ -3427,7 +3427,7 @@ exit_is_numbered:;
                 m = ps_heads[h];
                 while ((m >= 0) && (found < 0)) {
                     md = opt_nodes + m;
-                    if ((nd->op == md->op) && ((nd->a == md->a) && ((nd->b == md->b) && ((nd->aux == md->aux) && ((nd->aux2 == md->aux2) && ((nd->tcls == md->tcls) && (nd->tkind == md->tkind)))))) && ((md->block >= 0) && ({
+                    if ((nd->op == md->op) && ((nd->a == md->a) && ((nd->b == md->b) && ((nd->aux == md->aux) && ((nd->aux2 == md->aux2) && ((nd->tcls == md->tcls) && ((nd->tkind == md->tkind) && ((nd->flags & NF_FOLLOW) == (md->flags & NF_FOLLOW)))))))) && ((md->block >= 0) && ({
     x = md->block;
     (ps_pre[x] <= ps_pre[b]) && (ps_post[b] <= ps_post[x]); }))) {
                         found = m;

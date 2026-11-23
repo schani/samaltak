@@ -86,6 +86,13 @@ rawClass: o
 rawClass: o put: c
 	self uint64At: o + 8 put: c
 !
+literalsOf: m
+	"Method m's literals, followed: becomeForward: may have forwarded the Array, whose old body the collector no longer updates (the bytecodes need not be followed: their old body keeps its bytes)."
+	| l |
+	l := self loadRef: m at: CM_LITERALS.
+	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
+	^l
+!
 isForwarder: o
 	"o was forwarded by becomeForward: (outside a collection only forwarders have H_FORWARDED set)."
 	^(self isPtr: o) and: [((self header: o) bitAnd: H_FORWARDED) ~= 0]

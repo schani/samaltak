@@ -770,7 +770,7 @@ noteHoisted: rec of: h frame: f
 	rtDeoptCount := 0.
 	k := self value: (rec at: 2) - 1 h: h frame: f regs: runtime state dump.
 	sig := self signatureAt: m pc: pc.
-	feedback noteSend: m pc: pc class: (interpreter receiverClass: (rtDeoptVals at: k)).
+	feedback noteSend: m pc: pc class: (interpreter receiverClass: (self followed: (rtDeoptVals at: k))).
 	^(self signatureAt: m pc: pc) ~= sig or: [(feedback siteAt: m pc: pc) stamp > h stamp]
 !
 signatureAt: m pc: pc
@@ -793,8 +793,8 @@ noteReceiverAt: m pc: pc
 	i >= 0 ifTrue: [
 		feedback noteSend: m pc: pc class: (interpreter receiverClass: (self followed: (g fp at: i))).
 		(libc getenv: 'SAMALTAK_OPT_TRACE') notNull ifTrue: [
-			libc fprintf: libc stderr format: 'deopt receiver %lld (Array %lld): ' with: (interpreter receiverClass: (g fp at: i)) with: memory clsArray.
-			interpreter printClassName: (interpreter receiverClass: (g fp at: i)) on: libc stderr.
+			libc fprintf: libc stderr format: 'deopt receiver %lld (Array %lld): ' with: (interpreter receiverClass: (self followed: (g fp at: i))) with: memory clsArray.
+			interpreter printClassName: (interpreter receiverClass: (self followed: (g fp at: i))) on: libc stderr.
 			libc fputc: 10 to: libc stderr]]
 !
 operandFlagsAt: m pc: pc
@@ -900,7 +900,7 @@ writeFrames: fi from: fp0
 		g fp: fp.
 		g ip: (self methodBytecodes: m) + (rtActPc at: i).
 		g pc: (rtActPc at: i).
-		g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+		g lits: (self slotsOf: (self literalsOf: m)).
 		g sp: d].
 	rtWritten := rtActCount.
 	interpreter nframes: fi + rtActCount.

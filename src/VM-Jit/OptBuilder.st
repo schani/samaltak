@@ -193,7 +193,8 @@ frameClassOf: v
 	nd := ir node: n.
 	(nd op asInt32 = O_PARAM and: [nd tkind asInt32 = T_ANY and: [nd aux >= 0 and: [nd aux < (obValidSlots min: 64)]]]) ifFalse: [^0 asUInt64].
 	o := obFrame fp at: nd aux.
-	(self isPtr: o) ifFalse: [^0 asUInt64].
+	"a forwarder (becomeForward:) has no class to guard for"
+	((self isPtr: o) and: [(memory isForwarder: o) not]) ifFalse: [^0 asUInt64].
 	cls := self rawClass: o.
 	(cls = memory clsBlock or: [cls = memory clsContext]) ifTrue: [^0 asUInt64].
 	((feedback flagsAt: obRootMethod pc: obOsrPc) bitAnd: feedback deoptHoisted) ~= 0 ifTrue: [^0 asUInt64].
@@ -327,7 +328,7 @@ inlinableClosure: c
 	m := self loadRef: ctx at: CTX_METHOD.
 	((self isPtr: m) and: [(self formatOf: m) = F_FIXED and: [(self numSlots: m) > CM_PRIMITIVE]]) ifFalse: [^false].
 	((self isPtr: (self loadRef: m at: CM_BYTECODES)) and: [(self formatOf: (self loadRef: m at: CM_BYTECODES)) >= F_BYTES]) ifFalse: [^false].
-	((self isPtr: (self loadRef: m at: CM_LITERALS)) and: [(self formatOf: (self loadRef: m at: CM_LITERALS)) <= F_WEAK]) ifFalse: [^false].
+	((self isPtr: (self literalsOf: m)) and: [(self formatOf: (self literalsOf: m)) <= F_WEAK]) ifFalse: [^false].
 	((self isInt: (self loadRef: c at: BC_STARTPC)) and: [self isInt: (self loadRef: c at: BC_NUMARGS)]) ifFalse: [^false].
 	sp := (self intVal: (self loadRef: c at: BC_STARTPC)) asInt32.
 	n := self intVal: (self loadRef: c at: BC_NUMARGS).
@@ -1443,7 +1444,7 @@ guessedClassOf: x
 	n := self liveValueOf: x.
 	(ir node: n) op asInt32 = O_OUTERLOAD ifTrue: [
 		o := self knownObject: n.
-		(o ~= 0 and: [(self isPtr: o) and: [(self rawClass: o) ~= memory clsBlock and: [(self rawClass: o) ~= memory clsContext]]]) ifTrue: [^self rawClass: o]].
+		(o ~= 0 and: [(self isPtr: o) and: [(memory isForwarder: o) not and: [(self rawClass: o) ~= memory clsBlock and: [(self rawClass: o) ~= memory clsContext]]]]) ifTrue: [^self rawClass: o]].
 	ir nodeCount - 1 to: (ir nodeCount - 512 max: 0) by: -1 do: [:i |
 		nd := ir node: i.
 		(nd op asInt32 = O_GUARDCLASS and: [nd block >= 0 and: [nd a = n or: [nd a = x]]]) ifTrue: [^nd aux asUInt64]].
@@ -2190,7 +2191,7 @@ global: assoc pc: pc act: a depth: d
 	"The value of the literal variable assoc pushed at a's pc: a class it holds now is a constant, guarded (it changed: deoptimize to the push, where it is loaded from then on), else loaded."
 	| v c n |
 	v := self loadField: ASSOC_VALUE of: (self constant: assoc).
-	c := self loadRef: assoc at: ASSOC_VALUE.
+	c := memory follow: (self loadRef: assoc at: ASSOC_VALUE).
 	((self isBehavior: c) and: [((feedback flagsAt: (ir act: a) method pc: pc) bitAnd: feedback deoptOther) = 0]) ifFalse: [^v].
 	n := self add: O_GUARDEQ rep: R_NONE.
 	(ir node: n) a: v.
@@ -2202,7 +2203,7 @@ global: assoc pc: pc act: a depth: d
 isBehavior: o
 	"o is a class or a metaclass: its class's class is Metaclass (Metaclass class's class is Metaclass)."
 	| m |
-	(self isPtr: o) ifFalse: [^false].
+	((self isPtr: o) and: [(memory isForwarder: o) not]) ifFalse: [^false].
 	m := self rawClass: (self rawClass: o).
 	^m = (self rawClass: (self rawClass: m))
 !

@@ -218,7 +218,14 @@ methodSize: m
 	^(memory byteSize: (self loadRef: m at: CM_BYTECODES)) asInt32
 !
 methodLiteral: m at: i
-	^self loadRef: (self loadRef: m at: CM_LITERALS) at: i
+	^self loadRef: (self literalsOf: m) at: i
+!
+literalsOf: m
+	"As VMCoreModule>>literalsOf:: method m's literals, followed."
+	| l |
+	l := self loadRef: m at: CM_LITERALS.
+	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
+	^l
 !
 methodPrimitive: m
 	| p |

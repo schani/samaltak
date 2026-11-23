@@ -92,11 +92,15 @@ uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret)
     void *a;
     uint32_t info;
     oop *fp;
-    oop o_2;
-    uint64_t o_3;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     uint64_t r_entry_of_block;
     uint64_t ctx;
-    uint64_t m_2;
+    uint64_t m_3;
     uint64_t startpc_2;
     jit_method *h_2;
     int64_t s;
@@ -105,7 +109,7 @@ uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret)
     int64_t k;
     int64_t v;
     uint64_t entry;
-    uint64_t o_4;
+    uint64_t o_3;
     uint64_t m;
     uint64_t startpc;
     int64_t i;
@@ -140,20 +144,32 @@ uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o_2 = f->method;
-    o_3 = *(uint64_t *)(o_2 + 16 + 16);
-    f->lits = (oop *)(o_3 + 16);
+    m_2 = f->method;
+    o_2 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o_2 + 16);
     entry = ({
     ctx = *(uint64_t *)(c + 16 + 0);
     if (!(((ctx & 7) == 0) && (ctx != nil_oop))) {
         r_entry_of_block = 0ULL;
         goto exit_entry_of_block;
     }
-    m_2 = *(uint64_t *)(ctx + 16 + 24);
+    m_3 = *(uint64_t *)(ctx + 16 + 24);
     startpc_2 = *(uint64_t *)(c + 16 + 8);
-    h_2 = jit_runtime_lookup(m_2);
+    h_2 = jit_runtime_lookup(m_3);
     if (h_2 == NULL) {
-        h_2 = compile_and_install(m_2);
+        h_2 = compile_and_install(m_3);
     }
     if (!((h_2 != NULL) && ((h_2->flags & JM_FAILED) == 0) && (h_2->mode == JIT_BASELINE))) {
         r_entry_of_block = 0ULL;
@@ -165,7 +181,7 @@ uint64_t jit_baseline_runtime_block(frame *f, oop c, uint64_t ret)
         r_opt_unit_entry_of = 0ULL;
         goto exit_opt_unit_entry_of;
     }
-    r_opt_unit_entry_of = unit_entry_of(m_2, s);
+    r_opt_unit_entry_of = unit_entry_of(m_3, s);
 exit_opt_unit_entry_of:;
     r_opt_unit_entry_of; });
     if (entry_2 != 0) {
@@ -186,8 +202,8 @@ exit_entry_of_block:;
         return 1;
     }
     if ((jit_flags & JIT_FLAG_BLOCKS) != 0) {
-        o_4 = *(uint64_t *)(c + 16 + 0);
-        m = *(uint64_t *)(o_4 + 16 + 24);
+        o_3 = *(uint64_t *)(c + 16 + 0);
+        m = *(uint64_t *)(o_3 + 16 + 24);
         startpc = *(uint64_t *)(c + 16 + 8);
         i = (int64_t)(((startpc ^ (m >> 3)) & 1023) * 4);
         block_table[i] = m;
@@ -200,16 +216,32 @@ exit_entry_of_block:;
 /* JitBaselineRuntime>>box:bits: */
 oop box(frame *f, uint64_t b)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     return float_oop(lt_double_from_bits(b));
 }
 
@@ -233,8 +265,12 @@ void canonicalize_below(frame *f)
     uint32_t info;
     oop m;
     uint64_t o;
-    oop o_2;
-    uint64_t o_3;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     base = (frame *)state_block->base_frame;
     g = f - 1;
     stat_walks = stat_walks + 1;
@@ -278,9 +314,21 @@ void canonicalize_below(frame *f)
         m = g->method;
         o = *(uint64_t *)(m + 16 + 24);
         g->ip = (uint8_t *)(o + 16) + pc;
-        o_2 = g->method;
-        o_3 = *(uint64_t *)(o_2 + 16 + 16);
-        g->lits = (oop *)(o_3 + 16);
+        m_2 = g->method;
+        o_2 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+        g->lits = (oop *)(o_2 + 16);
         g = g - 1;
     }
 }
@@ -305,8 +353,12 @@ void canonicalize_below(frame *f)
     uint32_t info;
     oop m;
     uint64_t o;
-    oop o_2;
-    uint64_t o_3;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     base = (frame *)state_block->base_frame;
     g = f - 1;
     stat_walks = stat_walks + 1;
@@ -350,9 +402,21 @@ void canonicalize_below(frame *f)
         m = g->method;
         o = *(uint64_t *)(m + 16 + 24);
         g->ip = (uint8_t *)(o + 16) + pc;
-        o_2 = g->method;
-        o_3 = *(uint64_t *)(o_2 + 16 + 16);
-        g->lits = (oop *)(o_3 + 16);
+        m_2 = g->method;
+        o_2 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+        g->lits = (oop *)(o_2 + 16);
         g = g - 1;
     }
 }
@@ -361,8 +425,12 @@ void canonicalize_below(frame *f)
 /* JitBaselineRuntime>>entrySlow:ret:callee: */
 uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     oop *r_callee_fp;
     uint32_t *r_ret_entry;
     uint64_t c_2;
@@ -373,18 +441,18 @@ uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
     oop *nfp;
     uint64_t c_3;
     jit_method *h;
+    oop o_2;
     oop o_3;
-    oop o_4;
     uint64_t v;
-    uint64_t o_5;
+    uint64_t o_4;
     int32_t n;
     uint64_t moved;
     uint64_t inv;
     frame *g;
-    oop m;
+    oop m_2;
     int64_t r_method_prim;
-    uint64_t p;
-    oop o_6;
+    uint64_t p_2;
+    oop o_5;
     int32_t n_2;
     set_top(f, ret, 0);
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
@@ -392,9 +460,21 @@ uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     nfp = ({
     info = ({
     c_2 = f->code;
@@ -424,16 +504,16 @@ uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
         return 1;
     }
     h = (jit_method *)c;
-    o_5 = ({
+    o_4 = ({
     if (c == 1) {
-        o_3 = nfp[-1];
-        v = *(uint64_t *)(o_3 + 16 + 16);
+        o_2 = nfp[-1];
+        v = *(uint64_t *)(o_2 + 16 + 16);
     } else {
-        o_4 = h->method;
-        v = *(uint64_t *)(o_4 + 16 + 32);
+        o_3 = h->method;
+        v = *(uint64_t *)(o_3 + 16 + 32);
     }
     v; });
-    n = (int32_t)(((int64_t)o_5) >> 1);
+    n = (int32_t)(((int64_t)o_4) >> 1);
     set_top(f, ret, 1);
     f->sp = (int32_t)(nfp - f->fp + n);
     sync_frame(f);
@@ -448,13 +528,13 @@ uint64_t entry_slow(frame *f, uint64_t ret, uint64_t c)
             fprintf(stderr, "baseline: no room for a frame below the stack limit");
             fatal_end();
         }
-        m = h->method;
+        m_2 = h->method;
         if (((({
-    p = *(uint64_t *)(m + 16 + 56);
-    r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
+    p_2 = *(uint64_t *)(m_2 + 16 + 56);
+    r_method_prim = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_ERROR_FLAG) != 0) && ({
-    o_6 = h->method;
-    *(uint64_t *)(o_6 + 16 + 40) != 1ULL; })) {
+    o_5 = h->method;
+    *(uint64_t *)(o_5 + 16 + 40) != 1ULL; })) {
             g->fp[n] = (uint64_t)state_block->ecode;
         }
     }
@@ -523,8 +603,12 @@ uint64_t feedback_selector_of(oop m, int64_t i)
     uint32_t info;
     uint32_t i_2;
     oop o;
-    oop o_2;
-    uint64_t o_3;
+    oop m_2;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     h = header_of(m);
     s = h->sites + i;
     return ({
@@ -539,9 +623,21 @@ uint64_t feedback_selector_of(oop m, int64_t i)
         r_selector_of = *(uint64_t *)(o + 16 + 8 * i_2);
         goto exit_selector_of;
     }
-    o_2 = h->method;
-    o_3 = *(uint64_t *)(o_2 + 16 + 16);
-    r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
+    m_2 = h->method;
+    o_2 = ({
+    l = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    r_selector_of = *(uint64_t *)(o_2 + 16 + 8 * i_2);
 exit_selector_of:;
     r_selector_of; });
 }
@@ -681,8 +777,12 @@ uint64_t leaf_prim(uint64_t fp, uint64_t fn, uint64_t n)
 uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
 {
     jit_method *h;
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     baseline_site *r_site_of;
     uint32_t off;
     int64_t lo;
@@ -694,8 +794,8 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     bool opt;
     uint32_t kind;
     oop r;
-    oop r_follow;
-    oop p;
+    oop r_follow_2;
+    oop p_2;
     oop *r_callee_fp;
     uint32_t *r_ret_entry;
     uint64_t c;
@@ -706,12 +806,16 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t r_selector_of;
     uint32_t info_2;
     uint32_t i_2;
-    oop o_3;
+    oop o_2;
+    oop m_2;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_3;
+    uint64_t p_3;
+    uint64_t o_3;
+    uint64_t sel;
     oop o_4;
     uint64_t o_5;
-    uint64_t sel;
-    oop o_6;
-    uint64_t o_7;
     uint64_t v_2;
     uint64_t cls;
     int32_t k;
@@ -732,11 +836,11 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t target;
     int64_t i_4;
     int k_2;
-    oop m;
+    oop m_3;
     int64_t r_method_prim;
-    uint64_t p_3;
+    uint64_t p_5;
     uint64_t target_2;
-    uint64_t p_2;
+    uint64_t p_4;
     uint64_t target_3;
     bool r_add_case_to;
     baseline_pic *pic;
@@ -747,9 +851,9 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t target_5;
     int64_t i_6;
     int k_3;
-    oop m_2;
+    oop m_4;
     int64_t r_method_prim_2;
-    uint64_t p_4;
+    uint64_t p_6;
     stat_misses = stat_misses + 1;
     h = (jit_method *)f->code;
     set_top(f, ret, 0);
@@ -758,9 +862,21 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     s = ({
     off = (uint32_t)(ret - 4 - h->code_start);
     lo = 0;
@@ -792,12 +908,12 @@ exit_site_of:;
     r = rcv;
     if ((young_forwarders + old_forwarders != 0) && (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0))) {
         r = ({
-    p = r;
-    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
-        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    p_2 = r;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
     }
-    r_follow = p;
-    r_follow; });
+    r_follow_2 = p_2;
+    r_follow_2; });
         if (opt) {
             (f->fp + (int64_t)h->slots)[0] = r;
         } else {
@@ -834,20 +950,32 @@ exit_site_of:;
     info_2 = s->info;
     i_2 = (info_2 >> 16) & 255;
     if (((info_2 >> 24) & 3) == 2) {
-        o_3 = object_memory_special(SO_SPECIAL_SELECTORS);
-        r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
+        o_2 = object_memory_special(SO_SPECIAL_SELECTORS);
+        r_selector_of = *(uint64_t *)(o_2 + 16 + 8 * i_2);
         goto exit_selector_of;
     }
-    o_4 = h->method;
-    o_5 = *(uint64_t *)(o_4 + 16 + 16);
-    r_selector_of = *(uint64_t *)(o_5 + 16 + 8 * i_2);
+    m_2 = h->method;
+    o_3 = ({
+    l_2 = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_3 = l_2;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
+    r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
 exit_selector_of:;
     r_selector_of; });
     cls = ({
     if (kind == 1) {
-        o_6 = h->method;
-        o_7 = *(uint64_t *)(o_6 + 16 + 8);
-        v_2 = *(uint64_t *)(o_7 + 16 + 0);
+        o_4 = h->method;
+        o_5 = *(uint64_t *)(o_4 + 16 + 8);
+        v_2 = *(uint64_t *)(o_5 + 16 + 0);
     } else {
         v_2 = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(r + 8);
     }
@@ -896,7 +1024,7 @@ exit_flags_of:;
     if (t == NULL) {
         return opt ? send_from(f, ret) : 1;
     }
-    if ((jit_flags & JIT_FLAG_IC) != 0) {
+    if (((jit_flags & JIT_FLAG_IC) != 0) && (r == rcv)) {
         is_super = kind == 1;
         site = h->code_start + s->bl;
         lit = h->code_start + s->lit;
@@ -916,10 +1044,10 @@ exit_flags_of:;
             mega_table[i_4] = cls;
             mega_table[i_4 + 1] = sel;
             mega_table[i_4 + 2] = t->uentry;
-            m = t->method;
+            m_3 = t->method;
             mega_table[i_4 + 3] = (uint64_t)(prim_kind_of((int32_t)(({
-    p_3 = *(uint64_t *)(m + 16 + 56);
-    r_method_prim = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
+    p_5 = *(uint64_t *)(m_3 + 16 + 56);
+    r_method_prim = (p_5 & 1) != 0 ? ((int64_t)p_5) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK)) == PK_PERFORM ? -1 : (int64_t)selector_argc(sel));
         } else if (s->target == 0) {
             stat_links = stat_links + 1;
@@ -929,19 +1057,19 @@ exit_flags_of:;
             patch_branch_at(site, target_2);
             invalidate((void *)site, 4);
         } else {
-            p_2 = s->pic;
-            if ((p_2 == 0) && ((jit_flags & JIT_FLAG_PIC) != 0)) {
-                p_2 = new_pic_for(site, *(uint64_t *)lit, (jit_method *)s->target);
-                if (p_2 != 0) {
+            p_4 = s->pic;
+            if ((p_4 == 0) && ((jit_flags & JIT_FLAG_PIC) != 0)) {
+                p_4 = new_pic_for(site, *(uint64_t *)lit, (jit_method *)s->target);
+                if (p_4 != 0) {
                     stat_pics = stat_pics + 1;
-                    s->pic = p_2;
-                    target_3 = p_2 + sizeof(baseline_pic);
+                    s->pic = p_4;
+                    target_3 = p_4 + sizeof(baseline_pic);
                     patch_branch_at(site, target_3);
                     invalidate((void *)site, 4);
                 }
             }
-            if (!((p_2 != 0) && ({
-    pic = (baseline_pic *)p_2;
+            if (!((p_4 != 0) && ({
+    pic = (baseline_pic *)p_4;
     n = pic->count;
     if (n >= BL_PIC_CASES) {
         r_add_case_to = false;
@@ -951,7 +1079,7 @@ exit_flags_of:;
     *(uint64_t *)((uint64_t)&pic->targets + (uint64_t)(8 * n)) = (uint64_t)t;
     pic->count = n + 1;
     i_5 = (int32_t)n;
-    site_2 = p_2 + (sizeof(baseline_pic) + BL_PIC_HEAD_X64 + BL_PIC_CASE_X64 * i_5 + BL_PIC_JMP_X64);
+    site_2 = p_4 + (sizeof(baseline_pic) + BL_PIC_HEAD_X64 + BL_PIC_CASE_X64 * i_5 + BL_PIC_JMP_X64);
     target_4 = t->uentry;
     patch_branch_at(site_2, target_4);
     invalidate((void *)site_2, 4);
@@ -973,10 +1101,10 @@ exit_add_case_to:;
                 mega_table[i_6] = cls;
                 mega_table[i_6 + 1] = sel;
                 mega_table[i_6 + 2] = t->uentry;
-                m_2 = t->method;
+                m_4 = t->method;
                 mega_table[i_6 + 3] = (uint64_t)(prim_kind_of((int32_t)(({
-    p_4 = *(uint64_t *)(m_2 + 16 + 56);
-    r_method_prim_2 = (p_4 & 1) != 0 ? ((int64_t)p_4) >> 1 : 0;
+    p_6 = *(uint64_t *)(m_4 + 16 + 56);
+    r_method_prim_2 = (p_6 & 1) != 0 ? ((int64_t)p_6) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK)) == PK_PERFORM ? -1 : (int64_t)selector_argc(sel));
             }
         }
@@ -990,8 +1118,12 @@ exit_add_case_to:;
 uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
 {
     jit_method *h;
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     baseline_site *r_site_of;
     uint32_t off;
     int64_t lo;
@@ -1003,8 +1135,8 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     bool opt;
     uint32_t kind;
     oop r;
-    oop r_follow;
-    oop p;
+    oop r_follow_2;
+    oop p_2;
     oop *r_callee_fp;
     uint32_t *r_ret_entry;
     uint64_t c;
@@ -1015,12 +1147,16 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t r_selector_of;
     uint32_t info_2;
     uint32_t i_2;
-    oop o_3;
+    oop o_2;
+    oop m_2;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_3;
+    uint64_t p_3;
+    uint64_t o_3;
+    uint64_t sel;
     oop o_4;
     uint64_t o_5;
-    uint64_t sel;
-    oop o_6;
-    uint64_t o_7;
     uint64_t v_2;
     uint64_t cls;
     int32_t k;
@@ -1041,11 +1177,11 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t target;
     int64_t i_4;
     int k_2;
-    oop m;
+    oop m_3;
     int64_t r_method_prim;
-    uint64_t p_3;
+    uint64_t p_5;
     uint64_t target_2;
-    uint64_t p_2;
+    uint64_t p_4;
     uint64_t target_3;
     bool r_add_case_to;
     baseline_pic *pic;
@@ -1056,9 +1192,9 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
     uint64_t target_5;
     int64_t i_6;
     int k_3;
-    oop m_2;
+    oop m_4;
     int64_t r_method_prim_2;
-    uint64_t p_4;
+    uint64_t p_6;
     stat_misses = stat_misses + 1;
     h = (jit_method *)f->code;
     set_top(f, ret, 0);
@@ -1067,9 +1203,21 @@ uint64_t jit_baseline_runtime_miss(frame *f, oop rcv, uint64_t ret)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     s = ({
     off = (uint32_t)(ret - 4 - h->code_start);
     lo = 0;
@@ -1101,12 +1249,12 @@ exit_site_of:;
     r = rcv;
     if ((young_forwarders + old_forwarders != 0) && (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0))) {
         r = ({
-    p = r;
-    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
-        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    p_2 = r;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
     }
-    r_follow = p;
-    r_follow; });
+    r_follow_2 = p_2;
+    r_follow_2; });
         if (opt) {
             (f->fp + (int64_t)h->slots)[0] = r;
         } else {
@@ -1143,20 +1291,32 @@ exit_site_of:;
     info_2 = s->info;
     i_2 = (info_2 >> 16) & 255;
     if (((info_2 >> 24) & 3) == 2) {
-        o_3 = object_memory_special(SO_SPECIAL_SELECTORS);
-        r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
+        o_2 = object_memory_special(SO_SPECIAL_SELECTORS);
+        r_selector_of = *(uint64_t *)(o_2 + 16 + 8 * i_2);
         goto exit_selector_of;
     }
-    o_4 = h->method;
-    o_5 = *(uint64_t *)(o_4 + 16 + 16);
-    r_selector_of = *(uint64_t *)(o_5 + 16 + 8 * i_2);
+    m_2 = h->method;
+    o_3 = ({
+    l_2 = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_3 = l_2;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
+    r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
 exit_selector_of:;
     r_selector_of; });
     cls = ({
     if (kind == 1) {
-        o_6 = h->method;
-        o_7 = *(uint64_t *)(o_6 + 16 + 8);
-        v_2 = *(uint64_t *)(o_7 + 16 + 0);
+        o_4 = h->method;
+        o_5 = *(uint64_t *)(o_4 + 16 + 8);
+        v_2 = *(uint64_t *)(o_5 + 16 + 0);
     } else {
         v_2 = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(r + 8);
     }
@@ -1205,7 +1365,7 @@ exit_flags_of:;
     if (t == NULL) {
         return opt ? send_from(f, ret) : 1;
     }
-    if ((jit_flags & JIT_FLAG_IC) != 0) {
+    if (((jit_flags & JIT_FLAG_IC) != 0) && (r == rcv)) {
         is_super = kind == 1;
         site = h->code_start + s->bl;
         lit = h->code_start + s->lit;
@@ -1225,10 +1385,10 @@ exit_flags_of:;
             mega_table[i_4] = cls;
             mega_table[i_4 + 1] = sel;
             mega_table[i_4 + 2] = t->uentry;
-            m = t->method;
+            m_3 = t->method;
             mega_table[i_4 + 3] = (uint64_t)(prim_kind_of((int32_t)(({
-    p_3 = *(uint64_t *)(m + 16 + 56);
-    r_method_prim = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
+    p_5 = *(uint64_t *)(m_3 + 16 + 56);
+    r_method_prim = (p_5 & 1) != 0 ? ((int64_t)p_5) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK)) == PK_PERFORM ? -1 : (int64_t)selector_argc(sel));
         } else if (s->target == 0) {
             stat_links = stat_links + 1;
@@ -1238,19 +1398,19 @@ exit_flags_of:;
             patch_branch_at(site, target_2);
             invalidate((void *)site, 4);
         } else {
-            p_2 = s->pic;
-            if ((p_2 == 0) && ((jit_flags & JIT_FLAG_PIC) != 0)) {
-                p_2 = new_pic_for(site, *(uint64_t *)lit, (jit_method *)s->target);
-                if (p_2 != 0) {
+            p_4 = s->pic;
+            if ((p_4 == 0) && ((jit_flags & JIT_FLAG_PIC) != 0)) {
+                p_4 = new_pic_for(site, *(uint64_t *)lit, (jit_method *)s->target);
+                if (p_4 != 0) {
                     stat_pics = stat_pics + 1;
-                    s->pic = p_2;
-                    target_3 = p_2 + sizeof(baseline_pic);
+                    s->pic = p_4;
+                    target_3 = p_4 + sizeof(baseline_pic);
                     patch_branch_at(site, target_3);
                     invalidate((void *)site, 4);
                 }
             }
-            if (!((p_2 != 0) && ({
-    pic = (baseline_pic *)p_2;
+            if (!((p_4 != 0) && ({
+    pic = (baseline_pic *)p_4;
     n = pic->count;
     if (n >= BL_PIC_CASES) {
         r_add_case_to = false;
@@ -1260,7 +1420,7 @@ exit_flags_of:;
     *(uint64_t *)((uint64_t)&pic->targets + (uint64_t)(8 * n)) = (uint64_t)t;
     pic->count = n + 1;
     i_5 = (int32_t)n;
-    site_2 = p_2 + (sizeof(baseline_pic) + 12 + 16 * i_5 + 12);
+    site_2 = p_4 + (sizeof(baseline_pic) + 12 + 16 * i_5 + 12);
     target_4 = t->uentry;
     patch_branch_at(site_2, target_4);
     invalidate((void *)site_2, 4);
@@ -1282,10 +1442,10 @@ exit_add_case_to:;
                 mega_table[i_6] = cls;
                 mega_table[i_6 + 1] = sel;
                 mega_table[i_6 + 2] = t->uentry;
-                m_2 = t->method;
+                m_4 = t->method;
                 mega_table[i_6 + 3] = (uint64_t)(prim_kind_of((int32_t)(({
-    p_4 = *(uint64_t *)(m_2 + 16 + 56);
-    r_method_prim_2 = (p_4 & 1) != 0 ? ((int64_t)p_4) >> 1 : 0;
+    p_6 = *(uint64_t *)(m_4 + 16 + 56);
+    r_method_prim_2 = (p_6 & 1) != 0 ? ((int64_t)p_6) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK)) == PK_PERFORM ? -1 : (int64_t)selector_argc(sel));
             }
         }
@@ -1507,8 +1667,12 @@ static void note_nil_test(uint64_t m, void *d)
 uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
 {
     int32_t n;
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     oop *r_callee_fp;
     uint32_t *r_ret_entry;
     uint64_t c;
@@ -1517,22 +1681,28 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
     void *a;
     uint32_t info_2;
     oop *fp;
+    oop o_2;
+    oop r_follow_2;
+    oop p_2;
+    oop o_3;
+    oop r_follow_3;
+    oop p_3;
     oop sel;
     int32_t k;
     oop arr;
     oop cls;
     jit_method *t;
-    oop m;
+    oop m_2;
     int64_t r_method_prim;
-    uint64_t p;
+    uint64_t p_4;
     uint64_t c_2;
-    oop o_3;
+    oop o_4;
     uint64_t c_3;
     int64_t i_2;
     int k_2;
-    oop m_2;
+    oop m_3;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    uint64_t p_5;
     int32_t i_3;
     stat_misses = stat_misses + 1;
     n = (int32_t)(info & 255);
@@ -1542,9 +1712,21 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     fp = ({
     info_2 = ({
     c = f->code;
@@ -1565,6 +1747,26 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
     r_ret_entry; })[2];
     r_callee_fp = f->fp + (f->sp + (int32_t)((info_2 >> 26) & 3) - (int32_t)(info_2 & 255));
     r_callee_fp; });
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        o_2 = fp[0];
+        fp[0] = ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+        if ((info & 256) != 0) {
+            o_3 = fp[1];
+            fp[1] = ({
+    p_3 = o_3;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+        }
+    }
     sel = fp[0];
     k = n - 1;
     if ((info & 256) != 0) {
@@ -1577,15 +1779,15 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
     cls = (rcv & 7) != 0 ? tag_class[rcv & 7] : *(uint64_t *)(rcv + 8);
     t = target_for(cls, sel);
     if ((t == NULL) || ({
-    m = t->method;
+    m_2 = t->method;
     (prim_kind_of((int32_t)(({
-    p = *(uint64_t *)(m + 16 + 56);
-    r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
+    p_4 = *(uint64_t *)(m_2 + 16 + 56);
+    r_method_prim = (p_4 & 1) != 0 ? ((int64_t)p_4) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK)) == PK_PERFORM) || (((uint64_t)fp >= state_block->stack_limit_normal) || ((f->ctx != nil_oop) && ({
     c_2 = f->code;
     (!((c_2 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT))) && ({
-    o_3 = f->ctx;
-    fp - f->fp + k > (int64_t)(uint32_t)*(uint64_t *)o_3 - CTX_FIXED; }); }))); })) {
+    o_4 = f->ctx;
+    fp - f->fp + k > (int64_t)(uint32_t)*(uint64_t *)o_4 - CTX_FIXED; }); }))); })) {
         c_3 = f->code;
         return (c_3 > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) ? send_from(f, ret) : 1;
     }
@@ -1599,10 +1801,10 @@ uint64_t perform_miss(frame *f, oop rcv, uint64_t ret, uint64_t info)
         mega_table[i_2] = cls;
         mega_table[i_2 + 1] = sel;
         mega_table[i_2 + 2] = t->uentry;
-        m_2 = t->method;
+        m_3 = t->method;
         mega_table[i_2 + 3] = (uint64_t)(prim_kind_of((int32_t)(({
-    p_2 = *(uint64_t *)(m_2 + 16 + 56);
-    r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
+    p_5 = *(uint64_t *)(m_3 + 16 + 56);
+    r_method_prim_2 = (p_5 & 1) != 0 ? ((int64_t)p_5) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_MASK)) == PK_PERFORM ? -1 : (int64_t)selector_argc(sel));
     }
     if ((info & 256) != 0) {
@@ -1622,8 +1824,12 @@ uint64_t jit_baseline_runtime_prim(frame *f, uint64_t fp, uint64_t fn, uint64_t 
     bool leaf;
     oop *base;
     uint64_t ret;
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     uint64_t moved;
     uint64_t inv;
     int32_t status;
@@ -1633,8 +1839,12 @@ uint64_t jit_baseline_runtime_prim(frame *f, uint64_t fp, uint64_t fn, uint64_t 
     int32_t n_2;
     uint64_t r_leave_after;
     uint64_t c_2;
-    oop o_3;
-    uint64_t o_4;
+    oop m_2;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
+    uint64_t o_2;
     uint64_t c_3;
     int32_t pc_2;
     int32_t n_3;
@@ -1656,9 +1866,21 @@ uint64_t jit_baseline_runtime_prim(frame *f, uint64_t fp, uint64_t fn, uint64_t 
             canonicalize_below(f);
         }
         sync_frame(f);
-        o = f->method;
-        o_2 = *(uint64_t *)(o + 16 + 16);
-        f->lits = (oop *)(o_2 + 16);
+        m = f->method;
+        o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+        f->lits = (oop *)(o + 16);
     }
     moved = frame_epoch;
     inv = invalidations;
@@ -1692,9 +1914,21 @@ exit_leave_after:;
                 canonicalize_below(f);
             }
             sync_frame(f);
-            o_3 = f->method;
-            o_4 = *(uint64_t *)(o_3 + 16 + 16);
-            f->lits = (oop *)(o_4 + 16);
+            m_2 = f->method;
+            o_2 = ({
+    l_2 = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_2 = l_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
+            f->lits = (oop *)(o_2 + 16);
             return 1;
         }
         state_block->result = v;
@@ -2200,16 +2434,32 @@ static int64_t ret_index_of(jit_method *h, uint64_t ret)
 /* JitBaselineRuntime>>returnSlow: */
 uint64_t return_slow(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     if (f == frames) {
         return 1;
     }
@@ -2332,8 +2582,12 @@ void unlink_selector(oop sel)
     uint32_t info;
     uint32_t i_2;
     oop o;
-    oop o_2;
-    uint64_t o_3;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o_2;
     uint64_t site;
     int32_t i_3;
     jit_method *h_2;
@@ -2342,9 +2596,13 @@ void unlink_selector(oop sel)
     uint64_t r_selector_of_2;
     uint32_t info_2;
     uint32_t i_4;
-    oop o_4;
-    oop o_5;
-    uint64_t o_6;
+    oop o_3;
+    oop m_2;
+    uint64_t r_literals_of_2;
+    uint64_t l_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
+    uint64_t o_4;
     uint64_t site_2;
     memset(mega_table, 0, 131072);
     memset(block_table, 0, 32768);
@@ -2373,9 +2631,21 @@ void unlink_selector(oop sel)
         r_selector_of = *(uint64_t *)(o + 16 + 8 * i_2);
         goto exit_selector_of;
     }
-    o_2 = h->method;
-    o_3 = *(uint64_t *)(o_2 + 16 + 16);
-    r_selector_of = *(uint64_t *)(o_3 + 16 + 8 * i_2);
+    m = h->method;
+    o_2 = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    r_selector_of = *(uint64_t *)(o_2 + 16 + 8 * i_2);
 exit_selector_of:;
     r_selector_of; }) == sel)) {
                         site = h->code_start + s->bl;
@@ -2407,13 +2677,25 @@ exit_selector_of:;
     info_2 = s_2->info;
     i_4 = (info_2 >> 16) & 255;
     if (((info_2 >> 24) & 3) == 2) {
-        o_4 = object_memory_special(SO_SPECIAL_SELECTORS);
-        r_selector_of_2 = *(uint64_t *)(o_4 + 16 + 8 * i_4);
+        o_3 = object_memory_special(SO_SPECIAL_SELECTORS);
+        r_selector_of_2 = *(uint64_t *)(o_3 + 16 + 8 * i_4);
         goto exit_selector_of_2;
     }
-    o_5 = h_2->method;
-    o_6 = *(uint64_t *)(o_5 + 16 + 16);
-    r_selector_of_2 = *(uint64_t *)(o_6 + 16 + 8 * i_4);
+    m_2 = h_2->method;
+    o_4 = ({
+    l_2 = *(uint64_t *)(m_2 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l_2 = ({
+    p_2 = l_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_literals_of_2 = l_2;
+    r_literals_of_2; });
+    r_selector_of_2 = *(uint64_t *)(o_4 + 16 + 8 * i_4);
 exit_selector_of_2:;
     r_selector_of_2; }) == sel)) {
                     site_2 = h_2->code_start + s_2->bl;

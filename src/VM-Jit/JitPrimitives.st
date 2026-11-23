@@ -27,19 +27,19 @@ primJitParameters
 	self argCount = 0 ifTrue: [^self answer: r value].
 	old := self arg: 0.
 	((self isPtr: old) and: [(self rawClass: old) = memory clsArray and: [(self numSlots: old) >= 4]]) ifFalse: [^self fail].
-	((self loadRef: old at: 2) ~= memory nilOop and: [(self isInt: (self loadRef: old at: 2)) not]) ifTrue: [^self fail].
-	((self loadRef: old at: 3) ~= memory nilOop and: [(self isInt: (self loadRef: old at: 3)) not]) ifTrue: [^self fail].
+	((self element: old at: 2) ~= memory nilOop and: [(self isInt: (self element: old at: 2)) not]) ifTrue: [^self fail].
+	((self element: old at: 3) ~= memory nilOop and: [(self isInt: (self element: old at: 3)) not]) ifTrue: [^self fail].
 	m := jit mode.
-	(self loadRef: old at: 0) ~= memory nilOop ifTrue: [
-		(memory isKindOfString: (self loadRef: old at: 0)) ifFalse: [^self fail].
-		p := memory utf8Of: (self loadRef: old at: 0).
+	(self element: old at: 0) ~= memory nilOop ifTrue: [
+		(memory isKindOfString: (self element: old at: 0)) ifFalse: [^self fail].
+		p := memory utf8Of: (self element: old at: 0).
 		p isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 		m := jit modeNamed: p.
 		libc free: p.
 		m < 0 ifTrue: [^self fail]].
-	(self loadRef: old at: 1) ~= memory nilOop ifTrue: [
-		(memory isKindOfString: (self loadRef: old at: 1)) ifFalse: [^self fail].
-		p := memory utf8Of: (self loadRef: old at: 1).
+	(self element: old at: 1) ~= memory nilOop ifTrue: [
+		(memory isKindOfString: (self element: old at: 1)) ifFalse: [^self fail].
+		p := memory utf8Of: (self element: old at: 1).
 		p isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 		saved := jit flags.
 		(jit parseFlags: p) ifFalse: [
@@ -49,8 +49,8 @@ primJitParameters
 		libc free: p.
 		jit setFlags: jit flags].
 	m ~= jit mode ifTrue: [(jit setMode: m) ifFalse: [^self fail]].
-	(self loadRef: old at: 2) ~= memory nilOop ifTrue: [jit threshold: (self intVal: (self loadRef: old at: 2))].
-	(self loadRef: old at: 3) ~= memory nilOop ifTrue: [jit osrThreshold: (self intVal: (self loadRef: old at: 3))].
+	(self element: old at: 2) ~= memory nilOop ifTrue: [jit threshold: (self intVal: (self element: old at: 2))].
+	(self element: old at: 3) ~= memory nilOop ifTrue: [jit osrThreshold: (self intVal: (self element: old at: 3))].
 	self answer: r value
 !
 stringFrom: s

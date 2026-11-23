@@ -1178,7 +1178,7 @@ sync: f
 		f method: (self cCoerce: f code to: 'JitMethod *') method.
 		brt canonicalizeBelow: f].
 	interpreter syncFrame: f.
-	f lits: (self slotsOf: (self loadRef: f method at: CM_LITERALS))
+	f lits: (self slotsOf: (self literalsOf: f method))
 !
 canonicalizeBelow: f
 	"Baseline frames suspended below f (top, its pc and sp stored) become canonical: the runtime may collect, flush or leave."

@@ -157,7 +157,7 @@ analyze: m
 	<function>
 	| bc lo pc d op len ok next t k |
 	bc := self loadRef: m at: CM_BYTECODES.
-	lo := self loadRef: m at: CM_LITERALS.
+	lo := self literalsOf: m.
 	((self isPtr: bc) and: [(memory formatOf: bc) >= F_BYTES and: [(self isPtr: lo) and: [(self isInt: (self loadRef: m at: CM_NUMARGS)) and: [self isInt: (self loadRef: m at: CM_NUMTEMPS)]]]]) ifFalse: [^false].
 	(memory byteSize: bc) >= ANA_MAX ifTrue: [^false].
 	anaBcs := self bytesOf: bc.

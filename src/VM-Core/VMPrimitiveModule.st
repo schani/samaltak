@@ -27,6 +27,13 @@ indexOf: o limit: n
 	"The 0-based index of the 1-based SmallInteger index o if it is at most n, else -1."
 	((self isInt: o) and: [(self intVal: o) >= 1 and: [(self intVal: o) asUInt64 <= n]]) ifFalse: [^-1].
 	^(self intVal: o) - 1
+!
+element: o at: i
+	"Field i of an argument's object o (an Array, a Point...): followed if a forwarder (becomeForward:); a failing primitive's retry follows only its arguments themselves."
+	| v |
+	v := self loadRef: o at: i.
+	(self unlikely: gc forwardersExist) ifTrue: [v := memory follow: v].
+	^v
 ! !
 
 !VMPrimitiveModule methodsFor: 'results'!

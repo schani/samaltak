@@ -1,5 +1,5 @@
 VMCoreModule subclass: #GarbageCollector
-	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo youngForwarders oldForwarders'
+	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo youngForwarders oldForwarders stress stressCount stressYoung stressOld'
 	classVariableNames: 'MIN_BUDGET TENURE_AGE'
 	package: 'VM-Core'!
 
@@ -16,7 +16,7 @@ declarations
 		(startBits 'uint8_t *') (vlo uint64_t) (verify int32_t -1)
 		(toLo uint64_t) (toTop uint64_t) (toHi uint64_t)
 		(weakList 'oop *') (weakCount size_t) (weakCap size_t) (finalizationPending bool) (statWeakCleared uint64_t)
-		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop) (youngForwarders uint64_t) (oldForwarders uint64_t))
+		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop) (youngForwarders uint64_t) (oldForwarders uint64_t) (stress int64_t -1) (stressCount uint64_t) (stressYoung uint64_t) (stressOld uint64_t))
 !
 initialize
 	MIN_BUDGET := 64 << 20.
@@ -297,7 +297,7 @@ afterGC
 !GarbageCollector methodsFor: 'scavenging'!
 scavCopy: o
 	<function>
-	| h bytes age dst |
+	| h bytes age dst pick |
 	h := self header: o.
 	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [
 		dst := self rawClass: o.
@@ -321,8 +321,10 @@ scavCopy: o
 			toTop := toTop + bytes.
 			libc memcpy: (self ptr: dst) from: (self ptr: o) size: bytes.
 			self header: dst put: ((h bitClear: H_GCBITS) bitOr: age asUInt64 << H_AGE_SHIFT)].
+	pick := stress > 0 and: [self stressPicks: o].
 	self header: o put: (h bitOr: H_FORWARDED).
 	self rawClass: o put: dst.
+	pick ifTrue: [self stressForward: dst].
 	^dst
 !
 scavRoot: p
@@ -427,6 +429,7 @@ scavenge
 	<function>
 	| t0 tenureScan kept o scan w |
 	interpreter beforeGC.
+	self stressBegin.
 	t0 := scheduler workClockHeldUs.
 	statScavenges := statScavenges + 1.
 	statAllocated := statAllocated + (self edenTop - edenLo).
@@ -464,7 +467,9 @@ scavenge
 	survHi := toHi.
 	self edenTop: edenLo.
 	self rememberIfOld: interpreter activeCtx.
-	youngForwarders := 0.
+	youngForwarders := stressYoung.
+	oldForwarders := oldForwarders + stressOld.
+	self stressEnd.
 	self afterGC.
 	statScavengeUs := statScavengeUs + (scheduler workClockHeldUs - t0) asUInt64
 ! !
@@ -585,6 +590,54 @@ becomeRoot: p
 	<function>
 	p value = becomeFrom ifTrue: [p value: becomeTo]
 !
+stressBegin
+	"SAMALTAK_FORWARD_STRESS=n: each scavenge turns every n-th object it copies that becomeForward: would forward lazily into a forwarder to a copy of it (see stressForward:)."
+	| e |
+	stress < 0 ifTrue: [
+		e := libc getenv: 'SAMALTAK_FORWARD_STRESS'.
+		stress := e notNull ifTrue: [(libc atoi: e) asInt64] ifFalse: [0]].
+	stressYoung := 0.
+	stressOld := 0
+!
+stressPicks: o
+	"Stress: whether the scavenge, about to copy o, turns the copy into a forwarder: every n-th object becomeForward: would forward lazily (decided on o, whose class word and address the special objects still hold)."
+	<function>
+	| c |
+	stressCount := stressCount + 1.
+	(stressCount rem: stress asUInt64) = 0 ifFalse: [^false].
+	(self fmtHasPointers: (self formatOf: o)) ifFalse: [(self formatOf: o) < F_W64 ifTrue: [^false]].
+	(self formatOf: o) = F_WEAK ifTrue: [^false].
+	c := self rawClass: o.
+	((self isYoung: c) or: [(self isYoung: (self rawClass: c)) or: [((self header: c) bitAnd: H_FORWARDED) ~= 0]]) ifTrue: [^false].
+	^(memory forwardsEagerly: o) not
+!
+stressForward: o
+	"Stress (a scavenge just copied o): o becomes a forwarder to a copy of itself in old space, as if o had been forwarded by becomeForward:. References the collection updates later lead to o; stressEnd makes the roots refer to the copy, as becomeForward: does."
+	<function>
+	| bytes t |
+	bytes := self objBytes: o.
+	t := oldTop.
+	oldTop := oldTop + bytes.
+	libc memcpy: (self ptr: t) from: (self ptr: o) size: bytes.
+	self header: t put: ((self header: o) bitClear: H_GCBITS).
+	self header: o put: ((((self header: o) bitClear: H_FMT_MASK asUInt64 << H_FMT_SHIFT) bitOr: F_FORWARDER asUInt64 << H_FMT_SHIFT) bitOr: H_FORWARDED).
+	self rawClass: o put: (t bitOr: FWD_TAG).
+	(self isYoung: o) ifTrue: [stressYoung := stressYoung + 1] ifFalse: [stressOld := stressOld + 1]
+!
+stressEnd
+	"The roots refer to the copies, as after becomeForward:; machine code's constants too (becomeForward: invalidates optimized code holding the object instead)."
+	| c |
+	stressYoung + stressOld = 0 ifTrue: [^self].
+	self forEachRoot: (self functionPointer: #followRoot:).
+	interpreter nframes = 0 ifTrue: [
+		c := interpreter activeCtx.
+		0 to: (self numSlots: c) asInt64 - 1 do: [:i | self followRoot: (self slotsOf: c) + i]].
+	jit allRoots: (self functionPointer: #followRoot:)
+!
+followRoot: p
+	<function>
+	(p value ~= 0 and: [memory isForwarder: p value]) ifTrue: [p value: (memory follow: p value)]
+!
 forwardersExist
 	"Some object is a forwarder: young ones until the next scavenge, old ones until the next full GC."
 	^youngForwarders + oldForwarders ~= 0
@@ -592,7 +645,7 @@ forwardersExist
 forward: from to: to
 	"Lazy one-way become: from becomes a forwarder to to. The frames and the VM's roots refer to to at once; any other reference when it is used (a send misses, a primitive fails and retries, ==, class and a block's receiver follow it) or when a collection copies the object holding it."
 	<function>
-	| h |
+	| h s |
 	h := self header: from.
 	self header: from put: ((((h bitClear: H_FMT_MASK asUInt64 << H_FMT_SHIFT) bitClear: H_IMMUTABLE) bitOr: F_FORWARDER asUInt64 << H_FMT_SHIFT) bitOr: H_FORWARDED).
 	self rawClass: from put: (to bitOr: FWD_TAG).
@@ -605,6 +658,11 @@ forward: from to: to
 	becomeFrom := from.
 	becomeTo := to.
 	self forEachRoot: (self functionPointer: #becomeRoot:).
+	interpreter nframes = 0 ifTrue: [
+		"the running activation is activeCtx itself: its receiver and stack are its slots"
+		s := self slotsOf: interpreter activeCtx.
+		0 to: (self numSlots: interpreter activeCtx) asInt64 - 1 do: [:i | self becomeRoot: s + i].
+		self rememberIfOld: interpreter activeCtx].
 	becomeFrom := memory nilOop.
 	becomeTo := memory nilOop
 !

@@ -468,15 +468,19 @@ void class_changed(void)
 /* JitRuntime>>closure: */
 uint64_t jit_runtime_closure(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p_2;
+    uint64_t o;
     uint8_t *p;
     uint8_t na;
     uint8_t nt;
     uint8_t fs;
     int32_t startpc;
     oop bc;
-    uint64_t o_3;
+    uint64_t o_2;
     int64_t isize;
     uint64_t b;
     oop *s;
@@ -485,9 +489,21 @@ uint64_t jit_runtime_closure(frame *f)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     p = f->ip;
     na = p[1];
     nt = p[2];
@@ -495,8 +511,8 @@ uint64_t jit_runtime_closure(frame *f)
     startpc = f->pc + 6;
     marry(f);
     bc = cls_block;
-    o_3 = *(uint64_t *)(bc + 16 + 16);
-    isize = (((int64_t)o_3) >> 1) & CLS_INSTSIZE_MASK;
+    o_2 = *(uint64_t *)(bc + 16 + 16);
+    isize = (((int64_t)o_2) >> 1) & CLS_INSTSIZE_MASK;
     b = alloc_obj(bc, F_FIXED, (uint32_t)(isize < 5 ? 5 : isize));
     s = (oop *)(b + 16);
     s[BC_OUTER] = f->ctx;
@@ -823,17 +839,33 @@ static uint64_t context_entry(bool looping)
 /* JitRuntime>>contextField: */
 uint64_t jit_runtime_context_field(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     oop v;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     v = interpreter_context_field((int64_t)f->ip[1], f->fp[-1]);
     if (v == 0) {
         return 1;
@@ -1362,16 +1394,32 @@ uint64_t entry_of_top(void)
 /* JitRuntime>>exitSync: */
 uint64_t exit_sync(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     return 0;
 }
 
@@ -1897,8 +1945,12 @@ uint64_t interrupt_at_entry(frame *f)
 /* JitRuntime>>interruptFrame:atEntry: */
 static uint64_t interrupt_frame(frame *f, bool at_entry)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     uint64_t moved;
     uint64_t inv;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
@@ -1906,9 +1958,21 @@ static uint64_t interrupt_frame(frame *f, bool at_entry)
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     if (state_block->stress <= 0) {
         state_block->stress = 37;
     }
@@ -1989,17 +2053,33 @@ jit_method *jit_runtime_lookup(oop m)
 /* JitRuntime>>makeArray: */
 uint64_t jit_runtime_make_array(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     uint8_t n;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     n = f->ip[1];
     f->fp[f->sp - n] = new_array(n, f->fp + f->sp - n);
     return 0;
@@ -2421,16 +2501,32 @@ int64_t primitive_number_named(char *name)
 /* JitRuntime>>pushContext: */
 uint64_t push_context(frame *f)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     marry(f);
     f->fp[f->sp] = f->ctx;
     return 0;
@@ -3084,16 +3180,32 @@ void jit_runtime_start(void)
 /* JitRuntime>>tierUp:loop: */
 uint64_t jit_runtime_tier_up(frame *f, int64_t loop)
 {
-    oop o;
-    uint64_t o_2;
+    oop m;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t o;
     if ((jit_mode == JIT_BASELINE) || (jit_mode == JIT_OPT)) {
         f->method = ((jit_method *)f->code)->method;
         canonicalize_below(f);
     }
     sync_frame(f);
-    o = f->method;
-    o_2 = *(uint64_t *)(o + 16 + 16);
-    f->lits = (oop *)(o_2 + 16);
+    m = f->method;
+    o = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p = l;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
+    f->lits = (oop *)(o + 16);
     return opt_runtime_tier_up(f, loop);
 }
 

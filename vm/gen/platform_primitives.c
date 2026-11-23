@@ -170,9 +170,25 @@ static double float_slot(oop a, int i)
 {
     double local;
     double *d;
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
     memset(&local, 0, sizeof local);
     d = &local;
-    if (!number_of(*(uint64_t *)(a + 16 + 8 * i), d)) {
+    if (!number_of(({
+    v = *(uint64_t *)(a + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; }), d)) {
         bad = true;
     }
     return *d;
@@ -258,9 +274,25 @@ static uint8_t *pointer_slot(oop a, int i)
 {
     uint64_t local;
     uint64_t *w;
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
     memset(&local, 0, sizeof local);
     w = &local;
-    if (!u64_of(*(uint64_t *)(a + 16 + 8 * i), w)) {
+    if (!u64_of(({
+    v = *(uint64_t *)(a + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; }), w)) {
         bad = true;
     }
     return (uint8_t *)*w;
@@ -972,8 +1004,12 @@ void prim_gpu_begin_pass(void)
     double local_2;
     double *d;
     int i;
-    int h;
+    uint64_t r_element;
     uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
+    int h;
+    uint64_t v_2;
     if (!({
     bad = false;
     r_args = prim_nargs == 3;
@@ -1001,7 +1037,19 @@ void prim_gpu_begin_pass(void)
             return;
         }
         for (i = 0; i <= 3; i++) {
-            if (!number_of(*(uint64_t *)(cl + 16 + 8 * i), d)) {
+            if (!number_of(({
+    v = *(uint64_t *)(cl + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; }), d)) {
                 prim_status = PS_FAIL;
                 prim_error_code = -1;
                 return;
@@ -1011,8 +1059,8 @@ void prim_gpu_begin_pass(void)
     }
     h = begin_pass((int32_t)c, (int32_t)t, cl == nil_oop ? (float *)NULL : rgba);
     if (h > 0) {
-        v = (uint64_t)((((int64_t)h) << 1) | 1);
-        prim_result = v;
+        v_2 = (uint64_t)((((int64_t)h) << 1) | 1);
+        prim_result = v_2;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -1343,11 +1391,19 @@ void prim_gpu_create_pipeline(void)
     int32_t n;
     int32_t i;
     int32_t i_2;
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t f;
     int32_t i_3;
+    uint64_t r_element_2;
+    uint64_t v_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t off;
     int32_t h;
-    uint64_t v;
+    uint64_t v_3;
     if (!({
     bad = false;
     r_args = prim_nargs == 8;
@@ -1379,9 +1435,33 @@ void prim_gpu_create_pipeline(void)
     n = (int32_t)((uint32_t)*(uint64_t *)attrs / 2);
     for (i = 0; i <= n - 1; i++) {
         i_2 = 2 * i;
-        f = *(uint64_t *)(attrs + 16 + 8 * i_2);
+        f = ({
+    v = *(uint64_t *)(attrs + 16 + 8 * i_2);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; });
         i_3 = 2 * i + 1;
-        off = *(uint64_t *)(attrs + 16 + 8 * i_3);
+        off = ({
+    v_2 = *(uint64_t *)(attrs + 16 + 8 * i_3);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p_2 = v_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_2;
+    r_element_2; });
         if (!(((f & 1) != 0) && ((off & 1) != 0))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
@@ -1392,8 +1472,8 @@ void prim_gpu_create_pipeline(void)
     }
     h = create_pipeline((int32_t)d, (int32_t)vs, (int32_t)fs, (int32_t)stride, va, n, (int32_t)prim, (int32_t)blend, (int32_t)fmt);
     if (h > 0) {
-        v = (uint64_t)((((int64_t)h) << 1) | 1);
-        prim_result = v;
+        v_3 = (uint64_t)((((int64_t)h) << 1) | 1);
+        prim_result = v_3;
         prim_status = PS_OK;
     } else {
         prim_status = PS_FAIL;
@@ -2202,9 +2282,41 @@ void prim_inject_event(void)
     oop a;
     pf_event local;
     pf_event *e;
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o;
     bool ok;
-    oop v;
+    uint64_t r_element_2;
+    uint64_t v_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
+    uint64_t r_element_3;
+    uint64_t v_3;
+    uint64_t r_follow_3;
+    uint64_t p_3;
+    uint64_t r_element_4;
+    uint64_t v_4;
+    uint64_t r_follow_4;
+    uint64_t p_4;
+    uint64_t r_element_5;
+    uint64_t v_5;
+    uint64_t r_follow_5;
+    uint64_t p_5;
+    uint64_t r_element_6;
+    uint64_t v_6;
+    uint64_t r_follow_6;
+    uint64_t p_6;
+    uint64_t r_element_7;
+    uint64_t v_7;
+    uint64_t r_follow_7;
+    uint64_t p_7;
+    uint64_t r_element_8;
+    uint64_t v_8;
+    uint64_t r_follow_8;
+    uint64_t p_8;
+    oop v_9;
     if (!({
     bad = false;
     r_args = prim_nargs == 1;
@@ -2221,21 +2333,117 @@ void prim_inject_event(void)
     }
     memset(&local, 0, sizeof local);
     e = &local;
-    o = *(uint64_t *)(a + 16 + 0);
+    o = ({
+    v = *(uint64_t *)(a + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; });
     ok = ((o & 1) != 0) && ((((int64_t)o) >> 1) > 0);
     if (ok) {
         e->type = (int32_t)(((int64_t)o) >> 1);
     }
-    o = *(uint64_t *)(a + 16 + 8);
+    o = ({
+    v_2 = *(uint64_t *)(a + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p_2 = v_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_2;
+    r_element_2; });
     e->time_ms = (o & 1) != 0 ? ((int64_t)o) >> 1 : platform_common_now_ms();
-    ok = ok && (number_of(*(uint64_t *)(a + 16 + 16), &e->x) && number_of(*(uint64_t *)(a + 16 + 24), &e->y));
-    o = *(uint64_t *)(a + 16 + 32);
+    ok = ok && (number_of(({
+    v_3 = *(uint64_t *)(a + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_3 = ({
+    p_3 = v_3;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+    }
+    r_element_3 = v_3;
+    r_element_3; }), &e->x) && number_of(({
+    v_4 = *(uint64_t *)(a + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_4 = ({
+    p_4 = v_4;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_4;
+    r_follow_4; });
+    }
+    r_element_4 = v_4;
+    r_element_4; }), &e->y));
+    o = ({
+    v_5 = *(uint64_t *)(a + 16 + 32);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_5 = ({
+    p_5 = v_5;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_5;
+    r_follow_5; });
+    }
+    r_element_5 = v_5;
+    r_element_5; });
     e->key = (o & 1) != 0 ? ((int64_t)o) >> 1 : 0;
-    o = *(uint64_t *)(a + 16 + 40);
+    o = ({
+    v_6 = *(uint64_t *)(a + 16 + 40);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_6 = ({
+    p_6 = v_6;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_6 = p_6;
+    r_follow_6; });
+    }
+    r_element_6 = v_6;
+    r_element_6; });
     e->mods = (o & 1) != 0 ? (int32_t)(((int64_t)o) >> 1) : 0;
-    o = *(uint64_t *)(a + 16 + 56);
+    o = ({
+    v_7 = *(uint64_t *)(a + 16 + 56);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_7 = ({
+    p_7 = v_7;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_7 = p_7;
+    r_follow_7; });
+    }
+    r_element_7 = v_7;
+    r_element_7; });
     e->window = (o & 1) != 0 ? (int32_t)(((int64_t)o) >> 1) : 0;
-    ok = ok && text_or_delta(*(uint64_t *)(a + 16 + 48), e);
+    ok = ok && text_or_delta(({
+    v_8 = *(uint64_t *)(a + 16 + 48);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_8 = ({
+    p_8 = v_8;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_8 = p_8;
+    r_follow_8; });
+    }
+    r_element_8 = v_8;
+    r_element_8; }), e);
     if (ok) {
         platform_events_push(e);
     }
@@ -2246,8 +2454,8 @@ void prim_inject_event(void)
         return;
     }
     request_interrupt_check();
-    v = prim_base[0];
-    prim_result = v;
+    v_9 = prim_base[0];
+    prim_result = v_9;
     prim_status = PS_OK;
 }
 
@@ -3458,13 +3666,21 @@ void prim_raster_draw(void)
     oop a;
     raster_state local;
     raster_state *st;
+    uint64_t r_element;
+    uint64_t v_2;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t r_element_2;
+    uint64_t v_3;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint8_t *v;
     int64_t first;
     int64_t n;
     int64_t n_2;
     int64_t n_3;
     int32_t f;
-    oop v_2;
+    oop v_4;
     if (!({
     bad = false;
     r_args = prim_nargs == 4;
@@ -3503,8 +3719,32 @@ void prim_raster_draw(void)
     st->texture_width = platform_primitives_slot(a, 18);
     st->texture_height = platform_primitives_slot(a, 19);
     st->texture_format = (int32_t)platform_primitives_slot(a, 20);
-    st->linear = *(uint64_t *)(a + 16 + 168) == true_oop;
-    st->wrap = *(uint64_t *)(a + 16 + 176) == true_oop;
+    st->linear = ({
+    v_2 = *(uint64_t *)(a + 16 + 168);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p = v_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v_2;
+    r_element; }) == true_oop;
+    st->wrap = ({
+    v_3 = *(uint64_t *)(a + 16 + 176);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_3 = ({
+    p_2 = v_3;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_3;
+    r_element_2; }) == true_oop;
     v = address_arg(1);
     first = int_arg(2);
     n = int_arg(3);
@@ -3525,8 +3765,8 @@ void prim_raster_draw(void)
         return;
     }
     rasterize(st, v, first, n);
-    v_2 = prim_base[0];
-    prim_result = v_2;
+    v_4 = prim_base[0];
+    prim_result = v_4;
     prim_status = PS_OK;
 }
 
@@ -4573,12 +4813,28 @@ static uint8_t *range_args(bool writable, int64_t *h, int64_t *count)
 static bool rect(oop r, int *out)
 {
     int i;
+    uint64_t r_element;
+    uint64_t v_2;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t v;
     if (!(((r & 7) == 0) && (((int32_t)(((*(uint64_t *)r) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)r == 4)))) {
         return false;
     }
     for (i = 0; i <= 3; i++) {
-        v = *(uint64_t *)(r + 16 + 8 * i);
+        v = ({
+    v_2 = *(uint64_t *)(r + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p = v_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v_2;
+    r_element; });
         if (!((v & 1) != 0)) {
             return false;
         }
@@ -4590,8 +4846,24 @@ static bool rect(oop r, int *out)
 /* PlatformPrimitives>>slot:at: */
 static int64_t platform_primitives_slot(oop a, int i)
 {
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o;
-    o = *(uint64_t *)(a + 16 + 8 * i);
+    o = ({
+    v = *(uint64_t *)(a + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; });
     if (!((o & 1) != 0)) {
         bad = true;
         return 0;
@@ -4618,6 +4890,10 @@ static char **string_vector(oop a, bool non_empty)
     uint32_t n;
     char **v;
     int64_t i;
+    uint64_t r_element;
+    uint64_t v_2;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t s;
     int64_t k;
     if (!(((a & 7) == 0) && (((int32_t)(((*(uint64_t *)a) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((!non_empty) || ((uint32_t)*(uint64_t *)a != 0))))) {
@@ -4629,7 +4905,19 @@ static char **string_vector(oop a, bool non_empty)
         return (char **)NULL;
     }
     for (i = 0; i <= (int64_t)n - 1; i++) {
-        s = *(uint64_t *)(a + 16 + 8 * i);
+        s = ({
+    v_2 = *(uint64_t *)(a + 16 + 8 * i);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p = v_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v_2;
+    r_element; });
         if (is_text(s)) {
             v[i] = utf8_of(s);
         }
@@ -4669,6 +4957,14 @@ static bool surface(oop a, raster_state *s)
 /* PlatformPrimitives>>textOrDelta:into: */
 static bool text_or_delta(uint64_t o, pf_event *e)
 {
+    uint64_t r_element;
+    uint64_t v;
+    uint64_t r_follow;
+    uint64_t p;
+    uint64_t r_element_2;
+    uint64_t v_2;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     if (o == nil_oop) {
         e->xkind = PF_X_NIL;
         return true;
@@ -4685,7 +4981,31 @@ static bool text_or_delta(uint64_t o, pf_event *e)
     }
     if (((o & 7) == 0) && (((class_of(o) == object_memory_special(SO_POINT)) && ((uint32_t)*(uint64_t *)o >= 2)) || (((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_VAR) && ((uint32_t)*(uint64_t *)o == 2)))) {
         e->xkind = PF_X_POINT;
-        return number_of(*(uint64_t *)(o + 16 + 0), &e->dx) && number_of(*(uint64_t *)(o + 16 + 8), &e->dy);
+        return number_of(({
+    v = *(uint64_t *)(o + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v = ({
+    p = v;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v;
+    r_element; }), &e->dx) && number_of(({
+    v_2 = *(uint64_t *)(o + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_2 = ({
+    p_2 = v_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_2;
+    r_element_2; }), &e->dy);
     }
     if (is_text(o)) {
         e->xkind = PF_X_TEXT;

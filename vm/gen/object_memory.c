@@ -28,6 +28,7 @@ static uint64_t alloc_old_try(oop cls, int32_t fmt, uint32_t n);
 static uint64_t alloc_slow(oop *cls, uint64_t bytes);
 static uint64_t alloc_words32(oop cls, uint64_t n);
 static uint32_t fnv_hash(oop s);
+static bool is_eager_kind(uint64_t s);
 static bool large_magnitude(oop o, uint64_t *mag, bool *neg);
 static uint32_t next_hash(void);
 static size_t utf8_decode(uint8_t *s, size_t n, size_t *index);
@@ -387,6 +388,48 @@ static uint32_t fnv_hash(oop s)
     return f & 0x3FFFFFFF;
 }
 
+/* ObjectMemory>>forwardsEagerly: */
+bool forwards_eagerly(oop o)
+{
+    oop sp;
+    oop o_2;
+    int64_t i;
+    uint64_t c;
+    uint64_t o_3;
+    uint64_t meta;
+    uint64_t s;
+    sp = specials_oop;
+    if (o == sp) {
+        return true;
+    }
+    o_2 = object_memory_special(SO_PROCESSOR);
+    if (o == *(uint64_t *)(o_2 + 16 + 0)) {
+        return true;
+    }
+    for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)sp - 1; i++) {
+        if (*(uint64_t *)(sp + 16 + 8 * i) == o) {
+            return true;
+        }
+    }
+    c = *(uint64_t *)(o + 8);
+    o_3 = *(uint64_t *)(cls_array + 8);
+    meta = *(uint64_t *)(o_3 + 8);
+    if ((c == meta) || (*(uint64_t *)(c + 8) == meta)) {
+        return true;
+    }
+    if ((c == object_memory_special(SO_BYTESYMBOL)) || (c == object_memory_special(SO_WIDESYMBOL))) {
+        return true;
+    }
+    s = c;
+    while (((s & 7) == 0) && (s != nil_oop)) {
+        if (is_eager_kind(s)) {
+            return true;
+        }
+        s = *(uint64_t *)(s + 16 + 0);
+    }
+    return false;
+}
+
 /* ObjectMemory>>indexableSize: */
 size_t indexable_size(oop o)
 {
@@ -494,6 +537,45 @@ uint64_t int64_oop(int64_t v)
         return (uint64_t)((v << 1) | 1);
     }
     return v < 0 ? large_int_from((uint64_t)(0 - v), true) : large_int_from((uint64_t)v, false);
+}
+
+/* ObjectMemory>>isEagerKind: */
+static bool is_eager_kind(uint64_t s)
+{
+    oop o;
+    oop o_2;
+    uint64_t md;
+    if (s == object_memory_special(SO_COMPILEDMETHOD)) {
+        return true;
+    }
+    if (s == cls_context) {
+        return true;
+    }
+    if (s == cls_block) {
+        return true;
+    }
+    if (s == object_memory_special(SO_ASSOCIATION)) {
+        return true;
+    }
+    if (s == object_memory_special(SO_PROCESS)) {
+        return true;
+    }
+    o = object_memory_special(SO_SEMAPHORE);
+    if (s == *(uint64_t *)(o + 16 + 0)) {
+        return true;
+    }
+    if (s == object_memory_special(SO_MESSAGE)) {
+        return true;
+    }
+    o_2 = object_memory_special(SO_PROCESSOR);
+    if (s == *(uint64_t *)(o_2 + 8)) {
+        return true;
+    }
+    md = *(uint64_t *)(cls_array + 16 + 8);
+    if ((((*(uint64_t *)md) & H_FORWARDED) != 0) && (((*(uint64_t *)(md + 8)) & 7) == 0)) {
+        md = *(uint64_t *)(md + 8);
+    }
+    return s == *(uint64_t *)(md + 8);
 }
 
 /* ObjectMemory>>isFloat: */

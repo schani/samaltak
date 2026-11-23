@@ -212,7 +212,7 @@ afterGC
 	0 to: nframes - 1 do: [:i |
 		f := frames + i.
 		f ip: (self methodBcs: f method) + f pc.
-		f lits: (self slotsOf: (self loadRef: f method at: CM_LITERALS))]
+		f lits: (self slotsOf: (self literalsOf: f method))]
 !
 frameSize: f
 	"frameSize of a frame's method or block (at least its args and temps)."
@@ -544,7 +544,7 @@ fillCache: aClass selector: aSelector
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
 	e bcs: (self bytesOf: bc).
-	e lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	e lits: (self slotsOf: (self literalsOf: m)).
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
 	e fsize < ((self intVal: na) + e ntemps) ifTrue: [e fsize: ((self intVal: na) + e ntemps) asInt32].
@@ -571,7 +571,7 @@ fillCache: aClass selector: aSelector
 	(p = 0 and: [(self isPtr: bc) and: [(memory formatOf: bc) >= F_BYTES]]) ifTrue: [
 		b := self bytesOf: bc.
 		size := memory byteSize: bc.
-		litsOop := self loadRef: m at: CM_LITERALS.
+		litsOop := self literalsOf: m.
 		(size = 1 and: [(b at: 0) = 16r7A])
 			ifTrue: [qc := true]
 			ifFalse: [
@@ -815,7 +815,7 @@ blockActivate: n fromArray: fromArray
 	f fp: nfp.
 	f pc: (self intVal: (self loadRef: cl at: BC_STARTPC)) asInt32.
 	f ip: (self methodBcs: m) + (self intVal: (self loadRef: cl at: BC_STARTPC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self slotsOf: (self literalsOf: m)).
 	f sp: (count + ntemps) asInt32.
 	count to: count + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	cstackUsed := (nfp + count + ntemps - cstack) asUInt64
@@ -904,7 +904,7 @@ pushFrame: m argc: n code: c ecode: ecode
 	g code: c.
 	g fp: nfp.
 	g ip: (self methodBcs: m).
-	g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	g lits: (self slotsOf: (self literalsOf: m)).
 	g sp: (n + ntemps) asInt32.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	ecode >= 0 ifTrue: [nfp at: n put: (self intOop: ecode)].
@@ -955,7 +955,7 @@ thawFor: code
 	f code: code.
 	f fp: cstack + 1.
 	f ip: (self methodBcs: m) + (self intVal: (s at: CTX_PC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self slotsOf: (self literalsOf: m)).
 	f sp: n asInt32.
 	s at: CTX_SENDER put: (self intOop: 0).
 	s at: CTX_STACKP put: (self intOop: 0).
@@ -1123,7 +1123,7 @@ loadCtx
 	s := self slotsOf: activeCtx.
 	(self unlikely: gc forwardersExist) ifTrue: [self storeRef: activeCtx at: CTX_RECEIVER put: (memory follow: (s at: CTX_RECEIVER))].
 	m := s at: CTX_METHOD.
-	lits := self slotsOf: ((self slotsOf: m) at: CM_LITERALS).
+	lits := self slotsOf: (self literalsOf: m).
 	fp := s + CTX_FIXED.
 	sp := fp + (self intVal: (s at: CTX_STACKP)) - 1.
 	(self isInt: (s at: CTX_PC)) ifFalse: [self fatal: 'resuming a dead context'].
@@ -2051,7 +2051,7 @@ haveEntry: e
 				newMethod := tmpRoots at: 0.
 				tmpRoots at: 0 put: memory nilOop.
 				newBcs := self methodBcs: newMethod.
-				newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+				newLits := self slotsOf: (self literalsOf: newMethod).
 				(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode]]].
 	^self activate
 !
@@ -2068,7 +2068,7 @@ activate
 		newMethod := tmpRoots at: 0.
 		tmpRoots at: 0 put: memory nilOop.
 		newBcs := self methodBcs: newMethod.
-		newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+		newLits := self slotsOf: (self literalsOf: newMethod).
 		self loadCtx.
 		^self activateFromContext].
 	fr ip: ip.

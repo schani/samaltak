@@ -8,9 +8,7 @@ static oop instances_result;
 
 static void convert_case(bool upper);
 static void count_instance(uint64_t o, void *d);
-static bool forwards_eagerly(oop o);
 static void hash(oop from, oop to);
-static bool is_eager_kind(uint64_t s);
 
 /* ObjectPrimitives>>convertCase: */
 static void convert_case(bool upper)
@@ -68,43 +66,6 @@ static void count_instance(uint64_t o, void *d)
     }
 }
 
-/* ObjectPrimitives>>forwardsEagerly: */
-static bool forwards_eagerly(oop o)
-{
-    oop sp;
-    int64_t i;
-    uint64_t c;
-    uint64_t o_2;
-    uint64_t meta;
-    uint64_t s;
-    sp = specials_oop;
-    if (o == sp) {
-        return true;
-    }
-    for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)sp - 1; i++) {
-        if (*(uint64_t *)(sp + 16 + 8 * i) == o) {
-            return true;
-        }
-    }
-    c = *(uint64_t *)(o + 8);
-    o_2 = *(uint64_t *)(cls_array + 8);
-    meta = *(uint64_t *)(o_2 + 8);
-    if ((c == meta) || (*(uint64_t *)(c + 8) == meta)) {
-        return true;
-    }
-    if ((c == object_memory_special(SO_BYTESYMBOL)) || (c == object_memory_special(SO_WIDESYMBOL))) {
-        return true;
-    }
-    s = c;
-    while (((s & 7) == 0) && (s != nil_oop)) {
-        if (is_eager_kind(s)) {
-            return true;
-        }
-        s = *(uint64_t *)(s + 16 + 0);
-    }
-    return false;
-}
-
 /* ObjectPrimitives>>hash:into: */
 static void hash(oop from, oop to)
 {
@@ -119,42 +80,6 @@ static void hash(oop from, oop to)
     }
     h = ((*(uint64_t *)to) & 17870283458845081599ULL) | ((*(uint64_t *)from) & 576460614864470016ULL);
     *(uint64_t *)to = h;
-}
-
-/* ObjectPrimitives>>isEagerKind: */
-static bool is_eager_kind(uint64_t s)
-{
-    oop o;
-    oop o_2;
-    uint64_t o_3;
-    if (s == object_memory_special(SO_COMPILEDMETHOD)) {
-        return true;
-    }
-    if (s == cls_context) {
-        return true;
-    }
-    if (s == cls_block) {
-        return true;
-    }
-    if (s == object_memory_special(SO_ASSOCIATION)) {
-        return true;
-    }
-    if (s == object_memory_special(SO_PROCESS)) {
-        return true;
-    }
-    o = object_memory_special(SO_SEMAPHORE);
-    if (s == *(uint64_t *)(o + 16 + 0)) {
-        return true;
-    }
-    if (s == object_memory_special(SO_MESSAGE)) {
-        return true;
-    }
-    o_2 = object_memory_special(SO_PROCESSOR);
-    if (s == *(uint64_t *)(o_2 + 8)) {
-        return true;
-    }
-    o_3 = *(uint64_t *)(cls_array + 16 + 8);
-    return s == *(uint64_t *)(o_3 + 8);
 }
 
 /* ObjectPrimitives>>primAllInstances */

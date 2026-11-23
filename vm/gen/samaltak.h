@@ -1910,6 +1910,7 @@ oop class_of(oop o);
 uint32_t fixed_fields(oop o);
 uint64_t float_oop(double d);
 double float_val(oop o);
+bool forwards_eagerly(oop o);
 size_t indexable_size(oop o);
 oop instantiate(oop cls, uint64_t n, int *err);
 bool int64_of(oop o, int64_t *out);

@@ -246,16 +246,72 @@ void prim_jit_parameters(void)
     oop o_6;
     oop v_4;
     oop old;
+    uint64_t r_element;
+    uint64_t v_5;
+    uint64_t r_follow;
+    uint64_t p_2;
+    uint64_t r_element_2;
+    uint64_t v_6;
+    uint64_t r_follow_2;
+    uint64_t p_3;
     uint64_t o_7;
+    uint64_t r_element_3;
+    uint64_t v_7;
+    uint64_t r_follow_3;
+    uint64_t p_4;
+    uint64_t r_element_4;
+    uint64_t v_8;
+    uint64_t r_follow_4;
+    uint64_t p_5;
     uint64_t o_8;
     int32_t m;
+    uint64_t r_element_5;
+    uint64_t v_9;
+    uint64_t r_follow_5;
+    uint64_t p_6;
+    uint64_t r_element_6;
+    uint64_t v_10;
+    uint64_t r_follow_6;
+    uint64_t p_7;
+    uint64_t r_element_7;
+    uint64_t v_11;
+    uint64_t r_follow_7;
+    uint64_t p_8;
     char *p;
+    uint64_t r_element_8;
+    uint64_t v_12;
+    uint64_t r_follow_8;
+    uint64_t p_9;
+    uint64_t r_element_9;
+    uint64_t v_13;
+    uint64_t r_follow_9;
+    uint64_t p_10;
+    uint64_t r_element_10;
+    uint64_t v_14;
+    uint64_t r_follow_10;
+    uint64_t p_11;
     uint32_t saved;
+    uint64_t r_element_11;
+    uint64_t v_15;
+    uint64_t r_follow_11;
+    uint64_t p_12;
+    uint64_t r_element_12;
+    uint64_t v_16;
+    uint64_t r_follow_12;
+    uint64_t p_13;
     uint64_t o_9;
     int64_t n;
+    uint64_t r_element_13;
+    uint64_t v_17;
+    uint64_t r_follow_13;
+    uint64_t p_14;
+    uint64_t r_element_14;
+    uint64_t v_18;
+    uint64_t r_follow_14;
+    uint64_t p_15;
     uint64_t o_10;
     int64_t n_2;
-    oop v_5;
+    oop v_19;
     memset(&local, 0, sizeof local);
     r = &local;
     *r = alloc_obj(cls_array, F_VAR, 6);
@@ -309,28 +365,112 @@ void prim_jit_parameters(void)
         prim_error_code = -1;
         return;
     }
-    if ((*(uint64_t *)(old + 16 + 16) != nil_oop) && ({
-    o_7 = *(uint64_t *)(old + 16 + 16);
+    if ((({
+    v_5 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_5 = ({
+    p_2 = v_5;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_element = v_5;
+    r_element; }) != nil_oop) && ({
+    o_7 = ({
+    v_6 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_6 = ({
+    p_3 = v_6;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_3;
+    r_follow_2; });
+    }
+    r_element_2 = v_6;
+    r_element_2; });
     !((o_7 & 1) != 0); })) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    if ((*(uint64_t *)(old + 16 + 24) != nil_oop) && ({
-    o_8 = *(uint64_t *)(old + 16 + 24);
+    if ((({
+    v_7 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_7 = ({
+    p_4 = v_7;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_4;
+    r_follow_3; });
+    }
+    r_element_3 = v_7;
+    r_element_3; }) != nil_oop) && ({
+    o_8 = ({
+    v_8 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_8 = ({
+    p_5 = v_8;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_5;
+    r_follow_4; });
+    }
+    r_element_4 = v_8;
+    r_element_4; });
     !((o_8 & 1) != 0); })) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
     m = jit_mode;
-    if (*(uint64_t *)(old + 16 + 0) != nil_oop) {
-        if (!is_kind_of_string(*(uint64_t *)(old + 16 + 0))) {
+    if (({
+    v_9 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_9 = ({
+    p_6 = v_9;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_6;
+    r_follow_5; });
+    }
+    r_element_5 = v_9;
+    r_element_5; }) != nil_oop) {
+        if (!is_kind_of_string(({
+    v_10 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_10 = ({
+    p_7 = v_10;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_6 = p_7;
+    r_follow_6; });
+    }
+    r_element_6 = v_10;
+    r_element_6; }))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             return;
         }
-        p = utf8_of(*(uint64_t *)(old + 16 + 0));
+        p = utf8_of(({
+    v_11 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_11 = ({
+    p_8 = v_11;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_7 = p_8;
+    r_follow_7; });
+    }
+    r_element_7 = v_11;
+    r_element_7; }));
         if (p == NULL) {
             prim_status = PS_FAIL;
             prim_error_code = PRIM_ERR_NO_MEMORY;
@@ -344,13 +484,49 @@ void prim_jit_parameters(void)
             return;
         }
     }
-    if (*(uint64_t *)(old + 16 + 8) != nil_oop) {
-        if (!is_kind_of_string(*(uint64_t *)(old + 16 + 8))) {
+    if (({
+    v_12 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_12 = ({
+    p_9 = v_12;
+    while (((p_9 & 7) == 0) && (((*(uint64_t *)p_9) & H_FORWARDED) != 0)) {
+        p_9 = (*(uint64_t *)(p_9 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_8 = p_9;
+    r_follow_8; });
+    }
+    r_element_8 = v_12;
+    r_element_8; }) != nil_oop) {
+        if (!is_kind_of_string(({
+    v_13 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_13 = ({
+    p_10 = v_13;
+    while (((p_10 & 7) == 0) && (((*(uint64_t *)p_10) & H_FORWARDED) != 0)) {
+        p_10 = (*(uint64_t *)(p_10 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_9 = p_10;
+    r_follow_9; });
+    }
+    r_element_9 = v_13;
+    r_element_9; }))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             return;
         }
-        p = utf8_of(*(uint64_t *)(old + 16 + 8));
+        p = utf8_of(({
+    v_14 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_14 = ({
+    p_11 = v_14;
+    while (((p_11 & 7) == 0) && (((*(uint64_t *)p_11) & H_FORWARDED) != 0)) {
+        p_11 = (*(uint64_t *)(p_11 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_10 = p_11;
+    r_follow_10; });
+    }
+    r_element_10 = v_14;
+    r_element_10; }));
         if (p == NULL) {
             prim_status = PS_FAIL;
             prim_error_code = PRIM_ERR_NO_MEMORY;
@@ -374,18 +550,66 @@ void prim_jit_parameters(void)
             return;
         }
     }
-    if (*(uint64_t *)(old + 16 + 16) != nil_oop) {
-        o_9 = *(uint64_t *)(old + 16 + 16);
+    if (({
+    v_15 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_15 = ({
+    p_12 = v_15;
+    while (((p_12 & 7) == 0) && (((*(uint64_t *)p_12) & H_FORWARDED) != 0)) {
+        p_12 = (*(uint64_t *)(p_12 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_11 = p_12;
+    r_follow_11; });
+    }
+    r_element_11 = v_15;
+    r_element_11; }) != nil_oop) {
+        o_9 = ({
+    v_16 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_16 = ({
+    p_13 = v_16;
+    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
+        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_12 = p_13;
+    r_follow_12; });
+    }
+    r_element_12 = v_16;
+    r_element_12; });
         n = ((int64_t)o_9) >> 1;
         jit_threshold = n;
     }
-    if (*(uint64_t *)(old + 16 + 24) != nil_oop) {
-        o_10 = *(uint64_t *)(old + 16 + 24);
+    if (({
+    v_17 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_17 = ({
+    p_14 = v_17;
+    while (((p_14 & 7) == 0) && (((*(uint64_t *)p_14) & H_FORWARDED) != 0)) {
+        p_14 = (*(uint64_t *)(p_14 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_13 = p_14;
+    r_follow_13; });
+    }
+    r_element_13 = v_17;
+    r_element_13; }) != nil_oop) {
+        o_10 = ({
+    v_18 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_18 = ({
+    p_15 = v_18;
+    while (((p_15 & 7) == 0) && (((*(uint64_t *)p_15) & H_FORWARDED) != 0)) {
+        p_15 = (*(uint64_t *)(p_15 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_14 = p_15;
+    r_follow_14; });
+    }
+    r_element_14 = v_18;
+    r_element_14; });
         n_2 = ((int64_t)o_10) >> 1;
         jit_osr_threshold = n_2;
     }
-    v_5 = *r;
-    prim_result = v_5;
+    v_19 = *r;
+    prim_result = v_19;
     prim_status = PS_OK;
 }
 
@@ -407,16 +631,72 @@ void prim_jit_parameters(void)
     oop o_6;
     oop v_4;
     oop old;
+    uint64_t r_element;
+    uint64_t v_5;
+    uint64_t r_follow;
+    uint64_t p_2;
+    uint64_t r_element_2;
+    uint64_t v_6;
+    uint64_t r_follow_2;
+    uint64_t p_3;
     uint64_t o_7;
+    uint64_t r_element_3;
+    uint64_t v_7;
+    uint64_t r_follow_3;
+    uint64_t p_4;
+    uint64_t r_element_4;
+    uint64_t v_8;
+    uint64_t r_follow_4;
+    uint64_t p_5;
     uint64_t o_8;
     int32_t m;
+    uint64_t r_element_5;
+    uint64_t v_9;
+    uint64_t r_follow_5;
+    uint64_t p_6;
+    uint64_t r_element_6;
+    uint64_t v_10;
+    uint64_t r_follow_6;
+    uint64_t p_7;
+    uint64_t r_element_7;
+    uint64_t v_11;
+    uint64_t r_follow_7;
+    uint64_t p_8;
     char *p;
+    uint64_t r_element_8;
+    uint64_t v_12;
+    uint64_t r_follow_8;
+    uint64_t p_9;
+    uint64_t r_element_9;
+    uint64_t v_13;
+    uint64_t r_follow_9;
+    uint64_t p_10;
+    uint64_t r_element_10;
+    uint64_t v_14;
+    uint64_t r_follow_10;
+    uint64_t p_11;
     uint32_t saved;
+    uint64_t r_element_11;
+    uint64_t v_15;
+    uint64_t r_follow_11;
+    uint64_t p_12;
+    uint64_t r_element_12;
+    uint64_t v_16;
+    uint64_t r_follow_12;
+    uint64_t p_13;
     uint64_t o_9;
     int64_t n;
+    uint64_t r_element_13;
+    uint64_t v_17;
+    uint64_t r_follow_13;
+    uint64_t p_14;
+    uint64_t r_element_14;
+    uint64_t v_18;
+    uint64_t r_follow_14;
+    uint64_t p_15;
     uint64_t o_10;
     int64_t n_2;
-    oop v_5;
+    oop v_19;
     memset(&local, 0, sizeof local);
     r = &local;
     *r = alloc_obj(cls_array, F_VAR, 6);
@@ -470,28 +750,112 @@ void prim_jit_parameters(void)
         prim_error_code = -1;
         return;
     }
-    if ((*(uint64_t *)(old + 16 + 16) != nil_oop) && ({
-    o_7 = *(uint64_t *)(old + 16 + 16);
+    if ((({
+    v_5 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_5 = ({
+    p_2 = v_5;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+    r_element = v_5;
+    r_element; }) != nil_oop) && ({
+    o_7 = ({
+    v_6 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_6 = ({
+    p_3 = v_6;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_3;
+    r_follow_2; });
+    }
+    r_element_2 = v_6;
+    r_element_2; });
     !((o_7 & 1) != 0); })) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    if ((*(uint64_t *)(old + 16 + 24) != nil_oop) && ({
-    o_8 = *(uint64_t *)(old + 16 + 24);
+    if ((({
+    v_7 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_7 = ({
+    p_4 = v_7;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_4;
+    r_follow_3; });
+    }
+    r_element_3 = v_7;
+    r_element_3; }) != nil_oop) && ({
+    o_8 = ({
+    v_8 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_8 = ({
+    p_5 = v_8;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_5;
+    r_follow_4; });
+    }
+    r_element_4 = v_8;
+    r_element_4; });
     !((o_8 & 1) != 0); })) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
     m = jit_mode;
-    if (*(uint64_t *)(old + 16 + 0) != nil_oop) {
-        if (!is_kind_of_string(*(uint64_t *)(old + 16 + 0))) {
+    if (({
+    v_9 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_9 = ({
+    p_6 = v_9;
+    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
+        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_6;
+    r_follow_5; });
+    }
+    r_element_5 = v_9;
+    r_element_5; }) != nil_oop) {
+        if (!is_kind_of_string(({
+    v_10 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_10 = ({
+    p_7 = v_10;
+    while (((p_7 & 7) == 0) && (((*(uint64_t *)p_7) & H_FORWARDED) != 0)) {
+        p_7 = (*(uint64_t *)(p_7 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_6 = p_7;
+    r_follow_6; });
+    }
+    r_element_6 = v_10;
+    r_element_6; }))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             return;
         }
-        p = utf8_of(*(uint64_t *)(old + 16 + 0));
+        p = utf8_of(({
+    v_11 = *(uint64_t *)(old + 16 + 0);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_11 = ({
+    p_8 = v_11;
+    while (((p_8 & 7) == 0) && (((*(uint64_t *)p_8) & H_FORWARDED) != 0)) {
+        p_8 = (*(uint64_t *)(p_8 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_7 = p_8;
+    r_follow_7; });
+    }
+    r_element_7 = v_11;
+    r_element_7; }));
         if (p == NULL) {
             prim_status = PS_FAIL;
             prim_error_code = PRIM_ERR_NO_MEMORY;
@@ -505,13 +869,49 @@ void prim_jit_parameters(void)
             return;
         }
     }
-    if (*(uint64_t *)(old + 16 + 8) != nil_oop) {
-        if (!is_kind_of_string(*(uint64_t *)(old + 16 + 8))) {
+    if (({
+    v_12 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_12 = ({
+    p_9 = v_12;
+    while (((p_9 & 7) == 0) && (((*(uint64_t *)p_9) & H_FORWARDED) != 0)) {
+        p_9 = (*(uint64_t *)(p_9 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_8 = p_9;
+    r_follow_8; });
+    }
+    r_element_8 = v_12;
+    r_element_8; }) != nil_oop) {
+        if (!is_kind_of_string(({
+    v_13 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_13 = ({
+    p_10 = v_13;
+    while (((p_10 & 7) == 0) && (((*(uint64_t *)p_10) & H_FORWARDED) != 0)) {
+        p_10 = (*(uint64_t *)(p_10 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_9 = p_10;
+    r_follow_9; });
+    }
+    r_element_9 = v_13;
+    r_element_9; }))) {
             prim_status = PS_FAIL;
             prim_error_code = -1;
             return;
         }
-        p = utf8_of(*(uint64_t *)(old + 16 + 8));
+        p = utf8_of(({
+    v_14 = *(uint64_t *)(old + 16 + 8);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_14 = ({
+    p_11 = v_14;
+    while (((p_11 & 7) == 0) && (((*(uint64_t *)p_11) & H_FORWARDED) != 0)) {
+        p_11 = (*(uint64_t *)(p_11 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_10 = p_11;
+    r_follow_10; });
+    }
+    r_element_10 = v_14;
+    r_element_10; }));
         if (p == NULL) {
             prim_status = PS_FAIL;
             prim_error_code = PRIM_ERR_NO_MEMORY;
@@ -535,18 +935,66 @@ void prim_jit_parameters(void)
             return;
         }
     }
-    if (*(uint64_t *)(old + 16 + 16) != nil_oop) {
-        o_9 = *(uint64_t *)(old + 16 + 16);
+    if (({
+    v_15 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_15 = ({
+    p_12 = v_15;
+    while (((p_12 & 7) == 0) && (((*(uint64_t *)p_12) & H_FORWARDED) != 0)) {
+        p_12 = (*(uint64_t *)(p_12 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_11 = p_12;
+    r_follow_11; });
+    }
+    r_element_11 = v_15;
+    r_element_11; }) != nil_oop) {
+        o_9 = ({
+    v_16 = *(uint64_t *)(old + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_16 = ({
+    p_13 = v_16;
+    while (((p_13 & 7) == 0) && (((*(uint64_t *)p_13) & H_FORWARDED) != 0)) {
+        p_13 = (*(uint64_t *)(p_13 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_12 = p_13;
+    r_follow_12; });
+    }
+    r_element_12 = v_16;
+    r_element_12; });
         n = ((int64_t)o_9) >> 1;
         jit_threshold = n;
     }
-    if (*(uint64_t *)(old + 16 + 24) != nil_oop) {
-        o_10 = *(uint64_t *)(old + 16 + 24);
+    if (({
+    v_17 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_17 = ({
+    p_14 = v_17;
+    while (((p_14 & 7) == 0) && (((*(uint64_t *)p_14) & H_FORWARDED) != 0)) {
+        p_14 = (*(uint64_t *)(p_14 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_13 = p_14;
+    r_follow_13; });
+    }
+    r_element_13 = v_17;
+    r_element_13; }) != nil_oop) {
+        o_10 = ({
+    v_18 = *(uint64_t *)(old + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_18 = ({
+    p_15 = v_18;
+    while (((p_15 & 7) == 0) && (((*(uint64_t *)p_15) & H_FORWARDED) != 0)) {
+        p_15 = (*(uint64_t *)(p_15 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_14 = p_15;
+    r_follow_14; });
+    }
+    r_element_14 = v_18;
+    r_element_14; });
         n_2 = ((int64_t)o_10) >> 1;
         jit_osr_threshold = n_2;
     }
-    v_5 = *r;
-    prim_result = v_5;
+    v_19 = *r;
+    prim_result = v_19;
     prim_status = PS_OK;
 }
 
