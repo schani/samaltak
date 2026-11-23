@@ -26,6 +26,18 @@ prim_fn perform_args_fn;
 prim_fn perform_fn;
 static bool release_pending;
 int32_t send_pushed;
+static int32_t slice_args;
+static uint8_t slice_bytes[64];
+static uint64_t slice_cache_generation;
+static int32_t slice_capacity;
+static uint64_t slice_end;
+static jit_method *slice_header;
+static uint64_t slice_literal[64];
+static int32_t slice_n_lits;
+uint64_t slice_name_size;
+static const char *slice_selector;
+static uint64_t slice_stamp;
+static int32_t slice_temps;
 uint64_t stat_bytecodes;
 uint64_t stat_cache_flushes;
 uint64_t stat_code_bytes;
@@ -43,6 +55,8 @@ static jit_method *young_methods[4096];
 static bool young_overflow;
 
 static uint64_t activate(oop m, frame *f, int32_t n, int32_t ecode, uint64_t hint);
+static bool jit_runtime_compile_slice(oop m);
+static void configure_slice(void);
 static uint64_t context_entry(bool looping);
 static jit_method *failed_header_for(oop m);
 static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md);
@@ -50,7 +64,12 @@ static uint64_t interrupt_frame(frame *f, bool at_entry);
 static void open_perf_map(void);
 static void perf_map_code(jit_method *h, int32_t md);
 static void refresh_state(void);
+static void retire_slice(void);
+static bool slice_descriptor(oop m);
+static bool slice_named(oop m);
+static bool slice_version(oop m, oop bc, oop lo, bool record);
 static int64_t slot_of(oop m);
+static void trace_slice(jit_method *h);
 
 #if defined(__x86_64__)
 /* JitRuntime>>activate:frame:argc:ecode:code: */
@@ -837,7 +856,7 @@ void c4_bytecode_will_write(oop obj)
 /* JitRuntime>>c4ForwardingInstalled */
 void c4_forwarding_installed(void)
 {
-    if (jit_mode == JIT_BASELINE) {
+    if ((jit_mode == JIT_BASELINE) || (OPT_SLICE_TEST_ENABLED && (slice_header != NULL))) {
         flush_pending = true;
         invalidations = invalidations + 1;
         if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
@@ -1834,6 +1853,214 @@ exit_object_address_2:;
     return h;
 }
 
+#if defined(__x86_64__)
+/* JitRuntime>>compileSlice: */
+static bool jit_runtime_compile_slice(oop m)
+{
+    uint64_t start;
+    bool ok;
+    int32_t a_code;
+    jit_method *h;
+    uint64_t end;
+    uint64_t r_object_address;
+    uint32_t n;
+    int32_t i;
+    uint64_t size;
+    int32_t bytes;
+    uint64_t hash;
+    int32_t i_2;
+    if (!ensure_open()) {
+        return false;
+    }
+    start = cache_top;
+    begin_writing();
+    begin_at(start, cache_limit);
+    record_notes(false);
+    ok = opt_runtime_compile_slice(m);
+    if (!(ok && ({
+    a_code = amd64_assembler_finish();
+    a_code == ASM_OK; }))) {
+        end_writing();
+        invalidate((void *)start, 0);
+        fputs("opt-slice compile rejected\n", stderr);
+        return false;
+    }
+    h = (jit_method *)asm_pc;
+    end = asm_pc + sizeof(jit_method) + (uint64_t)(4 * (cg_sp_count + cg_meta_count));
+    if (((asm_pc & 7) != 0) || (end + 7 > cache_limit)) {
+        end_writing();
+        invalidate((void *)start, 0);
+        return false;
+    }
+    memset(h, 0, sizeof(jit_method));
+    h->method = m;
+    h->mode = -1;
+    h->start = start;
+    h->code_start = start;
+    h->code_size = (uint32_t)(asm_pc - start);
+    h->bytecodes = (uint32_t)bc_size;
+    h->method_hash = (uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK);
+    write_slice(h, asm_pc + sizeof(jit_method));
+    if (!(valid_slice(h, end, slice_capacity) && ({
+    n = 1 + h->pool_count;
+    oop_slot_count + n <= BL_MAX_OOP_SLOTS; }))) {
+        end_writing();
+        invalidate((void *)start, 0);
+        fputs("opt-slice physical map or capacity rejected\n", stderr);
+        return false;
+    }
+    register_slot((uint64_t)&h->method);
+    for (i = 0; i <= (int32_t)h->pool_count - 1; i++) {
+        register_slot(h->code_start + h->pool_offset + 8 * i);
+    }
+    code_cache_allocate(end - start);
+    size = cache_top - start;
+    end_writing();
+    invalidate((void *)start, size);
+    slice_stamp = invalidations;
+    slice_cache_generation = c4_enabled ? c4_heap_cache_gen() : 0ULL;
+    slice_end = end;
+    slice_header = h;
+    bytes = (int32_t)h->bytecodes;
+    hash = 14695981039346656037ULL;
+    for (i_2 = 0; i_2 <= bytes - 1; i_2++) {
+        hash = (hash ^ ((uint64_t)slice_bytes[i_2])) * 1099511628211ULL;
+    }
+    fprintf(stderr, "opt-slice installed methodHash=%u bytecodeFNV=%016llx bytes=%d nativeBytes=%u\n", h->method_hash, (unsigned long long)hash, bytes, h->code_size);
+    fprintf(stderr, "opt-slice slots=%u rows=%u pool=%u\n", h->slots, h->sp_count, h->pool_count);
+    if (getenv("SAMALTAK_OPT_SLICE_TRACE") != NULL) {
+        trace_slice(h);
+    }
+    if (c4_enabled) {
+        fprintf(stderr, "opt-slice registered=%u generation=%llu\n", 1 + h->pool_count, (unsigned long long)slice_cache_generation);
+    }
+    return true;
+}
+
+#else
+/* JitRuntime>>compileSlice: */
+static bool jit_runtime_compile_slice(oop m)
+{
+    uint64_t start;
+    bool ok;
+    int32_t a_code;
+    jit_method *h;
+    uint64_t end;
+    uint64_t r_object_address;
+    uint32_t n;
+    int32_t i;
+    uint64_t size;
+    int32_t bytes;
+    uint64_t hash;
+    int32_t i_2;
+    if (!ensure_open()) {
+        return false;
+    }
+    start = cache_top;
+    begin_writing();
+    begin_at(start, cache_limit);
+    record_notes(false);
+    ok = opt_runtime_compile_slice(m);
+    if (!(ok && ({
+    a_code = arm64_assembler_finish();
+    a_code == ASM_OK; }))) {
+        end_writing();
+        invalidate((void *)start, 0);
+        fputs("opt-slice compile rejected\n", stderr);
+        return false;
+    }
+    h = (jit_method *)asm_pc;
+    end = asm_pc + sizeof(jit_method) + (uint64_t)(4 * (cg_sp_count + cg_meta_count));
+    if (((asm_pc & 7) != 0) || (end + 7 > cache_limit)) {
+        end_writing();
+        invalidate((void *)start, 0);
+        return false;
+    }
+    memset(h, 0, sizeof(jit_method));
+    h->method = m;
+    h->mode = -1;
+    h->start = start;
+    h->code_start = start;
+    h->code_size = (uint32_t)(asm_pc - start);
+    h->bytecodes = (uint32_t)bc_size;
+    h->method_hash = (uint32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK);
+    write_slice(h, asm_pc + sizeof(jit_method));
+    if (!(valid_slice(h, end, slice_capacity) && ({
+    n = 1 + h->pool_count;
+    oop_slot_count + n <= BL_MAX_OOP_SLOTS; }))) {
+        end_writing();
+        invalidate((void *)start, 0);
+        fputs("opt-slice physical map or capacity rejected\n", stderr);
+        return false;
+    }
+    register_slot((uint64_t)&h->method);
+    for (i = 0; i <= (int32_t)h->pool_count - 1; i++) {
+        register_slot(h->code_start + h->pool_offset + 8 * i);
+    }
+    code_cache_allocate(end - start);
+    size = cache_top - start;
+    end_writing();
+    invalidate((void *)start, size);
+    slice_stamp = invalidations;
+    slice_cache_generation = c4_enabled ? c4_heap_cache_gen() : 0ULL;
+    slice_end = end;
+    slice_header = h;
+    bytes = (int32_t)h->bytecodes;
+    hash = 14695981039346656037ULL;
+    for (i_2 = 0; i_2 <= bytes - 1; i_2++) {
+        hash = (hash ^ ((uint64_t)slice_bytes[i_2])) * 1099511628211ULL;
+    }
+    fprintf(stderr, "opt-slice installed methodHash=%u bytecodeFNV=%016llx bytes=%d nativeBytes=%u\n", h->method_hash, (unsigned long long)hash, bytes, h->code_size);
+    fprintf(stderr, "opt-slice slots=%u rows=%u pool=%u\n", h->slots, h->sp_count, h->pool_count);
+    if (getenv("SAMALTAK_OPT_SLICE_TRACE") != NULL) {
+        trace_slice(h);
+    }
+    if (c4_enabled) {
+        fprintf(stderr, "opt-slice registered=%u generation=%llu\n", 1 + h->pool_count, (unsigned long long)slice_cache_generation);
+    }
+    return true;
+}
+
+#endif
+#if defined(__x86_64__)
+/* JitRuntime>>configureSlice */
+static void configure_slice(void)
+{
+    if (!OPT_SLICE_TEST_ENABLED) {
+        return;
+    }
+    if (can_run_code()) {
+        slice_selector = getenv("SAMALTAK_OPT_SLICE");
+        if (slice_selector != NULL) {
+            slice_name_size = strlen(slice_selector);
+        }
+    }
+}
+
+#else
+/* JitRuntime>>configureSlice */
+static void configure_slice(void)
+{
+    if (!OPT_SLICE_TEST_ENABLED) {
+        return;
+    }
+}
+
+#endif
 /* JitRuntime>>contextEntry: */
 static uint64_t context_entry(bool looping)
 {
@@ -3540,6 +3767,7 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     int32_t i_3;
     uint64_t r_write_extra;
     oop m_2;
+    oop r_method_bytes_object;
     int64_t r_pool_offset;
     int32_t a_label;
     int32_t i_4;
@@ -3619,7 +3847,14 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->slots = (uint32_t)cg_slot_top;
     h->raw_base = (uint32_t)cg_raw_base;
     m_2 = h->method;
-    h->bc_size = (uint32_t)(int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24));
+    h->bc_size = (uint32_t)(int32_t)byte_size(({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m_2, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m_2 + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; }));
     h->pool_offset = (uint32_t)({
     if (cg_pool_count == 0) {
         r_pool_offset = 0LL;
@@ -3723,6 +3958,7 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     int32_t i_3;
     uint64_t r_write_extra;
     oop m_2;
+    oop r_method_bytes_object;
     int64_t r_pool_offset;
     int32_t a_label;
     int32_t i_4;
@@ -3802,7 +4038,14 @@ static jit_method *jit_runtime_finish(oop m, uint64_t start, int32_t md)
     h->slots = (uint32_t)cg_slot_top;
     h->raw_base = (uint32_t)cg_raw_base;
     m_2 = h->method;
-    h->bc_size = (uint32_t)(int32_t)byte_size(*(uint64_t *)(m_2 + 16 + 24));
+    h->bc_size = (uint32_t)(int32_t)byte_size(({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m_2, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m_2 + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; }));
     h->pool_offset = (uint32_t)({
     if (cg_pool_count == 0) {
         r_pool_offset = 0LL;
@@ -3964,6 +4207,9 @@ void flush_code(void)
 {
     uint64_t used;
     int32_t i;
+    if (OPT_SLICE_TEST_ENABLED) {
+        retire_slice();
+    }
     used = cache_opened ? cache_top : 0;
     for (i = 0; i <= nframes - 1; i++) {
         (frames + i)->code = jit_mode == JIT_NONE ? 0 : 1;
@@ -5220,6 +5466,24 @@ exit_canonical_oop:;
 exit_run:;
 }
 
+/* JitRuntime>>retireSlice */
+static void retire_slice(void)
+{
+    if (!OPT_SLICE_TEST_ENABLED) {
+        return;
+    }
+    if (slice_header == NULL) {
+        return;
+    }
+    if ((state_block->base_record != 0) || (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit))))) {
+        fatal_begin();
+        fprintf(stderr, "checked prefix retirement during native execution or root publication");
+        fatal_end();
+    }
+    fputs("opt-slice retire\n", stderr);
+    slice_header = (jit_method *)NULL;
+}
+
 /* JitRuntime>>setFlags: */
 void set_flags(uint32_t f)
 {
@@ -5250,6 +5514,479 @@ bool set_mode(int32_t m)
     flush_pending = true;
     invalidations = invalidations + 1;
     flush_method_cache();
+    return true;
+}
+
+/* JitRuntime>>sliceDescriptor: */
+static bool slice_descriptor(oop m)
+{
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop a;
+    oop r_load_ref_2;
+    uint64_t r_object_address_3;
+    uint64_t r_object_address_4;
+    oop t;
+    oop r_load_ref_3;
+    uint64_t r_object_address_5;
+    oop c;
+    oop r_load_ref_4;
+    uint64_t r_object_address_6;
+    oop p;
+    a = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(m, 4U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(m);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = m;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 32);
+exit_load_ref:;
+    r_load_ref; });
+    t = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(m);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = m;
+exit_object_address_3:;
+    r_object_address_3; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(m, 5U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(m);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = m;
+exit_object_address_4:;
+    r_object_address_4; }) + 16 + 40);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    c = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_3 = c4_load_ref(m, 6U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(m);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = m;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 48);
+exit_load_ref_3:;
+    r_load_ref_3; });
+    p = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_4 = c4_load_ref(m, 7U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(m);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = m;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 56);
+exit_load_ref_4:;
+    r_load_ref_4; });
+    if (!(((a & 1) != 0) && (((t & 1) != 0) && (((c & 1) != 0) && ((p == nil_oop) || (p == 1ULL)))))) {
+        return false;
+    }
+    a = (uint64_t)(((int64_t)a) >> 1);
+    t = (uint64_t)(((int64_t)t) >> 1);
+    c = (uint64_t)(((int64_t)c) >> 1);
+    return (a <= 16) && ((t <= 16) && ((c <= 16) && (a + t <= c)));
+}
+
+/* JitRuntime>>sliceMethodLiteral:at: */
+oop slice_method_literal(oop m, uint32_t i)
+{
+    return c4_load_ref(slice_method_storage(m, CM_LITERALS), i);
+}
+
+/* JitRuntime>>sliceMethodStorage:at: */
+oop slice_method_storage(oop m, uint32_t i)
+{
+    oop r_method_storage;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    oop r_load_ref;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
+    oop o;
+    uint64_t r_object_address_6;
+    int32_t f;
+    uint64_t r_object_address_7;
+    return ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((!c4_heap_movable(m)) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; }) + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(m);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = m;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(m);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = m;
+exit_object_address_3:;
+    r_object_address_3; }) > i))))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(m);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = m;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)))) {
+        r_load_ref = c4_load_ref(m, i);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(m);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = m;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 8 * i);
+exit_load_ref:;
+    r_load_ref; });
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && ((o != nil_oop) && (!c4_heap_movable(o)))))) {
+            fatal_begin();
+            fprintf(stderr, "invalid C4 method storage");
+            fatal_end();
+        }
+        f = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(o);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o;
+exit_object_address_6:;
+    r_object_address_6; })) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(i == CM_LITERALS ? (f == F_VAR) || (f == F_FIXED) : f >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+        if ((i == CM_BYTECODES) && (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_7 = c4_heap_address(o);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = o;
+exit_object_address_7:;
+    r_object_address_7; }) + 8) == cls_bytestring)) {
+            c4_heap_forbid_become(o);
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+}
+
+/* JitRuntime>>sliceNamed: */
+static bool slice_named(oop m)
+{
+    oop r_load_ref;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    oop sel;
+    uint64_t r_object_address_3;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t owner;
+    sel = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(m, 0U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(m);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = m;
+exit_object_address_2:;
+    r_object_address_2; }) + 16 + 0);
+exit_load_ref:;
+    r_load_ref; });
+    return (sel != 0) && (((sel & 7) == 0) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(sel);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = sel;
+exit_object_address_3:;
+    r_object_address_3; }) + 8) == object_memory_special(SO_BYTESYMBOL)) && ((byte_size(sel) == slice_name_size) && (memcmp((uint8_t *)({
+    owner = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(sel);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = sel;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
+    r_pinned_body_address; }), slice_selector, slice_name_size) == 0))));
+}
+
+/* JitRuntime>>sliceVersion:bytes:literals:record: */
+static bool slice_version(oop m, oop bc, oop lo, bool record)
+{
+    size_t size;
+    uint64_t r_object_address;
+    uint32_t nl;
+    oop r_load_ref;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    oop o;
+    int32_t a;
+    oop r_load_ref_2;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
+    oop o_2;
+    int32_t t;
+    oop r_load_ref_3;
+    uint64_t r_object_address_6;
+    oop o_3;
+    int32_t c;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t owner;
+    uint64_t r_pinned_body_address_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
+    int32_t i;
+    oop r_load_ref_4;
+    uint64_t r_object_address_7;
+    uint64_t r_object_address_8;
+    oop o_4;
+    oop r_slice_literal_key;
+    oop x;
+    size = byte_size(bc);
+    nl = (uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(lo);
+        goto exit_object_address;
+    }
+    r_object_address = lo;
+exit_object_address:;
+    r_object_address; });
+    if ((size <= 0) || ((size > 64) || (nl > 64))) {
+        return false;
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(m);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = m;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(m, 4U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(m);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = m;
+exit_object_address_3:;
+    r_object_address_3; }) + 16 + 32);
+exit_load_ref:;
+    r_load_ref; });
+    a = (int32_t)(((int64_t)o) >> 1);
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(m);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = m;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(m, 5U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(m);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = m;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 40);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    t = (int32_t)(((int64_t)o_2) >> 1);
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0)) {
+        r_load_ref_3 = c4_load_ref(m, 6U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(m);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = m;
+exit_object_address_6:;
+    r_object_address_6; }) + 16 + 48);
+exit_load_ref_3:;
+    r_load_ref_3; });
+    c = (int32_t)(((int64_t)o_3) >> 1);
+    if (record) {
+        slice_args = a;
+        slice_temps = t;
+        slice_capacity = c;
+        slice_n_lits = (int32_t)nl;
+        memcpy(slice_bytes, (uint8_t *)({
+    owner = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(bc);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = bc;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
+    r_pinned_body_address; }), size);
+    } else if (!((a == slice_args) && ((t == slice_temps) && ((c == slice_capacity) && (((int32_t)nl == slice_n_lits) && ((size == slice_header->bytecodes) && (memcmp(slice_bytes, (uint8_t *)({
+    owner_2 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(bc);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = bc;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner_2), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
+    r_pinned_body_address_2; }), size) == 0))))))) {
+        return false;
+    }
+    for (i = 0; i <= (int32_t)nl - 1; i++) {
+        o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && ((i >= CTX_FIXED) || (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_7 = c4_heap_address(lo);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = lo;
+exit_object_address_7:;
+    r_object_address_7; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK)))) {
+        r_load_ref_4 = c4_load_ref(lo, (uint32_t)i);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_8 = c4_heap_address(lo);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = lo;
+exit_object_address_8:;
+    r_object_address_8; }) + 16 + 8 * i);
+exit_load_ref_4:;
+    r_load_ref_4; });
+        x = ({
+    if ((o_4 & 1) != 0) {
+        r_slice_literal_key = o_4;
+        goto exit_slice_literal_key;
+    }
+    if (o_4 == nil_oop) {
+        r_slice_literal_key = 2ULL;
+        goto exit_slice_literal_key;
+    }
+    if (o_4 == true_oop) {
+        r_slice_literal_key = 4ULL;
+        goto exit_slice_literal_key;
+    }
+    if (o_4 == false_oop) {
+        r_slice_literal_key = 6ULL;
+        goto exit_slice_literal_key;
+    }
+    r_slice_literal_key = 0ULL;
+exit_slice_literal_key:;
+    r_slice_literal_key; });
+        if (x == 0) {
+            return false;
+        }
+        if (record) {
+            slice_literal[i] = x;
+        } else if (!(slice_literal[i] == x)) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -6029,6 +6766,9 @@ void jit_runtime_start(void)
     if (!can_run_code()) {
         jit_mode = JIT_NONE;
     }
+    if (OPT_SLICE_TEST_ENABLED) {
+        configure_slice();
+    }
     if ((jit_mode != JIT_NONE) && (!ensure_open())) {
         fatal_begin();
         fprintf(stderr, "cannot open a %lld MB code cache", (long long)jit_cache_mb);
@@ -6095,6 +6835,418 @@ exit_canonical_oop:;
     r_pinned_body_address = owner + 16;
     r_pinned_body_address; });
     return opt_runtime_tier_up(f, loop);
+}
+
+/* JitRuntime>>traceSlice: */
+static void trace_slice(jit_method *h)
+{
+    int32_t i;
+    int32_t i_2;
+    int32_t *row;
+    int32_t n;
+    int32_t j;
+    fputs("opt-slice machine=", stderr);
+    for (i = 0; i <= (int32_t)h->code_size - 1; i++) {
+        fprintf(stderr, "%02x", *(uint8_t *)(h->code_start + i));
+    }
+    fputc(10, stderr);
+    for (i_2 = 0; i_2 <= (int32_t)h->sp_count - 1; i_2++) {
+        row = h->meta + h->sp_table[i_2];
+        n = row[2];
+        fprintf(stderr, "opt-slice map row=%d kind=%d pc=%d depth=%d", i_2, row[0], row[1], n);
+        for (j = 0; j <= n; j++) {
+            fprintf(stderr, " %d", row[3 + j]);
+        }
+        fputc(10, stderr);
+    }
+}
+
+/* JitRuntime>>trySlice: */
+bool try_slice(frame *f)
+{
+    oop m;
+    oop r_method_storage;
+    uint64_t r_object_address;
+    uint64_t r_object_address_2;
+    uint64_t r_object_address_3;
+    oop r_load_ref;
+    uint64_t r_object_address_4;
+    uint64_t r_object_address_5;
+    oop o;
+    uint64_t r_object_address_6;
+    int32_t f_2;
+    uint64_t r_object_address_7;
+    oop bc;
+    oop r_method_storage_2;
+    uint64_t r_object_address_8;
+    uint64_t r_object_address_9;
+    uint64_t r_object_address_10;
+    oop r_load_ref_2;
+    uint64_t r_object_address_11;
+    uint64_t r_object_address_12;
+    oop o_2;
+    uint64_t r_object_address_13;
+    int32_t f_3;
+    oop lo;
+    uint64_t r_pinned_body_address;
+    uint64_t r_canonical_oop;
+    uint64_t owner;
+    uint64_t r_pinned_body_address_2;
+    uint64_t r_canonical_oop_2;
+    uint64_t owner_2;
+    oop r_load_ref_3;
+    uint64_t r_object_address_14;
+    uint64_t r_object_address_15;
+    oop o_3;
+    oop r_load_ref_4;
+    uint64_t r_object_address_16;
+    uint64_t r_object_address_17;
+    oop o_4;
+    uint64_t base;
+    uint64_t fp;
+    jit_method *h;
+    int64_t ret;
+    uint64_t k;
+    int32_t reason;
+    if (!(OPT_SLICE_TEST_ENABLED && ((slice_name_size > 0) && (slice_name_size <= 64) && ((jit_mode == JIT_NONE) && ((!c4_enabled) || ((!c4_heap_moving_forward_enabled()) && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && (!c4_heap_arm64_interpreter()))))))))) {
+        return false;
+    }
+    if ((state_block->base_record != 0) || ((root_count != 0) || ((f->code != 0) || ((f->ctx != nil_oop) || (f->closure != nil_oop))))) {
+        return false;
+    }
+    if ((nframes <= 0) || (f != frames + (nframes - 1))) {
+        return false;
+    }
+    m = f->method;
+    if ((slice_header != NULL) && ((slice_header->method != m) && (!flush_pending))) {
+        return false;
+    }
+    if (!slice_named(m)) {
+        return false;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        fputs("opt-slice blocked by root publication\n", stderr);
+        return false;
+    }
+    if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+        goto exit_prepare;
+    }
+    if (flush_pending && no_opt_frames()) {
+        flush_code();
+    }
+exit_prepare:;
+    if (flush_pending) {
+        return false;
+    }
+    if (!slice_descriptor(m)) {
+        return false;
+    }
+    bc = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((!c4_heap_movable(m)) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address = c4_heap_address(m);
+        goto exit_object_address;
+    }
+    r_object_address = m;
+exit_object_address:;
+    r_object_address; }) + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_2 = c4_heap_address(m);
+        goto exit_object_address_2;
+    }
+    r_object_address_2 = m;
+exit_object_address_2:;
+    r_object_address_2; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_3 = c4_heap_address(m);
+        goto exit_object_address_3;
+    }
+    r_object_address_3 = m;
+exit_object_address_3:;
+    r_object_address_3; }) > CM_BYTECODES))))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_4 = c4_heap_address(m);
+        goto exit_object_address_4;
+    }
+    r_object_address_4 = m;
+exit_object_address_4:;
+    r_object_address_4; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref = c4_load_ref(m, 3U);
+        goto exit_load_ref;
+    }
+    r_load_ref = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_5 = c4_heap_address(m);
+        goto exit_object_address_5;
+    }
+    r_object_address_5 = m;
+exit_object_address_5:;
+    r_object_address_5; }) + 16 + 24);
+exit_load_ref:;
+    r_load_ref; });
+    if (c4_enabled) {
+        if (!(((o & 7) == 0) && ((o != 0) && ((o != nil_oop) && (!c4_heap_movable(o)))))) {
+            fatal_begin();
+            fprintf(stderr, "invalid C4 method storage");
+            fatal_end();
+        }
+        f_2 = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_6 = c4_heap_address(o);
+        goto exit_object_address_6;
+    }
+    r_object_address_6 = o;
+exit_object_address_6:;
+    r_object_address_6; })) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!(f_2 >= F_BYTES)) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+        if (*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_7 = c4_heap_address(o);
+        goto exit_object_address_7;
+    }
+    r_object_address_7 = o;
+exit_object_address_7:;
+    r_object_address_7; }) + 8) == cls_bytestring) {
+            c4_heap_forbid_become(o);
+        }
+    }
+    r_method_storage = o;
+    r_method_storage; });
+    lo = ({
+    if (c4_enabled) {
+        if (!(((m & 7) == 0) && ((m != 0) && ((!c4_heap_movable(m)) && ((*(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_8 = c4_heap_address(m);
+        goto exit_object_address_8;
+    }
+    r_object_address_8 = m;
+exit_object_address_8:;
+    r_object_address_8; }) + 8) == cls_compiledmethod) && (((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_9 = c4_heap_address(m);
+        goto exit_object_address_9;
+    }
+    r_object_address_9 = m;
+exit_object_address_9:;
+    r_object_address_9; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FIXED) && ((uint32_t)*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_10 = c4_heap_address(m);
+        goto exit_object_address_10;
+    }
+    r_object_address_10 = m;
+exit_object_address_10:;
+    r_object_address_10; }) > CM_LITERALS))))))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 CompiledMethod layout");
+            fatal_end();
+        }
+    }
+    o_2 = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_11 = c4_heap_address(m);
+        goto exit_object_address_11;
+    }
+    r_object_address_11 = m;
+exit_object_address_11:;
+    r_object_address_11; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_2 = c4_load_ref(m, 2U);
+        goto exit_load_ref_2;
+    }
+    r_load_ref_2 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_12 = c4_heap_address(m);
+        goto exit_object_address_12;
+    }
+    r_object_address_12 = m;
+exit_object_address_12:;
+    r_object_address_12; }) + 16 + 16);
+exit_load_ref_2:;
+    r_load_ref_2; });
+    if (c4_enabled) {
+        if (!(((o_2 & 7) == 0) && ((o_2 != 0) && ((o_2 != nil_oop) && (!c4_heap_movable(o_2)))))) {
+            fatal_begin();
+            fprintf(stderr, "invalid C4 method storage");
+            fatal_end();
+        }
+        f_3 = (int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_13 = c4_heap_address(o_2);
+        goto exit_object_address_13;
+    }
+    r_object_address_13 = o_2;
+exit_object_address_13:;
+    r_object_address_13; })) >> H_FMT_SHIFT) & H_FMT_MASK);
+        if (!((f_3 == F_VAR) || (f_3 == F_FIXED))) {
+            fatal_begin();
+            fprintf(stderr, "bad C4 method storage layout");
+            fatal_end();
+        }
+    }
+    r_method_storage_2 = o_2;
+    r_method_storage_2; });
+    if (!(f->ip == (uint8_t *)({
+    owner = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop = c4_heap_canonical(bc);
+        goto exit_canonical_oop;
+    }
+    r_canonical_oop = bc;
+exit_canonical_oop:;
+    r_canonical_oop; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner);
+    }
+    r_pinned_body_address = owner + 16;
+    r_pinned_body_address; }))) {
+        return false;
+    }
+    if (!(f->lits == (oop *)({
+    owner_2 = ({
+    if (__builtin_expect(c4_enabled && c4_heap_has_forwarding(), 0)) {
+        r_canonical_oop_2 = c4_heap_canonical(lo);
+        goto exit_canonical_oop_2;
+    }
+    r_canonical_oop_2 = lo;
+exit_canonical_oop_2:;
+    r_canonical_oop_2; });
+    if (__builtin_expect(c4_moving && c4_heap_movable(owner_2), 0)) {
+        fatal_begin();
+        fprintf(stderr, "raw body view of a movable object");
+        fatal_end();
+    }
+    if (__builtin_expect(c4_enabled, 0)) {
+        c4_heap_note_pinned_view(owner_2);
+    }
+    r_pinned_body_address_2 = owner_2 + 16;
+    r_pinned_body_address_2; }))) {
+        return false;
+    }
+    o_3 = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_14 = c4_heap_address(m);
+        goto exit_object_address_14;
+    }
+    r_object_address_14 = m;
+exit_object_address_14:;
+    r_object_address_14; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_3 = c4_load_ref(m, 4U);
+        goto exit_load_ref_3;
+    }
+    r_load_ref_3 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_15 = c4_heap_address(m);
+        goto exit_object_address_15;
+    }
+    r_object_address_15 = m;
+exit_object_address_15:;
+    r_object_address_15; }) + 16 + 32);
+exit_load_ref_3:;
+    r_load_ref_3; });
+    o_4 = ({
+    if (__builtin_expect(c4_enabled, 0) && (c4_heap_has_forwarding() || ((int32_t)(((*(uint64_t *)({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_16 = c4_heap_address(m);
+        goto exit_object_address_16;
+    }
+    r_object_address_16 = m;
+exit_object_address_16:;
+    r_object_address_16; })) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK))) {
+        r_load_ref_4 = c4_load_ref(m, 5U);
+        goto exit_load_ref_4;
+    }
+    r_load_ref_4 = *(uint64_t *)(({
+    if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
+        r_object_address_17 = c4_heap_address(m);
+        goto exit_object_address_17;
+    }
+    r_object_address_17 = m;
+exit_object_address_17:;
+    r_object_address_17; }) + 16 + 40);
+exit_load_ref_4:;
+    r_load_ref_4; });
+    if (!(f->sp == (((int64_t)o_3) >> 1) + (((int64_t)o_4) >> 1))) {
+        return false;
+    }
+    base = (uint64_t)cstack;
+    fp = (uint64_t)f->fp;
+    if ((fp < base + 8) || (fp > (uint64_t)(cstack + 65534) - 256)) {
+        return false;
+    }
+    if (slice_header == NULL) {
+        if (!slice_version(m, bc, lo, true)) {
+            return false;
+        }
+        if (!slice_envelope(m)) {
+            return false;
+        }
+        if (c4_enabled) {
+            c4_heap_note_code_bytes(bc);
+        }
+        if (!jit_runtime_compile_slice(m)) {
+            return false;
+        }
+    } else if (!((slice_stamp == invalidations) && (((!c4_enabled) || (slice_cache_generation == c4_heap_cache_gen())) && slice_version(m, bc, lo, false)))) {
+        flush_pending = true;
+        invalidations = invalidations + 1;
+        if (c4_enabled && ((c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)))) {
+            goto exit_prepare_2;
+        }
+        if (flush_pending && no_opt_frames()) {
+            flush_code();
+        }
+    exit_prepare_2:;
+        return false;
+    }
+    h = slice_header;
+    if (!valid_slice(h, slice_end, slice_capacity)) {
+        return false;
+    }
+    state_block->dump[31] = 18446744073709551615ULL;
+    ret = ((int64_t (*)(frame *, uint64_t))bl_enter)(f, h->start);
+    state_block->base_record = 0;
+    k = state_block->dump[31];
+    if ((ret != 0) || (k >= h->sp_count)) {
+        fatal_begin();
+        fprintf(stderr, "bad checked prefix exit");
+        fatal_end();
+    }
+    reason = replay_slice(h, f, (int32_t)k, state_block->dump, true);
+    memset(state_block->dump, 0, 256);
+    if (c4_enabled) {
+        if (c4_moving) {
+            if (root_count != 0) {
+                fatal_begin();
+                fprintf(stderr, "native roots escaped to a C4 relocation checkpoint");
+                fatal_end();
+            }
+            c4_heap_move_poll();
+        }
+        c4_poll();
+        fprintf(stderr, "opt-slice checkpoint partial=%d\n", (c4_frame_next < c4_frame_limit) || ((c4_stack_next < c4_stack_limit) || (c4_code_next < c4_code_limit)) ? 1 : 0);
+    }
+    if (reason == 0) {
+        entry_safepoint();
+    }
+    return true;
 }
 
 /* JitRuntime>>widow: */

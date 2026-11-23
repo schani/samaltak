@@ -1,5 +1,5 @@
 VMCoreModule subclass: #Interpreter
-	instanceVariableNames: 'activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4CacheTags c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
+	instanceVariableNames: 'sliceTest activeCtx tmpRoots primStatus primErrorCode primNargs primBase primBaseIndex primResult resendSelector resendArgc cstack frames nframes cstackUsed tagClass stackLimit stackCheckAt stackCheckDue stackCheckHash safepointAtEntry statMaterialized statFlushes frameEpoch cache icache c4Entry c4CacheTags c4Countdown c4FrameNext c4FrameLimit c4StackNext c4StackLimit c4CodeNext c4CodeLimit c4SavedFrames c4SavedStack c4SavedFrameBits c4SavedStackBits specialArgc ip sp fp lits fr sel cls argc result epoch newMethod newBcs newLits newTemps newFsize newEcode newFp newCode'
 	classVariableNames: 'C4_FRAME_ROOTS CACHE_SIZE CSTACK_SLOTS ICACHE_SIZE MAX_FRAMES'
 	package: 'VM-Core'!
 
@@ -13,7 +13,7 @@ interpret is one C function: the bytecode handlers (<bytecode:>) and the labels 
 
 !Interpreter class methodsFor: 'declaring'!
 declarations
-	^#((activeCtx oop) (tmpRoots 'oop[4]')
+	^#((sliceTest OptSliceTest) (activeCtx oop) (tmpRoots 'oop[4]')
 		(primStatus int32_t) (primErrorCode int32_t) (primNargs int32_t) (primBase 'oop *') (primBaseIndex int64_t)
 		(primResult oop) (resendSelector oop) (resendArgc int32_t)
 		(cstack 'oop[CSTACK_SLOTS]') (frames 'Frame[MAX_FRAMES]') (nframes int32_t) (cstackUsed size_t)
@@ -2342,6 +2342,10 @@ enterFrame
 	sp := newFp + argc - 1.
 	1 to: newTemps do: [:k | self push: memory nilOop].
 	(self unlikely: newEcode >= 0) ifTrue: [self cstackSlot: newFp + argc put: (self intOop: newEcode)].
+	(sliceTest enabled and: [self unlikely: jit sliceEnabled]) ifTrue: [
+		self externalize.
+		(jit trySlice: fr) ifTrue: [self reload. ^self].
+		self reload].
 	(self unlikely: newCode ~= 0) ifTrue: [
 		"machine code checks interrupts itself"
 		self externalize.

@@ -1,5 +1,5 @@
 OptModule subclass: #OptRuntime
-	instanceVariableNames: 'ir builder passes regalloc codegen rtDeoptVals rtDeoptCount rtActMethod rtActClosure rtActRcv rtActPc rtActDepth rtActVals rtActCount rtOptYoung rtOptYoungCount rtOptYoungOverflow rtStatOptCompiled rtStatOptFailed rtStatOptBytecodes rtStatOptUs rtStatOptBytes rtStatDeopts rtStatOptOsr rtStatInvalidations rtAll rtAllCount rtSunkAct rtSunkStart rtSunkInfo rtSunkOrder rtSunkCount rtSunkUseVal rtSunkUseId rtSunkUseCount rtFloatVal rtFloatLoc rtFloatBits rtFloatCount rtWritten rtUnitStart rtUnitOsr rtUnitDepth rtUnits rtUnitCount rtVariantCount rtFailed rtTrace rtTraceSends rtStamp rtStatSends rtUnitFrame rtUnitSignature rtSigCtx rtSigCount'
+	instanceVariableNames: 'ir builder passes admission regalloc codegen rtDeoptVals rtDeoptCount rtActMethod rtActClosure rtActRcv rtActPc rtActDepth rtActVals rtActCount rtOptYoung rtOptYoungCount rtOptYoungOverflow rtStatOptCompiled rtStatOptFailed rtStatOptBytecodes rtStatOptUs rtStatOptBytes rtStatDeopts rtStatOptOsr rtStatInvalidations rtAll rtAllCount rtSunkAct rtSunkStart rtSunkInfo rtSunkOrder rtSunkCount rtSunkUseVal rtSunkUseId rtSunkUseCount rtFloatVal rtFloatLoc rtFloatBits rtFloatCount rtWritten rtUnitStart rtUnitOsr rtUnitDepth rtUnits rtUnitCount rtVariantCount rtFailed rtTrace rtTraceSends rtStamp rtStatSends rtUnitFrame rtUnitSignature rtSigCtx rtSigCount'
 	classVariableNames: 'OPT_MAX_UNITS OPT_MAX_VARIANT_UNITS OPT_MAX_VARIANTS OPT_MAX_GENERATIONS OPT_MAX_DEOPTS OPT_MAX_DEOPT_ACTS OPT_MAX_DEOPT_VALS OPT_MAX_HEADERS OPT_MAX_YOUNG'
 	package: 'VM-Jit'!
 
@@ -9,7 +9,7 @@ An optimized method''s header (JitMethod, mode opt) is linked from its method''s
 
 !OptRuntime class methodsFor: 'declaring'!
 declarations
-	^#((ir OptIR) (builder OptBuilder) (passes OptPasses) (regalloc OptRegalloc) (codegen OptCodegen)
+	^#((ir OptIR) (builder OptBuilder) (passes OptPasses) (admission OptAdmission) (regalloc OptRegalloc) (codegen OptCodegen)
 		(rtDeoptVals 'oop[OPT_MAX_DEOPT_VALS]') (rtDeoptCount int32_t)
 		(rtActMethod 'oop[OPT_MAX_DEOPT_ACTS]') (rtActClosure 'int32_t[OPT_MAX_DEOPT_ACTS]') (rtActRcv 'int32_t[OPT_MAX_DEOPT_ACTS]') (rtActPc 'int32_t[OPT_MAX_DEOPT_ACTS]')
 		(rtActDepth 'int32_t[OPT_MAX_DEOPT_ACTS]') (rtActVals 'int32_t[OPT_MAX_DEOPT_ACTS]') (rtActCount int32_t)
@@ -1252,4 +1252,119 @@ invalidateSelector: sel
 invalidateAll
 	<function>
 	0 to: rtAllCount - 1 do: [:i | self invalidate: (rtAll at: i)]
+! !
+
+!OptRuntime methodsFor: 'checked prefix bridge'!
+compileSlice: m
+	<function>
+	(builder buildSlice: m) ifFalse: [^false].
+	"One linear build, up to 64 bytes; at most 31 arithmetic bytecodes
+	can reach this point and no CFG expansion or inline retry is allowed."
+	(ir nodeCount > 128 or: [ir stateCount > 64 or: [ir operandCount > 512]]) ifTrue: [^false].
+	passes unboxOff: true.
+	passes cleanup: builder entryBlock.
+	passes unboxOff: false.
+	(admission verify: m) = 0 ifFalse: [^false].
+	(regalloc allocate: builder paramSlots valid: builder validSlots) ifFalse: [^false].
+	^codegen generateSlice: m
 !
+sliceEnvelope: m
+	<function>
+	^admission buildEnvelope: m
+!
+sliceExtraBytes
+	^4 * (codegen spCount + codegen metaCount)
+!
+writeSlice: h at: p
+	<function>
+	| q |
+	h slots: codegen slotTop asUInt32.
+	h rawBase: codegen rawBase asUInt32.
+	h poolOffset: codegen poolOffset asUInt32.
+	h poolCount: codegen poolCount asUInt32.
+	h spCount: codegen spCount asUInt32.
+	h siteCount: codegen siteCount asUInt32.
+	h retCount: codegen retCount asUInt32.
+	h depCount: codegen depCount asUInt32.
+	h spTable: (self cCoerce: p to: 'int32_t *').
+	q := h spTable + h spCount.
+	h meta: q.
+	0 to: h spCount asInt32 - 1 do: [:i | h spTable at: i put: (codegen spOffsetAt: i)].
+	0 to: codegen metaCount - 1 do: [:i | q at: i put: (codegen metaAt: i)]
+!
+validSlice: h end: end frame: cap
+	<var: #x type: 'uint64_t'>
+	<var: #n type: 'int32_t'>
+	<function>
+	| extent words off row d k x l n why count last |
+	(h mode = -1 and: [h start = h codeStart and: [
+		h codeSize > 0 and: [h codeSize <= 8192 and: [
+		h slots = h rawBase and: [h slots <= 32 and: [
+		h siteCount = 0 and: [h retCount = 0 and: [h depCount = 0]]]]]]]]) ifFalse: [^false].
+	(h spCount < 3 or: [h spCount > 64 or: [h poolCount > 64]]) ifTrue: [^false].
+	h poolCount > 0 ifTrue: [
+		(h poolOffset = 0 or: [(h poolOffset bitAnd: 7) ~= 0 or: [h poolOffset + (8 * h poolCount) > h codeSize]]) ifTrue: [^false].
+		0 to: h poolCount asInt32 - 1 do: [:i |
+			x := self poolAt: i of: h.
+			((self isInt: x) or: [x = memory nilOop or: [x = memory trueOop or: [x = memory falseOop]]]) ifFalse: [^false]]].
+	(h spTable ~= (self cCoerce: h + 1 to: 'int32_t *') or: [
+		h meta ~= (h spTable + h spCount)]) ifTrue: [^false].
+	extent := self cCoerce: h meta to: 'uint64_t'.
+	(end < extent or: [(end - extent) > (64 * 20 * 4)]) ifTrue: [^false].
+	words := ((end - extent) >> 2) asInt32.
+	off := 0.
+	count := 0.
+	last := h spCount asInt32 - 1.
+	0 to: last do: [:i |
+		((h spTable at: i) ~= off or: [off + 3 > words]) ifTrue: [^false].
+		row := h meta + off.
+		why := row at: 0.
+		k := row at: 1.
+		d := row at: 2.
+		(k < 0 or: [k >= h bytecodes asInt32 or: [d < 0 or: [d > cap or: [off + 4 + d > words]]]]) ifTrue: [^false].
+		i = 0
+			ifTrue: [(why = 0 and: [k = 0]) ifFalse: [^false]]
+			ifFalse: [
+				i = last
+					ifTrue: [(why = 3 and: [k = (h bytecodes asInt32 - 1)]) ifFalse: [^false]]
+					ifFalse: [
+						(why = 1 or: [why = 2]) ifFalse: [^false].
+						why = 2 ifTrue: [count := count + 1]]].
+		0 to: d do: [:j |
+			l := row at: 3 + j.
+			x := (l bitAnd: 7) asUInt64.
+			n := l >> 3.
+			(x = LOC_SMI or: [
+				(x = LOC_CONST and: [n >= 0 and: [n < h poolCount asInt32]]) or: [
+				(x = LOC_SLOT and: [n >= 0 and: [n < h slots asInt32]]) or: [
+				x = LOC_REG and: [(n between: 0 and: 5) or: [n = X9 or: [n = X21]]]]]]) ifFalse: [^false]].
+		off := off + 4 + d].
+	^count > 0 and: [off = words]
+!
+replaySlice: h frame: f index: k dump: dump trace: trace
+	<function>
+	<var: #dump type: 'uint64_t *'>
+	| row depth scratch l n kind x |
+	row := h meta + (h spTable at: k).
+	depth := row at: 2.
+	scratch := self local: 'oop[17]'.
+	0 to: depth do: [:i |
+		l := row at: i + 3.
+		n := l >> 3.
+		kind := l bitAnd: 7.
+		x := kind caseOf: {
+			[LOC_SLOT] -> [f fp at: n].
+			[LOC_REG] -> [dump at: n].
+			[LOC_CONST] -> [self poolAt: n of: h].
+			[LOC_SMI] -> [self intOop: n]}
+			otherwise: [0 asUInt64].
+		scratch at: i put: x].
+	0 to: depth do: [:i | interpreter c4StackSlot: f fp + i - 1 put: (scratch at: i)].
+	f pc: (row at: 1).
+	f sp: depth.
+	interpreter syncFrame: f.
+	(sliceTest enabled and: [trace]) ifTrue: [
+		libc fprintf: libc stderr format: 'opt-slice exit=%d id=%d pc=%d depth=%d
+' with: (row at: 0) with: k with: f pc with: depth].
+	^row at: 0
+! !

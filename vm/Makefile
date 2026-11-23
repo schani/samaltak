@@ -129,6 +129,18 @@ ifeq ($(OS)/$(ARCH),LINUX/X86_64)
   endif
 endif
 
+# Standalone draft test build only. Never reuse the normal headless objects.
+ifeq ($(C4_OPT_SLICE_TEST),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/X86_64/headless/1)
+    $(error C4_OPT_SLICE_TEST=1 requires Linux x86-64 and NO_PLATFORM=1)
+  endif
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_OPT_SLICE_TEST=1 requires a separate BUILD directory)
+  endif
+  VARIANT := c4-opt-slice-test
+  override CPPFLAGS += -DSAMALTAK_OPT_SLICE_TEST
+endif
+
 OBJDIR := $(BUILD)/obj-$(VARIANT)
 # Fixture callers of GNU ld --wrap need native, undefined references even with LTO enabled.
 # A separate object name prevents reuse of a previously built LTO caller.

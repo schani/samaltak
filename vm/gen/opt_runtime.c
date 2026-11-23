@@ -214,6 +214,27 @@ bool opt_runtime_compile(oop m)
     return ok;
 }
 
+/* OptRuntime>>compileSlice: */
+bool opt_runtime_compile_slice(oop m)
+{
+    if (!build_slice(m)) {
+        return false;
+    }
+    if ((opt_node_count > 128) || ((opt_state_count > 64) || (opt_operand_count > 512))) {
+        return false;
+    }
+    ps_unbox_off = true;
+    cleanup(ob_entry_block);
+    ps_unbox_off = false;
+    if (!(opt_admission_verify(m) == 0)) {
+        return false;
+    }
+    if (!opt_regalloc_allocate(ob_param_slots, ob_valid_slots)) {
+        return false;
+    }
+    return generate_slice(m);
+}
+
 /* OptRuntime>>decode:index:frame:regs:mode: */
 static void decode(jit_method *h, int64_t k, frame *f, uint64_t *regs, int mode)
 {
@@ -271,7 +292,8 @@ static void decode(jit_method *h, int64_t k, frame *f, uint64_t *regs, int mode)
     oop *base;
     oop v_12;
     oop m;
-    uint64_t o;
+    oop r_method_bytes_object;
+    oop o;
     uint8_t *bcs;
     uint8_t op;
     oop v_13;
@@ -566,7 +588,14 @@ exit_value_2:;
     }
     if (mode == 1) {
         m = rt_act_method[nacts - 1];
-        o = *(uint64_t *)(m + 16 + 24);
+        o = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; });
         bcs = (uint8_t *)(o + 16);
         op = bcs[send_pc];
         if (!(((op >= 0x97) && (op < 0xA0)) || ((op >= 0xF0) && (op < 0xFC)))) {
@@ -610,7 +639,8 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     int32_t d;
     int32_t s;
     oop cl;
-    uint64_t o;
+    oop r_method_bytes_object;
+    oop o;
     uint64_t o_2;
     int32_t n;
     uint64_t n_2;
@@ -624,7 +654,8 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     int32_t d_2;
     int32_t s_2;
     oop cl_2;
-    uint64_t o_3;
+    oop r_method_bytes_object_2;
+    oop o_3;
     uint64_t o_4;
     int32_t n_3;
     uint64_t n_4;
@@ -639,7 +670,8 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     int32_t d_3;
     int32_t s_3;
     oop cl_3;
-    uint64_t o_5;
+    oop r_method_bytes_object_3;
+    oop o_5;
     uint64_t o_6;
     int32_t n_5;
     uint64_t n_6;
@@ -674,7 +706,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
         g_2->closure = cl;
         g_2->code = jit_runtime_block_code_for(m);
         g_2->fp = fp;
-        o = *(uint64_t *)(m + 16 + 24);
+        o = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; });
         g_2->ip = (uint8_t *)(o + 16) + rt_act_pc[i];
         g_2->pc = rt_act_pc[i];
         o_2 = *(uint64_t *)(m + 16 + 16);
@@ -722,7 +761,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             g_3->closure = cl_2;
             g_3->code = jit_runtime_block_code_for(m_2);
             g_3->fp = fp_2;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
+            o_3 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_2 = slice_method_storage(m_2, CM_BYTECODES);
+        goto exit_method_bytes_object_2;
+    }
+    r_method_bytes_object_2 = *(uint64_t *)(m_2 + 16 + 24);
+exit_method_bytes_object_2:;
+    r_method_bytes_object_2; });
             g_3->ip = (uint8_t *)(o_3 + 16) + rt_act_pc[i_3];
             g_3->pc = rt_act_pc[i_3];
             o_4 = *(uint64_t *)(m_2 + 16 + 16);
@@ -761,7 +807,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             g_4->closure = cl_3;
             g_4->code = jit_runtime_block_code_for(m_3);
             g_4->fp = fp_3;
-            o_5 = *(uint64_t *)(m_3 + 16 + 24);
+            o_5 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_3 = slice_method_storage(m_3, CM_BYTECODES);
+        goto exit_method_bytes_object_3;
+    }
+    r_method_bytes_object_3 = *(uint64_t *)(m_3 + 16 + 24);
+exit_method_bytes_object_3:;
+    r_method_bytes_object_3; });
             g_4->ip = (uint8_t *)(o_5 + 16) + rt_act_pc[i_4];
             g_4->pc = rt_act_pc[i_4];
             o_6 = *(uint64_t *)(m_3 + 16 + 16);
@@ -818,7 +871,8 @@ uint64_t deopt_guard(frame *f, int64_t k)
     bool met;
     uint64_t r;
     oop m_3;
-    uint64_t o;
+    oop r_method_bytes_object;
+    oop o;
     oop m_4;
     int32_t s_3;
     int32_t t;
@@ -833,7 +887,8 @@ uint64_t deopt_guard(frame *f, int64_t k)
     int32_t pc_3;
     int64_t r_operand_flags_at;
     frame *g;
-    uint64_t o_2;
+    oop r_method_bytes_object_2;
+    oop o_2;
     uint8_t *p;
     uint8_t op;
     int r_pushes_of;
@@ -858,7 +913,8 @@ uint64_t deopt_guard(frame *f, int64_t k)
     int64_t n_5;
     int i_7;
     int64_t sig;
-    uint64_t o_3;
+    oop r_method_bytes_object_3;
+    oop o_3;
     uint8_t *p_2;
     frame *g_2;
     int r_pushes_of_2;
@@ -1017,7 +1073,14 @@ exit_signature_at_2:;
     r_note_hoisted; });
     r = deopt_frame(f, k, state_block->dump, 0);
     m_3 = rt_act_method[rt_act_count - 1];
-    o = *(uint64_t *)(m_3 + 16 + 24);
+    o = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m_3, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m_3 + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; });
     if (((uint8_t *)(o + 16))[rt_act_pc[rt_act_count - 1]] == 0x7C) {
         if ((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0)) {
             m_4 = h->method;
@@ -1066,7 +1129,14 @@ exit_object_address_2:;
         pc_3 = rt_act_pc[rt_act_count - 1];
         why = why | ((int32_t)({
     g = frames + (nframes - 1);
-    o_2 = *(uint64_t *)(m_6 + 16 + 24);
+    o_2 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_2 = slice_method_storage(m_6, CM_BYTECODES);
+        goto exit_method_bytes_object_2;
+    }
+    r_method_bytes_object_2 = *(uint64_t *)(m_6 + 16 + 24);
+exit_method_bytes_object_2:;
+    r_method_bytes_object_2; });
     p = (uint8_t *)(o_2 + 16) + pc_3;
     op = p[0];
     if (({
@@ -1175,7 +1245,14 @@ exit_signature_at_3:;
             note_flags(m, pc, (uint32_t)why);
         }
         if ((why & FB_DEOPT_CLASS) != 0) {
-            o_3 = *(uint64_t *)(m + 16 + 24);
+            o_3 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_3 = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object_3;
+    }
+    r_method_bytes_object_3 = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object_3:;
+    r_method_bytes_object_3; });
             p_2 = (uint8_t *)(o_3 + 16) + pc;
             g_2 = frames + (nframes - 1);
             i_8 = ({
@@ -2029,6 +2106,60 @@ void opt_runtime_release(void)
     opt_regalloc_release();
 }
 
+/* OptRuntime>>replaySlice:frame:index:dump:trace: */
+int32_t replay_slice(jit_method *h, frame *f, int32_t k, uint64_t *dump, bool trace)
+{
+    int32_t *row;
+    int32_t depth;
+    oop local[17];
+    oop *scratch;
+    int32_t i;
+    int32_t l;
+    int32_t n;
+    int32_t kind;
+    oop v;
+    oop x;
+    int32_t i_2;
+    row = h->meta + h->sp_table[k];
+    depth = row[2];
+    memset(&local, 0, sizeof local);
+    scratch = local;
+    for (i = 0; i <= depth; i++) {
+        l = row[i + 3];
+        n = l >> 3;
+        kind = l & 7;
+        switch (kind) {
+        case LOC_SLOT:
+            v = f->fp[n];
+            break;
+        case LOC_REG:
+            v = dump[n];
+            break;
+        case LOC_CONST:
+            v = ((oop *)(h->code_start + h->pool_offset))[n];
+            break;
+        case LOC_SMI:
+            v = (uint64_t)((((int64_t)n) << 1) | 1);
+            break;
+        default:
+            v = 0ULL;
+            break;
+        }
+        x = v;
+        scratch[i] = x;
+    }
+    for (i_2 = 0; i_2 <= depth; i_2++) {
+        c4_stack_slot(f->fp + i_2 - 1, scratch[i_2]);
+    }
+    f->pc = row[1];
+    f->sp = depth;
+    sync_frame(f);
+    if (OPT_SLICE_TEST_ENABLED && trace) {
+        fprintf(stderr, "opt-slice exit=%d id=%d pc=%d depth=%d\n", row[0], k, f->pc, depth);
+    }
+    return row[0];
+}
+
 /* OptRuntime>>resume: */
 uint64_t opt_runtime_resume(frame *f)
 {
@@ -2056,7 +2187,8 @@ uint64_t return_bottom(frame *f, int64_t k)
     oop ctx;
     uint64_t o;
     oop m;
-    uint64_t o_2;
+    oop r_method_bytes_object;
+    oop o_2;
     oop v;
     uint64_t o_3;
     int64_t sp;
@@ -2074,7 +2206,14 @@ uint64_t return_bottom(frame *f, int64_t k)
         return deopt_frame(f, k, state_block->dump, 0);
     }
     m = rt_act_method[0];
-    o_2 = *(uint64_t *)(m + 16 + 24);
+    o_2 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; });
     v = ((uint8_t *)(o_2 + 16))[rt_act_pc[0]] == 0x7A ? rt_deopt_vals[rt_act_rcv[0]] : rt_deopt_vals[rt_deopt_count - 1];
     rt_deopt_count = 0;
     if (f->ctx != nil_oop) {
@@ -2739,6 +2878,12 @@ oop send_from(frame *f, uint64_t ret)
     return r;
 }
 
+/* OptRuntime>>sliceEnvelope: */
+bool slice_envelope(oop m)
+{
+    return build_envelope(m);
+}
+
 /* OptRuntime>>stackFull: */
 uint64_t stack_full(frame *f)
 {
@@ -2769,8 +2914,10 @@ uint64_t opt_runtime_tier_up(frame *f, int64_t loop)
     int64_t n_3;
     int32_t k;
     bool r_makes_closures;
-    uint64_t o_4;
+    oop r_method_bytes_object;
+    oop o_4;
     uint8_t *bcs;
+    oop r_method_bytes_object_2;
     int32_t end;
     int32_t pc;
     bool closures;
@@ -2844,9 +2991,23 @@ exit_failed:;
     }
     k = loop == 0 ? 0 : f->pc + 1;
     if ((k != 0) && ((f->ctx != nil_oop) && ({
-    o_4 = *(uint64_t *)(m + 16 + 24);
+    o_4 = ({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object;
+    }
+    r_method_bytes_object = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object:;
+    r_method_bytes_object; });
     bcs = (uint8_t *)(o_4 + 16);
-    end = s == 0 ? (int32_t)byte_size(*(uint64_t *)(m + 16 + 24)) : s + (int32_t)((((int64_t)bcs[s - 2]) << 8) | bcs[s - 1]);
+    end = s == 0 ? (int32_t)byte_size(({
+    if (OPT_SLICE_TEST_ENABLED && c4_enabled) {
+        r_method_bytes_object_2 = slice_method_storage(m, CM_BYTECODES);
+        goto exit_method_bytes_object_2;
+    }
+    r_method_bytes_object_2 = *(uint64_t *)(m + 16 + 24);
+exit_method_bytes_object_2:;
+    r_method_bytes_object_2; })) : s + (int32_t)((((int64_t)bcs[s - 2]) << 8) | bcs[s - 1]);
     pc = s;
     closures = false;
     reach = false;
@@ -3027,6 +3188,92 @@ static jit_method *unit_of(oop m, int32_t s, int32_t t)
     return (jit_method *)NULL;
 }
 
+/* OptRuntime>>validSlice:end:frame: */
+bool valid_slice(jit_method *h, uint64_t end, int32_t cap)
+{
+    uint64_t x;
+    int32_t n;
+    int32_t i;
+    uint64_t extent;
+    int32_t words;
+    int64_t off;
+    int64_t count;
+    int32_t last;
+    int32_t i_2;
+    int32_t *row;
+    int32_t why;
+    int32_t k;
+    int32_t d;
+    int32_t j;
+    int32_t l;
+    if (!((h->mode == -1) && ((h->start == h->code_start) && ((h->code_size > 0) && ((h->code_size <= 8192) && ((h->slots == h->raw_base) && ((h->slots <= 32) && ((h->site_count == 0) && ((h->ret_count == 0) && (h->dep_count == 0)))))))))) {
+        return false;
+    }
+    if ((h->sp_count < 3) || ((h->sp_count > 64) || (h->pool_count > 64))) {
+        return false;
+    }
+    if (h->pool_count > 0) {
+        if ((h->pool_offset == 0) || (((h->pool_offset & 7) != 0) || (h->pool_offset + 8 * h->pool_count > h->code_size))) {
+            return false;
+        }
+        for (i = 0; i <= (int32_t)h->pool_count - 1; i++) {
+            x = ((oop *)(h->code_start + h->pool_offset))[i];
+            if (!(((x & 1) != 0) || ((x == nil_oop) || ((x == true_oop) || (x == false_oop))))) {
+                return false;
+            }
+        }
+    }
+    if ((h->sp_table != (int32_t *)(h + 1)) || (h->meta != h->sp_table + h->sp_count)) {
+        return false;
+    }
+    extent = (uint64_t)h->meta;
+    if ((end < extent) || (end - extent > 5120)) {
+        return false;
+    }
+    words = (int32_t)((end - extent) >> 2);
+    off = 0;
+    count = 0;
+    last = (int32_t)h->sp_count - 1;
+    for (i_2 = 0; i_2 <= last; i_2++) {
+        if ((h->sp_table[i_2] != off) || (off + 3 > words)) {
+            return false;
+        }
+        row = h->meta + off;
+        why = row[0];
+        k = row[1];
+        d = row[2];
+        if ((k < 0) || ((k >= (int32_t)h->bytecodes) || ((d < 0) || ((d > cap) || (off + 4 + d > words))))) {
+            return false;
+        }
+        if (i_2 == 0) {
+            if (!((why == 0) && (k == 0))) {
+                return false;
+            }
+        } else if (i_2 == last) {
+            if (!((why == 3) && (k == (int32_t)h->bytecodes - 1))) {
+                return false;
+            }
+        } else {
+            if (!((why == 1) || (why == 2))) {
+                return false;
+            }
+            if (why == 2) {
+                count = count + 1;
+            }
+        }
+        for (j = 0; j <= d; j++) {
+            l = row[3 + j];
+            x = (uint64_t)(l & 7);
+            n = l >> 3;
+            if (!((x == LOC_SMI) || (((x == LOC_CONST) && ((n >= 0) && (n < (int32_t)h->pool_count))) || (((x == LOC_SLOT) && ((n >= 0) && (n < (int32_t)h->slots))) || ((x == LOC_REG) && (((n >= 0) && (n <= 5)) || ((n == X9) || (n == X21)))))))) {
+                return false;
+            }
+        }
+        off = off + 4 + d;
+    }
+    return (count > 0) && (off == words);
+}
+
 /* OptRuntime>>variantOf:method:start:osr: */
 static int32_t variant_of(frame *f, oop m, int32_t s, int32_t g)
 {
@@ -3129,6 +3376,41 @@ exit_failed_2:;
         }
     }
     return g;
+}
+
+/* OptRuntime>>writeSlice:at: */
+void write_slice(jit_method *h, uint64_t p)
+{
+    int64_t r_pool_offset;
+    int32_t a_label;
+    int32_t *q;
+    int32_t i;
+    int32_t i_2;
+    h->slots = (uint32_t)cg_slot_top;
+    h->raw_base = (uint32_t)cg_raw_base;
+    h->pool_offset = (uint32_t)({
+    if (cg_pool_count == 0) {
+        r_pool_offset = 0LL;
+        goto exit_pool_offset;
+    }
+    a_label = cg_pool_labels[0];
+    r_pool_offset = (int64_t)(asm_labels[a_label] - cg_code_start);
+exit_pool_offset:;
+    r_pool_offset; });
+    h->pool_count = (uint32_t)cg_pool_count;
+    h->sp_count = (uint32_t)cg_sp_count;
+    h->site_count = (uint32_t)cg_site_count;
+    h->ret_count = (uint32_t)cg_ret_count;
+    h->dep_count = (uint32_t)cg_dep_count;
+    h->sp_table = (int32_t *)p;
+    q = h->sp_table + h->sp_count;
+    h->meta = q;
+    for (i = 0; i <= (int32_t)h->sp_count - 1; i++) {
+        h->sp_table[i] = cg_sp_offsets[i];
+    }
+    for (i_2 = 0; i_2 <= cg_meta_count - 1; i_2++) {
+        q[i_2] = cg_meta_words[i_2];
+    }
 }
 
 /* OptRuntime>>youngRoots: */

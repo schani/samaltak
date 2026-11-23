@@ -47,6 +47,12 @@ nodeCount
 blockCount
 	^optBlockCount
 !
+edgeCount
+	^optEdgeCount
+!
+operandCount
+	^optOperandCount
+!
 stateCount
 	^optStateCount
 !
