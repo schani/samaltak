@@ -1474,6 +1474,26 @@ static uint32_t take_swept(unsigned bin, uint64_t swept)
     return atomic_exchange_explicit(&heap.bins.swept[bin], 0, memory_order_acquire);
 }
 
+static uint32_t pop_bin(unsigned bin, bool local, uint64_t swept, uint32_t *extent)
+{
+    unsigned group = bin / 64;
+    uint64_t bit = UINT64_C(1) << (bin % 64);
+    uint32_t head = local ? heap.bins.ready[bin] : take_swept(bin, swept);
+    *extent = bin_words(head, bin);
+    uint32_t next = cell_at(head - 1)->link;
+    if (local) {
+        heap.bins.ready[bin] = next;
+        if (!next) {
+            heap.bins.ready_mask[group] &= ~bit;
+            if (!heap.bins.ready_mask[group])
+                heap.bins.ready_groups &= ~(UINT64_C(1) << group);
+        }
+    } else if (next) {
+        ready_bin(bin, next);
+    }
+    return head;
+}
+
 static uint32_t take_run(uint32_t words, uint32_t *available)
 {
 #ifdef SAMALTAK_C4_BIN_TEST
@@ -1499,24 +1519,99 @@ static uint32_t take_run(uint32_t words, uint32_t *available)
          * higher group in the snapshot has a bin until we consume it. */
         if (!candidates) continue;
         unsigned i = __builtin_ctzll(candidates);
-        uint64_t bit = UINT64_C(1) << i;
         unsigned trial = group * 64 + i;
-        bool local = ready & bit;
-        uint32_t head = local ? heap.bins.ready[trial] : take_swept(trial, swept);
-        *available = bin_words(head, trial);
+        uint32_t head = pop_bin(trial, ready & (UINT64_C(1) << i), swept, available);
         if (*available < words) bad_contract("undersized pinned bin");
-        uint32_t next = cell_at(head - 1)->link;
-        if (local) {
-            heap.bins.ready[trial] = next;
-            if (!next) {
-                heap.bins.ready_mask[group] &= ~bit;
-                if (!heap.bins.ready_mask[group])
-                    heap.bins.ready_groups &= ~(UINT64_C(1) << group);
-            }
-        } else if (next) {
-            ready_bin(trial, next);
-        }
         return head;
+    }
+    return 0;
+}
+
+static uint32_t idle_bin_head(unsigned bin, bool local)
+{
+    return local ? heap.bins.ready[bin] : relaxed(&heap.bins.swept[bin]);
+}
+
+static void pop_idle_bin(unsigned bin, bool local)
+{
+    uint32_t extent;
+    pop_bin(bin, local, relaxed(&heap.bins.swept_mask[bin / 64]), &extent);
+}
+
+/* Try the head's physical right neighbor, or a same-chain successor
+ * immediately to its left. Only heads or the first two of one chain
+ * can be consumed. Do not detach anything until both are known to fit. */
+static uint32_t join_at_head(unsigned bin, uint32_t top,
+    uint32_t words, uint32_t *available)
+{
+    /* Respect normal ready-first ownership: a swept detach puts its
+     * suffix in ready and must never replace an existing ready chain. */
+    bool local = heap.bins.ready[bin] != 0;
+    uint32_t head = idle_bin_head(bin, local);
+    if (!head) bad_contract("missing idle pinned bin head");
+    uint32_t at = head - 1;
+    uint32_t extent = layout_words(relaxed(&cell_at(at)->layout));
+    uint32_t next = cell_at(at)->link;
+    uint32_t right = at + extent;
+    if (right < top) {
+        uint64_t layout = relaxed(&cell_at(right)->layout);
+        uint32_t tail = layout_words(layout);
+        if (layout_at(layout, right) && (uint32_t)layout == C4_FREE &&
+                extent + tail >= words) {
+            unsigned rb = bin_for(tail);
+            bool right_local = rb == bin || heap.bins.ready[rb] != 0;
+            uint32_t right_key = rb == bin ? next : idle_bin_head(rb, right_local);
+            if (right_key == right + 1) {
+                pop_idle_bin(bin, local);
+                pop_idle_bin(rb, right_local);
+                *available = extent + tail;
+                return head;
+            }
+        }
+    }
+    if (next && next < head) {
+        uint32_t left = layout_words(relaxed(&cell_at(next - 1)->layout));
+        if (next + left == head && left + extent >= words) {
+            pop_idle_bin(bin, local);
+            pop_idle_bin(bin, true); /* A swept pop moves its suffix to ready. */
+            *available = left + extent;
+            return next;
+        }
+    }
+    return 0;
+}
+
+static uint32_t take_adjacent(uint32_t top, uint32_t words, uint32_t *available)
+{
+    /* IDLE acquires completion of CLEAR, sweep retirement and all bin
+     * publications. Only this mutator can start the next cycle or view.
+     * No worker can retain a bin link or a sweep cursor across this cut.
+     * Weak/alias readers cannot straddle reserve on the sole mutator. */
+    if (acquire(&heap.phase) != C4_IDLE) return 0;
+
+    /* A sweep may have published a normal fit since the first lookup. */
+    uint32_t key = take_run(words, available);
+    if (key) return key;
+
+    /* Bounded best effort, on a no-fit with no bump room only. At most
+     * four size classes, one chain each; no arbitrary removals or walks. */
+    enum { JOIN_BINS = 4 };
+    uint64_t groups = relaxed(&heap.bins.swept_groups) | heap.bins.ready_groups;
+    uint64_t candidates = 0;
+    unsigned group = 0;
+    for (unsigned n = 0; n < JOIN_BINS; ++n) {
+        if (!candidates) {
+            if (!groups) break;
+            group = 63u - __builtin_clzll(groups);
+            groups ^= UINT64_C(1) << group;
+            candidates = relaxed(&heap.bins.swept_mask[group]) | heap.bins.ready_mask[group];
+            if (!candidates) bad_contract("empty idle pinned bin group");
+        }
+        unsigned i = 63u - __builtin_clzll(candidates);
+        candidates ^= UINT64_C(1) << i;
+        unsigned bin = group * 64 + i;
+        key = join_at_head(bin, top, words, available);
+        if (key) return key;
     }
     return 0;
 }
@@ -1584,7 +1679,10 @@ static uint64_t reserve_pinned(size_t bytes, size_t *charged)
     uint32_t top = relaxed(&heap.top);
     uint32_t available = 0;
     uint32_t head = take_run(words, &available);
-    if (!head && words > heap.capacity - top) return 0;
+    if (!head && words > heap.capacity - top) {
+        head = take_adjacent(top, words, &available);
+        if (!head) return 0;
+    }
     uint32_t at = head ? head - 1 : top;
     c4_cell *cell = cell_at(at);
     if (head) {

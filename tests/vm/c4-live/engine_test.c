@@ -676,6 +676,106 @@ static void assert_bin_work(uint32_t wanted_nodes)
 static void assert_bin_work(uint32_t wanted_nodes) { (void)wanted_nodes; }
 #endif
 
+/* Fill all bump space with pinned pairs + live separators. Deaths are
+ * separated by a completed cycle, unlike ordinary same-sweep coalescing. */
+static void pinned_cross_epoch(bool high, bool baseline)
+{
+    enum { MAX = 4096 };
+    unsigned n = high ? MAX : 1024;
+    unsigned l = high ? 4096 : 125, r = high ? 4160 : 127;
+    unsigned want = high ? 4224 : 128, rem = l + r - want;
+    size_t cap = 8 * (2 + (size_t)n * (l + r + 3));
+    oop nil = import_nil(arena(cap));
+    oop left[MAX], guard = nil;
+    assert(c4_heap_start());
+    for (unsigned i = 0; i < n; ++i) {
+        left[i] = alloc(nil, F_BYTES, l - 2);
+        assert(alloc(nil, F_BYTES, r - 2) == left[i] + 8 * l);
+        oop next = alloc(nil, F_FIXED, 1);
+        c4_heap_store_ref(next, 0, guard);
+        guard = next;
+    }
+    assert(c4_heap_top() == nil + cap);
+    assert(c4_heap_begin());
+    c4_heap_root(guard);
+    for (unsigned i = 0; i < n; ++i) c4_heap_root(left[i] + 8 * l);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(reserve_pinned(8 * want) == 0); /* Right still live: true no-fit. */
+#ifdef SAMALTAK_C4_BIN_TEST
+    if (!high) atomic_store(&stall_bin, true);
+#endif
+    assert(c4_heap_begin());
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+#ifdef SAMALTAK_C4_BIN_TEST
+    if (!high) {
+        while (!atomic_load(&at_bin)) {
+            c4_heap_finish_poll();
+            sched_yield();
+        }
+        assert(c4_heap_busy() && reserve_pinned(8 * want) == 0);
+        assert_bin_work(0);
+        fprintf(stderr, "cross-epoch: worker lag (parked before bin publication)\n");
+        atomic_store(&stall_bin, false);
+    }
+#endif
+    finish_cycle();
+    assert(!c4_heap_busy());
+    assert(l < want && r < want && l + r >= want);
+    if (baseline) {
+        assert(reserve_pinned(8 * want) == 0);
+        fprintf(stderr, "cross-epoch: idle false no-fit: cap=%zu request=%u pair=%u raw_free=%zu pairs=%u\n",
+            cap, 8 * want, 8 * (l + r), 8 * (size_t)n * (l + r), n);
+        /* Prove both batches really had the bytes at the failed reserve. */
+        for (unsigned i = n; i--; ) {
+            assert(alloc(nil, F_BYTES, l - 2) == left[i]);
+            assert(alloc(nil, F_BYTES, r - 2) == left[i] + 8 * l);
+        }
+    } else {
+        for (unsigned i = n; i--; ) {
+            assert(alloc(nil, F_BYTES, want - 2) == left[i]);
+            assert_bin_work(2);
+        }
+        for (unsigned i = 0; i < n; ++i)
+            assert(alloc(nil, F_BYTES, rem - 2) == left[i] + 8 * want);
+        fprintf(stderr, "cross-epoch: recovered %u pairs at cap=%zu request=%u\n", n, cap, 8 * want);
+    }
+    assert(!reserve_pinned(16) && c4_heap_top() == nil + cap);
+    for (unsigned i = n; i--; ) {
+        assert(guard == left[i] + 8 * (l + r));
+        guard = c4_heap_load_ref(guard, 0);
+    }
+    assert(guard == nil);
+}
+
+/* Exercise both physical orders of a same-bin swept head/successor
+ * with a disjoint suffix. The suffix must remain immediately usable. */
+static void pinned_cross_same_bin(bool right_dies_last)
+{
+    enum { W = 11 };
+    oop nil = import_nil(arena(8 * (2 + 3 * W + 3)));
+    assert(c4_heap_start());
+    oop spare = alloc(nil, F_BYTES, W - 2);
+    oop guard = alloc(nil, F_FIXED, 1);
+    oop left = alloc(nil, F_BYTES, W - 2);
+    oop right = alloc(nil, F_BYTES, W - 2);
+    assert(c4_heap_begin());
+    c4_heap_root(guard);
+    c4_heap_root(right_dies_last ? right : left);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(!reserve_pinned(16 * W));
+    assert(c4_heap_begin());
+    c4_heap_root(guard);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(alloc(nil, F_BYTES, 2 * W - 2) == left);
+    assert_bin_work(2);
+    assert(alloc(nil, F_BYTES, W - 2) == spare);
+    assert(!reserve_pinned(16));
+}
+
 static void pinned_stranded(bool splits)
 {
     /* Both 120 and 127 were in the same coarse bin. Put a long chain of
@@ -1177,6 +1277,107 @@ static oop weak_owner(oop cls, uint32_t slots)
     initialize(obj, cls, F_WEAK, slots);
     c4_heap_publish(obj, slots, 0);
     return obj;
+}
+
+/* The left run is a private split, the right run is freshly swept.
+ * The new split lands one word into an old weak start's cell. */
+static void pinned_cross_weak(void)
+{
+    enum { PARENT = 12, PREFIX = 3, OLD_WEAK = 3, ALIAS = 5, WANT = 10, TAIL = 7 };
+    oop bc, wc;
+    size_t full = 8 * (6 + 4 + PARENT + OLD_WEAK + ALIAS + 6 + 2);
+    oop nil = forward_start(full - 6 * 8, &bc, &wc);
+    oop witness = weak_owner(nil, 2);
+    oop parent = alloc(nil, F_BYTES, PARENT - 2);
+    oop old_weak = weak_owner(nil, OLD_WEAK - 2);
+    oop from = alloc(bc, F_BYTES, ALIAS - 2);
+    oop target = alloc(wc, F_W32, 4);
+    oop spare = alloc(nil, F_BYTES, 0);
+    assert(c4_heap_top() == nil + full);
+    assert(c4_heap_begin());
+    c4_heap_root(witness);
+    c4_heap_root(old_weak);
+    c4_heap_root(from);
+    c4_heap_root(target);
+    c4_heap_end_roots();
+    finish_cycle();
+
+    oop prefix = alloc(nil, F_BYTES, PREFIX - 2);
+    assert(prefix == parent);
+    c4_heap_store_ref(witness, 0, from);
+    c4_heap_store_ref(witness, 1, old_weak);
+    assert(c4_heap_become_forward(from, target));
+
+    race_owner = witness;
+    race_slot = 0;
+    race_prev = from;
+    atomic_store(&stall_cas, true);
+    atomic_store(&stall_close, true);
+    assert(c4_heap_begin());
+    c4_heap_root(witness);
+    c4_heap_root(prefix);
+    c4_heap_root(target);
+    c4_heap_end_roots();
+    while (!atomic_load(&at_close)) sched_yield();
+    assert(!reserve_pinned(8 * WANT));
+    assert(alloc(nil, F_BYTES, 0) == spare); /* Published small fit stays available. */
+    uint64_t gen = c4_heap_cache_gen();
+    c4_heap_finish_poll();
+    assert(c4_heap_cache_gen() != gen);
+    atomic_store(&stall_close, false);
+    while (!atomic_load(&at_cas)) sched_yield();
+    assert(!reserve_pinned(8 * WANT));
+    assert(c4_heap_load_ref(witness, 1) == nil); /* White before the actual clear. */
+    finish_during_load = true;
+    assert(c4_heap_load_ref(witness, 0) == target); /* Holds the raw alias across sweep. */
+    finish_during_load = false;
+    assert(!c4_heap_busy() && c4_heap_take_weak_clears() == 1);
+
+    oop joined = alloc(nil, F_VAR, WANT - 2);
+    assert(joined == prefix + 8 * PREFIX);
+    assert_bin_work(2);
+    oop tail = alloc(nil, F_VAR, TAIL - 2);
+    assert(tail == old_weak + 8 && ((old_weak - nil) / 8) % 2 == 0);
+    c4_heap_store_ref(joined, 0, tail);
+    c4_heap_store_ref(tail, TAIL - 3, spare);
+    assert(c4_heap_load_ref(witness, 0) == target);
+    assert(c4_heap_load_ref(witness, 1) == nil);
+    assert(!reserve_pinned(16) && c4_heap_top() == nil + full);
+
+    for (unsigned i = 0; i < 2; ++i) {
+        assert(c4_heap_begin());
+        c4_heap_root(witness);
+        c4_heap_root(prefix);
+        c4_heap_root(joined);
+        c4_heap_root(target);
+        c4_heap_end_roots();
+        finish_cycle();
+        /* An unretired weak bit at old_weak would now index a live
+         * opposite-parity strong owner and fail CLEAR's owner check. */
+        assert(c4_heap_take_weak_clears() == 0);
+        assert(c4_heap_load_ref(joined, 0) == tail);
+        assert(c4_heap_load_ref(tail, TAIL - 3) == spare);
+    }
+
+    c4_heap_store_ref(joined, 0, nil);
+    assert(c4_heap_begin());
+    c4_heap_root(witness);
+    c4_heap_root(prefix);
+    c4_heap_root(joined);
+    c4_heap_root(target);
+    c4_heap_end_roots();
+    finish_cycle();
+    oop new_weak = weak_owner(nil, TAIL - 2);
+    assert(new_weak == tail);
+    oop new_dead = alloc(nil, F_BYTES, 0);
+    assert(new_dead == spare);
+    c4_heap_store_ref(new_weak, TAIL - 3, new_dead);
+    assert(c4_heap_begin());
+    c4_heap_root(new_weak);
+    c4_heap_end_roots();
+    finish_cycle();
+    assert(c4_heap_load_ref(new_weak, TAIL - 3) == nil);
+    assert(c4_heap_take_weak_clears() == 1);
 }
 
 static void code_bytes(void)
@@ -2845,6 +3046,13 @@ int main(int argc, char **argv)
     else if (!strcmp(argv[1], "forward-after-ack")) forward_after_ack();
     else if (!strcmp(argv[1], "forward-pinned-overlap")) forward_pinned_overlap();
     else if (!strcmp(argv[1], "pinned-fit")) pinned_fit();
+    else if (!strcmp(argv[1], "pinned-cross-epoch")) pinned_cross_epoch(false, false);
+    else if (!strcmp(argv[1], "pinned-cross-weak")) pinned_cross_weak();
+    else if (!strcmp(argv[1], "pinned-cross-same-left")) pinned_cross_same_bin(false);
+    else if (!strcmp(argv[1], "pinned-cross-same-right")) pinned_cross_same_bin(true);
+    else if (!strcmp(argv[1], "pinned-cross-epoch-high")) pinned_cross_epoch(true, false);
+    else if (!strcmp(argv[1], "pinned-cross-epoch-baseline")) pinned_cross_epoch(false, true);
+    else if (!strcmp(argv[1], "pinned-cross-epoch-high-baseline")) pinned_cross_epoch(true, true);
     else if (!strcmp(argv[1], "pinned-stranded-swept")) pinned_stranded(false);
     else if (!strcmp(argv[1], "pinned-stranded-split")) pinned_stranded(true);
     else if (!strcmp(argv[1], "pinned-rounded")) pinned_rounded();
