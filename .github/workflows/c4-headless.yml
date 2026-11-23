@@ -83,6 +83,7 @@ jobs:
       - name: Baseline JIT and 128 MiB pressure
         run: |
           image="$OUT/samaltak.image"
+          tests/vm/c4-live/run-process.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-forward.sh "$image" "$C4_VM"
           tests/vm/c4-live/run-span-pressure.sh "$image" "$C4_VM"
