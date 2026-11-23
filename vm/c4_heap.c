@@ -690,11 +690,29 @@ static _Atomic uint64_t *shadow_field(uint32_t at, uint32_t i, uint32_t refs, bo
     return &heap.shadow[word];
 }
 
-static void shade_worker(uint64_t value, uint32_t *work)
+/* Worker fast path: check tagged and pinned values before looking at the
+ * moving table. A current-epoch cell needs no layout check: it is already
+ * claimed or born black (a wrong-parity key in that cell is not live). No
+ * marked cell is reused during ROOTS/MARK. Still acquire and validate the
+ * layout before claiming any white cell. The mutator uses claim(). */
+static inline void shade_worker(uint64_t value, uint32_t *work, uint32_t epoch)
 {
+    if (value & 7) return;
     uint32_t at;
-    c4_cell *cell = claim(value, &at);
-    if (!cell) return;
+    c4_cell *cell;
+    if (offset(value, &at)) {
+        if (at >= acquire(&heap.top)) return;
+        cell = &heap.cells[at / 2];
+    } else {
+        uint32_t id;
+        if (!token_id(value, &id)) return;
+        at = heap.capacity + id;
+        cell = &heap.moving->handles[id].trace;
+    }
+    if (relaxed(&cell->seen) == epoch ||
+        refs_at(acquire(&cell->layout), at) >= C4_RESERVED ||
+        atomic_exchange_explicit(&cell->seen, epoch, memory_order_acq_rel) == epoch)
+        return;
     cell->link = *work;
     *work = at + 1;
 }
@@ -997,10 +1015,12 @@ static void *worker(void *unused)
                 c4_cell *cell = cell_at(at);
                 *source = cell->link;
                 ++marked;
+                /* Epoch cannot change during this object's trace. */
+                uint32_t epoch = relaxed(&heap.epoch);
                 uint64_t target = c4_heap_has_forwarding() ? forward_at(at) : 0;
                 if (target) {
                     ++edges;
-                    shade_worker(target, &local);
+                    shade_worker(target, &local, epoch);
                     /* If we did not already scan the original body, retain
                      * its two outgoing strong edges for this SATB cycle.
                      * The marker acquire orders the flag and the old row.
@@ -1008,8 +1028,8 @@ static void *worker(void *unused)
                     if (relaxed(&cell->context_limit) == C4_FORWARD_SATB) {
                         _Atomic uint64_t *row = shadow_row(at);
                         edges += 2;
-                        shade_worker(acquire(&row[1]), &local);
-                        shade_worker(acquire(&row[2]), &local);
+                        shade_worker(acquire(&row[1]), &local, epoch);
+                        shade_worker(acquire(&row[2]), &local, epoch);
                     }
                     continue;
                 }
@@ -1028,7 +1048,7 @@ static void *worker(void *unused)
                 }
                 _Atomic uint64_t *row = shadow_row(at);
                 for (uint32_t f = 0; f <= eager; ++f)
-                    shade_worker(acquire(&row[f]), &local);
+                    shade_worker(acquire(&row[f]), &local, epoch);
 
                 /* A matching acquire publishes the initialized fields. On
                  * mismatch the whole span is implicit nil at this read.
@@ -1045,7 +1065,7 @@ static void *worker(void *unused)
                     uint32_t stop = word + SHADOW_CHUNK;
                     if (stop > end) stop = end;
                     for (uint32_t j = word; j < stop; ++j)
-                        shade_worker(acquire(&heap.shadow[j]), &local);
+                        shade_worker(acquire(&heap.shadow[j]), &local, epoch);
                 }
                 continue;
             }
