@@ -107,6 +107,19 @@ ifeq ($(C4_PLATFORM_SDL),1)
     $(error C4_PLATFORM_SDL=1 requires Linux x86-64 and the platform build dependencies)
   endif
 endif
+ifeq ($(C4_ARM64_INTERPRETER_TEST),1)
+  ifneq ($(OS)/$(ARCH)/$(VARIANT)/$(NO_PLATFORM),LINUX/ARM64/headless/1)
+    $(error C4_ARM64_INTERPRETER_TEST=1 requires Linux arm64 and NO_PLATFORM=1)
+  endif
+  ifeq ($(abspath $(BUILD)),$(abspath build))
+    $(error C4_ARM64_INTERPRETER_TEST=1 requires a separate BUILD directory)
+  endif
+  VARIANT := c4-arm64-interpreter-test
+  CFLAGS += -DSAMALTAK_C4_ARM64_INTERPRETER_TEST
+  SRCS += c4_heap.c
+  vpath c4_heap.c $(VM_DIR)
+endif
+
 ifeq ($(OS)/$(ARCH),LINUX/X86_64)
   ifneq ($(filter headless c4-platform-files c4-platform-sdl,$(VARIANT)),)
     SRCS += c4_heap.c

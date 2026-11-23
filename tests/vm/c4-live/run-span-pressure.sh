@@ -2,8 +2,8 @@
 # Usage: tests/vm/c4-live/run-span-pressure.sh STANDARD_STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-span-pressure: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 image=${1:?pass a standard stage-2 image}
@@ -14,8 +14,10 @@ log=$out/run.log
 
 # 16 refills of 4096 * 8184 bytes, in a 96 MiB arena. The fixture retains
 # separators and checks both endpoint bytes and logical sizes of every object.
-if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4 --jit none --eden 1 --max-heap 96 \
-        "$image" --headless --eval "$(cat tests/vm/c4-live/span-pressure.st)" >"$log" 2>&1 ||
+rc=0
+SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4 --jit none --eden 1 --max-heap 96 \
+        "$image" --headless --eval "$(cat tests/vm/c4-live/span-pressure.st)" >"$log" 2>&1 || rc=$?
+if [ "$rc" -ne 0 ] ||
    ! grep -Fxq 'C4 span pressure ok' "$log" ||
    ! awk '
         /^c4: phase=/ {
@@ -32,6 +34,7 @@ if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4 --jit none --eden 1 --m
                 stat["high_water_bytes"] <= 0 || stat["high_water_bytes"] > 96 * 1048576) exit 1
         }
     ' "$log"; then
+    [ "$rc" -eq 0 ] || echo "c4-span-pressure: exited $rc" >&2
     cat "$log" >&2
     exit 1
 fi

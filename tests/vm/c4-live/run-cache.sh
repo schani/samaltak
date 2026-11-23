@@ -2,16 +2,18 @@
 # Usage: tests/vm/c4-live/run-cache.sh STANDARD_STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-cache: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 image=${1:?pass a stage-2 image built by the platform VM}
 runtime=${2:-vm/build/c4/samaltak}
 out=${OUT:-build}/c4-cache
 mkdir -p "$out"
+tiers='none baseline'
+if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then tiers=none; fi
 for mode in --c4 --c4-moving; do
-    for tier in none baseline; do
+    for tier in $tiers; do
         log=$out/${mode#--}-$tier.log
         native=false
         if [ "$tier" = baseline ]; then native=true; fi

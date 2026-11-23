@@ -13,6 +13,10 @@ supported
 	<c: 'bool c4_heap_supported(void)'>
 	^false
 !
+arm64InterpreterTest
+	<c: 'bool c4_heap_arm64_interpreter_test(void)'>
+	^false
+!
 platformFiles
 	<c: 'bool c4_heap_platform_files(void)'>
 	^false

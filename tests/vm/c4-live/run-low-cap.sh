@@ -2,8 +2,8 @@
 # Usage: tests/vm/c4-live/run-low-cap.sh STANDARD_STAGE2_IMAGE [C4_VM] [c4|c4-moving|c4-moving-forward]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-low-cap: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 image=${1:?pass a standard stage-2 image}
@@ -26,8 +26,10 @@ probe="
         ifFalse: [self error: 'legacy collection in C4'].
     Smalltalk quit: (result hasPassed ifTrue: [0] ifFalse: [1])"
 mkdir -p "$out"
-if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" "--$mode" --jit none --eden 1 --max-heap 128 \
-    "$image" --headless --eval "$probe" >"$out/run.out" 2>"$out/run.err" ||
+rc=0
+SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" "--$mode" --jit none --eden 1 --max-heap 128 \
+    "$image" --headless --eval "$probe" >"$out/run.out" 2>"$out/run.err" || rc=$?
+if [ "$rc" -ne 0 ] ||
     ! grep -Eq '^2 run, 2 passed, 0 failed, 0 errors in [0-9]+ ms$' "$out/run.out" ||
     ! awk '
         /^c4: phase=/ {
@@ -43,6 +45,7 @@ if ! SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" "--$mode" --jit none --eden 
                 stat["high_water_bytes"] <= 0 || stat["high_water_bytes"] > 134217728) exit 1
         }
     ' "$out/run.err"; then
+    [ "$rc" -eq 0 ] || echo "c4-low-cap: $mode exited $rc" >&2
     cat "$out/run.out" "$out/run.err" >&2
     exit 1
 fi

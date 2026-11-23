@@ -3,8 +3,8 @@
 #        [COMPARE_LEGACY=1] tests/vm/c4-live/run.sh [latency]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-live: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != latency ]; }; then
@@ -99,7 +99,9 @@ expect_fatal() { # log-name diagnostic vm-args...
     fi
 }
 
-expect_fatal c4-jit-rejected '--c4 supports only --jit none or baseline' \
+jit_rejection='--c4 supports only --jit none or baseline'
+if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then jit_rejection='C4 arm64 interpreter test requires --jit none'; fi
+expect_fatal c4-jit-rejected "$jit_rejection" \
     --c4 --jit opt "$image" --headless C4Pressure
 expect_fatal c4-nonheadless-rejected '--c4 requires --headless' --c4 "$image"
 

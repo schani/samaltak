@@ -2,8 +2,8 @@
 # Usage: tests/vm/c4-live/run-enumeration.sh STAGE2_IMAGE [C4_VM]
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-enumeration: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 image=${1:?pass a stage-2 image with the C4 enumeration image bridge}

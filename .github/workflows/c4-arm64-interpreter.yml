@@ -1,0 +1,145 @@
+name: C4 ARM64 interpreter validation
+
+on:
+  push:
+    branches: [wip/c4-concurrent-gc]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c4-arm64-interpreter-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'schani/samaltak' &&
+      github.ref == 'refs/heads/wip/c4-concurrent-gc' &&
+      !github.event.deleted
+    runs-on: ubuntu-24.04-arm
+    container: debian:bookworm-slim
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CFLAGS: -O2 -g0
+      OUT: build/c4-arm64-validation
+      BOOTSTRAP: vm/build/c4-arm64-bootstrap/samaltak
+      STOCK: vm/build/c4-arm64-stock/samaltak
+      TEST_VM: vm/build/c4-arm64-interpreter-test/samaltak
+    steps:
+      - name: Confirm native runner and install headless build dependencies
+        env:
+          RUNNER_ARCHITECTURE: ${{ runner.arch }}
+        run: |
+          test "$RUNNER_ARCHITECTURE" = ARM64
+          test "$(uname -s -m)" = 'Linux aarch64'
+          test "$(dpkg --print-architecture)" = arm64
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git build-essential \
+            pkg-config cmake ninja-build libshaderc-dev libssl-dev libvulkan-dev spirv-tools file
+      - uses: actions/checkout@v6
+        with:
+          # Validate the immutable push SHA, not the branch's current tip or a PR merge.
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify the push checkout and record provenance
+        run: |
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REPOSITORY" = schani/samaltak
+          test "$GITHUB_REF" = refs/heads/wip/c4-concurrent-gc
+          head=$(git -c safe.directory="$PWD" rev-parse HEAD)
+          test "$head" = "$GITHUB_SHA"
+          mkdir -p "$OUT/logs" "$OUT/tmp"
+          printf 'TMPDIR=%s/%s/tmp\n' "$PWD" "$OUT" >>"$GITHUB_ENV"
+          printf 'event=%s\nrepository=%s\nref=%s\nsha=%s\n' \
+            "$GITHUB_EVENT_NAME" "$GITHUB_REPOSITORY" "$GITHUB_REF" "$head" >"$OUT/logs/provenance.log"
+      - name: Build pinned SDL for the legacy image builder
+        run: |
+          mkdir -p "$OUT/logs" "$OUT/sdl"
+          sdl=a8589a84226a6202831a3d49ff4edda4acab9acd
+          curl --fail --silent --show-error --location --max-time 90 \
+            "https://codeload.github.com/libsdl-org/SDL/tar.gz/$sdl" -o "$OUT/sdl.tar.gz"
+          echo "25d92e5b2846a95a1e6e017bc41a6241848c68eef2abf9f256af100473b75629  $OUT/sdl.tar.gz" | sha256sum -c -
+          tar -xzf "$OUT/sdl.tar.gz" -C "$OUT/sdl" --strip-components=1
+          {
+            cmake -S "$OUT/sdl" -B "$OUT/sdl-build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_UNIX_CONSOLE_BUILD=ON
+            cmake --build "$OUT/sdl-build" --parallel 2
+            cmake --install "$OUT/sdl-build"
+            ldconfig
+          } 2>&1 | tee "$OUT/logs/sdl.log"
+      - name: Build separate stock, legacy bootstrap, and interpreter-test VMs
+        env:
+          RUNNER_ARCHITECTURE: ${{ runner.arch }}
+        run: |
+          unset DISPLAY WAYLAND_DISPLAY
+          {
+            printf 'runner_arch=%s\n' "$RUNNER_ARCHITECTURE"
+            uname -a
+            dpkg --print-architecture
+            cc --version
+          } >>"$OUT/logs/provenance.log"
+          # Bookworm's shaderc shared library leaves glslang/SPIRV-Tools unresolved.
+          # Match .agents/setup without modifying system pkg-config files.
+          make -C vm -j2 BUILD=build/c4-arm64-bootstrap BRIEF=1 \
+            OS_PLATFORM_LIBS='-lshaderc_combined -Wl,--start-group -lglslang -lSPIRV -lMachineIndependent -lGenericCodeGen -lOGLCompiler -lOSDependent -lglslang-default-resource-limits -lSPIRV-Tools-opt -lSPIRV-Tools -Wl,--end-group -lstdc++ -lpthread -lm' \
+            2>&1 | tee "$OUT/logs/bootstrap.log"
+          test -f vm/build/c4-arm64-bootstrap/.variant-platform
+          make -C vm -j2 BUILD=build/c4-arm64-stock NO_PLATFORM=1 BRIEF=1 2>&1 | tee "$OUT/logs/stock.log"
+          test -f vm/build/c4-arm64-stock/.variant-headless
+          make -C vm -j2 BUILD=build/c4-arm64-interpreter-test NO_PLATFORM=1 C4_ARM64_INTERPRETER_TEST=1 BRIEF=1 \
+            2>&1 | tee "$OUT/logs/test-vm.log"
+          test -f vm/build/c4-arm64-interpreter-test/.variant-c4-arm64-interpreter-test
+          for vm in "$BOOTSTRAP" "$STOCK" "$TEST_VM"; do
+            readelf -h -d "$vm" >>"$OUT/logs/elf.log"
+            readelf -h "$vm" | grep -E 'Machine:.*AArch64'
+          done
+          for vm in "$STOCK" "$TEST_VM"; do
+            if readelf -d "$vm" | grep -i 'needed.*SDL'; then exit 1; fi
+          done
+      - name: Build standard and pinned compatibility images without a display
+        run: |
+          unset DISPLAY WAYLAND_DISPLAY
+          {
+            boot/build-image.sh src "$OUT/seed.image" "$BOOTSTRAP"
+            "$BOOTSTRAP" "$OUT/seed.image" --headless --stage2 "$OUT/samaltak.image"
+            old_rev=5596a561e14a45110ac7f673008b990001d9519d
+            # The repository is public; the pinned compatibility fetch is anonymous.
+            GIT_TERMINAL_PROMPT=0 git -c safe.directory="$PWD" -c credential.helper= \
+              fetch --no-tags --depth=1 origin "$old_rev"
+            mkdir -p "$OUT/compat-src" "$OUT/old"
+            git -c safe.directory="$PWD" archive "$old_rev" boot fonts src | tar -x -C "$OUT/compat-src"
+            bootstrap="$PWD/$BOOTSTRAP"
+            old="$PWD/$OUT/old"
+            (
+              cd "$OUT/compat-src"
+              boot/build-image.sh src "$old/seed.image" "$bootstrap"
+              "$bootstrap" "$old/seed.image" --headless --stage2 "$old/samaltak.image"
+            )
+            sha256sum "$BOOTSTRAP" "$STOCK" "$TEST_VM" "$OUT/samaltak.image" "$OUT/old/samaltak.image"
+          } 2>&1 | tee "$OUT/logs/images.log"
+      - name: Native engine, interpreter semantics, and unchanged strict pressure
+        run: |
+          unset RUN_UNDER_QEMU DISPLAY WAYLAND_DISPLAY
+          tests/vm/c4-live/run-arm64-interpreter.sh "$TEST_VM" "$STOCK" "$BOOTSTRAP" \
+            "$OUT/samaltak.image" "$OUT/old/samaltak.image"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c4-arm64-native-evidence
+          retention-days: 7
+          path: |
+            build/c4-arm64-validation/status.tsv
+            build/c4-arm64-validation/logs/
+            build/c4-arm64-validation/policy-*.log
+            build/c4-arm64-validation/legacy.log
+            build/c4-arm64-validation/**/c4-*/*.log
+            build/c4-arm64-validation/**/c4-*/*.out
+            build/c4-arm64-validation/**/c4-*/*.err
+          if-no-files-found: ignore

@@ -7,7 +7,9 @@ runtime=${2:?pass the C4 headless VM}
 expect=${3:-enabled}
 out=${OUT:-build}/c4-interval-$expect
 mkdir -p "$out"
-for jit in none baseline; do
+tiers='none baseline'
+if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then tiers=none; fi
+for jit in $tiers; do
     log=$out/$jit.log
     SAMALTAK_C4_STATS=1 timeout -k 2 90 "$runtime" --c4-moving --jit "$jit" --jit-threshold 0         --eden 1 --max-heap 128 "$image" --headless --eval "$(cat tests/vm/c4-live/interval.st)"         >"$log" 2>&1 || { cat "$log"; exit 1; }
     grep -Fxq 'C4 Interval ok' "$log"

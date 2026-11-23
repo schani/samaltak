@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/../../.."
-case "$(uname -s -m)" in
-    'Linux x86_64') ;;
+case "$(uname -s -m):${C4_ARM64_INTERPRETER_TEST:-0}" in
+    'Linux x86_64:0'|'Linux x86_64:1'|'Linux aarch64:1') ;;
     *) echo 'c4-stack-move: skipped (requires Linux x86-64)'; exit 0 ;;
 esac
 
@@ -18,7 +18,9 @@ awk '
     copying && /^}/ { copying = 0 }
     END { if (found != 1 || copying) exit 1 }
 ' "$gen/interpreter.c" >"$tmp/stack_move_impl.inc"
-${CC:-cc} ${CFLAGS:--O2} -std=gnu11 -D_GNU_SOURCE -DSAMALTAK_NO_PLATFORM \
+arm_test=
+if [ "${C4_ARM64_INTERPRETER_TEST:-0}" = 1 ]; then arm_test=-DSAMALTAK_C4_ARM64_INTERPRETER_TEST; fi
+${CC:-cc} ${CFLAGS:--O2} -std=gnu11 -D_GNU_SOURCE -DSAMALTAK_NO_PLATFORM $arm_test \
     -UNDEBUG -Wall -Wextra -Werror -Ivm -I"$gen" -I"$tmp" \
     tests/vm/c4-live/stack_move_test.c -o "$tmp/stack-move-test"
 "$tmp/stack-move-test"
