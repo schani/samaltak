@@ -53,21 +53,41 @@ static oop listing_of(jit_method *h, int32_t md)
     oop o_4;
     int64_t i_2;
     oop o_5;
+    uint64_t r_element;
+    uint64_t v_4;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o_6;
-    uint32_t v_4;
+    uint32_t v_5;
     oop o_7;
+    uint64_t r_element_2;
+    uint64_t v_6;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t o_8;
-    int64_t v_5;
+    int64_t v_7;
     uint64_t s;
     oop o_9;
+    uint64_t r_element_3;
+    uint64_t v_8;
+    uint64_t r_follow_3;
+    uint64_t p_3;
     uint64_t o_10;
     int64_t i_3;
     oop o_11;
     int64_t i_4;
     oop o_12;
+    uint64_t r_element_4;
+    uint64_t v_9;
+    uint64_t r_follow_4;
+    uint64_t p_4;
     uint64_t o_13;
-    int64_t v_6;
+    int64_t v_10;
     oop o_14;
+    uint64_t r_element_5;
+    uint64_t v_11;
+    uint64_t r_follow_5;
+    uint64_t p_5;
     uint64_t o_15;
     int64_t i_5;
     oop o_16;
@@ -110,17 +130,53 @@ static oop listing_of(jit_method *h, int32_t md)
     }
     for (i_2 = 0; i_2 <= n - 1; i_2++) {
         o_5 = *r;
-        o_6 = *(uint64_t *)(o_5 + 16 + 24);
-        v_4 = h->note_offsets[i_2];
-        ((oop *)(o_6 + 16))[3 * i_2] = (uint64_t)((((int64_t)v_4) << 1) | 1);
+        o_6 = ({
+    v_4 = *(uint64_t *)(o_5 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_4 = ({
+    p = v_4;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v_4;
+    r_element; });
+        v_5 = h->note_offsets[i_2];
+        ((oop *)(o_6 + 16))[3 * i_2] = (uint64_t)((((int64_t)v_5) << 1) | 1);
         o_7 = *r;
-        o_8 = *(uint64_t *)(o_7 + 16 + 24);
-        v_5 = h->note_values[i_2];
-        ((oop *)(o_8 + 16))[3 * i_2 + 2] = (uint64_t)((v_5 << 1) | 1);
+        o_8 = ({
+    v_6 = *(uint64_t *)(o_7 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_6 = ({
+    p_2 = v_6;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_6;
+    r_element_2; });
+        v_7 = h->note_values[i_2];
+        ((oop *)(o_8 + 16))[3 * i_2 + 2] = (uint64_t)((v_7 << 1) | 1);
         if (h->note_texts[i_2] != 0) {
             s = string_from((const char *)h->note_texts[i_2]);
             o_9 = *r;
-            o_10 = *(uint64_t *)(o_9 + 16 + 24);
+            o_10 = ({
+    v_8 = *(uint64_t *)(o_9 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_8 = ({
+    p_3 = v_8;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
+    }
+    r_element_3 = v_8;
+    r_element_3; });
             i_3 = 3 * i_2 + 1;
             *(uint64_t *)(o_10 + 16 + 8 * i_3) = s;
             if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!(o_10 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_10) & H_REMEMBERED) == 0)))) {
@@ -137,12 +193,36 @@ static oop listing_of(jit_method *h, int32_t md)
     }
     for (i_4 = 0; i_4 <= n - 1; i_4++) {
         o_12 = *r;
-        o_13 = *(uint64_t *)(o_12 + 16 + 32);
-        v_6 = (int64_t)symbol_addrs[i_4];
-        ((oop *)(o_13 + 16))[2 * i_4] = (uint64_t)((v_6 << 1) | 1);
+        o_13 = ({
+    v_9 = *(uint64_t *)(o_12 + 16 + 32);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_9 = ({
+    p_4 = v_9;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_4;
+    r_follow_4; });
+    }
+    r_element_4 = v_9;
+    r_element_4; });
+        v_10 = (int64_t)symbol_addrs[i_4];
+        ((oop *)(o_13 + 16))[2 * i_4] = (uint64_t)((v_10 << 1) | 1);
         s = string_from(symbol_names[i_4]);
         o_14 = *r;
-        o_15 = *(uint64_t *)(o_14 + 16 + 32);
+        o_15 = ({
+    v_11 = *(uint64_t *)(o_14 + 16 + 32);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_11 = ({
+    p_5 = v_11;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_5;
+    r_follow_5; });
+    }
+    r_element_5 = v_11;
+    r_element_5; });
         i_5 = 2 * i_4 + 1;
         *(uint64_t *)(o_15 + 16 + 8 * i_5) = s;
         if (((s & 7) == 0) && ((s - young_lo < young_hi - young_lo) && ((!(o_15 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_15) & H_REMEMBERED) == 0)))) {
@@ -1028,17 +1108,25 @@ void prim_jit_send_sites(void)
     oop o_5;
     int64_t j;
     oop o_6;
+    uint64_t r_element;
+    uint64_t v_6;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t o_7;
     oop m_5;
-    oop v_6;
+    oop v_7;
     oop o_8;
+    uint64_t r_element_2;
+    uint64_t v_8;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t o_9;
     oop m_6;
-    oop v_7;
+    oop v_9;
     oop o_10;
     oop m_7;
-    uint64_t v_8;
-    oop v_9;
+    uint64_t v_10;
+    oop v_11;
     m = prim_base[0];
     if (!(((m & 7) == 0) && (*(uint64_t *)(m + 8) == object_memory_special(SO_COMPILEDMETHOD)))) {
         prim_status = PS_FAIL;
@@ -1102,35 +1190,59 @@ void prim_jit_send_sites(void)
         }
         for (j = 0; j <= count - 1; j++) {
             o_6 = *e;
-            o_7 = *(uint64_t *)(o_6 + 16 + 16);
+            o_7 = ({
+    v_6 = *(uint64_t *)(o_6 + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_6 = ({
+    p = v_6;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_element = v_6;
+    r_element; });
             m_5 = *a;
-            v_6 = feedback_class_of(m_5, i, j);
-            *(uint64_t *)(o_7 + 16 + 8 * j) = v_6;
-            if (((v_6 & 7) == 0) && (((uint64_t)(v_6 - young_lo) < young_hi - young_lo) && ((!(o_7 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_7) & H_REMEMBERED) == 0)))) {
+            v_7 = feedback_class_of(m_5, i, j);
+            *(uint64_t *)(o_7 + 16 + 8 * j) = v_7;
+            if (((v_7 & 7) == 0) && (((uint64_t)(v_7 - young_lo) < young_hi - young_lo) && ((!(o_7 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_7) & H_REMEMBERED) == 0)))) {
                 remember(o_7);
             }
             o_8 = *e;
-            o_9 = *(uint64_t *)(o_8 + 16 + 24);
+            o_9 = ({
+    v_8 = *(uint64_t *)(o_8 + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        v_8 = ({
+    p_2 = v_8;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_element_2 = v_8;
+    r_element_2; });
             m_6 = *a;
-            v_7 = feedback_target_of(m_6, i, j);
-            *(uint64_t *)(o_9 + 16 + 8 * j) = v_7;
-            if (((v_7 & 7) == 0) && (((uint64_t)(v_7 - young_lo) < young_hi - young_lo) && ((!(o_9 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_9) & H_REMEMBERED) == 0)))) {
+            v_9 = feedback_target_of(m_6, i, j);
+            *(uint64_t *)(o_9 + 16 + 8 * j) = v_9;
+            if (((v_9 & 7) == 0) && (((uint64_t)(v_9 - young_lo) < young_hi - young_lo) && ((!(o_9 - young_lo < young_hi - young_lo)) && (((*(uint64_t *)o_9) & H_REMEMBERED) == 0)))) {
                 remember(o_9);
             }
         }
         o_10 = *e;
         m_7 = *a;
-        v_8 = feedback_selector_of(m_7, i);
-        *(uint64_t *)(o_10 + 16 + 32) = v_8;
-        if (((v_8 & 7) == 0) && ((v_8 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_10 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_10) & H_REMEMBERED) == 0)))) {
+        v_10 = feedback_selector_of(m_7, i);
+        *(uint64_t *)(o_10 + 16 + 32) = v_10;
+        if (((v_10 & 7) == 0) && ((v_10 - young_lo < young_hi - young_lo) && ((!((uint64_t)(o_10 - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)o_10) & H_REMEMBERED) == 0)))) {
             remember(o_10);
         }
     }
     pop_root();
     pop_root();
     pop_root();
-    v_9 = *r;
-    prim_result = v_9;
+    v_11 = *r;
+    prim_result = v_11;
     prim_status = PS_OK;
 }
 
