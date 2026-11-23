@@ -487,10 +487,11 @@ initHeaderAt: p class: cls format: fmt slots: n
 	self uint64At: p + 8 put: cls
 !
 allocUnfilledTry: cls format: fmt slots: n
-	"allocObjTry: of an object without pointers (fmt) whose slots the caller writes, every one, before anything else runs: in eden its header and class only, not zeroed (the collector never reads such slots); large ones as allocObjTry: makes them. 0 if it can never fit in the heap."
+	"allocObjTry: of an object without pointers (fmt) whose slots the caller writes, every one, before anything else runs: in eden its header and class only, not zeroed. C4 and large allocations use the normal allocation path. 0 if it can never fit in the heap."
 	<function>
 	| bytes p clsRoot |
 	n > 16rFFFFFFFF ifTrue: [^0].
+	vmMain c4Enabled ifTrue: [^self allocC4Try: cls format: fmt slots: n asUInt32].
 	bytes := 16 + (8 * n).
 	bytes > largeObjectBytes ifTrue: [^self allocObjTry: cls format: fmt slots: n].
 	p := gc edenTop.

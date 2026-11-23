@@ -356,6 +356,9 @@ uint64_t alloc_unfilled_try(oop cls, int32_t fmt, uint64_t n)
     if (n > 0xFFFFFFFFLL) {
         return 0;
     }
+    if (c4_enabled) {
+        return alloc_c4_try(cls, fmt, (uint32_t)n);
+    }
     bytes = 16 + 8 * n;
     if (bytes > large_object_bytes) {
         return alloc_obj_try(cls, fmt, n);
