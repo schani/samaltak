@@ -3,7 +3,7 @@ TestCase subclass: #BecomeTest
 	classVariableNames: ''
 	package: 'Tests-Kernel'!
 
-BecomeTest comment: 'Tests becomeForward:. Most objects become forwarders (lazily): references to them reach the target through sends, ==, class, primitives that retry, blocks and the collector; classes, methods, Contexts and the other kinds the VM reads directly are replaced by a heap scan at once.'!
+BecomeTest comment: 'Tests becomeForward: (the target takes over the identity hash). Most objects become forwarders (lazily): references to them reach the target through sends, ==, class, primitives that retry, blocks and the collector; classes, methods, Contexts and the other kinds the VM reads directly are replaced by a heap scan at once.'!
 
 Object subclass: #BecomeTestSubject
 	instanceVariableNames: 'value'
@@ -40,20 +40,38 @@ testHeapReferences
 	self assert: a == b
 !
 testIdentity
-	| x y holder set |
+	| x y holder |
 	x := Object new.
 	y := Object new.
 	holder := Array with: x.
-	set := IdentitySet new.
-	set add: y.
 	x becomeForward: y.
 	self assert: holder first == y.
 	self deny: holder first ~~ y.
 	self assert: y == holder first.
 	self assert: (holder first == holder first).
-	self assert: (holder includes: y).
-	self assert: (set includes: holder first).
-	self assert: holder first identityHash = y identityHash
+	self assert: (holder includes: y)
+!
+testIdentityHash
+	| x y hash set |
+	x := Object new.
+	y := Object new.
+	hash := x identityHash.
+	set := IdentitySet with: x.
+	x becomeForward: y.
+	self assert: y identityHash = hash.
+	self assert: (set includes: y).
+	self assert: (set includes: x)
+!
+testIdentityHashEager
+	| a b hash dict |
+	a := #a -> 1.
+	b := #b -> 2.
+	hash := a identityHash.
+	dict := IdentityDictionary new.
+	dict at: a put: #found.
+	a becomeForward: b.
+	self assert: b identityHash = hash.
+	self assert: (dict at: b ifAbsent: [nil]) = #found
 !
 testClassAndSends
 	| x y holder |

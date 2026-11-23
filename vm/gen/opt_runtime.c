@@ -1439,9 +1439,20 @@ void invalidate_embedding(oop o)
     oop m;
     int32_t n;
     jit_method *h_2;
-    for (i = 0; i <= rt_all_count - 1; i++) {
-        h = rt_all[i];
-        if ((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0)) {
+    int32_t i_2;
+    jit_method *h_3;
+    oop *pool_2;
+    bool found_2;
+    int64_t k_2;
+    oop m_2;
+    int32_t n_2;
+    jit_method *h_4;
+    if (((uint64_t)(o - young_lo) < young_hi - young_lo) && (!rt_opt_young_overflow)) {
+        for (i = 0; i <= rt_opt_young_count - 1; i++) {
+            h = rt_opt_young[i];
+            if (!((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0))) {
+                goto exit_invalidate;
+            }
             pool = (oop *)(h->code_start + h->pool_offset);
             found = false;
             for (k = 0; k <= (int64_t)h->pool_count - 1; k++) {
@@ -1451,7 +1462,7 @@ void invalidate_embedding(oop o)
             }
             if (found) {
                 if (!((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0))) {
-                    goto exit_invalidate;
+                    goto exit_invalidate_2;
                 }
                 rt_stat_invalidations = rt_stat_invalidations + 1;
                 if ((h->block_start == 0) && (h->osr_pc == 0)) {
@@ -1465,8 +1476,42 @@ void invalidate_embedding(oop o)
                     code_changed(h->method);
                 }
                 jit_runtime_kill(h);
-            exit_invalidate:;
+            exit_invalidate_2:;
             }
+        exit_invalidate:;
+        }
+    } else {
+        for (i_2 = 0; i_2 <= rt_all_count - 1; i_2++) {
+            h_3 = rt_all[i_2];
+            if (!((h_3 != NULL) && ((h_3->flags & JM_FAILED) == 0) && ((h_3->flags & 2) == 0))) {
+                goto exit_invalidate_3;
+            }
+            pool_2 = (oop *)(h_3->code_start + h_3->pool_offset);
+            found_2 = false;
+            for (k_2 = 0; k_2 <= (int64_t)h_3->pool_count - 1; k_2++) {
+                if (pool_2[k_2] == o) {
+                    found_2 = true;
+                }
+            }
+            if (found_2) {
+                if (!((h_3 != NULL) && ((h_3->flags & JM_FAILED) == 0) && ((h_3->flags & 2) == 0))) {
+                    goto exit_invalidate_4;
+                }
+                rt_stat_invalidations = rt_stat_invalidations + 1;
+                if ((h_3->block_start == 0) && (h_3->osr_pc == 0)) {
+                    m_2 = h_3->method;
+                    n_2 = initial_count(h_3->method);
+                    opt_counts[((uint32_t)(((*(uint64_t *)m_2) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535] = n_2;
+                    h_4 = (jit_method *)h_3->lower;
+                    begin_writing();
+                    h_4->opt = 0;
+                    end_writing();
+                    code_changed(h_3->method);
+                }
+                jit_runtime_kill(h_3);
+            exit_invalidate_4:;
+            }
+        exit_invalidate_3:;
         }
     }
 }

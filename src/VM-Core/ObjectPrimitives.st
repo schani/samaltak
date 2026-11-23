@@ -251,6 +251,7 @@ primBecomeForward
 	to := memory follow: self arg0.
 	((self isPtr: from) and: [(self isPtr: to) and: [from ~= memory nilOop]]) ifFalse: [^self fail].
 	from = to ifTrue: [^self answer: to].
+	self hash: from into: to.
 	((self forwardsEagerly: from) or: [self forwardsEagerly: to])
 		ifTrue: [
 			interpreter flushIfMarried: from.
@@ -271,6 +272,16 @@ isEagerKind: s
 	s = (memory special: SO_MESSAGE) ifTrue: [^true].
 	s = (self rawClass: (memory special: SO_PROCESSOR)) ifTrue: [^true].
 	^s = (self rawClass: (self loadRef: memory clsArray at: BEH_METHODDICT))
+!
+hash: from into: to
+	"to takes over from's identity hash (as Pharo's becomeForward:), so that identity-hashed collections holding from find to; not a Symbol's (method dictionaries are hashed by it). A method's machine code is found by its hash: to's is dropped first."
+	<function>
+	| m c |
+	c := self rawClass: to.
+	(c = (memory special: SO_BYTESYMBOL) or: [c = (memory special: SO_WIDESYMBOL)]) ifTrue: [^self].
+	c = (memory special: SO_COMPILEDMETHOD) ifTrue: [jit becomeMethod: to].
+	m := H_HASH_MASK asUInt64 << H_HASH_SHIFT.
+	self header: to put: (((self header: to) bitClear: m) bitOr: ((self header: from) bitAnd: m))
 !
 forwardsEagerly: o
 	"o is read by the VM without a send or a class check, so becomeForward: replaces the references to it at once (a full GC and a heap scan) instead of leaving a forwarder: nil, true, false and the other special objects, classes and metaclasses, and the instances of the VM's kinds (CompiledMethod, Context, BlockClosure, Association, Symbol, Process, LinkedList and Semaphore, ProcessorScheduler, Message, MethodDictionary)."

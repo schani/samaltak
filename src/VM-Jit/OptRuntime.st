@@ -1257,16 +1257,19 @@ followed: o
 	^memory follow: o
 !
 invalidateEmbedding: o
-	"becomeForward: made o a forwarder: code with o in its pool is invalidated (it may have folded o's class or fields)."
+	"becomeForward: made o a forwarder: code with o in its pool is invalidated (it may have folded o's class or fields). A young o can only be in the pools of the units scavenges visit."
 	<function>
-	| h pool found |
-	0 to: rtAllCount - 1 do: [:i |
-		h := rtAll at: i.
-		(self isAlive: h) ifTrue: [
-			pool := self cCoerce: h codeStart + h poolOffset to: 'oop *'.
-			found := false.
-			0 to: h poolCount asInt64 - 1 do: [:k | (pool at: k) = o ifTrue: [found := true]].
-			found ifTrue: [self invalidate: h]]]
+	((self isYoung: o) and: [rtOptYoungOverflow not])
+		ifTrue: [0 to: rtOptYoungCount - 1 do: [:i | self invalidate: (rtOptYoung at: i) ifPoolHas: o]]
+		ifFalse: [0 to: rtAllCount - 1 do: [:i | self invalidate: (rtAll at: i) ifPoolHas: o]]
+!
+invalidate: h ifPoolHas: o
+	| pool found |
+	(self isAlive: h) ifFalse: [^self].
+	pool := self cCoerce: h codeStart + h poolOffset to: 'oop *'.
+	found := false.
+	0 to: h poolCount asInt64 - 1 do: [:k | (pool at: k) = o ifTrue: [found := true]].
+	found ifTrue: [self invalidate: h]
 !
 invalidateUnit: h
 	<function>

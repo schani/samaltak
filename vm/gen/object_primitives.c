@@ -9,6 +9,7 @@ static oop instances_result;
 static void convert_case(bool upper);
 static void count_instance(uint64_t o, void *d);
 static bool forwards_eagerly(oop o);
+static void hash(oop from, oop to);
 static bool is_eager_kind(uint64_t s);
 
 /* ObjectPrimitives>>convertCase: */
@@ -102,6 +103,22 @@ static bool forwards_eagerly(oop o)
         s = *(uint64_t *)(s + 16 + 0);
     }
     return false;
+}
+
+/* ObjectPrimitives>>hash:into: */
+static void hash(oop from, oop to)
+{
+    uint64_t c;
+    uint64_t h;
+    c = *(uint64_t *)(to + 8);
+    if ((c == object_memory_special(SO_BYTESYMBOL)) || (c == object_memory_special(SO_WIDESYMBOL))) {
+        return;
+    }
+    if (c == object_memory_special(SO_COMPILEDMETHOD)) {
+        become_method(to);
+    }
+    h = ((*(uint64_t *)to) & 17870283458845081599ULL) | ((*(uint64_t *)from) & 576460614864470016ULL);
+    *(uint64_t *)to = h;
 }
 
 /* ObjectPrimitives>>isEagerKind: */
@@ -451,6 +468,7 @@ void prim_become_forward(void)
         prim_status = PS_OK;
         return;
     }
+    hash(from, to);
     if (forwards_eagerly(from) || forwards_eagerly(to)) {
         flush_if_married(from);
         full_gc();
