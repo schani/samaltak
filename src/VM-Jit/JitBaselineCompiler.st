@@ -874,15 +874,21 @@ emitFrameFor: isBlock args: na temps: nt
 				i := i + 1]]
 !
 emitFollowReceiver
-	"A block's receiver (x21) comes from its outer Context, which may hold a forwarder (becomeForward:). x86: x16 holds nil before and after."
-	| done |
-	done := asm newLabel.
-	self emitNoForwardersTestTo: done.
-	self emitFollow: X21.
-	asm isX64 ifTrue: [
-		asm comment: 'x16 is nil again'.
-		asm ldr: X16 base: X22 offset: self nilOffset].
-	asm bind: done
+	"A block's receiver (x21) comes from its outer Context, which may hold a forwarder (becomeForward:): followed out of line while some object is one. x86: x16 holds nil before and after."
+	| s done |
+	s := self slow: SL_FOLLOW pc: 0 depth: 0.
+	s < 0 ifTrue: [
+		"no room for another slow path: inline"
+		done := asm newLabel.
+		self emitNoForwardersTestTo: done.
+		self emitFollow: X21.
+		asm isX64 ifTrue: [asm ldr: X16 base: X22 offset: self nilOffset].
+		^asm bind: done].
+	slA at: s put: X21 asInt8.
+	asm isX64 ifTrue: [slC at: s put: 1].
+	slCont at: s put: asm newLabel.
+	self emitForwardersTestTo: (slLabel at: s).
+	asm bind: (slCont at: s)
 !
 emitFrameForX64: isBlock args: na temps: nt
 	"x86: the call pushed the native frame record (the return address); nil is a word of the JitState, loaded into x16 once."
@@ -3252,6 +3258,9 @@ emitSlowPaths
 			asm comment: 'some object is a forwarder (becomeForward:): follow the operands'.
 			self emitFollow: (slA at: i).
 			(slB at: i) >= 0 ifTrue: [self emitFollow: (slB at: i)].
+			(slC at: i) = 1 ifTrue: [
+				asm comment: 'x16 is nil again'.
+				asm ldr: X16 base: X22 offset: self nilOffset].
 			asm b: (slCont at: i)].
 		kind = SL_CLASS ifTrue: [
 			asm comment: 'the class of an immediate: by its tag'.

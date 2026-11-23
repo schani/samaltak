@@ -244,8 +244,8 @@ emitBaselineEntry
 			asm ldr: X16 base: X0 offset: (self fieldOffset: BC_OUTER).
 			asm ldr: X17 base: X16 offset: (self fieldOffset: CTX_RECEIVER).
 			fl := asm newLabel.
-			self emitNoForwardersTestTo: fl.
-			self emitFollow: X17.
+			self emitForwardersTestTo: (self out: OUT_FOLLOW node: -1 index: (X17 bitOr: 255 << 8)).
+			(cgOuts + (cgOutCount - 1)) resume: fl.
 			asm bind: fl.
 			asm stur: X17 base: X20 offset: -8].
 	asm stp: X20 with: XZR base: X19 offset: self fpOffset.
@@ -686,8 +686,8 @@ emitNode: n block: b next: nextBlock
 		asm ldr: r base: x offset: (self fieldOffset: nd aux).
 		(nd flags bitAnd: NF_FOLLOW) ~= 0 ifTrue: [
 			l := asm newLabel.
-			self emitNoForwardersTestTo: l.
-			self emitFollow: r.
+			self emitForwardersTestTo: (self out: OUT_FOLLOW node: n index: (r bitOr: 255 << 8)).
+			(cgOuts + (cgOutCount - 1)) resume: l.
 			asm bind: l].
 		^self def: n from: r].
 	op = O_STOREFIELD ifTrue: [^self emitStore: n].
