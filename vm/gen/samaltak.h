@@ -261,10 +261,12 @@ typedef void (*prim_fn)(void);
 #define FB_MEGA 1
 #define FB_NONINT 4
 #define FB_OVERFLOW 8
+#define FWD_TAG 6
 #define F_BYTES 16
 #define F_EMPTY 0
 #define F_FIXED 1
 #define F_FIXVAR 3
+#define F_FORWARDER 5
 #define F_IMMEDIATE 7
 #define F_VAR 2
 #define F_W32 10
@@ -366,6 +368,7 @@ typedef void (*prim_fn)(void);
 #define NF_BLOCKCALL 16
 #define NF_DEAD 2
 #define NF_EQONLY 8192
+#define NF_FOLLOW 16384
 #define NF_GUARD 4
 #define NF_HOISTED 64
 #define NF_INRANGE 2048
@@ -429,6 +432,7 @@ typedef void (*prim_fn)(void);
 #define OUT_BARRIER 3
 #define OUT_BOTTOM 6
 #define OUT_DEOPT 1
+#define OUT_FOLLOW 13
 #define OUT_INTERRUPT 2
 #define OUT_LAZY 4
 #define OUT_NOTMADE 11
@@ -627,6 +631,7 @@ typedef void (*prim_fn)(void);
 #define SL_ENTRY_IMM 7
 #define SL_ENTRY_SLOW 8
 #define SL_FLOAT 8589934592LL
+#define SL_FOLLOW 13
 #define SL_FUSED 4294967296LL
 #define SL_INTERRUPT 1
 #define SL_MUSTBEBOOLEAN 3
@@ -969,7 +974,7 @@ struct jit_state {
     oop true_oop;
     oop false_oop;
     int32_t interrupt;
-    int32_t pad;
+    int32_t forwarders;
     uint64_t frames;
     uint64_t exit_sp;
     uint64_t young_lo;
@@ -1294,6 +1299,7 @@ extern bool finalization_pending;
 extern uint64_t gc_epoch;
 extern size_t max_heap_bytes;
 extern size_t old_budget;
+extern uint64_t old_forwarders;
 extern uint64_t old_lo;
 extern uint64_t old_top;
 extern size_t remset_count;
@@ -1304,6 +1310,7 @@ extern uint64_t stat_scavenge_us;
 extern uint64_t stat_scavenges;
 extern uint64_t stat_tenured;
 extern uint64_t stat_weak_cleared;
+extern uint64_t young_forwarders;
 extern uint64_t young_hi;
 extern uint64_t young_lo;
 extern char *image_path;
@@ -1667,6 +1674,7 @@ void prim_display_open(void);
 void prim_display_text(void);
 void become_forward(oop from, oop to);
 void collect_garbage(uint64_t need);
+void forward(oop from, oop to);
 void full_gc(void);
 void garbage_collector_init(uint64_t eden_bytes, uint64_t max_heap);
 uint64_t old_alloc_try(uint64_t bytes);
@@ -1702,6 +1710,8 @@ _Noreturn void fatal_end(void);
 void flush_if_married(oop o);
 void flush_method_cache(void);
 void flush_method_cache_selector(oop a_selector);
+bool follow_args(int32_t n, oop *b);
+bool interpreter_frame(int32_t i, oop o);
 bool frames_valid(bool (*valid)(oop));
 void interpret(void);
 void interrupt_safepoint(void);
@@ -1790,6 +1800,7 @@ bool ensure_open(void);
 uint64_t entry_of_top(void);
 uint64_t exit_sync(frame *f);
 char *flag_name(uint32_t bit);
+void forwarded(oop o);
 bool headers_valid(bool (*valid)(oop));
 uint64_t interrupt(frame *f);
 uint64_t interrupt_at_entry(frame *f);
@@ -1981,7 +1992,9 @@ void opt_runtime_flushed(void);
 bool header_valid(jit_method *o, bool (*valid)(oop));
 int32_t initial_count(oop m);
 void invalidate_all(void);
+void invalidate_embedding(oop o);
 void invalidate_selector(oop sel);
+void invalidate_unit(jit_method *h);
 uint64_t opt_runtime_leave(frame *f, bool after);
 oop opt_runtime_make_array(frame *f, uint64_t n);
 void materialize(frame *f);

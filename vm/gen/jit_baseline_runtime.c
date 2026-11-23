@@ -648,6 +648,10 @@ uint64_t leaf_prim(uint64_t fp, uint64_t fn, uint64_t n)
     prim_base = b;
     prim_status = PS_NONE;
     fn_2();
+    if (__builtin_expect((prim_status == PS_FAIL) && follow_args(n_2, b), 0)) {
+        prim_status = PS_NONE;
+        fn_2();
+    }
     r_call_leaf_primitive = prim_status;
     r_call_leaf_primitive; });
     if (__builtin_expect(status == PS_OK, 1)) {

@@ -14,12 +14,12 @@ declarations
 primClass
 	<vmPrimitive: 78 name: 'class'>
 	<leaf>
-	self answer: (memory classOf: (self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver]))
+	self answer: (memory classOf: (memory follow: (self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver])))
 !
 primIdentical
 	<vmPrimitive: 79 name: 'identical'>
 	<leaf>
-	self answerBool: self receiver = self arg0
+	self answerBool: (self receiver = self arg0 or: [gc forwardersExist and: [(memory follow: self receiver) = (memory follow: self arg0)]])
 !
 primIdentityHash
 	<vmPrimitive: 77 name: 'identityHash'>
@@ -243,11 +243,48 @@ primAllInstances
 !
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
-	((self isPtr: self receiver) and: [(self isPtr: self arg0) and: [self receiver ~= memory nilOop]]) ifFalse: [^self fail].
-	interpreter flushIfMarried: self receiver.
-	gc fullGC.
-	gc becomeForward: self receiver to: self arg0.
+	| from to |
+	from := memory follow: self receiver.
+	to := memory follow: self arg0.
+	((self isPtr: from) and: [(self isPtr: to) and: [from ~= memory nilOop]]) ifFalse: [^self fail].
+	from = to ifTrue: [^self answer: to].
+	((self forwardsEagerly: from) or: [self forwardsEagerly: to])
+		ifTrue: [
+			interpreter flushIfMarried: from.
+			gc fullGC.
+			gc becomeForward: (memory follow: self receiver) to: (memory follow: self arg0)]
+		ifFalse: [gc forward: from to: to].
 	self answer: self receiver
+!
+isEagerKind: s
+	"s is one of the classes whose instances the VM reads directly."
+	<function>
+	s = (memory special: SO_COMPILEDMETHOD) ifTrue: [^true].
+	s = memory clsContext ifTrue: [^true].
+	s = memory clsBlock ifTrue: [^true].
+	s = (memory special: SO_ASSOCIATION) ifTrue: [^true].
+	s = (memory special: SO_PROCESS) ifTrue: [^true].
+	s = (self loadRef: (memory special: SO_SEMAPHORE) at: BEH_SUPERCLASS) ifTrue: [^true].
+	s = (memory special: SO_MESSAGE) ifTrue: [^true].
+	s = (self rawClass: (memory special: SO_PROCESSOR)) ifTrue: [^true].
+	^s = (self rawClass: (self loadRef: memory clsArray at: BEH_METHODDICT))
+!
+forwardsEagerly: o
+	"o is read by the VM without a send or a class check, so becomeForward: replaces the references to it at once (a full GC and a heap scan) instead of leaving a forwarder: nil, true, false and the other special objects, classes and metaclasses, and the instances of the VM's kinds (CompiledMethod, Context, BlockClosure, Association, Symbol, Process, LinkedList and Semaphore, ProcessorScheduler, Message, MethodDictionary)."
+	<function>
+	| sp c meta s |
+	sp := memory specialsOop.
+	o = sp ifTrue: [^true].
+	0 to: (self numSlots: sp) asInt64 - 1 do: [:i | (self loadRef: sp at: i) = o ifTrue: [^true]].
+	c := self rawClass: o.
+	meta := self rawClass: (self rawClass: memory clsArray).
+	(c = meta or: [(self rawClass: c) = meta]) ifTrue: [^true].
+	(c = (memory special: SO_BYTESYMBOL) or: [c = (memory special: SO_WIDESYMBOL)]) ifTrue: [^true].
+	s := c.
+	[(self isPtr: s) and: [s ~= memory nilOop]] whileTrue: [
+		(self isEagerKind: s) ifTrue: [^true].
+		s := self loadRef: s at: BEH_SUPERCLASS].
+	^false
 !
 primSpecialObjectsArray
 	<vmPrimitive: 89 name: 'specialObjectsArray'>

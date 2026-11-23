@@ -1,5 +1,5 @@
 VMCoreModule subclass: #GarbageCollector
-	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo'
+	instanceVariableNames: 'youngLo youngHi edenLo edenHi edenBox survLo survTop survHi survOtherLo survOtherHi oldLo oldTop oldHi oldAltLo oldAltHi oldBudget maxHeapBytes oldReserve gcEpoch statScavenges statFullGcs statScavengeUs statFullUs statAllocated statTenured remset remsetCount remsetCap startBits vlo verify toLo toTop toHi weakList weakCount weakCap finalizationPending statWeakCleared ftTop becomeFrom becomeTo youngForwarders oldForwarders'
 	classVariableNames: 'MIN_BUDGET TENURE_AGE'
 	package: 'VM-Core'!
 
@@ -16,7 +16,7 @@ declarations
 		(startBits 'uint8_t *') (vlo uint64_t) (verify int32_t -1)
 		(toLo uint64_t) (toTop uint64_t) (toHi uint64_t)
 		(weakList 'oop *') (weakCount size_t) (weakCap size_t) (finalizationPending bool) (statWeakCleared uint64_t)
-		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop))
+		(ftTop uint64_t) (becomeFrom oop) (becomeTo oop) (youngForwarders uint64_t) (oldForwarders uint64_t))
 !
 initialize
 	MIN_BUDGET := 64 << 20.
@@ -245,14 +245,20 @@ verifySpaceFrom: lo to: hi old: isOld
 	| p young v |
 	p := lo.
 	[p < hi] whileTrue: [
-		((self header: p) bitAnd: H_FORWARDED) ~= 0 ifTrue: [self fatal: 'verify: forwarded object %p' with: (self ptr: p)].
-		((self isPtr: (self rawClass: p)) and: [self validRef: (self rawClass: p)]) ifFalse: [self fatal: 'verify: bad class in %p' with: (self ptr: p)].
-		young := self isYoung: (self rawClass: p).
-		(self fmtHasPointers: (self formatOf: p)) ifTrue: [
-			0 to: (self numSlots: p) asInt64 - 1 do: [:i |
-				v := (self slotsOf: p) at: i.
-				(self validRef: v) ifFalse: [self fatal: 'verify: bad slot in %p: %p' with: (self ptr: p) with: (self ptr: v)].
-				((self isPtr: v) and: [self isYoung: v]) ifTrue: [young := true]]].
+		((self header: p) bitAnd: H_FORWARDED) ~= 0
+			ifTrue: [
+				"a forwarder: its target is valid, remembered if young and the forwarder old"
+				v := self rawClass: p.
+				((self formatOf: p) = F_FORWARDER and: [(v bitAnd: 7) = FWD_TAG and: [self validRef: (v bitClear: FWD_TAG)]]) ifFalse: [self fatal: 'verify: forwarded object %p' with: (self ptr: p)].
+				young := self isYoung: (v bitClear: FWD_TAG)]
+			ifFalse: [
+				((self isPtr: (self rawClass: p)) and: [self validRef: (self rawClass: p)]) ifFalse: [self fatal: 'verify: bad class in %p' with: (self ptr: p)].
+				young := self isYoung: (self rawClass: p).
+				(self fmtHasPointers: (self formatOf: p)) ifTrue: [
+					0 to: (self numSlots: p) asInt64 - 1 do: [:i |
+						v := (self slotsOf: p) at: i.
+						(self validRef: v) ifFalse: [self fatal: 'verify: bad slot in %p: %p' with: (self ptr: p) with: (self ptr: v)].
+						((self isPtr: v) and: [self isYoung: v]) ifTrue: [young := true]]]].
 		(isOld and: [young and: [((self header: p) bitAnd: H_REMEMBERED) = 0]]) ifTrue: [
 			self fatal: 'verify: unremembered old object %p' with: (self ptr: p)].
 		p := p + (self objBytes: p)]
@@ -292,7 +298,14 @@ scavCopy: o
 	<function>
 	| h bytes age dst |
 	h := self header: o.
-	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [^self rawClass: o].
+	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [
+		dst := self rawClass: o.
+		(dst bitAnd: 7) = 0 ifTrue: [^dst].
+		"a forwarder (becomeForward:): references to it go to its target, which moves if young"
+		dst := dst bitClear: FWD_TAG.
+		(self isYoung: dst) ifTrue: [dst := self scavCopy: dst].
+		self rawClass: o put: dst.
+		^dst].
 	bytes := self objBytes: o.
 	age := (((h >> H_AGE_SHIFT) bitAnd: 3) + 1) asUInt32.
 	(age >= TENURE_AGE or: [toTop + bytes > toHi])
@@ -373,9 +386,15 @@ clearWeakSlots: isDead
 !
 scavDead: v
 	<function>
+	| c |
 	((self isYoung: v value) not or: [v value >= toLo and: [v value < toHi]]) ifTrue: [^false].
 	((self header: v value) bitAnd: H_FORWARDED) = 0 ifTrue: [^true].
-	v value: (self rawClass: v value).
+	c := self rawClass: v value.
+	(c bitAnd: 7) ~= 0 ifTrue: [
+		"a forwarder only weak references reached: its target, if that lives"
+		v value: (c bitClear: FWD_TAG).
+		^self scavDead: v].
+	v value: c.
 	^false
 !
 scavScan: o
@@ -384,6 +403,12 @@ scavScan: o
 	| young c s v |
 	young := false.
 	c := self rawClass: o.
+	((self header: o) bitAnd: H_FORWARDED) ~= 0 ifTrue: [
+		"an old forwarder, remembered for its young target"
+		c := c bitClear: FWD_TAG.
+		(self isYoung: c) ifTrue: [c := self scavCopy: c].
+		self rawClass: o put: (c bitOr: FWD_TAG).
+		^self isYoung: c].
 	(self isYoung: c) ifTrue: [
 		c := self scavCopy: c.
 		self rawClass: o put: c.
@@ -438,6 +463,7 @@ scavenge
 	survHi := toHi.
 	self edenTop: edenLo.
 	self rememberIfOld: interpreter activeCtx.
+	youngForwarders := 0.
 	self afterGC.
 	statScavengeUs := statScavengeUs + (scheduler workClockHeldUs - t0) asUInt64
 ! !
@@ -447,7 +473,13 @@ fullCopy: o
 	<function>
 	| h bytes dst |
 	h := self header: o.
-	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [^self rawClass: o].
+	(h bitAnd: H_FORWARDED) ~= 0 ifTrue: [
+		dst := self rawClass: o.
+		(dst bitAnd: 7) = 0 ifTrue: [^dst].
+		"a forwarder (becomeForward:): references to it go to its target"
+		dst := self fullCopy: (dst bitClear: FWD_TAG).
+		self rawClass: o put: dst.
+		^dst].
 	bytes := self objBytes: o.
 	dst := ftTop.
 	ftTop := ftTop + bytes.
@@ -465,8 +497,14 @@ fullRoot: p
 !
 fullDead: v
 	<function>
+	| c |
 	((self header: v value) bitAnd: H_FORWARDED) = 0 ifTrue: [^true].
-	v value: (self rawClass: v value).
+	c := self rawClass: v value.
+	(c bitAnd: 7) ~= 0 ifTrue: [
+		"a forwarder only weak references reached: its target, if that lives"
+		v value: (c bitClear: FWD_TAG).
+		^self fullDead: v].
+	v value: c.
 	^false
 !
 fullGC
@@ -508,6 +546,8 @@ fullGC
 	oldBudget := live * 2 > MIN_BUDGET ifTrue: [live * 2] ifFalse: [MIN_BUDGET].
 	oldBudget > maxHeapBytes ifTrue: [oldBudget := maxHeapBytes].
 	self rememberIfOld: interpreter activeCtx.
+	youngForwarders := 0.
+	oldForwarders := 0.
 	self afterGC.
 	statFullUs := statFullUs + (scheduler workClockHeldUs - t0) asUInt64.
 	live > maxHeapBytes ifTrue: [self fatal: 'out of memory (%llu MB live, limit %zu MB)' with: live >> 20 with: maxHeapBytes >> 20]
@@ -543,6 +583,29 @@ oldAllocTry: bytes
 becomeRoot: p
 	<function>
 	p value = becomeFrom ifTrue: [p value: becomeTo]
+!
+forwardersExist
+	"Some object is a forwarder: young ones until the next scavenge, old ones until the next full GC."
+	^youngForwarders + oldForwarders ~= 0
+!
+forward: from to: to
+	"Lazy one-way become: from becomes a forwarder to to. The frames and the VM's roots refer to to at once; any other reference when it is used (a send misses, a primitive fails and retries, ==, class and a block's receiver follow it) or when a collection copies the object holding it."
+	<function>
+	| h |
+	h := self header: from.
+	self header: from put: ((((h bitClear: H_FMT_MASK asUInt64 << H_FMT_SHIFT) bitClear: H_IMMUTABLE) bitOr: F_FORWARDER asUInt64 << H_FMT_SHIFT) bitOr: H_FORWARDED).
+	self rawClass: from put: (to bitOr: FWD_TAG).
+	(self isYoung: from)
+		ifTrue: [youngForwarders := youngForwarders + 1]
+		ifFalse: [
+			oldForwarders := oldForwarders + 1.
+			((self isYoung: to) and: [(h bitAnd: H_REMEMBERED) = 0]) ifTrue: [self remember: from]].
+	jit forwarded: from.
+	becomeFrom := from.
+	becomeTo := to.
+	self forEachRoot: (self functionPointer: #becomeRoot:).
+	becomeFrom := memory nilOop.
+	becomeTo := memory nilOop
 !
 becomeForward: from to: to
 	"One-way become; call right after a full GC (no young objects)."

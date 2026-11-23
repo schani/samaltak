@@ -86,6 +86,17 @@ rawClass: o
 rawClass: o put: c
 	self uint64At: o + 8 put: c
 !
+isForwarder: o
+	"o was forwarded by becomeForward: (outside a collection only forwarders have H_FORWARDED set)."
+	^(self isPtr: o) and: [((self header: o) bitAnd: H_FORWARDED) ~= 0]
+!
+follow: o
+	"The object o forwards to, o if it is not a forwarder."
+	| p |
+	p := o.
+	[self isForwarder: p] whileTrue: [p := (self rawClass: p) bitClear: FWD_TAG].
+	^p
+!
 objBytes: o
 	^16 + (8 * (self numSlots: o) asUInt64)
 !

@@ -8,6 +8,8 @@ static oop instances_result;
 
 static void convert_case(bool upper);
 static void count_instance(uint64_t o, void *d);
+static bool forwards_eagerly(oop o);
+static bool is_eager_kind(uint64_t s);
 
 /* ObjectPrimitives>>convertCase: */
 static void convert_case(bool upper)
@@ -63,6 +65,79 @@ static void count_instance(uint64_t o, void *d)
         }
         instances_count = instances_count + 1;
     }
+}
+
+/* ObjectPrimitives>>forwardsEagerly: */
+static bool forwards_eagerly(oop o)
+{
+    oop sp;
+    int64_t i;
+    uint64_t c;
+    uint64_t o_2;
+    uint64_t meta;
+    uint64_t s;
+    sp = specials_oop;
+    if (o == sp) {
+        return true;
+    }
+    for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)sp - 1; i++) {
+        if (*(uint64_t *)(sp + 16 + 8 * i) == o) {
+            return true;
+        }
+    }
+    c = *(uint64_t *)(o + 8);
+    o_2 = *(uint64_t *)(cls_array + 8);
+    meta = *(uint64_t *)(o_2 + 8);
+    if ((c == meta) || (*(uint64_t *)(c + 8) == meta)) {
+        return true;
+    }
+    if ((c == object_memory_special(SO_BYTESYMBOL)) || (c == object_memory_special(SO_WIDESYMBOL))) {
+        return true;
+    }
+    s = c;
+    while (((s & 7) == 0) && (s != nil_oop)) {
+        if (is_eager_kind(s)) {
+            return true;
+        }
+        s = *(uint64_t *)(s + 16 + 0);
+    }
+    return false;
+}
+
+/* ObjectPrimitives>>isEagerKind: */
+static bool is_eager_kind(uint64_t s)
+{
+    oop o;
+    oop o_2;
+    uint64_t o_3;
+    if (s == object_memory_special(SO_COMPILEDMETHOD)) {
+        return true;
+    }
+    if (s == cls_context) {
+        return true;
+    }
+    if (s == cls_block) {
+        return true;
+    }
+    if (s == object_memory_special(SO_ASSOCIATION)) {
+        return true;
+    }
+    if (s == object_memory_special(SO_PROCESS)) {
+        return true;
+    }
+    o = object_memory_special(SO_SEMAPHORE);
+    if (s == *(uint64_t *)(o + 16 + 0)) {
+        return true;
+    }
+    if (s == object_memory_special(SO_MESSAGE)) {
+        return true;
+    }
+    o_2 = object_memory_special(SO_PROCESSOR);
+    if (s == *(uint64_t *)(o_2 + 8)) {
+        return true;
+    }
+    o_3 = *(uint64_t *)(cls_array + 16 + 8);
+    return s == *(uint64_t *)(o_3 + 8);
 }
 
 /* ObjectPrimitives>>primAllInstances */
@@ -336,19 +411,67 @@ void prim_basic_size(void)
 void prim_become_forward(void)
 {
     oop o;
+    oop r_follow;
+    oop p;
+    oop from;
     oop o_2;
+    oop r_follow_2;
+    oop p_2;
+    oop to;
+    oop o_3;
+    oop r_follow_3;
+    oop p_3;
+    oop o_4;
+    oop r_follow_4;
+    oop p_4;
     oop v;
     o = prim_base[0];
-    if (!(((o & 7) == 0) && ({
+    from = ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
     o_2 = prim_nargs > 0 ? prim_base[1] : nil_oop;
-    ((o_2 & 7) == 0) && (prim_base[0] != nil_oop); }))) {
+    to = ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    if (!(((from & 7) == 0) && (((to & 7) == 0) && (from != nil_oop)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    flush_if_married(prim_base[0]);
-    full_gc();
-    become_forward(prim_base[0], prim_nargs > 0 ? prim_base[1] : nil_oop);
+    if (from == to) {
+        prim_result = to;
+        prim_status = PS_OK;
+        return;
+    }
+    if (forwards_eagerly(from) || forwards_eagerly(to)) {
+        flush_if_married(from);
+        full_gc();
+        o_3 = prim_base[0];
+        o_4 = prim_nargs > 0 ? prim_base[1] : nil_oop;
+        become_forward(({
+    p_3 = o_3;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; }), ({
+    p_4 = o_4;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_4;
+    r_follow_4; }));
+    } else {
+        forward(from, to);
+    }
     v = prim_base[0];
     prim_result = v;
     prim_status = PS_OK;
@@ -1047,8 +1170,18 @@ void prim_change_class_to(void)
 /* ObjectPrimitives>>primClass */
 void prim_class(void)
 {
+    oop o;
+    oop r_follow;
+    oop p;
     oop v;
-    v = class_of(prim_nargs > 0 ? prim_base[1] : prim_base[0]);
+    o = prim_nargs > 0 ? prim_base[1] : prim_base[0];
+    v = class_of(({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; }));
     prim_result = v;
     prim_status = PS_OK;
 }
@@ -1056,9 +1189,30 @@ void prim_class(void)
 /* ObjectPrimitives>>primIdentical */
 void prim_identical(void)
 {
+    oop o;
+    oop r_follow;
+    oop p;
+    oop o_2;
+    oop r_follow_2;
+    oop p_2;
     bool a_boolean;
     oop v;
-    a_boolean = prim_base[0] == (prim_nargs > 0 ? prim_base[1] : nil_oop);
+    a_boolean = (prim_base[0] == (prim_nargs > 0 ? prim_base[1] : nil_oop)) || ((young_forwarders + old_forwarders != 0) && ({
+    o = prim_base[0];
+    o_2 = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; }) == ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; }); }));
     v = a_boolean ? true_oop : false_oop;
     prim_result = v;
     prim_status = PS_OK;

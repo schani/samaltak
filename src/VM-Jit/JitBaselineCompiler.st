@@ -1,6 +1,6 @@
 JitCompiler subclass: #JitBaselineCompiler
 	instanceVariableNames: 'codeStart pcLabels pcMerge ssKind ssVal ssReg ssInSlot ssTop ssBase regOwner selfValid curArgs curTemps curFrameSize regionEnds regionArgs regionTemps regionSizes regionCount slKind slPc slDepth slLabel slCont slTarget slA slB slC slR slX slY slInfo slCount siteBl siteLit siteInfo sitePc siteDepth siteCount retOff retPc retDepth retInfo retCount poolLabels blockPcs blockLabels blockCount headerLabel missLabel blockLabel megaLabel performLabel exitSyncLabel exitPlainLabel interruptLabel closureLabel makeArrayLabel entrySlowLabel primLabel rememberLabel returnSlowLabel boxLabel fusedTarget uentryOffset dead curPc dregRefs tempD slDA slDB slSavedStart slSavedCount saved savedCount loopActive loopEnd loopId loopTable slLoop plainEntry tierUpLabel counterAddr curMethod'
-	classVariableNames: 'BL_MAX_BLOCKS BL_MAX_REGIONS BL_MAX_RETS BL_MAX_SITES BL_MAX_SLOW BL_PIC_CASE_X64 BL_PIC_HEAD_X64 BL_PIC_JMP_X64 BL_UENTRY SL_ACCESS SL_BARRIER SL_CLASS SL_ENTRY_IMM SL_ENTRY_SLOW SL_FLOAT SL_FUSED SL_INTERRUPT SL_MUSTBEBOOLEAN SL_RESUME SL_RETURN SL_SEND SL_START SL_TIERUP SL_BOX SL_DOUBLES BL_MAX_SAVED BL_MAX_LOOPS SS_DREG SS_CONST SS_LIT SS_MAX SS_PINNED SS_REG SS_SELF SS_SLOT SS_TEMP'
+	classVariableNames: 'BL_MAX_BLOCKS BL_MAX_REGIONS BL_MAX_RETS BL_MAX_SITES BL_MAX_SLOW BL_PIC_CASE_X64 BL_PIC_HEAD_X64 BL_PIC_JMP_X64 BL_UENTRY SL_ACCESS SL_BARRIER SL_CLASS SL_ENTRY_IMM SL_ENTRY_SLOW SL_FLOAT SL_FUSED SL_INTERRUPT SL_MUSTBEBOOLEAN SL_RESUME SL_RETURN SL_SEND SL_START SL_TIERUP SL_FOLLOW SL_BOX SL_DOUBLES BL_MAX_SAVED BL_MAX_LOOPS SS_DREG SS_CONST SS_LIT SS_MAX SS_PINNED SS_REG SS_SELF SS_SLOT SS_TEMP'
 	package: 'VM-Jit'!
 
 JitBaselineCompiler comment: 'The baseline compiler (--jit baseline), after Cog''s StackToRegisterMappingCogit: one pass over the bytecodes with a simulated operand stack (ssKind: in its slot, in a register, a constant, nil/true/false, self, a temp or a literal not loaded yet), so values go from producer to consumer in registers (x0-x8, x12-x15) and constants become immediates; the stack is written to its slots only at sends, calls into the runtime and merge points (jump targets, which start with everything in its slot). Before an instruction that may send or call the runtime everything below its operands is written back (as Cog), so its slow path only stores the operands.
@@ -71,6 +71,7 @@ initialize
 	SL_RESUME := 10.
 	SL_BOX := 11.
 	SL_TIERUP := 12.
+	SL_FOLLOW := 13.
 	"SL_SEND flags (slInfo bits 32-)"
 	SL_FUSED := 16r100000000.
 	SL_FLOAT := 16r200000000.
@@ -856,6 +857,7 @@ emitFrameFor: isBlock args: na temps: nt
 			asm comment: 'the receiver: the outer context''s, into the closure''s slot'.
 			asm ldr: X16 base: X0 offset: (self fieldOffset: BC_OUTER).
 			asm ldr: X21 base: X16 offset: (self fieldOffset: CTX_RECEIVER).
+			self emitFollowReceiver.
 			asm stur: X21 base: X20 offset: -8]
 		ifFalse: [
 			asm comment: 'x21 := the receiver'.
@@ -870,6 +872,17 @@ emitFrameFor: isBlock args: na temps: nt
 			ifFalse: [
 				asm str: X23 base: X20 offset: (self slot: i).
 				i := i + 1]]
+!
+emitFollowReceiver
+	"A block's receiver (x21) comes from its outer Context, which may hold a forwarder (becomeForward:). x86: x16 holds nil before and after."
+	| done |
+	done := asm newLabel.
+	self emitNoForwardersTestTo: done.
+	self emitFollow: X21.
+	asm isX64 ifTrue: [
+		asm comment: 'x16 is nil again'.
+		asm ldr: X16 base: X22 offset: self nilOffset].
+	asm bind: done
 !
 emitFrameForX64: isBlock args: na temps: nt
 	"x86: the call pushed the native frame record (the return address); nil is a word of the JitState, loaded into x16 once."
@@ -888,6 +901,7 @@ emitFrameForX64: isBlock args: na temps: nt
 			asm comment: 'the receiver: the outer context''s, into the closure''s slot'.
 			asm ldr: X17 base: X0 offset: (self fieldOffset: BC_OUTER).
 			asm ldr: X21 base: X17 offset: (self fieldOffset: CTX_RECEIVER).
+			self emitFollowReceiver.
 			asm stur: X21 base: X20 offset: -8]
 		ifFalse: [
 			asm comment: 'x21 := the receiver'.
@@ -1670,11 +1684,19 @@ emitHashPrimitive: fail
 	asm ret
 !
 emitIdenticalPrimitive
-	asm comment: 'primitive ==: the receiver and the argument'.
-	asm ldr: X16 base: X20 offset: (self slot: 0).
-	asm cmp: X0 with: X16.
+	| follow back |
+	follow := asm newLabel.
+	back := asm newLabel.
+	asm comment: 'primitive ==: the receiver and the argument (followed while some object is a forwarder)'.
+	asm ldr: X17 base: X20 offset: (self slot: 0).
+	self emitForwardersTestTo: follow.
+	asm bind: back.
+	asm cmp: X0 with: X17.
 	asm csel: X0 with: X24 with: X25 cond: COND_EQ.
-	asm ret
+	asm ret.
+	asm bind: follow.
+	self emitFollow: X17.
+	asm b: back
 !
 emitClassPrimitive
 	| imm |
@@ -2554,16 +2576,27 @@ emitCompareResult: cond pc: pc into: rr
 	^j
 !
 identical: k pc: pc
-	"== and ~~ never send."
-	| a b ra rr j |
+	"== and ~~ never send. While some object is a forwarder (becomeForward:), both operands are followed first, unless one is an immediate, nil, true or false (none forwards to those)."
+	| a b ra rb rr j s plain |
 	a := ssTop - 2.
 	b := ssTop - 1.
+	plain := (ssKind at: a) = SS_CONST or: [(ssKind at: a) = SS_PINNED or: [(ssKind at: b) = SS_CONST or: [(ssKind at: b) = SS_PINNED]]].
 	self ssFlushTo: a.
 	ra := self ssMaterialize: a.
 	asm comment: (k = 19 ifTrue: ['=='] ifFalse: ['~~']).
 	((ssKind at: b) = SS_CONST and: [(ssVal at: b) >= 0 and: [(ssVal at: b) < 4096]])
 		ifTrue: [asm cmp: ra imm: (ssVal at: b)]
-		ifFalse: [asm cmp: ra with: (self ssMaterialize: b)].
+		ifFalse: [
+			rb := self ssMaterialize: b.
+			plain ifFalse: [
+				s := self slow: SL_FOLLOW pc: pc depth: ssTop.
+				s < 0 ifTrue: [^false].
+				slA at: s put: ra asInt8.
+				slB at: s put: rb asInt8.
+				slCont at: s put: asm newLabel.
+				self emitForwardersTestTo: (slLabel at: s).
+				asm bind: (slCont at: s)].
+			asm cmp: ra with: rb].
 	rr := self allocReg.
 	self ssPop: 2.
 	j := self emitCompareResult: (self conditionOf: k) pc: pc into: rr.
@@ -2590,7 +2623,7 @@ nilTest: t pc: pc
 !
 classOf: pc
 	"class: an object's class word, an immediate's by its tag (out of line)."
-	| a ra rr s |
+	| a ra rr s f |
 	a := ssTop - 1.
 	self ssFlushTo: a.
 	ra := self ssMaterialize: a.
@@ -2600,10 +2633,17 @@ classOf: pc
 	slA at: s put: ra asInt8.
 	slR at: s put: rr asInt8.
 	slCont at: s put: asm newLabel.
-	asm comment: 'class: an immediate''s by its tag (out of line)'.
+	f := self slow: SL_FOLLOW pc: pc depth: ssTop.
+	f < 0 ifTrue: [^false].
+	slA at: f put: ra asInt8.
+	slCont at: f put: asm newLabel.
+	asm comment: 'class: an immediate''s by its tag (out of line); a forwarder''s class word is tagged: follow it (out of line)'.
+	asm bind: (slCont at: f).
 	asm tst: ra imm: 7.
 	asm b: (slLabel at: s) if: COND_NE.
 	asm ldr: rr base: ra offset: 8.
+	asm tst: rr imm: 7.
+	asm b: (slLabel at: f) if: COND_NE.
 	asm bind: (slCont at: s).
 	self ssPop: 1.
 	^self ssPushReg: rr
@@ -3207,6 +3247,11 @@ emitSlowPaths
 			asm str: X30 base: SP preIndex: -16.
 			asm bl: rememberLabel.
 			asm ldr: X30 base: SP postIndex: 16.
+			asm b: (slCont at: i)].
+		kind = SL_FOLLOW ifTrue: [
+			asm comment: 'some object is a forwarder (becomeForward:): follow the operands'.
+			self emitFollow: (slA at: i).
+			(slB at: i) >= 0 ifTrue: [self emitFollow: (slB at: i)].
 			asm b: (slCont at: i)].
 		kind = SL_CLASS ifTrue: [
 			asm comment: 'the class of an immediate: by its tag'.

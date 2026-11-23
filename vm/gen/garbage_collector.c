@@ -14,6 +14,7 @@ size_t max_heap_bytes;
 static uint64_t old_alt_hi;
 static uint64_t old_alt_lo;
 size_t old_budget;
+uint64_t old_forwarders;
 static uint64_t old_hi;
 uint64_t old_lo;
 static size_t old_reserve;
@@ -42,6 +43,7 @@ static uint64_t vlo;
 static size_t weak_cap;
 static size_t weak_count;
 static oop *weak_list;
+uint64_t young_forwarders;
 uint64_t young_hi;
 uint64_t young_lo;
 
@@ -223,17 +225,50 @@ static void for_each_root(void (*fn)(oop *))
     interpreter_roots(fn);
 }
 
+/* GarbageCollector>>forward:to: */
+void forward(oop from, oop to)
+{
+    uint64_t h;
+    uint64_t h_2;
+    oop c;
+    h = *(uint64_t *)from;
+    h_2 = (h & 18446743940565565439ULL & 17870283321406128127ULL) | 21474836480ULL | H_FORWARDED;
+    *(uint64_t *)from = h_2;
+    c = to | FWD_TAG;
+    *(uint64_t *)(from + 8) = c;
+    if ((uint64_t)(from - young_lo) < young_hi - young_lo) {
+        young_forwarders = young_forwarders + 1;
+    } else {
+        old_forwarders = old_forwarders + 1;
+        if (((uint64_t)(to - young_lo) < young_hi - young_lo) && ((h & H_REMEMBERED) == 0)) {
+            remember(from);
+        }
+    }
+    forwarded(from);
+    become_from = from;
+    become_to = to;
+    for_each_root(become_root);
+    become_from = nil_oop;
+    become_to = nil_oop;
+}
+
 /* GarbageCollector>>fullCopy: */
 static uint64_t full_copy(oop o)
 {
     uint64_t h;
-    uint64_t bytes;
     uint64_t dst;
+    uint64_t bytes;
     uint64_t h_2;
     uint64_t h_3;
     h = *(uint64_t *)o;
     if ((h & H_FORWARDED) != 0) {
-        return *(uint64_t *)(o + 8);
+        dst = *(uint64_t *)(o + 8);
+        if ((dst & 7) == 0) {
+            return dst;
+        }
+        dst = full_copy(dst & 18446744073709551609ULL);
+        *(uint64_t *)(o + 8) = dst;
+        return dst;
     }
     bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
     dst = ft_top;
@@ -252,12 +287,18 @@ static bool full_dead(oop *v)
 {
     oop o;
     oop o_2;
+    uint64_t c;
     o = *v;
     if (((*(uint64_t *)o) & H_FORWARDED) == 0) {
         return true;
     }
     o_2 = *v;
-    *v = *(uint64_t *)(o_2 + 8);
+    c = *(uint64_t *)(o_2 + 8);
+    if ((c & 7) != 0) {
+        *v = c & 18446744073709551609ULL;
+        return full_dead(v);
+    }
+    *v = c;
     return false;
 }
 
@@ -325,6 +366,8 @@ void full_gc(void)
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+    young_forwarders = 0;
+    old_forwarders = 0;
     garbage_collector_after_gc();
     stat_full_us = stat_full_us + (uint64_t)(work_clock_held_us() - t0);
     if (live > max_heap_bytes) {
@@ -493,15 +536,24 @@ static uint64_t reserve(size_t n)
 static uint64_t scav_copy(oop o)
 {
     uint64_t h;
+    uint64_t dst;
     uint64_t bytes;
     uint32_t age;
-    uint64_t dst;
     uint64_t h_2;
     uint64_t h_3;
     uint64_t h_4;
     h = *(uint64_t *)o;
     if ((h & H_FORWARDED) != 0) {
-        return *(uint64_t *)(o + 8);
+        dst = *(uint64_t *)(o + 8);
+        if ((dst & 7) == 0) {
+            return dst;
+        }
+        dst = dst & 18446744073709551609ULL;
+        if (dst - young_lo < young_hi - young_lo) {
+            dst = scav_copy(dst);
+        }
+        *(uint64_t *)(o + 8) = dst;
+        return dst;
     }
     bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
     age = (uint32_t)(((h >> H_AGE_SHIFT) & 3) + 1);
@@ -531,6 +583,7 @@ static bool scav_dead(oop *v)
     oop o;
     oop o_2;
     oop o_3;
+    uint64_t c;
     o = *v;
     if ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) || ((*v >= to_lo) && (*v < to_hi))) {
         return false;
@@ -540,7 +593,12 @@ static bool scav_dead(oop *v)
         return true;
     }
     o_3 = *v;
-    *v = *(uint64_t *)(o_3 + 8);
+    c = *(uint64_t *)(o_3 + 8);
+    if ((c & 7) != 0) {
+        *v = c & 18446744073709551609ULL;
+        return scav_dead(v);
+    }
+    *v = c;
     return false;
 }
 
@@ -559,12 +617,22 @@ static bool scav_scan(oop o)
 {
     bool young;
     uint64_t c;
+    uint64_t c_2;
     oop *s;
     int64_t i;
     int64_t stop;
     oop v;
     young = false;
     c = *(uint64_t *)(o + 8);
+    if (((*(uint64_t *)o) & H_FORWARDED) != 0) {
+        c = c & 18446744073709551609ULL;
+        if (c - young_lo < young_hi - young_lo) {
+            c = scav_copy(c);
+        }
+        c_2 = c | FWD_TAG;
+        *(uint64_t *)(o + 8) = c_2;
+        return c - young_lo < young_hi - young_lo;
+    }
     if (c - young_lo < young_hi - young_lo) {
         c = scav_copy(c);
         *(uint64_t *)(o + 8) = c;
@@ -648,6 +716,7 @@ void scavenge(void)
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+    young_forwarders = 0;
     garbage_collector_after_gc();
     stat_scavenge_us = stat_scavenge_us + (uint64_t)(work_clock_held_us() - t0);
 }
@@ -758,47 +827,54 @@ static void verify_heap(void)
 static void verify_space_from(uint64_t lo, uint64_t hi, bool is_old)
 {
     uint64_t p;
+    uint64_t v;
     void *a;
     uint64_t o;
-    void *a_2;
-    uint64_t o_2;
     bool young;
+    uint64_t o_2;
+    void *a_2;
+    uint64_t o_3;
     int32_t f;
     int64_t i;
-    oop v;
     void *a_3;
     void *b;
     void *a_4;
     p = lo;
     while (p < hi) {
         if (((*(uint64_t *)p) & H_FORWARDED) != 0) {
-            a = (void *)p;
-            fatal_begin();
-            fprintf(stderr, "verify: forwarded object %p", a);
-            fatal_end();
-        }
-        o = *(uint64_t *)(p + 8);
-        if (!(((o & 7) == 0) && valid_ref(*(uint64_t *)(p + 8)))) {
-            a_2 = (void *)p;
-            fatal_begin();
-            fprintf(stderr, "verify: bad class in %p", a_2);
-            fatal_end();
-        }
-        o_2 = *(uint64_t *)(p + 8);
-        young = o_2 - young_lo < young_hi - young_lo;
-        f = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
-        if ((f >= 1) && (f <= 4)) {
-            for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)p - 1; i++) {
-                v = ((oop *)(p + 16))[i];
-                if (!valid_ref(v)) {
-                    a_3 = (void *)p;
-                    b = (void *)v;
-                    fatal_begin();
-                    fprintf(stderr, "verify: bad slot in %p: %p", a_3, b);
-                    fatal_end();
-                }
-                if (((v & 7) == 0) && ((uint64_t)(v - young_lo) < young_hi - young_lo)) {
-                    young = true;
+            v = *(uint64_t *)(p + 8);
+            if (!(((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FORWARDER) && (((v & 7) == FWD_TAG) && valid_ref(v & 18446744073709551609ULL)))) {
+                a = (void *)p;
+                fatal_begin();
+                fprintf(stderr, "verify: forwarded object %p", a);
+                fatal_end();
+            }
+            o = v & 18446744073709551609ULL;
+            young = o - young_lo < young_hi - young_lo;
+        } else {
+            o_2 = *(uint64_t *)(p + 8);
+            if (!(((o_2 & 7) == 0) && valid_ref(*(uint64_t *)(p + 8)))) {
+                a_2 = (void *)p;
+                fatal_begin();
+                fprintf(stderr, "verify: bad class in %p", a_2);
+                fatal_end();
+            }
+            o_3 = *(uint64_t *)(p + 8);
+            young = o_3 - young_lo < young_hi - young_lo;
+            f = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
+            if ((f >= 1) && (f <= 4)) {
+                for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)p - 1; i++) {
+                    v = ((oop *)(p + 16))[i];
+                    if (!valid_ref(v)) {
+                        a_3 = (void *)p;
+                        b = (void *)v;
+                        fatal_begin();
+                        fprintf(stderr, "verify: bad slot in %p: %p", a_3, b);
+                        fatal_end();
+                    }
+                    if (((v & 7) == 0) && (v - young_lo < young_hi - young_lo)) {
+                        young = true;
+                    }
                 }
             }
         }

@@ -161,6 +161,27 @@ roots: fn
 			w := w + 1].
 		w := w max: hi]
 !
+frame: i holds: o
+	"Frame i's receiver, arguments, temps or stack (not an optimized frame's raw slots) include o."
+	<function>
+	<var: #w type: 'int64_t'>
+	<var: #hi type: 'int64_t'>
+	<var: #rlo type: 'int64_t'>
+	<var: #rhi type: 'int64_t'>
+	| f w hi rlo rhi |
+	f := frames + i.
+	hi := i + 1 < nframes ifTrue: [((frames + (i + 1)) fp - cstack) asInt64 - 1] ifFalse: [cstackUsed asInt64].
+	rlo := hi.
+	rhi := hi.
+	(jit isOptFrame: f) ifTrue: [
+		rlo := (f fp - cstack) asInt64 + (jit rawBaseOf: f).
+		rhi := (f fp - cstack) asInt64 + (jit rawTopOf: f)].
+	w := (f fp - cstack) asInt64 - 1.
+	[w < hi] whileTrue: [
+		((w < rlo or: [w >= rhi]) and: [(cstack at: w) = o]) ifTrue: [^true].
+		w := w + 1].
+	^false
+!
 methodBcs: m
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
 !
@@ -483,8 +504,8 @@ lookupMethod: aClass selector: aSelector
 	[(self isPtr: c) and: [c ~= memory nilOop]] whileTrue: [
 		md := self loadRef: c at: BEH_METHODDICT.
 		((self isPtr: md) and: [md ~= memory nilOop]) ifTrue: [
-			keys := self loadRef: md at: MD_KEYS.
-			vals := self loadRef: md at: MD_VALUES.
+			keys := memory follow: (self loadRef: md at: MD_KEYS).
+			vals := memory follow: (self loadRef: md at: MD_VALUES).
 			cap := self numSlots: keys.
 			(cap ~= 0 and: [(self isPtr: vals) and: [(self numSlots: vals) >= cap]]) ifTrue: [
 				mask := cap - 1.
@@ -741,6 +762,18 @@ primResend: aSelector argc: n
 	resendSelector := aSelector.
 	resendArgc := n.
 	primStatus := PS_RESEND
+!
+followArgs: n at: b
+	"A primitive failed: if its receiver or one of its n arguments at b is a forwarder (becomeForward:), replace it by its target and answer true (the primitive runs again)."
+	<function>
+	| found |
+	gc forwardersExist ifFalse: [^false].
+	found := false.
+	0 to: n do: [:i |
+		(memory isForwarder: (b at: i)) ifTrue: [
+			b at: i put: (memory follow: (b at: i)).
+			found := true]].
+	^found
 ! !
 
 !Interpreter methodsFor: 'blocks'!
@@ -764,10 +797,10 @@ blockActivate: n fromArray: fromArray
 				self materializeAll.
 				^self blockActivate: (fromArray ifTrue: [0] ifFalse: [count]) fromArray: fromArray].
 			(frames + (nframes - 1)) sp: base asInt32.
-			b at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			b at: 0 put: (self receiverOfClosure: cl).
 			fromArray ifTrue: [0 to: count - 1 do: [:i | nfp at: i put: (self loadRef: arr at: i)]]]
 		ifFalse: [
-			cstack at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			cstack at: 0 put: (self receiverOfClosure: cl).
 			0 to: count - 1 do: [:i | cstack at: 1 + i put: (fromArray ifTrue: [self loadRef: arr at: i] ifFalse: [b at: 1 + i])].
 			self ctx: activeCtx setStackp: base.
 			nfp := cstack + 1].
@@ -786,6 +819,13 @@ blockActivate: n fromArray: fromArray
 	f sp: (count + ntemps) asInt32.
 	count to: count + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	cstackUsed := (nfp + count + ntemps - cstack) asUInt64
+!
+receiverOfClosure: cl
+	"The receiver of closure cl's activation: its outer Context's (which may hold a forwarder: Contexts are not fixed when an object is forwarded)."
+	| r |
+	r := self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER.
+	(self unlikely: gc forwardersExist) ifTrue: [r := memory follow: r].
+	^r
 !
 activateBlock: n
 	<function>
@@ -830,6 +870,9 @@ callPrimitive: fn base: b argc: n
 	primBaseIndex := b - self activeSlots.
 	primStatus := PS_NONE.
 	fn call.
+	(self unlikely: (primStatus = PS_FAIL and: [self followArgs: n at: primBase])) ifTrue: [
+		primStatus := PS_NONE.
+		fn call].
 	^primStatus
 !
 callLeafPrimitive: fn base: b argc: n
@@ -838,6 +881,9 @@ callLeafPrimitive: fn base: b argc: n
 	primBase := b.
 	primStatus := PS_NONE.
 	fn call.
+	(self unlikely: (primStatus = PS_FAIL and: [self followArgs: n at: b])) ifTrue: [
+		primStatus := PS_NONE.
+		fn call].
 	^primStatus
 !
 pushFrame: m argc: n code: c ecode: ecode
@@ -900,7 +946,7 @@ thawFor: code
 	n := self intVal: (s at: CTX_STACKP).
 	m := s at: CTX_METHOD.
 	f := frames + 0.
-	cstack at: 0 put: (s at: CTX_RECEIVER).
+	cstack at: 0 put: (memory follow: (s at: CTX_RECEIVER)).
 	libc memcpy: cstack + 1 from: s + CTX_FIXED size: n asUInt64 * 8.
 	f method: m.
 	f closure: (s at: CTX_CLOSURE).
@@ -1074,6 +1120,7 @@ readInt16: p
 loadCtx
 	| s m |
 	s := self slotsOf: activeCtx.
+	(self unlikely: gc forwardersExist) ifTrue: [self storeRef: activeCtx at: CTX_RECEIVER put: (memory follow: (s at: CTX_RECEIVER))].
 	m := s at: CTX_METHOD.
 	lits := self slotsOf: ((self slotsOf: m) at: CM_LITERALS).
 	fp := s + CTX_FIXED.
@@ -1744,11 +1791,17 @@ bitOr
 !
 identical
 	<bytecode: 16rB3>
-	^self boolResult: (sp at: -1) = sp value
+	^self boolResult: (self is: (sp at: -1) identicalTo: sp value)
 !
 notIdentical
 	<bytecode: 16rB4>
-	^self boolResult: (sp at: -1) ~= sp value
+	^self boolResult: (self is: (sp at: -1) identicalTo: sp value) not
+!
+is: a identicalTo: b
+	"==: either may be a forwarder (becomeForward:) of the other."
+	a = b ifTrue: [^true].
+	(self unlikely: gc forwardersExist) ifFalse: [^false].
+	^(memory follow: a) = (memory follow: b)
 !
 bcAt
 	<bytecode: 16rB0>
@@ -1840,6 +1893,7 @@ bcClass
 	<bytecode: 16rBD>
 	| r |
 	r := sp value.
+	(self unlikely: ((r bitAnd: 7) = 0 and: [((self rawClass: r) bitAnd: 7) ~= 0])) ifTrue: [r := memory follow: r].
 	sp value: ((r bitAnd: 7) = 0 ifTrue: [self rawClass: r] ifFalse: [(r bitAnd: 1) ~= 0 ifTrue: [memory clsSmallint] ifFalse: [memory classOf: r]])
 ! !
 
@@ -1926,6 +1980,9 @@ haveEntry: e
 		primBase := sp - argc.
 		primStatus := PS_NONE.
 		e prim call.
+		(self unlikely: (primStatus = PS_FAIL and: [self followArgs: argc at: sp - argc])) ifTrue: [
+			primStatus := PS_NONE.
+			e prim call].
 		(self likely: primStatus = PS_OK) ifTrue: [
 			sp := sp - argc.
 			sp value: primResult.
@@ -1966,6 +2023,9 @@ haveEntry: e
 		epoch := gc gcEpoch.
 		tmpRoots at: 0 put: newMethod.
 		e prim call.
+		(self unlikely: (primStatus = PS_FAIL and: [gc gcEpoch = epoch and: [self followArgs: argc at: primBase]])) ifTrue: [
+			primStatus := PS_NONE.
+			e prim call].
 		primStatus caseOf: {
 			[PS_OK] -> [
 				gc gcEpoch ~= epoch ifTrue: [self reload].
@@ -2052,6 +2112,11 @@ enterFrame
 sendDoesNotUnderstand
 	<label>
 	| dnu msg args mc isize |
+	(self unlikely: (cls bitAnd: 7) = FWD_TAG) ifTrue: [
+		"the receiver is a forwarder (becomeForward:): send to its target"
+		sp at: argc negated put: (memory follow: (sp at: argc negated)).
+		cls := self receiverClass: (sp at: argc negated).
+		^self doLookup].
 	dnu := memory special: SO_SEL_DNU.
 	sel = dnu ifTrue: [
 		self externalize.

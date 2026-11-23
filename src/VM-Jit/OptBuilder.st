@@ -403,7 +403,7 @@ inlineForeignClosure: x pc: pc act: a rcvSlot: r argc: argc
 	obForeignM at: obForeignDepth put: m.
 	obForeignS at: obForeignDepth put: sp.
 	obForeignDepth := obForeignDepth + 1.
-	self inlineBody: g info: d method: m ana: (self analysisOf: m) outer: -2 home: -1 receiver: (self loadField: CTX_RECEIVER of: outer) pc: pc act: a rcvSlot: r argc: argc.
+	self inlineBody: g info: d method: m ana: (self analysisOf: m) outer: -2 home: -1 receiver: (self loadFollowed: CTX_RECEIVER of: outer) pc: pc act: a rcvSlot: r argc: argc.
 	obForeignDepth := obForeignDepth - 1.
 	^true
 !
@@ -796,10 +796,11 @@ param: i
 	(ir node: n) aux: i.
 	^n
 !
-constant: v
-	"A constant oop (in the entry block, so that it dominates every use): one node per value (up to 256 values a unit), so that the values merged of equal constants are that constant (a branch on it folds where it is built)."
+constant: w
+	"A constant oop (in the entry block, so that it dominates every use): one node per value (up to 256 values a unit), so that the values merged of equal constants are that constant (a branch on it folds where it is built). A forwarder (becomeForward:) is its target."
 	<function>
-	| n nd i k |
+	| n nd i k v |
+	v := memory follow: w.
 	i := ((v * 2654435761) >> 8 bitAnd: 255) asInt32.
 	k := 0.
 	[k < 256 and: [(obConstNodes at: i) >= 0 and: [(obConstVals at: i) ~= v]]] whileTrue: [
@@ -1263,6 +1264,13 @@ loadField: i of: o
 	n := self add: O_LOADFIELD rep: R_OOP.
 	(ir node: n) a: o.
 	(ir node: n) aux: i.
+	^n
+!
+loadFollowed: i of: o
+	"loadField:of: of a field that may hold a forwarder (becomeForward:): its target."
+	| n |
+	n := self loadField: i of: o.
+	(ir node: n) flags: ((ir node: n) flags bitOr: NF_FOLLOW).
 	^n
 !
 storeField: i of: o value: v checked: s

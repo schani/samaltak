@@ -1857,6 +1857,26 @@ static void flush_code(void)
     }
 }
 
+/* JitRuntime>>forwarded: */
+void forwarded(oop o)
+{
+    int32_t i;
+    frame *f;
+    uint64_t c;
+    state_block->forwarders = 1;
+    if (!(jit_mode == JIT_OPT)) {
+        return;
+    }
+    invalidate_embedding(o);
+    for (i = 0; i <= nframes - 1; i++) {
+        f = frames + i;
+        c = f->code;
+        if ((c > JIT_MAX_COUNT) && (((jit_method *)f->code)->mode == JIT_OPT) && interpreter_frame(i, o)) {
+            invalidate_unit((jit_method *)f->code);
+        }
+    }
+}
+
 /* JitRuntime>>headersValid: */
 bool headers_valid(bool (*valid)(oop))
 {
@@ -2442,6 +2462,7 @@ static void refresh_state(void)
     state_block->mega_cache = (uint64_t)mega_table;
     state_block->block_cache = (uint64_t)block_table;
     state_block->cstack_limit = (uint64_t)(cstack + 65534);
+    state_block->forwarders = young_forwarders + old_forwarders != 0 ? 1 : 0;
     if (state_block->stress <= 0) {
         state_block->stress = 37;
     }
@@ -2651,8 +2672,18 @@ oop special_fast(int32_t k, oop *base)
 {
     oop a;
     oop b;
+    oop r_follow;
+    oop p;
+    oop r_follow_2;
+    oop p_2;
     bool a_boolean;
+    oop r_follow_3;
+    oop p_3;
+    oop r_follow_4;
+    oop p_4;
     bool a_boolean_2;
+    oop r_follow_5;
+    oop p_5;
     int32_t i_2;
     uint32_t v_2;
     int64_t v_3;
@@ -2708,15 +2739,45 @@ oop special_fast(int32_t k, oop *base)
     a = base[0];
     b = base[1];
     if (k == 19) {
-        a_boolean = a == b;
+        a_boolean = (a == b) || ((young_forwarders + old_forwarders != 0) && (({
+    p = a;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; }) == ({
+    p_2 = b;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; })));
         return a_boolean ? true_oop : false_oop;
     }
     if (k == 20) {
-        a_boolean_2 = a != b;
+        a_boolean_2 = !((a == b) || ((young_forwarders + old_forwarders != 0) && (({
+    p_3 = a;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; }) == ({
+    p_4 = b;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_4;
+    r_follow_4; }))));
         return a_boolean_2 ? true_oop : false_oop;
     }
     if (k == 29) {
-        return class_of(a);
+        return class_of(({
+    p_5 = a;
+    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
+        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_5 = p_5;
+    r_follow_5; }));
     }
     if ((k == 27) || (k == 28)) {
         if (((a & 7) == 0) && (*(uint64_t *)(a + 8) == cls_point)) {

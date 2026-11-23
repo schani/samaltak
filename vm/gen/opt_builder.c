@@ -71,7 +71,7 @@ static void build_act(int32_t a);
 static bool build_once(oop m);
 static bool can_inline(uint64_t m, int32_t a);
 static int32_t closure_of(int32_t v, int d);
-static int32_t constant(oop v);
+static int32_t constant(oop w);
 static int32_t emit(int32_t pc, int32_t a);
 static int32_t escaping_closure(void);
 static void opt_builder_float_arith(int32_t k, int32_t x, int32_t y, int32_t pc, int32_t a, int32_t r);
@@ -1199,14 +1199,24 @@ static int32_t closure_of(int32_t v, int d)
 }
 
 /* OptBuilder>>constant: */
-static int32_t constant(oop v)
+static int32_t constant(oop w)
 {
+    oop r_follow;
+    oop p;
+    oop v;
     int32_t i;
     int64_t k;
     int32_t n_2;
     int32_t n;
     opt_node *nd;
     int32_t n_3;
+    v = ({
+    p = w;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
     i = (int32_t)(((v * 2654435761LL) >> 8) & 255);
     k = 0;
     while ((k < 256) && ((ob_const_nodes[i] >= 0) && (ob_const_vals[i] != v))) {
@@ -8241,8 +8251,10 @@ static bool inline_foreign_closure(int32_t x, int32_t pc, int32_t a, int32_t r, 
     int32_t n_8;
     int32_t n_7;
     int32_t outer;
+    int32_t r_load_followed;
     int32_t r_load_field_2;
     int32_t r_add_5;
+    int32_t n_11;
     int32_t n_10;
     int32_t n_9;
     c = foreign_closure_of(x, argc, pc, a);
@@ -8343,14 +8355,18 @@ exit_type_2:;
     ob_foreign_depth = ob_foreign_depth + 1;
     inline_body(g, d, m, analysis_of(m), -2, -1, ({
     n_9 = ({
-    n_10 = new_node(O_LOADFIELD, R_OOP);
-    append(n_10, ob_cur_block);
-    r_add_5 = n_10;
+    n_10 = ({
+    n_11 = new_node(O_LOADFIELD, R_OOP);
+    append(n_11, ob_cur_block);
+    r_add_5 = n_11;
     r_add_5; });
-    (opt_nodes + n_9)->a = outer;
-    (opt_nodes + n_9)->aux = CTX_RECEIVER;
-    r_load_field_2 = n_9;
-    r_load_field_2; }), pc, a, r, argc);
+    (opt_nodes + n_10)->a = outer;
+    (opt_nodes + n_10)->aux = CTX_RECEIVER;
+    r_load_field_2 = n_10;
+    r_load_field_2; });
+    (opt_nodes + n_9)->flags = (opt_nodes + n_9)->flags | NF_FOLLOW;
+    r_load_followed = n_9;
+    r_load_followed; }), pc, a, r, argc);
     ob_foreign_depth = ob_foreign_depth - 1;
     return true;
 }

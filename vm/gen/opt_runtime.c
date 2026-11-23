@@ -589,10 +589,13 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     frame *g_2;
     oop m;
     int32_t d;
+    oop o;
+    oop r_follow;
+    oop p;
     int32_t s;
     oop cl;
-    uint64_t o;
     uint64_t o_2;
+    uint64_t o_3;
     int32_t n;
     uint64_t n_2;
     int64_t i_2;
@@ -603,10 +606,13 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     frame *g_3;
     oop m_2;
     int32_t d_2;
+    oop o_4;
+    oop r_follow_2;
+    oop p_2;
     int32_t s_2;
     oop cl_2;
-    uint64_t o_3;
-    uint64_t o_4;
+    uint64_t o_5;
+    uint64_t o_6;
     int32_t n_3;
     uint64_t n_4;
     int32_t j_2;
@@ -618,10 +624,13 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     frame *g_4;
     oop m_3;
     int32_t d_3;
+    oop o_7;
+    oop r_follow_3;
+    oop p_3;
     int32_t s_3;
     oop cl_3;
-    uint64_t o_5;
-    uint64_t o_6;
+    uint64_t o_8;
+    uint64_t o_9;
     int32_t n_5;
     uint64_t n_6;
     h = (jit_method *)f->code;
@@ -643,7 +652,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
         if (i > 0) {
             fp = fp + rt_act_depth[i - 1] + 1;
         }
-        fp[-1] = rt_deopt_vals[rt_act_rcv[i]];
+        o = rt_deopt_vals[rt_act_rcv[i]];
+        fp[-1] = ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
         for (s = 0; s <= d - 1; s++) {
             fp[s] = rt_deopt_vals[rt_act_vals[i] + s];
         }
@@ -655,11 +671,11 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
         g_2->closure = cl;
         g_2->code = jit_runtime_block_code_for(m);
         g_2->fp = fp;
-        o = *(uint64_t *)(m + 16 + 24);
-        g_2->ip = (uint8_t *)(o + 16) + rt_act_pc[i];
+        o_2 = *(uint64_t *)(m + 16 + 24);
+        g_2->ip = (uint8_t *)(o_2 + 16) + rt_act_pc[i];
         g_2->pc = rt_act_pc[i];
-        o_2 = *(uint64_t *)(m + 16 + 16);
-        g_2->lits = (oop *)(o_2 + 16);
+        o_3 = *(uint64_t *)(m + 16 + 16);
+        g_2->lits = (oop *)(o_3 + 16);
         g_2->sp = d;
     }
     rt_written = rt_act_count;
@@ -691,7 +707,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             if (i_3 > 0) {
                 fp_2 = fp_2 + rt_act_depth[i_3 - 1] + 1;
             }
-            fp_2[-1] = rt_deopt_vals[rt_act_rcv[i_3]];
+            o_4 = rt_deopt_vals[rt_act_rcv[i_3]];
+            fp_2[-1] = ({
+    p_2 = o_4;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
             for (s_2 = 0; s_2 <= d_2 - 1; s_2++) {
                 fp_2[s_2] = rt_deopt_vals[rt_act_vals[i_3] + s_2];
             }
@@ -703,11 +726,11 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             g_3->closure = cl_2;
             g_3->code = jit_runtime_block_code_for(m_2);
             g_3->fp = fp_2;
-            o_3 = *(uint64_t *)(m_2 + 16 + 24);
-            g_3->ip = (uint8_t *)(o_3 + 16) + rt_act_pc[i_3];
+            o_5 = *(uint64_t *)(m_2 + 16 + 24);
+            g_3->ip = (uint8_t *)(o_5 + 16) + rt_act_pc[i_3];
             g_3->pc = rt_act_pc[i_3];
-            o_4 = *(uint64_t *)(m_2 + 16 + 16);
-            g_3->lits = (oop *)(o_4 + 16);
+            o_6 = *(uint64_t *)(m_2 + 16 + 16);
+            g_3->lits = (oop *)(o_6 + 16);
             g_3->sp = d_2;
         }
         rt_written = rt_act_count;
@@ -730,7 +753,14 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             if (i_4 > 0) {
                 fp_3 = fp_3 + rt_act_depth[i_4 - 1] + 1;
             }
-            fp_3[-1] = rt_deopt_vals[rt_act_rcv[i_4]];
+            o_7 = rt_deopt_vals[rt_act_rcv[i_4]];
+            fp_3[-1] = ({
+    p_3 = o_7;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; });
             for (s_3 = 0; s_3 <= d_3 - 1; s_3++) {
                 fp_3[s_3] = rt_deopt_vals[rt_act_vals[i_4] + s_3];
             }
@@ -742,11 +772,11 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             g_4->closure = cl_3;
             g_4->code = jit_runtime_block_code_for(m_3);
             g_4->fp = fp_3;
-            o_5 = *(uint64_t *)(m_3 + 16 + 24);
-            g_4->ip = (uint8_t *)(o_5 + 16) + rt_act_pc[i_4];
+            o_8 = *(uint64_t *)(m_3 + 16 + 24);
+            g_4->ip = (uint8_t *)(o_8 + 16) + rt_act_pc[i_4];
             g_4->pc = rt_act_pc[i_4];
-            o_6 = *(uint64_t *)(m_3 + 16 + 16);
-            g_4->lits = (oop *)(o_6 + 16);
+            o_9 = *(uint64_t *)(m_3 + 16 + 16);
+            g_4->lits = (oop *)(o_9 + 16);
             g_4->sp = d_3;
         }
         rt_written = rt_act_count;
@@ -844,6 +874,9 @@ uint64_t deopt_guard(frame *f, int64_t k)
     int k_3;
     int k_4;
     int64_t i_8;
+    oop o_4;
+    oop r_follow;
+    oop p_3;
     oop r_3;
     oop r_4;
     oop r_5;
@@ -1146,7 +1179,14 @@ exit_signature_at_3:;
 exit_send_argc_of:;
     r_send_argc_of; }) - 1);
             if (i_8 >= 0) {
-                r_3 = g_2->fp[i_8];
+                o_4 = g_2->fp[i_8];
+                r_3 = ({
+    p_3 = o_4;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_3;
+    r_follow; });
                 note_send(m, pc, (r_3 & 7) != 0 ? tag_class[r_3 & 7] : *(uint64_t *)(r_3 + 8));
                 if (getenv("SAMALTAK_OPT_TRACE") != NULL) {
                     r_4 = g_2->fp[i_8];
@@ -1356,6 +1396,49 @@ void invalidate_all(void)
     }
 }
 
+/* OptRuntime>>invalidateEmbedding: */
+void invalidate_embedding(oop o)
+{
+    int32_t i;
+    jit_method *h;
+    oop *pool;
+    bool found;
+    int64_t k;
+    oop m;
+    int32_t n;
+    jit_method *h_2;
+    for (i = 0; i <= rt_all_count - 1; i++) {
+        h = rt_all[i];
+        if ((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0)) {
+            pool = (oop *)(h->code_start + h->pool_offset);
+            found = false;
+            for (k = 0; k <= (int64_t)h->pool_count - 1; k++) {
+                if (pool[k] == o) {
+                    found = true;
+                }
+            }
+            if (found) {
+                if (!((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0))) {
+                    goto exit_invalidate;
+                }
+                rt_stat_invalidations = rt_stat_invalidations + 1;
+                if ((h->block_start == 0) && (h->osr_pc == 0)) {
+                    m = h->method;
+                    n = initial_count(h->method);
+                    opt_counts[((uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535] = n;
+                    h_2 = (jit_method *)h->lower;
+                    begin_writing();
+                    h_2->opt = 0;
+                    end_writing();
+                    code_changed(h->method);
+                }
+                jit_runtime_kill(h);
+            exit_invalidate:;
+            }
+        }
+    }
+}
+
 /* OptRuntime>>invalidateSelector: */
 void invalidate_selector(oop sel)
 {
@@ -1390,6 +1473,30 @@ void invalidate_selector(oop sel)
             }
         }
     }
+}
+
+/* OptRuntime>>invalidateUnit: */
+void invalidate_unit(jit_method *h)
+{
+    oop m;
+    int32_t n;
+    jit_method *h_2;
+    if (!((h != NULL) && ((h->flags & JM_FAILED) == 0) && ((h->flags & 2) == 0))) {
+        goto exit_invalidate;
+    }
+    rt_stat_invalidations = rt_stat_invalidations + 1;
+    if ((h->block_start == 0) && (h->osr_pc == 0)) {
+        m = h->method;
+        n = initial_count(h->method);
+        opt_counts[((uint32_t)(((*(uint64_t *)m) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535] = n;
+        h_2 = (jit_method *)h->lower;
+        begin_writing();
+        h_2->opt = 0;
+        end_writing();
+        code_changed(h->method);
+    }
+    jit_runtime_kill(h);
+exit_invalidate:;
 }
 
 /* OptRuntime>>leave:after: */
@@ -1494,6 +1601,9 @@ void materialize(frame *f)
     oop *s;
     int32_t v_2;
     int32_t v_3;
+    oop o_2;
+    oop r_follow;
+    oop p;
     int32_t j_3;
     h = (jit_method *)f->code;
     k = f->pc - (int32_t)h->bc_size;
@@ -1585,7 +1695,14 @@ exit_frame_size_of_act:;
         s[CTX_STACKP] = (uint64_t)((((int64_t)v_3) << 1) | 1);
         s[CTX_METHOD] = rt_act_method[i_5];
         s[CTX_CLOSURE] = rt_act_closure[i_5] >= 0 ? rt_deopt_vals[rt_act_closure[i_5]] : nil_oop;
-        s[CTX_RECEIVER] = rt_deopt_vals[rt_act_rcv[i_5]];
+        o_2 = rt_deopt_vals[rt_act_rcv[i_5]];
+        s[CTX_RECEIVER] = ({
+    p = o_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
         for (j_3 = 0; j_3 <= rt_act_depth[i_5] - 1; j_3++) {
             s[CTX_FIXED + j_3] = rt_deopt_vals[rt_act_vals[i_5] + j_3];
         }
@@ -1937,12 +2054,14 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     oop sel;
     oop *base;
     oop r;
+    oop r_follow;
+    oop p;
     oop o;
     uint64_t o_2;
     uint64_t moved;
     oop r_innermost_method_of;
     int32_t nacts;
-    int64_t p;
+    int64_t p_2;
     oop m;
     int32_t j;
     int32_t i_2;
@@ -2021,6 +2140,16 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     }
     base = f->fp + (int64_t)h->slots;
     r = base[0];
+    if (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0)) {
+        r = ({
+    p = r;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+        base[0] = r;
+    }
     if (kind == 2) {
         r = special_fast(sp, base);
         if (r != 0) {
@@ -2049,12 +2178,12 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     if (kind == 1) {
         o_3 = ({
     nacts = rec[4];
-    p = 5;
+    p_2 = 5;
     m = nil_oop;
     for (j = 0; j <= nacts - 1; j++) {
-        i_2 = rec[p];
+        i_2 = rec[p_2];
         m = ((oop *)(h->code_start + h->pool_offset))[i_2];
-        p = p + 5 + rec[p + 4];
+        p_2 = p_2 + 5 + rec[p_2 + 4];
     }
     r_innermost_method_of = m;
     r_innermost_method_of; });

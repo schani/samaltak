@@ -435,6 +435,7 @@ refreshState
 	stateBlock contextClass: memory clsContext.
 	brt refresh.
 	stateBlock cstackLimit: interpreter cstackLimit.
+	stateBlock forwarders: (gc forwardersExist ifTrue: [1] ifFalse: [0]).
 	self resetStress
 !
 resetStress
@@ -1023,6 +1024,18 @@ rawBaseOf: f
 rawTopOf: f
 	^optimizer rawTopOf: f
 !
+forwarded: o
+	"becomeForward: makes o a forwarder: machine code follows forwarders from now on; optimized code that embeds o, or whose frames hold it, may know its class and is invalidated (its frames leave where they next return or check)."
+	<function>
+	| f |
+	stateBlock forwarders: 1.
+	jitMode = JIT_OPT ifFalse: [^self].
+	optimizer invalidateEmbedding: o.
+	0 to: interpreter nframes - 1 do: [:i |
+		f := interpreter frames + i.
+		((self isOptFrame: f) and: [interpreter frame: i holds: o]) ifTrue: [
+			optimizer invalidateUnit: (self cCoerce: f code to: 'JitMethod *')]]
+!
 becomeMethod: from
 	"from is about to be replaced: if it is a compiled method, its code must not run for its successor."
 	<function>
@@ -1202,9 +1215,9 @@ specialFast: k base: base
 	| a b x y c i v fx fy |
 	a := base at: 0.
 	b := base at: 1.
-	k = 19 ifTrue: [^self bool: a = b].
-	k = 20 ifTrue: [^self bool: a ~= b].
-	k = 29 ifTrue: [^memory classOf: a].
+	k = 19 ifTrue: [^self bool: (a = b or: [gc forwardersExist and: [(memory follow: a) = (memory follow: b)]])].
+	k = 20 ifTrue: [^self bool: (a = b or: [gc forwardersExist and: [(memory follow: a) = (memory follow: b)]]) not].
+	k = 29 ifTrue: [^memory classOf: (memory follow: a)].
 	(k = 27 or: [k = 28]) ifTrue: [
 		((self isPtr: a) and: [(self rawClass: a) = memory clsPoint]) ifTrue: [^self loadRef: a at: k - 27].
 		^0].
@@ -1596,11 +1609,11 @@ VMStruct subclass: #JitState
 	classVariableNames: ''
 	package: 'VM-Jit'!
 
-JitState comment: 'What machine code reads through x22: nil, true and false and the classes inline paths check (refreshed after every GC; tagClasses by the low 3 bits of an immediate), the interrupt flag (set with the scheduler''s, cleared by the runtime''s interrupt check), the frames array, the native stack pointer jit_enter left (exits reset it), the young space''s bounds (the store barrier). Baseline code also uses: stackLimit (a callee''s fp at or above it takes the entry''s slow path: the C stack is nearly full, or an interrupt is pending, which sets it to 0; stackLimitNormal is its value otherwise), baseFrame and baseRecord (the first Frame and native frame record of the activations since jit_enter: frame f''s record is baseRecord - (f - baseFrame) / 4), the addresses of eden''s top and limit (edenBox) and of the identity hash generator (hashBox, with its multiplier and increment), the megamorphic and block caches (JitBaselineRuntime), and words the runtime answers through (result, ecode) or reads (primRet: where a C primitive returns to). Optimized code also uses: cstackLimit (the highest slot address a frame may use), the deoptimization stress counter, where a guard that fails saves the registers (dump: x0-x31, then d0-d31).'!
+JitState comment: 'What machine code reads through x22: nil, true and false and the classes inline paths check (refreshed after every GC; tagClasses by the low 3 bits of an immediate), the interrupt flag (set with the scheduler''s, cleared by the runtime''s interrupt check), whether some object is a forwarder (becomeForward:; machine code then follows the operands of == and the receivers of blocks), the frames array, the native stack pointer jit_enter left (exits reset it), the young space''s bounds (the store barrier). Baseline code also uses: stackLimit (a callee''s fp at or above it takes the entry''s slow path: the C stack is nearly full, or an interrupt is pending, which sets it to 0; stackLimitNormal is its value otherwise), baseFrame and baseRecord (the first Frame and native frame record of the activations since jit_enter: frame f''s record is baseRecord - (f - baseFrame) / 4), the addresses of eden''s top and limit (edenBox) and of the identity hash generator (hashBox, with its multiplier and increment), the megamorphic and block caches (JitBaselineRuntime), and words the runtime answers through (result, ecode) or reads (primRet: where a C primitive returns to). Optimized code also uses: cstackLimit (the highest slot address a frame may use), the deoptimization stress counter, where a guard that fails saves the registers (dump: x0-x31, then d0-d31).'!
 
 !JitState class methodsFor: 'declaring'!
 fields
-	^#((nilOop oop) (trueOop oop) (falseOop oop) (interrupt int32_t) (pad int32_t) (frames uint64_t) (exitSp uint64_t) (youngLo uint64_t) (youngHi uint64_t)
+	^#((nilOop oop) (trueOop oop) (falseOop oop) (interrupt int32_t) (forwarders int32_t) (frames uint64_t) (exitSp uint64_t) (youngLo uint64_t) (youngHi uint64_t)
 		(arrayClass oop) (pointClass oop)
 		(stackLimit uint64_t) (stackLimitNormal uint64_t) (baseFrame uint64_t) (baseRecord uint64_t)
 		(edenBox uint64_t) (hashBox uint64_t) (lcgMul uint64_t) (lcgAdd uint64_t)

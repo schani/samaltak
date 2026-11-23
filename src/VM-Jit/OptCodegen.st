@@ -1,6 +1,6 @@
 OptModule subclass: #OptCodegen
 	instanceVariableNames: 'cgHeldSlot cgHeldReg cgHeldCount cgScanPc cgBinds ir passes regalloc cgCodeStart cgBcSize cgValidSlots cgEntryPc cgSlotTop cgRawBase cgMaxOut cgNeed cgExitPlainLabel cgExitSyncLabel cgDeoptLabel cgReturnLabel cgHeaderLabel cgChecksLabel cgBodyLabel cgInterruptLabel cgBarrierLabel cgDeoptReturnLabel cgStackFullLabel cgOuts cgOutCount cgPoolOops cgPoolLabels cgPoolCount cgMetaWords cgMetaCount cgSpOffsets cgSpCount cgMoveSrc cgMoveDst cgMoveLoc cgMoveCount cgRootAct cgLastPc cgLastAct builder cgDeps cgDepCount cgSunk cgSunkCount cgChainActs cgChainCount cgDoubles cgSiteBl cgSiteLit cgSiteInfo cgSiteIndex cgSiteSel cgSiteCount cgRetOff cgRetIndex cgRetArgc cgRetCount cgOrder cgPlaced'
-	classVariableNames: 'CG_MAX_META CG_MAX_MOVES CG_MAX_OUT CG_MAX_POOL CG_MAX_RETS CG_MAX_HELD CG_MAX_SITES CG_MAX_SP OUT_ARRAY OUT_BARRIER OUT_BOTTOM OUT_DEOPT OUT_INTERRUPT OUT_LAZY OUT_NOTMADE OUT_RESUME OUT_SENT OUT_SITE OUT_STACK OUT_WIDOW'
+	classVariableNames: 'CG_MAX_META CG_MAX_MOVES CG_MAX_OUT CG_MAX_POOL CG_MAX_RETS CG_MAX_HELD CG_MAX_SITES CG_MAX_SP OUT_ARRAY OUT_BARRIER OUT_BOTTOM OUT_DEOPT OUT_FOLLOW OUT_INTERRUPT OUT_LAZY OUT_NOTMADE OUT_RESUME OUT_SENT OUT_SITE OUT_STACK OUT_WIDOW'
 	package: 'VM-Jit'!
 
 OptCodegen comment: 'Emits arm64 code for the allocated IR (OptRegalloc) in block order, then the out-of-line paths (guard failures, interrupt checks, brace Arrays the runtime makes, store barriers, deoptimization after a call, resumption after a call, the stack check), then the oop pool the code loads constants from (pc-relative; GC roots) and the inline caches'' literals. Records for every safepoint and guard the deoptimization metadata (OptRuntime decodes it): kind, continuation, the send, and for each activation its method, closure, receiver, pc and where each slot''s value is (LOC_*).
@@ -45,7 +45,8 @@ initialize
 	OUT_RESUME := 9.
 	OUT_SENT := 10.
 	OUT_NOTMADE := 11.
-	OUT_ARRAY := 12
+	OUT_ARRAY := 12.
+	OUT_FOLLOW := 13
 ! !
 
 !OptCodegen methodsFor: 'accessing'!
@@ -214,7 +215,7 @@ maxOutgoing
 !
 emitBaselineEntry
 	"The entry of a call made as baseline code makes it (x0 the receiver, a block's unit: the closure; x20 our fp, the arguments in place; x30 back to the caller): a method's unchecked entry branches here once this code is installed (JitBaselineRuntime>>redirect:to:), the block stub enters a block's unit here. The frame as baseline code builds it (code, closure, ctx, fp, a zero pc and sp: the runtime derives the rest), temps and home slots nil; no room on the stack: baseline's entry slow path (the runtime retries, leaves or sends)."
-	| ac n fb entry slow far |
+	| ac n fb entry slow far fl |
 	ac := ir act: cgRootAct.
 	n := ac numArgs.
 	fb := self frameBytes asInt64.
@@ -239,10 +240,14 @@ emitBaselineEntry
 		ifTrue: [asm stp: X23 with: X23 base: X19 offset: self closureOffset]
 		ifFalse: [
 			asm stp: X0 with: X23 base: X19 offset: self closureOffset.
-			asm comment: 'the receiver: the outer context''s'.
+			asm comment: 'the receiver: the outer context''s (followed if a forwarder)'.
 			asm ldr: X16 base: X0 offset: (self fieldOffset: BC_OUTER).
-			asm ldr: X16 base: X16 offset: (self fieldOffset: CTX_RECEIVER).
-			asm stur: X16 base: X20 offset: -8].
+			asm ldr: X17 base: X16 offset: (self fieldOffset: CTX_RECEIVER).
+			fl := asm newLabel.
+			self emitNoForwardersTestTo: fl.
+			self emitFollow: X17.
+			asm bind: fl.
+			asm stur: X17 base: X20 offset: -8].
 	asm stp: X20 with: XZR base: X19 offset: self fpOffset.
 	asm comment: 'temps nil'.
 	self emitNilFrom: n to: (far ifTrue: [cgValidSlots] ifFalse: [cgRawBase]).
@@ -644,7 +649,7 @@ headerFlagsOffset
 !OptCodegen methodsFor: 'nodes'!
 emitNode: n block: b next: nextBlock
 	<function>
-	| nd op x y r s |
+	| nd op x y r s l |
 	nd := ir node: n.
 	op := nd op asInt32.
 	op = O_PHI ifTrue: [^self].
@@ -679,6 +684,11 @@ emitNode: n block: b next: nextBlock
 		x := self src: nd a into: self scratchB.
 		r := self dst: n.
 		asm ldr: r base: x offset: (self fieldOffset: nd aux).
+		(nd flags bitAnd: NF_FOLLOW) ~= 0 ifTrue: [
+			l := asm newLabel.
+			self emitNoForwardersTestTo: l.
+			self emitFollow: r.
+			asm bind: l].
 		^self def: n from: r].
 	op = O_STOREFIELD ifTrue: [^self emitStore: n].
 	(op = O_OUTERLOAD or: [op = O_OUTERSTORE]) ifTrue: [^self emitOuterTemp: n].
@@ -850,8 +860,14 @@ conditionOf: n
 	nd op asInt32 = O_FCMP ifTrue: [^k caseOf: {[2] -> [COND_MI]. [3] -> [COND_GT]. [4] -> [COND_LS]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]].
 	^k caseOf: {[2] -> [COND_LT]. [3] -> [COND_GT]. [4] -> [COND_LE]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]
 !
+isNoForwarderTarget: v
+	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false."
+	| k |
+	k := (ir node: v) tkind asInt32.
+	^k = T_SMI or: [k = T_BOOL or: [k = T_NIL or: [k = T_CHAR or: [(k = T_FLOAT and: [(ir node: v) op asInt32 = O_CONST])]]]]
+!
 emitCompare: n
-	| nd x y |
+	| nd x y l back |
 	nd := ir node: n.
 	nd op asInt32 = O_FCMP ifTrue: [
 		x := self dsrc: nd a into: D0.
@@ -871,6 +887,13 @@ emitCompare: n
 				ifFalse: [asm cmn: x imm: (ir node: nd b) aux negated]]
 		ifFalse: [
 			y := self src: nd b into: self scratchB.
+			((nd op asInt32 = O_EQ or: [nd op asInt32 = O_NE]) and: [(self isNoForwarderTarget: nd a) not and: [(self isNoForwarderTarget: nd b) not]]) ifTrue: [
+				"some object is a forwarder (becomeForward:): follow both first"
+				l := self out: OUT_FOLLOW node: n index: (x bitOr: y << 8).
+				back := asm newLabel.
+				(cgOuts + (cgOutCount - 1)) resume: back.
+				self emitForwardersTestTo: l.
+				asm bind: back].
 			asm cmp: x with: y]
 !
 emitBranch: n block: b next: nextBlock
@@ -1384,16 +1407,24 @@ emitMul: n
 	self def: n from: X16
 !
 emitClassOf: n
-	| nd x r imm done ch |
+	| nd x r imm done ch back fwd |
 	nd := ir node: n.
 	x := self src: nd a into: self scratchB.
 	r := self dst: n.
 	imm := asm newLabel.
 	done := asm newLabel.
 	ch := asm newLabel.
+	back := asm newLabel.
+	fwd := self out: OUT_FOLLOW node: n index: (x bitOr: 255 << 8).
+	(cgOuts + (cgOutCount - 1)) resume: back.
+	asm bind: back.
 	asm ands: X16 with: x imm: 7.
 	asm b: imm if: COND_NE.
-	asm ldr: r base: x offset: 8.
+	asm comment: 'a forwarder''s class word is tagged: follow it (out of line)'.
+	asm ldr: X17 base: x offset: 8.
+	asm tst: X17 imm: 7.
+	asm b: fwd if: COND_NE.
+	asm mov: r with: X17.
 	asm b: done.
 	asm bind: imm.
 	asm tst: x imm: 1.
@@ -2349,6 +2380,11 @@ emitOuts
 			self reloadAcross: o node.
 			asm b: o resume].
 		o kind = OUT_ARRAY ifTrue: [self emitMakeArraySlow: o].
+		o kind = OUT_FOLLOW ifTrue: [
+			asm comment: 'some object is a forwarder (becomeForward:): follow the operands'.
+			self emitFollow: (o index bitAnd: 255).
+			(o index >> 8) ~= 255 ifTrue: [self emitFollow: o index >> 8].
+			asm b: o resume].
 		o kind = OUT_BARRIER ifTrue: [
 			asm comment: 'remember the old object: call the runtime'.
 			self emitBarrierCall: o].
