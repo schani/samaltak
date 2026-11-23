@@ -23,20 +23,38 @@ ctx instVarAt: 3 put: 300.
 check value: ((ctx basicAt: 300) isNil and: [(ctx instVarAt: 3) = 300])
 	value: 'stackp did not reach physical capacity'.
 
-check value: (MarriedContextTest new married: [:c |
-	| n copy |
-	n := c instVarAt: 3.
-	check value: (rejected value: [c instVarAt: 3 put: n])
-		value: 'reflective stackp write accepted on married Context'.
-	copy := c shallowCopy.
-	(copy instVarAt: 3) = n and: [(copy tempAt: 2) = 42]])
-	value: 'married shallowCopy lost the live stack'.
-
-"Call the primitive directly from its married receiver's activation: flushing
- that receiver makes it the heap base before the reflective write."
 Context compile: 'c4TrySlot: index put: value
 	<primitive: ''instVarAtPut''>
 	^#rejected'.
+
+"Keep the frame married through the write and copy: no higher priority
+ can preempt us, and equal priorities cannot time-slice."
+Processor stopTimeSlicer.
+Profiler default stop.
+[| active priority done |
+	active := Processor activeProcess.
+	priority := active priority.
+	active priority: Processor highestPriority.
+	done := Semaphore new.
+	[done signal] forkAt: Processor highestPriority - 1.
+	MarriedContextTest new married: [:c |
+		| n copy |
+		n := c instVarAt: 3.
+		check value: (c c4TrySlot: 3 put: n) == #rejected
+			value: 'reflective stackp write accepted on married Context'.
+		copy := c shallowCopy.
+		check value: ((copy instVarAt: 3) = n and: [(copy tempAt: 2) = 42])
+			value: 'married shallowCopy lost the live stack'.
+
+		"The lower-priority worker can only signal after we block.
+		 Transfer flushes c, which is an ancestor of the resumed heap base."
+		done wait.
+		check value: (c c4TrySlot: 3 put: n) == n
+			value: 'same stackp write rejected after Context materialization'].
+	active priority: priority] value.
+
+"Call the primitive directly from its married receiver's activation: flushing
+ that receiver makes it the heap base before the reflective write."
 MarriedContextTest compile: 'c4TryReplaceOwnMethod: replacement
 	^thisContext c4TrySlot: 4 put: replacement'.
 testMethod := MarriedContextTest >> #c4TryReplaceOwnMethod:.
@@ -44,7 +62,6 @@ check value: (MarriedContextTest new c4TryReplaceOwnMethod: testMethod shallowCo
 	value: 'reflective method replacement accepted after materialization'.
 
 "Start a process directly in a heap Context; no frame owns its code pointers."
-Processor stopTimeSlicer.
 heapBase := [
 	check value: thisContext == heapBase value: 'expected to run in heap base'.
 	check value: (rejected value: [heapBase instVarAt: 3 put: 0])
