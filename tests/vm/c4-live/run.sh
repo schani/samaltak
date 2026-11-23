@@ -108,10 +108,10 @@ expect_fatal() { # log-name diagnostic vm-args...
     fi
 }
 
-jit_rejection='--c4 supports only --jit none or baseline'
-if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then jit_rejection='C4 on ARM64 requires explicit --jit none'; fi
-expect_fatal c4-jit-rejected "$jit_rejection" \
-    --c4 --jit opt "$image" --headless C4Pressure
+if [ "${C4_ARM64_VALIDATION:-0}" = 1 ]; then
+    expect_fatal c4-jit-rejected 'C4 on ARM64 requires explicit --jit none' \
+        --c4 --jit opt "$image" --headless C4Pressure
+fi
 expect_fatal c4-nonheadless-rejected '--c4 requires --headless' --c4 "$image"
 
 run_c4 run_vm "$C4_VM" c4-oom C4OOM

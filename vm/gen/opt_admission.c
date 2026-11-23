@@ -304,6 +304,7 @@ bool build_envelope(oop m)
     int32_t n;
     int64_t pc;
     int64_t depth;
+    bool arith;
     int32_t op;
     int64_t r_length_of;
     int64_t len;
@@ -340,6 +341,7 @@ exit_method_bytes_object_2:;
     r_method_bytes_object_2; }));
     pc = 0;
     depth = locals;
+    arith = false;
     while (pc < n) {
         op = (int32_t)p[pc];
         len = ({
@@ -358,7 +360,7 @@ exit_length_of:;
             return false;
         }
         if ((op == 0x79) || (op == 0x7A)) {
-            return (pc + 1 == n) && (depth == locals + (op == 0x79 ? 1 : 0));
+            return arith && ((pc + 1 == n) && (depth == locals + (op == 0x79 ? 1 : 0)));
         }
         i = len > 1 ? (int32_t)p[pc + 1] : 0;
         if ((op == 0x9A) || ((op == 0x9B) || ((op == 0xF0) || ((op == 0xF1) || ((op == 0xF6) || (op == 0xF7)))))) {
@@ -377,11 +379,13 @@ exit_length_of:;
     r_bounded_literal; }))) {
                 return false;
             }
+            arith = true;
             depth = depth + 1;
         } else if ((op == 0xA0) || (op == 0xA1)) {
             if (depth < locals + 2) {
                 return false;
             }
+            arith = true;
             depth = depth - 1;
         } else if ((op == 0x78) || ((op == 0x84) || ((op == 0x87) || ((op >= 0x60) && (op <= 0x67))))) {
             if (depth <= locals) {

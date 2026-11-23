@@ -134,7 +134,7 @@ compile: m
 	returnSlowLabel := asm labelAt: stubs blReturnSlowStub.
 	boxLabel := asm labelAt: stubs blBoxStub.
 	tierUpLabel := asm labelAt: stubs tierUpStub.
-	counterAddr := runtime tiering ifTrue: [runtime counterAddressFor: m] ifFalse: [0].
+	counterAddr := runtime counterAddressFor: m.
 	curMethod := m.
 	savedCount := 0.
 	loopActive := false.
@@ -3323,7 +3323,7 @@ emitBoxSlow: i
 emitStart: i
 	"Resumption at the start of a method or block (the interpreter or optimized code pushed the frame; the latter calls the prologue before it): an interrupt check, then the body."
 	| intr |
-	counterAddr ~= 0 ifTrue: [self emitPrologue].
+	(counterAddr ~= 0 and: [runtime tiering]) ifTrue: [self emitPrologue].
 	runtime noteResume: (slPc at: i) at: asm pc - codeStart.
 	counterAddr ~= 0 ifTrue: [
 		asm comment: 'pc and sp 0: the frame is lazy from here (a pushed frame''s pc may be stale)'.

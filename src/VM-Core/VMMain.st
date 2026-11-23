@@ -44,7 +44,7 @@ usage
 	libc fputs: 'usage: samaltak [--c4|--c4-moving|--c4-moving-forward] [--max-heap MB] [--eden MB] [--jit none|baseline|opt (default)] [--jit-threshold N] [--jit-osr N]
 	[--jit-opt N] [--jit-flags [-]flag,...] [--jit-cache MB] image [--headless] [arguments...]
   --c4              experimental headless heap (Linux x86-64)
-                    NO_PLATFORM=1 supports optional --jit baseline
+                    NO_PLATFORM=1 supports --jit baseline and --jit opt (checked arithmetic)
                     C4_PLATFORM_FILES=1 allows audited file I/O; interpreter only
                     C4_PLATFORM_SDL=1 adds SDL software presentation for --eval clients; explicit --jit none
   --c4-moving       --c4 with bounded relocation of selected exact fixed-layout instances
@@ -121,7 +121,8 @@ main: n argv: v
 		c4 supported ifFalse: [self fatal: '--c4 requires Linux x86-64 with NO_PLATFORM=1 or C4_PLATFORM_FILES=1'].
 		(headless or: [c4 platformSDL]) ifFalse: [self fatal: '--c4 requires --headless'].
 		(c4 arm64Interpreter and: [explicitJit not or: [jit mode ~= 0]]) ifTrue: [self fatal: 'C4 on ARM64 requires explicit --jit none'].
-		(explicitJit and: [jit mode = jit optMode]) ifTrue: [self fatal: '--c4 supports only --jit none or baseline'].
+		(explicitJit and: [jit mode = jit optMode and: [jit allowsC4Opt not]]) ifTrue: [
+			self fatal: '--c4 --jit opt requires Linux x86-64 with NO_PLATFORM=1 and --headless'].
 		eden = 0 ifTrue: [self fatal: '--c4 requires a positive --eden threshold'].
 		explicitJit ifFalse: [jit mode: 0]].
 	memory memoryInit: eden maxHeap: maxHeap.

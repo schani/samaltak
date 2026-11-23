@@ -89,7 +89,7 @@ static int32_t uentry_offset;
 
 static bool jit_baseline_compiler_access(int32_t k, int32_t pc, int pushes);
 static int alloc_reg(void);
-static bool arith(int32_t k, int32_t pc, int pushes);
+static bool jit_baseline_compiler_arith(int32_t k, int32_t pc, int pushes);
 static int32_t jit_baseline_compiler_back_jump(int32_t t);
 static void jit_baseline_compiler_barrier(int32_t obj, int hdr, int32_t v);
 static void begin_loop_at(int32_t head);
@@ -3140,7 +3140,7 @@ static int alloc_reg(void)
 #endif
 #if defined(__x86_64__)
 /* JitBaselineCompiler>>arith:pc:pushes: */
-static bool arith(int32_t k, int32_t pc, int pushes)
+static bool jit_baseline_compiler_arith(int32_t k, int32_t pc, int pushes)
 {
     int32_t a;
     int32_t b;
@@ -8536,7 +8536,7 @@ exit_emit_compare_result:;
 
 #else
 /* JitBaselineCompiler>>arith:pc:pushes: */
-static bool arith(int32_t k, int32_t pc, int pushes)
+static bool jit_baseline_compiler_arith(int32_t k, int32_t pc, int pushes)
 {
     int32_t a;
     int32_t b;
@@ -13497,7 +13497,11 @@ bool jit_baseline_compiler_compile(oop m)
     int32_t n;
     int32_t i;
     int i_2;
+    uint64_t r_counter_address_for;
+    uint32_t r_opt_count_index;
     uint64_t r_object_address;
+    uint32_t i_3;
+    jit_method *h;
     int64_t pc;
     uint8_t op_2;
     int64_t r_length_of;
@@ -13548,14 +13552,29 @@ bool jit_baseline_compiler_compile(oop m)
     return_slow_label = label_at(bl_return_slow);
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
-    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
+    counter_addr = ({
+    if (!(((jit_mode == JIT_OPT) && (!c4_enabled)) || (c4_enabled && (jit_mode == JIT_OPT) && c4_candidate(m)))) {
+        r_counter_address_for = 0ULL;
+        goto exit_counter_address_for;
+    }
+    r_counter_address_for = (uint64_t)(opt_counts + ({
+    i_3 = ((uint32_t)(((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
     r_object_address = m;
 exit_object_address:;
-    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535;
+    if (c4_enabled && (jit_mode == JIT_OPT)) {
+        while (((h = method_table[i_3]) != NULL) && (h->method != m)) {
+            i_3 = (i_3 + 1) & 65535;
+        }
+    }
+    r_opt_count_index = i_3;
+    r_opt_count_index; }));
+exit_counter_address_for:;
+    r_counter_address_for; });
     cur_method = m;
     saved_count = 0;
     loop_active = false;
@@ -13753,7 +13772,11 @@ bool jit_baseline_compiler_compile(oop m)
     int32_t n;
     int32_t i;
     int i_2;
+    uint64_t r_counter_address_for;
+    uint32_t r_opt_count_index;
     uint64_t r_object_address;
+    uint32_t i_3;
+    jit_method *h;
     int64_t pc;
     uint8_t op_2;
     int64_t r_length_of;
@@ -13800,14 +13823,29 @@ bool jit_baseline_compiler_compile(oop m)
     return_slow_label = label_at(bl_return_slow);
     box_label = label_at(bl_box);
     tier_up_label = label_at(tier_up_stub);
-    counter_addr = jit_mode == JIT_OPT ? (uint64_t)(opt_counts + (((uint32_t)(((*(uint64_t *)({
+    counter_addr = ({
+    if (!(((jit_mode == JIT_OPT) && (!c4_enabled)) || (c4_enabled && (jit_mode == JIT_OPT) && c4_candidate(m)))) {
+        r_counter_address_for = 0ULL;
+        goto exit_counter_address_for;
+    }
+    r_counter_address_for = (uint64_t)(opt_counts + ({
+    i_3 = ((uint32_t)(((*(uint64_t *)({
     if (__builtin_expect(c4_enabled && (c4_moving || c4_heap_has_forwarding()), 0)) {
         r_object_address = c4_heap_address(m);
         goto exit_object_address;
     }
     r_object_address = m;
 exit_object_address:;
-    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535)) : 0;
+    r_object_address; })) >> H_HASH_SHIFT) & H_HASH_MASK)) & 65535;
+    if (c4_enabled && (jit_mode == JIT_OPT)) {
+        while (((h = method_table[i_3]) != NULL) && (h->method != m)) {
+            i_3 = (i_3 + 1) & 65535;
+        }
+    }
+    r_opt_count_index = i_3;
+    r_opt_count_index; }));
+exit_counter_address_for:;
+    r_counter_address_for; });
     cur_method = m;
     saved_count = 0;
     loop_active = false;
@@ -94055,7 +94093,7 @@ static bool emit_slow_paths(void)
         exit_b:;
         }
         if (kind == SL_START) {
-            if (counter_addr != 0) {
+            if ((counter_addr != 0) && ((jit_mode == JIT_OPT) && (!c4_enabled))) {
                 start = asm_pc;
                 if (asm_noting) {
                     note("entry: x19 := the callee's Frame, x20 := fp, x21 := receiver", 0);
@@ -99122,7 +99160,7 @@ exit_offset_to:;
             }
         }
         if (kind == SL_START) {
-            if (counter_addr != 0) {
+            if ((counter_addr != 0) && ((jit_mode == JIT_OPT) && (!c4_enabled))) {
                 if (asm_noting) {
                     note("entry: x19 := the callee's Frame, push x29/x30, x20 := fp, x21 := receiver", 0);
                 }
@@ -136819,10 +136857,10 @@ exit_nil_test:;
     r_nil_test; });
     }
     if (((jit_flags & JIT_FLAG_ARITH) != 0) && ((k <= 8) || ((k == 10) || ((k >= 12) && (k <= 15))))) {
-        return arith(k, pc, pushes);
+        return jit_baseline_compiler_arith(k, pc, pushes);
     }
     if ((!c4_enabled) && ((jit_flags & JIT_FLAG_FLOAT) != 0) && (k == 9)) {
-        return arith(k, pc, pushes);
+        return jit_baseline_compiler_arith(k, pc, pushes);
     }
     if ((!c4_enabled) && ((jit_flags & JIT_FLAG_ACCESS) != 0) && ((k == 16) || (k == 17))) {
         return jit_baseline_compiler_access(k, pc, pushes);
@@ -137598,10 +137636,10 @@ exit_nil_test:;
     r_nil_test; });
     }
     if (((jit_flags & JIT_FLAG_ARITH) != 0) && ((k <= 8) || ((k == 10) || ((k >= 12) && (k <= 15))))) {
-        return arith(k, pc, pushes);
+        return jit_baseline_compiler_arith(k, pc, pushes);
     }
     if ((!c4_enabled) && ((jit_flags & JIT_FLAG_FLOAT) != 0) && (k == 9)) {
-        return arith(k, pc, pushes);
+        return jit_baseline_compiler_arith(k, pc, pushes);
     }
     if ((!c4_enabled) && ((jit_flags & JIT_FLAG_ACCESS) != 0) && ((k == 16) || (k == 17))) {
         return jit_baseline_compiler_access(k, pc, pushes);

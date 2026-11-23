@@ -181,7 +181,7 @@ generate: m act: a
 	cgChecksLabel := asm newLabel.
 	cgBodyLabel := asm newLabel.
 	0 to: passes orderCount - 1 do: [:i | (ir block: (passes orderAt: i)) label: asm newLabel].
-	(sliceTest enabled and: [cgSlice])
+	cgSlice
 		ifTrue: [
 			(cgRawBase = cgSlotTop and: [cgSlotTop <= 32 and: [cgNeed <= 32 and: [cgMaxOut = 0]]]) ifFalse: [^false].
 			"jit_enter already supplied the native record, FP and receiver."
@@ -1623,7 +1623,7 @@ emitOuterSlot: n
 !
 emitReturn: n
 	| nd x s back w |
-	(sliceTest enabled and: [cgSlice]) ifTrue: [^asm b: (self sliceExitFor: n reason: 3)].
+	cgSlice ifTrue: [^asm b: (self sliceExitFor: n reason: 3)].
 	nd := ir node: n.
 	x := self src: nd a into: self scratchA.
 	asm comment: 'the bottom frame returns into a Context: the interpreter does it'.
@@ -1648,7 +1648,7 @@ emitReturn: n
 !
 emitCheckInterrupt: n
 	| s back |
-	(sliceTest enabled and: [cgSlice]) ifTrue: [
+	cgSlice ifTrue: [
 		(sliceTest loopEnabled and: [(ir node: n) aux = SP_LOOP]) ifTrue: [
 			^self emitLoopCheckpoint: n].
 		^self emitInterruptTestTo: (self sliceExitFor: n reason: 0)].
@@ -2399,7 +2399,7 @@ out: kind node: n index: i
 deoptLabelFor: n
 	"The label of a guard's failure: its metadata recorded with the registers as they are here."
 	| k l |
-	(sliceTest enabled and: [cgSlice]) ifTrue: [^self sliceExitFor: n reason: ((ir node: n) op asInt32 = O_GUARDINT ifTrue: [1] ifFalse: [2])].
+	cgSlice ifTrue: [^self sliceExitFor: n reason: ((ir node: n) op asInt32 = O_GUARDINT ifTrue: [1] ifFalse: [2])].
 	k := self recordGuard: n.
 	l := self out: OUT_DEOPT node: n index: k.
 	self emitStressAt: n label: l.
@@ -2445,7 +2445,7 @@ emitOuts
 		o kind = OUT_DEOPT ifTrue: [
 			asm comment: 'guard failed: deoptimize'.
 			asm mov: W17 imm: o index.
-			asm b: ((sliceTest enabled and: [cgSlice]) ifTrue: [asm labelAt: stubs optSliceExitAddress] ifFalse: [cgDeoptLabel])].
+			asm b: (cgSlice ifTrue: [asm labelAt: stubs optSliceExitAddress] ifFalse: [cgDeoptLabel])].
 		o kind = OUT_INTERRUPT ifTrue: [
 			asm comment: 'interrupt: call the runtime'.
 			self saveAcross: o node.

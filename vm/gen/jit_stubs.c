@@ -53676,7 +53676,7 @@ exit_emit_rel32_to_89:;
 exit_b_71:;
     r_dumping_stub_x64_2 = a_103;
     r_dumping_stub_x64_2; });
-    if (OPT_SLICE_TEST_ENABLED && ((slice_name_size > 0) && (slice_name_size <= 64))) {
+    if ((c4_enabled && (headless && (c4_heap_supported() && (can_run_code() && ((!c4_heap_platform_files()) && ((!c4_heap_platform_sdl()) && ((!c4_heap_arm64_interpreter()) && (!c4_heap_moving_forward_enabled())))))))) || (OPT_SLICE_TEST_ENABLED && ((slice_name_size > 0) && (slice_name_size <= 64)))) {
         generate_slice_exit_x64();
     }
     if (!(amd64_assembler_finish() == ASM_OK)) {

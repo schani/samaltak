@@ -825,6 +825,7 @@ typedef void (*prim_fn)(void);
 
 typedef struct baseline_pic baseline_pic;
 typedef struct baseline_site baseline_site;
+typedef struct c4_jit_version c4_jit_version;
 typedef struct cache_entry cache_entry;
 typedef struct feedback_site feedback_site;
 typedef struct frame frame;
@@ -873,6 +874,17 @@ struct baseline_site {
     uint64_t pic;
 };
 _Static_assert(sizeof(baseline_site) == 32, "the simulator lays out BaselineSite as C does");
+
+struct c4_jit_version {
+    int32_t args;
+    int32_t temps;
+    int32_t capacity;
+    int32_t bc_size;
+    int32_t n_lits;
+    uint8_t bytes[64];
+    uint64_t literals[64];
+};
+_Static_assert(sizeof(c4_jit_version) == 600, "the simulator lays out C4JitVersion as C does");
 
 struct cache_entry {
     oop cls;
@@ -972,8 +984,10 @@ struct jit_method {
     uint32_t stamp;
     uint32_t signature;
     uint32_t raw_base;
+    jit_method *checked;
+    c4_jit_version *checked_version;
 };
-_Static_assert(sizeof(jit_method) == 240, "the simulator lays out JitMethod as C does");
+_Static_assert(sizeof(jit_method) == 256, "the simulator lays out JitMethod as C does");
 
 struct jit_state {
     oop nil_oop;
@@ -1819,6 +1833,7 @@ uint64_t baseline_stat(int32_t i);
 void become_method(uint64_t from);
 uint64_t jit_runtime_block_code_for(oop m);
 void c4_bytecode_will_write(oop obj);
+bool c4_candidate(oop m);
 void c4_forwarding_installed(void);
 void c4_native_checkpoint(void);
 uint64_t cache_code_for(oop m);

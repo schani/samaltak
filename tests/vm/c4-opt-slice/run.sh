@@ -137,17 +137,11 @@ for bin in off on; do
         grep -Eq '^132 run, 132 passed, 0 failed, 0 errors' "$out/$bin-legacy-$mode.log"
         if grep -Ei '^opt-slice|^opt-admission' "$out/$bin-legacy-$mode.log"; then exit 1; fi
     done
-    for lane in c4 c4-moving c4-moving-forward; do
-        log="$out/$bin-policy-$lane.log"
-        status=0
-        SAMALTAK_OPT_SLICE=sliceAdd: timeout -k 2 10 "$out/$bin/samaltak" "--$lane" \
-            --jit opt "$image" --headless --eval 'Smalltalk quit: 0' >"$log" 2>&1 || status=$?
-        [ "$status" -eq 70 ]
-        case $lane in
-            c4-moving-forward) msg='--c4-moving-forward requires --jit none' ;;
-            *) msg='--c4 supports only --jit none or baseline' ;;
-        esac
-        grep -Fxq "samaltak: fatal: $msg" "$log"
-    done
+    log="$out/$bin-policy-c4-moving-forward.log"
+    status=0
+    SAMALTAK_OPT_SLICE=sliceAdd: timeout -k 2 10 "$out/$bin/samaltak" --c4-moving-forward \
+        --jit opt "$image" --headless --eval 'Smalltalk quit: 0' >"$log" 2>&1 || status=$?
+    [ "$status" -eq 70 ]
+    grep -Fxq 'samaltak: fatal: --c4-moving-forward requires --jit none' "$log"
 done
 echo "slice test passed: native replay, no ordinary tier-up, inactive controls and C4 publication"

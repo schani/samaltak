@@ -334,7 +334,7 @@ generateX64
 	optMakeArrayStub := self stubX64: runtime optMakeArrayFunction named: 'make an Array'.
 	optDeoptStub := self dumpingStubX64: runtime optDeoptFunction named: 'deoptimize'.
 	optReturnStub := self dumpingStubX64: runtime optReturnFunction named: 'return from the bottom frame'.
-	(sliceTest enabled and: [runtime sliceRequested]) ifTrue: [self generateSliceExitX64].
+	((runtime c4Baseline and: [runtime allowsC4Opt]) or: [sliceTest enabled and: [runtime sliceRequested]]) ifTrue: [self generateSliceExitX64].
 	asm finish = ASM_OK ifFalse: [^false].
 	cache allocate: asm codeSize.
 	cache endWritingFrom: start size: asm codeSize.

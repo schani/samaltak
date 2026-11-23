@@ -4194,7 +4194,7 @@ exit_method_bytes_object_34:;
     r_special_index_of = -1;
 exit_special_index_of:;
     r_special_index_of; });
-        if (OPT_SLICE_TEST_ENABLED && ob_slice) {
+        if (ob_slice) {
             if (!((k_4 == 0) || ((k_4 == 1) || (OPT_LOOP_TEST_ENABLED && ((ob_osr_pc >= 0) && (k_4 == 3)))))) {
                 if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
                     fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
@@ -5869,7 +5869,7 @@ exit_length_of_3:;
         k_5 = op - 0xA0;
         k_6 = op - 0xA0;
         r_4 = d - ((k_6 == 19) || (k_6 == 20) ? 1 : special_argc[k_6]) - 1;
-        if (OPT_SLICE_TEST_ENABLED && ob_slice) {
+        if (ob_slice) {
             if (!((k_5 == 0) || ((k_5 == 1) || (OPT_LOOP_TEST_ENABLED && ((ob_osr_pc >= 0) && (k_5 == 3)))))) {
                 if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
                     fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);

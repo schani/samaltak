@@ -1008,7 +1008,7 @@ exit_load_ref_11:;
         r_frame_code_for = 0ULL;
         goto exit_frame_code_for;
     }
-    if (jit_mode == JIT_OPT) {
+    if ((jit_mode == JIT_OPT) && (!c4_enabled)) {
         r_frame_code_for = opt_runtime_block_code_for(m, startpc);
         goto exit_frame_code_for;
     }

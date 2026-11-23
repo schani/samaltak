@@ -308,7 +308,7 @@ exit_load_ref_5:;
     }
     s = ((int64_t)startpc_2) >> 1;
     entry_2 = ({
-    if (!(jit_mode == JIT_OPT)) {
+    if (!((jit_mode == JIT_OPT) && (!c4_enabled))) {
         r_opt_unit_entry_of = 0ULL;
         goto exit_opt_unit_entry_of;
     }
@@ -1772,7 +1772,7 @@ exit_object_address_13:;
     r_object_address_13; }) + 8);
     }
     v_2; });
-    if ((jit_mode == JIT_OPT) && ((kind != 1) && (!opt))) {
+    if ((jit_mode == JIT_OPT) && (!c4_enabled) && ((kind != 1) && (!opt))) {
         note_send(h->method, (int64_t)s->pc, cls);
         if ((kind == 2) && ((cls == cls_smallint) && ({
     k = (int32_t)((s->info >> 16) & 255);
@@ -2253,7 +2253,7 @@ exit_object_address_13:;
     r_object_address_13; }) + 8);
     }
     v_2; });
-    if ((jit_mode == JIT_OPT) && ((kind != 1) && (!opt))) {
+    if ((jit_mode == JIT_OPT) && (!c4_enabled) && ((kind != 1) && (!opt))) {
         note_send(h->method, (int64_t)s->pc, cls);
         if ((kind == 2) && ((cls == cls_smallint) && ({
     k = (int32_t)((s->info >> 16) & 255);
@@ -3658,7 +3658,7 @@ int32_t prim_op_of(int32_t p)
 void redirect(jit_method *h, jit_method *o)
 {
     uint64_t a;
-    if (!((jit_mode == JIT_OPT) && ((h->mode == JIT_BASELINE) && ((h->flags & JM_ENTRY) != 0)))) {
+    if (!((jit_mode == JIT_OPT) && (!c4_enabled) && ((h->mode == JIT_BASELINE) && ((h->flags & JM_ENTRY) != 0)))) {
         return;
     }
     if ((o != h) && ((o->block_start != 0) || (o->osr_pc != 0))) {
@@ -3702,7 +3702,7 @@ void redirect(jit_method *h, jit_method *o)
 void redirect(jit_method *h, jit_method *o)
 {
     uint64_t a;
-    if (!((jit_mode == JIT_OPT) && ((h->mode == JIT_BASELINE) && ((h->flags & JM_ENTRY) != 0)))) {
+    if (!((jit_mode == JIT_OPT) && (!c4_enabled) && ((h->mode == JIT_BASELINE) && ((h->flags & JM_ENTRY) != 0)))) {
         return;
     }
     if ((o != h) && ((o->block_start != 0) || (o->osr_pc != 0))) {

@@ -80,11 +80,12 @@ jobs:
           tests/vm/c4-live/run-interval.sh "$old" "$C4_VM" old
           tests/vm/c4-live/run-moving-forward.sh "$image" "$C4_VM"
           tests/vm/c4-live/run-moving-forward.sh "$old" "$C4_VM" old
-      - name: Baseline JIT and 128 MiB pressure
+      - name: C4 JIT and pressure
         run: |
           image="$OUT/samaltak.image"
           tests/vm/c4-live/run-process.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run.sh "$image" "$C4_VM"
+          tests/vm/c4-jit-opt/run.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-forward.sh "$image" "$C4_VM"
           tests/vm/c4-live/run-span-pressure.sh "$image" "$C4_VM"
           tests/vm/c4-jit-live/run-enumeration.sh "$image" "$C4_VM"

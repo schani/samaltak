@@ -403,7 +403,7 @@ buildEnvelope: m
 	foreign activation or variable size operand. This is a work bound,
 	not the IR/replay proof."
 	<function>
-	| p pc n op len locals args cap depth i j |
+	| p pc n op len locals args cap depth i j arith |
 	args := self intVal: (self loadRef: m at: CM_NUMARGS).
 	locals := args + (self intVal: (self loadRef: m at: CM_NUMTEMPS)).
 	cap := self intVal: (self loadRef: m at: CM_FRAMESIZE).
@@ -411,12 +411,13 @@ buildEnvelope: m
 	n := self methodSize: m.
 	pc := 0.
 	depth := locals.
+	arith := false.
 	[pc < n] whileTrue: [
 		op := (p at: pc) asInt32.
 		len := self lengthOf: op.
 		pc + len > n ifTrue: [^false].
 		(op = 16r79 or: [op = 16r7A]) ifTrue: [
-			^pc + 1 = n and: [depth = (locals + (op = 16r79 ifTrue: [1] ifFalse: [0]))]].
+			^arith and: [pc + 1 = n and: [depth = (locals + (op = 16r79 ifTrue: [1] ifFalse: [0]))]]].
 		i := len > 1 ifTrue: [(p at: pc + 1) asInt32] ifFalse: [0].
 		(self isFused: op)
 			ifTrue: [
@@ -424,10 +425,11 @@ buildEnvelope: m
 				j := (p at: pc + 2) asInt32.
 				(op < 16rA0 and: [j >= locals]) ifTrue: [^false].
 				((op = 16rF0 or: [op = 16rF1]) and: [(self boundedLiteral: j method: m) not]) ifTrue: [^false].
+				arith := true.
 				depth := depth + 1]
 			ifFalse: [
 				(op = 16rA0 or: [op = 16rA1])
-					ifTrue: [depth < (locals + 2) ifTrue: [^false]. depth := depth - 1]
+					ifTrue: [depth < (locals + 2) ifTrue: [^false]. arith := true. depth := depth - 1]
 					ifFalse: [
 						(op = 16r78 or: [op = 16r84 or: [op = 16r87 or: [op between: 16r60 and: 16r67]]])
 							ifTrue: [

@@ -14288,7 +14288,7 @@ exit_dst_3:;
         nd_11 = opt_nodes + n;
         if (nd_11->state >= 0) {
             s_2 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for;
     }
@@ -22980,7 +22980,7 @@ exit_src_11:;
         goto exit_emit_index_check;
     }
     s_3 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_2 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_2;
     }
@@ -25722,7 +25722,7 @@ exit_dst_8:;
         nd_45 = opt_nodes + n;
         ek_3 = (int32_t)nd_45->aux;
         s_4 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_3 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_3;
     }
@@ -26533,7 +26533,7 @@ exit_src_15:;
         goto exit_emit_index_check_2;
     }
     s_5 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_4 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_4;
     }
@@ -34396,7 +34396,7 @@ exit_source_13:;
         nd_63 = opt_nodes + n;
         if ((nd_63->flags & NF_GUARD) != 0) {
             s_8 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_5 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_5;
     }
@@ -36959,7 +36959,7 @@ exit_source_18:;
             n_989 = nd_68->a;
             if ((int32_t)(opt_nodes + n_989)->tkind != T_FLOAT) {
                 s_9 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_6 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_6;
     }
@@ -38419,7 +38419,7 @@ exit_source_21:;
         }
         if (op_7 == O_BOXF) {
             s_9 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_7 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_7;
     }
@@ -40362,7 +40362,7 @@ exit_dsrc_4:;
     r_dsrc_4; });
         if (k_9 == 9) {
             s_9 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_8 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_8;
     }
@@ -43737,7 +43737,7 @@ exit_condition_of:;
     }
     if (op == O_GUARDCLASS) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_9 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_9;
     }
@@ -45014,7 +45014,7 @@ exit_source_35:;
     }
     if (op == O_GUARDMUTABLE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_10 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_10;
     }
@@ -45659,7 +45659,7 @@ exit_source_36:;
     }
     if (op == O_GUARDEQ) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_11 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_11;
     }
@@ -46486,7 +46486,7 @@ exit_src_32:;
     }
     if (op == O_GUARDCLOSURE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_12 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_12;
     }
@@ -48003,7 +48003,7 @@ exit_src_35:;
     }
     if (op == O_GUARDINT) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_13 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_13;
     }
@@ -48690,7 +48690,7 @@ exit_source_37:;
         checked = (nd_103->flags & NF_INRANGE) == 0;
         if (checked) {
             s_10 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_14 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_14;
     }
@@ -49888,7 +49888,7 @@ exit_src_38:;
     if (op == O_IMUL) {
         nd_107 = opt_nodes + n;
         s_11 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_15 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_15;
     }
@@ -52541,7 +52541,7 @@ exit_src_43:;
             goto exit_emit_div_shift;
         }
         s_12 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_16 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_16;
     }
@@ -53908,7 +53908,7 @@ exit_emit_div_by:;
             nd_120 = opt_nodes + n;
             op_21 = (int32_t)nd_120->op;
             s_14 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_17 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_17;
     }
@@ -56199,7 +56199,7 @@ exit_src_45:;
         nd_124 = opt_nodes + n;
         op_23 = (int32_t)nd_124->op;
         s_15 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_18 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_18;
     }
@@ -57915,7 +57915,7 @@ exit_dst_15:;
             return;
         }
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_19 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_19;
     }
@@ -58565,7 +58565,7 @@ exit_deopt_label_for_19:;
     }
     if (op == O_GUARDLE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_20 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_20;
     }
@@ -59622,7 +59622,7 @@ exit_src_48:;
     }
     if (op == O_NOTINTS) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_21 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_21;
     }
@@ -61299,7 +61299,7 @@ exit_dst_16:;
         return;
     }
     if (op == O_CHECKINT) {
-        if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+        if (cg_slice) {
             if (OPT_LOOP_TEST_ENABLED && ((opt_nodes + n)->aux == SP_LOOP)) {
                 emit_loop_checkpoint(n);
                 goto exit_emit_check_interrupt;
@@ -83026,7 +83026,7 @@ exit_source_43:;
 exit_is_fused_2:;
     r_is_fused_2; }))) {
             s_23 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_22 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_22;
     }
@@ -86312,7 +86312,7 @@ exit_src_75:;
         return;
     }
     if (op == O_RETURN) {
-        if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+        if (cg_slice) {
             a_label_94 = slice_exit_for(n, 3);
             a_296 = asm_labels[a_label_94];
             if (a_296 != 0) {
@@ -87180,7 +87180,7 @@ exit_out_35:;
             }
         }
         a_label_96 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_23 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_23;
     }
@@ -91969,7 +91969,7 @@ exit_dst_3:;
         nd_11 = opt_nodes + n;
         if (nd_11->state >= 0) {
             s_5 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for;
     }
@@ -95393,7 +95393,7 @@ exit_src_11:;
         goto exit_emit_index_check;
     }
     s_15 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_2 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_2;
     }
@@ -96151,7 +96151,7 @@ exit_dst_7:;
         nd_40 = opt_nodes + n;
         ek_3 = (int32_t)nd_40->aux;
         s_17 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_3 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_3;
     }
@@ -96597,7 +96597,7 @@ exit_src_15:;
         goto exit_emit_index_check_2;
     }
     s_18 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_4 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_4;
     }
@@ -99114,7 +99114,7 @@ exit_offset_to_69:;
         nd_54 = opt_nodes + n;
         if ((nd_54->flags & NF_GUARD) != 0) {
             s_22 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_5 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_5;
     }
@@ -100292,7 +100292,7 @@ exit_src_24:;
             n_26 = nd_59->a;
             if ((int32_t)(opt_nodes + n_26)->tkind != T_FLOAT) {
                 s_23 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_6 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_6;
     }
@@ -100726,7 +100726,7 @@ exit_offset_to_87:;
         }
         if (op_7 == O_BOXF) {
             s_23 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_7 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_7;
     }
@@ -101450,7 +101450,7 @@ exit_dsrc_4:;
     r_dsrc_4; });
         if (k_9 == 9) {
             s_23 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_8 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_8;
     }
@@ -102841,7 +102841,7 @@ exit_condition_of:;
     }
     if (op == O_GUARDCLASS) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_9 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_9;
     }
@@ -103420,7 +103420,7 @@ exit_offset_to_101:;
     }
     if (op == O_GUARDMUTABLE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_10 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_10;
     }
@@ -103739,7 +103739,7 @@ exit_offset_to_104:;
     }
     if (op == O_GUARDEQ) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_11 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_11;
     }
@@ -104210,7 +104210,7 @@ exit_offset_to_108:;
     }
     if (op == O_GUARDCLOSURE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_12 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_12;
     }
@@ -104967,7 +104967,7 @@ exit_src_34:;
     }
     if (op == O_GUARDINT) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_13 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_13;
     }
@@ -105329,7 +105329,7 @@ exit_offset_to_117:;
         checked = (nd_94->flags & NF_INRANGE) == 0;
         if (checked) {
             s_26 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_14 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_14;
     }
@@ -105938,7 +105938,7 @@ exit_offset_to_121:;
     if (op == O_IMUL) {
         nd_98 = opt_nodes + n;
         s_27 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_15 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_15;
     }
@@ -107152,7 +107152,7 @@ exit_src_42:;
             goto exit_emit_div_shift;
         }
         s_28 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_16 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_16;
     }
@@ -107700,7 +107700,7 @@ exit_emit_div_by:;
             nd_111 = opt_nodes + n;
             op_21 = (int32_t)nd_111->op;
             s_32 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_17 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_17;
     }
@@ -108554,7 +108554,7 @@ exit_offset_to_146:;
         nd_115 = opt_nodes + n;
         op_23 = (int32_t)nd_115->op;
         s_33 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_18 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_18;
     }
@@ -109240,7 +109240,7 @@ exit_dst_14:;
             return;
         }
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_19 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_19;
     }
@@ -109488,7 +109488,7 @@ exit_offset_to_155:;
     }
     if (op == O_GUARDLE) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_20 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_20;
     }
@@ -110058,7 +110058,7 @@ exit_offset_to_160:;
     }
     if (op == O_NOTINTS) {
         s = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_21 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_21;
     }
@@ -110937,7 +110937,7 @@ exit_dst_15:;
         return;
     }
     if (op == O_CHECKINT) {
-        if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+        if (cg_slice) {
             if (OPT_LOOP_TEST_ENABLED && ((opt_nodes + n)->aux == SP_LOOP)) {
                 emit_loop_checkpoint(n);
                 goto exit_emit_check_interrupt;
@@ -119323,7 +119323,7 @@ exit_offset_to_253:;
 exit_is_fused_2:;
     r_is_fused_2; }))) {
             s_56 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_22 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_22;
     }
@@ -120948,7 +120948,7 @@ exit_offset_to_265:;
         return;
     }
     if (op == O_RETURN) {
-        if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+        if (cg_slice) {
             a_label_100 = slice_exit_for(n, 3);
             target_266 = target_of(a_label_100);
             a_word_1180 = 0x14000000 | ({
@@ -121355,7 +121355,7 @@ exit_offset_to_269:;
             }
         }
         a_label_102 = ({
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         r_deopt_label_for_23 = slice_exit_for(n, (int32_t)(opt_nodes + n)->op == O_GUARDINT ? 1 : 2);
         goto exit_deopt_label_for_23;
     }
@@ -122912,7 +122912,7 @@ exit_slot_count:;
         b_2 = ps_order[i_4];
         (opt_blocks + b_2)->label = new_label();
     }
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         if (!((cg_raw_base == cg_slot_top) && ((cg_slot_top <= 32) && ((cg_need <= 32) && (cg_max_out == 0))))) {
             return false;
         }
@@ -125095,7 +125095,7 @@ exit_back_edge_after:;
             goto exit_mov_3;
             amd64_assembler_move_any_imm(W17, (uint64_t)value_2);
         exit_mov_3:;
-            a_label_4 = OPT_SLICE_TEST_ENABLED && cg_slice ? label_at(opt_slice_exit) : cg_deopt_label;
+            a_label_4 = cg_slice ? label_at(opt_slice_exit) : cg_deopt_label;
             a_10 = asm_labels[a_label_4];
             if (a_10 != 0) {
                 d_30 = (int64_t)(a_10 - (asm_pc + 2));
@@ -130504,7 +130504,7 @@ exit_slot_count:;
         b_2 = ps_order[i_4];
         (opt_blocks + b_2)->label = new_label();
     }
-    if (OPT_SLICE_TEST_ENABLED && cg_slice) {
+    if (cg_slice) {
         if (!((cg_raw_base == cg_slot_top) && ((cg_slot_top <= 32) && ((cg_need <= 32) && (cg_max_out == 0))))) {
             return false;
         }
@@ -131304,7 +131304,7 @@ exit_back_edge_after:;
             } else {
                 mov_imm(W17, (uint64_t)value_2);
             }
-            a_label_4 = OPT_SLICE_TEST_ENABLED && cg_slice ? label_at(opt_slice_exit) : cg_deopt_label;
+            a_label_4 = cg_slice ? label_at(opt_slice_exit) : cg_deopt_label;
             target_6 = target_of(a_label_4);
             a_word_34 = 0x14000000 | ({
     off_20 = ((int64_t)(target_6 - asm_pc)) >> 2;

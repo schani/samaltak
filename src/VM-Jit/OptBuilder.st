@@ -1403,7 +1403,7 @@ superinstruction: pc act: a
 special: k pc: pc act: a rcvSlot: r
 	"Special selector k at pc, receiver in slot r: inline what needs no send, else send it."
 	| x y n argc fl |
-	(sliceTest enabled and: [obSlice]) ifTrue: [
+	obSlice ifTrue: [
 		(k = 0 or: [k = 1 or: [sliceTest loopEnabled and: [obOsrPc >= 0 and: [k = 3]]]]) ifFalse: [^self bail].
 		^self intArith: k x: (self read: (self var: a slot: r)) y: (self read: (self var: a slot: r + 1)) pc: pc act: a rcvSlot: r].
 	argc := analysis specialArgc: k.
