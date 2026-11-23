@@ -181,6 +181,17 @@ allocateForwardAndRead
 	a becomeForward: (OrderedCollection with: 10).
 	^a first + a size
 !
+testFoldedConstant
+	"Optimized code that folded a literal's class sees the class of what the literal was forwarded to."
+	| subject literal |
+	BecomeTestSubject compile: 'literalsClass ^#(1 2) class' classified: 'tests'.
+	[subject := BecomeTestSubject new.
+	1 to: 3000 do: [:i | subject literalsClass].
+	literal := (BecomeTestSubject >> #literalsClass) literals detect: [:each | each class == Array].
+	literal becomeForward: (OrderedCollection with: 1).
+	self assert: subject literalsClass == OrderedCollection]
+		ensure: [BecomeTestSubject removeSelector: #literalsClass]
+!
 testEagerKinds
 	| assoc holder |
 	assoc := #a -> 1.

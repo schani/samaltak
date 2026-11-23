@@ -193,7 +193,7 @@ signatureOf: f method: m
 	<returns: 'uint32_t'>
 	| w c |
 	w := self closureSignatureOf: f.
-	c := interpreter receiverClass: (f fp at: -1).
+	c := interpreter receiverClass: (memory follow: (f fp at: -1)).
 	c = (self loadRef: m at: CM_CLASS) ifTrue: [^w].
 	w := ((self mix: w asUInt64 with: (self hashOf: c) asUInt64 + 1) bitAnd: 16rFFFFFFFF) asUInt32.
 	w = 0 ifTrue: [^1].

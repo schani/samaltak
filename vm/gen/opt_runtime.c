@@ -2993,6 +2993,9 @@ static int32_t variant_of(frame *f, oop m, int32_t s, int32_t g)
     jit_method *o;
     uint32_t r_signature_of;
     uint32_t w_2;
+    oop o_2;
+    oop r_follow;
+    oop p;
     oop r;
     oop c;
     uint64_t h;
@@ -3013,7 +3016,14 @@ static int32_t variant_of(frame *f, oop m, int32_t s, int32_t g)
     rt_unit_signature = 0;
     w = ({
     w_2 = closure_signature_of(f);
-    r = f->fp[-1];
+    o_2 = f->fp[-1];
+    r = ({
+    p = o_2;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
     c = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(r + 8);
     if (c == *(uint64_t *)(m + 16 + 8)) {
         r_signature_of = w_2;

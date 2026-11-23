@@ -544,6 +544,9 @@ static bool build_once(oop m)
     int32_t i_6;
     oop o_4;
     uint64_t bits_6;
+    oop o_5;
+    oop r_follow;
+    oop p;
     oop r;
     oop cls;
     int32_t v_6;
@@ -575,8 +578,8 @@ static bool build_once(oop m)
     int32_t n_27;
     int32_t n_26;
     int32_t n_28;
-    uint64_t o_5;
     uint64_t o_6;
+    uint64_t o_7;
     int32_t i_9;
     int32_t var_5;
     int32_t i_10;
@@ -879,7 +882,14 @@ exit_frame_ints:;
     if ((ob_frame == NULL) || (!ob_foreign)) {
         goto exit_guard_receiver_class;
     }
-    r = ob_frame->fp[-1];
+    o_5 = ob_frame->fp[-1];
+    r = ({
+    p = o_5;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
     cls = (r & 7) != 0 ? tag_class[r & 7] : *(uint64_t *)(r + 8);
     if (cls == *(uint64_t *)(ob_root_method + 16 + 8)) {
         goto exit_guard_receiver_class;
@@ -994,10 +1004,10 @@ exit_build_osr:;
     exit_write_4:;
     }
     if (((opt_acts + a)->num_temps > 0) && ((ob_unit_start == 0) && ({
-    o_5 = *(uint64_t *)(m + 16 + 56);
-    ((o_5 & 1) != 0) && ({
     o_6 = *(uint64_t *)(m + 16 + 56);
-    ((((int64_t)o_6) >> 1) & CM_PRIM_ERROR_FLAG) != 0; }); }))) {
+    ((o_6 & 1) != 0) && ({
+    o_7 = *(uint64_t *)(m + 16 + 56);
+    ((((int64_t)o_7) >> 1) & CM_PRIM_ERROR_FLAG) != 0; }); }))) {
         i_9 = (opt_acts + a)->num_args;
         var_5 = (opt_acts + a)->var_base + i_9;
         i_10 = (opt_acts + a)->num_args;
@@ -1204,6 +1214,9 @@ static int32_t constant(oop w)
     oop r_follow;
     oop p;
     oop v;
+    int32_t i_2;
+    bool found;
+    int32_t i_3;
     int32_t i;
     int64_t k;
     int32_t n_2;
@@ -1217,6 +1230,37 @@ static int32_t constant(oop w)
     }
     r_follow = p;
     r_follow; });
+    if (!(((v & 7) == 0) && (!forwards_eagerly(v)))) {
+        goto exit_note_constant;
+    }
+    for (i_2 = 0; i_2 <= ob_dep_count - 1; i_2++) {
+        if (ob_deps[i_2] == v) {
+            goto exit_note_dependency;
+        }
+    }
+    if (ob_dep_count < OPT_MAX_DEPS) {
+        ob_deps[ob_dep_count] = v;
+        ob_dep_count = ob_dep_count + 1;
+    }
+exit_note_dependency:;
+    found = false;
+    for (i_3 = 0; i_3 <= ob_dep_count - 1; i_3++) {
+        if (ob_deps[i_3] == v) {
+            found = true;
+        }
+    }
+    if (!found) {
+        if ((!ob_bailed) && (getenv("SAMALTAK_OPT_TRACE") != NULL)) {
+            fprintf(stderr, "opt: bail at pc %d of act %d\n", opt_cur_pc, opt_cur_act);
+        }
+        if ((!ob_bailed) && ((ob_foreign_depth > 0) && (ob_no_foreign_count < 8))) {
+            ob_no_foreign_m[ob_no_foreign_count] = ob_foreign_m[ob_foreign_depth - 1];
+            ob_no_foreign_s[ob_no_foreign_count] = ob_foreign_s[ob_foreign_depth - 1];
+            ob_no_foreign_count = ob_no_foreign_count + 1;
+        }
+        ob_bailed = true;
+    }
+exit_note_constant:;
     i = (int32_t)(((v * 2654435761LL) >> 8) & 255);
     k = 0;
     while ((k < 256) && ((ob_const_nodes[i] >= 0) && (ob_const_vals[i] != v))) {

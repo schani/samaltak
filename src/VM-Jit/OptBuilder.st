@@ -180,7 +180,7 @@ guardReceiverClass: a
 	"A variant of a loop's unit whose method the frame's receiver inherits (OptRuntime>>signatureOf:method:: the variant is that class's): the receiver is of that class, guarded once at the entry, so the sends to self are bound."
 	| cls |
 	(obFrame isNull or: [obForeign not]) ifTrue: [^self].
-	cls := interpreter receiverClass: (obFrame fp at: -1).
+	cls := interpreter receiverClass: (memory follow: (obFrame fp at: -1)).
 	cls = (self loadRef: obRootMethod at: CM_CLASS) ifTrue: [^self].
 	(ir act: a) receiver: (self guard: (ir act: a) receiver class: cls state: ir osrState)
 !
@@ -802,6 +802,7 @@ constant: w
 	<function>
 	| n nd i k v |
 	v := memory follow: w.
+	self noteConstant: v.
 	i := ((v * 2654435761) >> 8 bitAnd: 255) asInt32.
 	k := 0.
 	[k < 256 and: [(obConstNodes at: i) >= 0 and: [(obConstVals at: i) ~= v]]] whileTrue: [
@@ -2206,6 +2207,15 @@ isBehavior: o
 	((self isPtr: o) and: [(memory isForwarder: o) not]) ifFalse: [^false].
 	m := self rawClass: (self rawClass: o).
 	^m = (self rawClass: (self rawClass: m))
+!
+noteConstant: v
+	"The code may fold v's class or fields: becomeForward: of v must invalidate it, so v goes into its pool (as a dependency) even if no instruction keeps it; code that cannot record it is not made."
+	| found |
+	((self isPtr: v) and: [(memory forwardsEagerly: v) not]) ifFalse: [^self].
+	self noteDependency: v.
+	found := false.
+	0 to: obDepCount - 1 do: [:i | (obDeps at: i) = v ifTrue: [found := true]].
+	found ifFalse: [self bail]
 !
 noteDependency: sel
 	"The code depends on what sel finds (inlined or speculated): a method change for sel invalidates it."
