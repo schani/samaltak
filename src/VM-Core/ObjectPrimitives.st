@@ -246,7 +246,7 @@ primAllInstances
 !
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
-	| from to |
+	| from to held |
 	from := memory follow: self receiver.
 	to := memory follow: self arg0.
 	((self isPtr: from) and: [(self isPtr: to) and: [from ~= memory nilOop]]) ifFalse: [^self fail].
@@ -258,12 +258,10 @@ primBecomeForward
 			gc fullGC.
 			gc becomeForward: (memory follow: self receiver) to: (memory follow: self arg0)]
 		ifFalse: [
-			(jit optFramesHold: from) ifTrue: [
-				"optimized frames holding from may know its class: they continue as Contexts (their code stays)"
-				interpreter materializeAll.
-				from := memory follow: self receiver.
-				to := memory follow: self arg0].
-			gc forward: from to: to].
+			held := jit optFramesHold: from.
+			gc forward: from to: to.
+			"optimized frames that held from may know its class: they continue as Contexts (their code stays), made after the frames refer to to"
+			held ifTrue: [interpreter materializeAll]].
 	self answer: self receiver
 !
 hash: from into: to

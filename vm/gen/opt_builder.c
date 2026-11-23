@@ -16171,6 +16171,7 @@ exit_any_immediate:;
     r_add_36 = n_112;
     r_add_36; });
         (opt_nodes + rcv_class)->a = rcv;
+        (opt_nodes + rcv_class)->aux = 1;
     }
     for (i_57 = 0; i_57 <= n - 1; i_57++) {
         cls = and_ints && (i_57 == n - 1) ? cls_smallint : site->classes[i_57];

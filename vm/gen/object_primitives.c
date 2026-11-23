@@ -366,12 +366,7 @@ void prim_become_forward(void)
     oop o_4;
     oop r_follow_4;
     oop p_4;
-    oop o_5;
-    oop r_follow_5;
-    oop p_5;
-    oop o_6;
-    oop r_follow_6;
-    oop p_6;
+    bool held;
     oop v;
     o = prim_base[0];
     from = ({
@@ -419,26 +414,11 @@ void prim_become_forward(void)
     r_follow_4 = p_4;
     r_follow_4; }));
     } else {
-        if (opt_frames_hold(from)) {
-            materialize_all();
-            o_5 = prim_base[0];
-            from = ({
-    p_5 = o_5;
-    while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
-        p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_5 = p_5;
-    r_follow_5; });
-            o_6 = prim_nargs > 0 ? prim_base[1] : nil_oop;
-            to = ({
-    p_6 = o_6;
-    while (((p_6 & 7) == 0) && (((*(uint64_t *)p_6) & H_FORWARDED) != 0)) {
-        p_6 = (*(uint64_t *)(p_6 + 8)) & 18446744073709551609ULL;
-    }
-    r_follow_6 = p_6;
-    r_follow_6; });
-        }
+        held = opt_frames_hold(from);
         forward(from, to);
+        if (held) {
+            materialize_all();
+        }
     }
     v = prim_base[0];
     prim_result = v;

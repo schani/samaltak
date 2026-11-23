@@ -192,6 +192,22 @@ testFoldedConstant
 	self assert: subject literalsClass == OrderedCollection]
 		ensure: [BecomeTestSubject removeSelector: #literalsClass]
 !
+testPolymorphicSendToIt
+	"Optimized code that switches on the receiver's class must not take a forwarder for an instance of its target's class."
+	| holder |
+	1 to: 3000 do: [:i | self sizeOf: (i odd ifTrue: ['abc' copy] ifFalse: ['abc' asWideString])].
+	holder := Array with: 'ab' copy.
+	holder first becomeForward: 'abcde' asWideString.
+	self assert: (self sizeOf: holder first) = 5
+!
+sizeOf: x
+	"x lives longest: optimized code keeps it in its slot, from where each switch on its class reads it."
+	| a b c |
+	a := self identityHash.
+	b := a + 1.
+	c := a + 2.
+	^x size + a + b + c - (a + b + c) + (x size * 0)
+!
 testEagerKinds
 	| assoc holder |
 	assoc := #a -> 1.

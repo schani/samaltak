@@ -1465,6 +1465,7 @@ emitMul: n
 	self def: n from: X16
 !
 emitClassOf: n
+	"The class of a; a forwarder's target's, or (aux 1, a type switch's) its tagged class word, which is no class."
 	| nd x r imm done ch back fwd |
 	nd := ir node: n.
 	x := self src: nd a into: self scratchB.
@@ -1473,15 +1474,17 @@ emitClassOf: n
 	done := asm newLabel.
 	ch := asm newLabel.
 	back := asm newLabel.
-	fwd := self out: OUT_FOLLOW node: n index: (x bitOr: 255 << 8).
-	(cgOuts + (cgOutCount - 1)) resume: back.
+	nd aux = 0 ifTrue: [
+		fwd := self out: OUT_FOLLOW node: n index: (x bitOr: 255 << 8).
+		(cgOuts + (cgOutCount - 1)) resume: back].
 	asm bind: back.
 	asm ands: X16 with: x imm: 7.
 	asm b: imm if: COND_NE.
-	asm comment: 'a forwarder''s class word is tagged: follow it (out of line)'.
 	asm ldr: X17 base: x offset: 8.
-	asm tst: X17 imm: 7.
-	asm b: fwd if: COND_NE.
+	nd aux = 0 ifTrue: [
+		asm comment: 'a forwarder''s class word is tagged: follow it (out of line)'.
+		asm tst: X17 imm: 7.
+		asm b: fwd if: COND_NE].
 	asm mov: r with: X17.
 	asm b: done.
 	asm bind: imm.
