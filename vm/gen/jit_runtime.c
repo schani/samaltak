@@ -903,6 +903,7 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t o_2;
     int64_t r_method_prim;
     uint64_t p;
+    oop q;
     oop r;
     uint32_t ns;
     bool ok;
@@ -984,6 +985,11 @@ exit_error_code_for:;
     r_error_code_for; }), 0);
     }
     if ((kind & K_CONST) != 0) {
+        if ((young_forwarders + old_forwarders != 0) && ({
+    q = e->qconst;
+    ((q & 7) == 0) && ((q != 0) && ((q != nil_oop) && ((q != true_oop) && (q != false_oop)))); })) {
+            return activate(m, f, n, -1, 0);
+        }
         if (e->qconst != 0) {
             base[0] = e->qconst;
         }
@@ -1119,6 +1125,7 @@ uint64_t dispatch(cache_entry *e, frame *f, int32_t n)
     uint64_t o_2;
     int64_t r_method_prim;
     uint64_t p;
+    oop q;
     oop r;
     uint32_t ns;
     bool ok;
@@ -1200,6 +1207,11 @@ exit_error_code_for:;
     r_error_code_for; }), 0);
     }
     if ((kind & K_CONST) != 0) {
+        if ((young_forwarders + old_forwarders != 0) && ({
+    q = e->qconst;
+    ((q & 7) == 0) && ((q != 0) && ((q != nil_oop) && ((q != true_oop) && (q != false_oop)))); })) {
+            return activate(m, f, n, -1, 0);
+        }
         if (e->qconst != 0) {
             base[0] = e->qconst;
         }

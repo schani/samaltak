@@ -2332,6 +2332,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t r_resend;
     uint64_t r_2;
     uint64_t r_sent;
+    oop o_9;
     uint64_t r_sent_2;
     int8_t i_3;
     uint64_t r_sent_3;
@@ -2349,7 +2350,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t l_4;
     uint64_t r_follow_5;
     uint64_t p_6;
-    uint64_t o_9;
+    uint64_t o_10;
     uint64_t r_perform;
     oop *base_3;
     oop sel_2;
@@ -2364,7 +2365,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     uint64_t l_5;
     uint64_t r_follow_6;
     uint64_t p_7;
-    uint64_t o_10;
+    uint64_t o_11;
     int32_t i_5;
     uint64_t r_resend_2;
     uint64_t r_4;
@@ -2563,7 +2564,9 @@ exit_does_not_understand:;
     r_does_not_understand; });
         }
     }
-    if ((e->kind & K_CONST) != 0) {
+    if (((e->kind & K_CONST) != 0) && ((!(young_forwarders + old_forwarders != 0)) || ((e->qconst == 0) || ({
+    o_9 = e->qconst;
+    (!((o_9 & 7) == 0)) || ((e->qconst == nil_oop) || ((e->qconst == true_oop) || (e->qconst == false_oop))); })))) {
         if (e->qconst != 0) {
             base[0] = e->qconst;
         }
@@ -2642,7 +2645,7 @@ exit_sent_5:;
     }
     sync_frame(f);
     m_5 = f->method;
-    o_9 = ({
+    o_10 = ({
     l_4 = *(uint64_t *)(m_5 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_4 = ({
@@ -2655,7 +2658,7 @@ exit_sent_5:;
     }
     r_literals_of_4 = l_4;
     r_literals_of_4; });
-    f->lits = (oop *)(o_9 + 16);
+    f->lits = (oop *)(o_10 + 16);
     if (((e->kind & K_PRIM) != 0) && ((e->prim == perform_fn) || (e->prim == perform_args_fn))) {
         return ({
     base_3 = f->fp + (f->sp - n - 1);
@@ -2678,7 +2681,7 @@ exit_sent_5:;
     }
     sync_frame(f);
     m_7 = f->method;
-    o_10 = ({
+    o_11 = ({
     l_5 = *(uint64_t *)(m_7 + 16 + 16);
     if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
         l_5 = ({
@@ -2691,7 +2694,7 @@ exit_sent_5:;
     }
     r_literals_of_5 = l_5;
     r_literals_of_5; });
-    f->lits = (oop *)(o_10 + 16);
+    f->lits = (oop *)(o_11 + 16);
     r_leave_before_2 = deopt_frame(f, k, (uint64_t *)NULL, 1);
     r_leave_before_2; });
         goto exit_perform;

@@ -208,6 +208,23 @@ sizeOf: x
 	c := a + 2.
 	^x size + a + b + c - (a + b + c) + (x size * 0)
 !
+testForwardedLiteralArray
+	"A method's literal Array forwarded: cached quick and ordinary activations of the method answer the new literals (in the interpreter: machine code keeps the literals it embedded)."
+	| subject mode literals |
+	mode := Smalltalk vm jitMode: #none.
+	BecomeTestSubject compile: 'quickLiteral ^#old' classified: 'tests'.
+	BecomeTestSubject compile: 'literal ^#(#old) first' classified: 'tests'.
+	[subject := BecomeTestSubject new.
+	3 timesRepeat: [subject quickLiteral. subject literal].
+	#(#quickLiteral #literal) do: [:sel |
+		literals := (BecomeTestSubject >> sel) literals.
+		literals becomeForward: (literals collect: [:each | each == #old ifTrue: [#new] ifFalse: [each = #(#old) ifTrue: [#(#new)] ifFalse: [each]]])].
+	self assert: subject quickLiteral == #new.
+	self assert: subject literal == #new]
+		ensure: [
+			BecomeTestSubject removeSelector: #quickLiteral; removeSelector: #literal.
+			Smalltalk vm jitMode: mode]
+!
 testEagerKinds
 	| assoc holder |
 	assoc := #a -> 1.

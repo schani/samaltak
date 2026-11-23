@@ -860,11 +860,18 @@ conditionOf: n
 	nd op asInt32 = O_FCMP ifTrue: [^k caseOf: {[2] -> [COND_MI]. [3] -> [COND_GT]. [4] -> [COND_LS]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]].
 	^k caseOf: {[2] -> [COND_LT]. [3] -> [COND_GT]. [4] -> [COND_LE]. [5] -> [COND_GE]. [6] -> [COND_EQ]} otherwise: [COND_NE]
 !
+isPermanentlyEager: c
+	"c is never forwarded lazily, whatever happens later (special objects can change): a class or metaclass, a Symbol."
+	| m |
+	m := self rawClass: (self rawClass: c).
+	m = (self rawClass: (self rawClass: m)) ifTrue: [^true].
+	^(self rawClass: c) = (memory special: SO_BYTESYMBOL) or: [(self rawClass: c) = (memory special: SO_WIDESYMBOL)]
+!
 isNoForwarderTarget: v
-	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false, a constant becomeForward: forwards eagerly (a class, a Symbol...)."
+	"Value v is never a forwarder nor forwarded to: an immediate, nil, true or false, a constant class or Symbol."
 	| k |
 	k := (ir node: v) tkind asInt32.
-	((ir node: v) op asInt32 = O_CONST and: [(self isPtr: (ir node: v) aux asUInt64) not or: [memory forwardsEagerly: (ir node: v) aux asUInt64]]) ifTrue: [^true].
+	((ir node: v) op asInt32 = O_CONST and: [(self isPtr: (ir node: v) aux asUInt64) not or: [self isPermanentlyEager: (ir node: v) aux asUInt64]]) ifTrue: [^true].
 	^k = T_SMI or: [k = T_BOOL or: [k = T_NIL or: [k = T_CHAR or: [(k = T_FLOAT and: [(ir node: v) op asInt32 = O_CONST])]]]]
 !
 emitCompare: n

@@ -581,7 +581,8 @@ send: f index: k site: key
 	(e cls = cls and: [e sel = key]) ifFalse: [
 		e := interpreter siteEntry: (self cCoerce: key to: 'uint8_t *') class: cls selector: sel.
 		e isNull ifTrue: [^self doesNotUnderstand: sel class: cls frame: f index: k argc: n]].
-	(e kind bitAnd: runtime kConst) ~= 0 ifTrue: [
+	((e kind bitAnd: runtime kConst) ~= 0 and: [gc forwardersExist not or: [e qconst = 0 or: [(self isPtr: e qconst) not or: [e qconst = memory nilOop or: [e qconst = memory trueOop or: [e qconst = memory falseOop]]]]]]) ifTrue: [
+		"(a constant from the literals may be stale while forwarders exist: becomeForward: of the literal Array)"
 		e qconst ~= 0 ifTrue: [base at: 0 put: e qconst].
 		^self sent: f].
 	((e kind bitAnd: runtime kQuick) ~= 0 and: [n = 0 and: [(self isPtr: r) and: [(self formatOf: r) <= F_FIXVAR and: [(self numSlots: r) > e quick asUInt32]]]]) ifTrue: [

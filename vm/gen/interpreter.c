@@ -4251,6 +4251,7 @@ void interpret(void)
     uint8_t r_next_bytecode_251;
     int64_t r_method_prim_5;
     uint64_t p_282;
+    oop q_3;
     oop v_525;
     oop *s_243;
     oop m_245;
@@ -16236,6 +16237,11 @@ have_entry:;
         goto activate;
     }
     if ((e_6->kind & K_CONST) != 0) {
+        if (__builtin_expect(young_forwarders + old_forwarders != 0, 0) && ({
+    q_3 = e_6->qconst;
+    ((q_3 & 7) == 0) && ((q_3 != 0) && ((q_3 != nil_oop) && ((q_3 != true_oop) && (q_3 != false_oop)))); })) {
+            goto activate;
+        }
         v_525 = e_6->qconst != 0 ? e_6->qconst : sp[-argc];
         sp = sp - argc;
         *sp = v_525;
