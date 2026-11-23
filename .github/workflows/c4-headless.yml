@@ -99,3 +99,17 @@ jobs:
             build/c4-ci/**/c4-*/*.out
             build/c4-ci/**/c4-*/*.err
           if-no-files-found: ignore
+      - name: Checked-prefix optimizer slice (headless test builds)
+        id: opt-slice
+        run: |
+          image="$OUT/samaltak.image"
+          OUT=build/c4-ci-opt-slice JOBS=2 tests/vm/c4-opt-slice/run.sh "$image"
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.opt-slice.outcome == 'failure'
+        with:
+          name: c4-headless-opt-slice-logs
+          path: |
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.log
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.out
+            build/c4-ci-opt-slice/c4-opt-slice.*/*.err
+          if-no-files-found: ignore
