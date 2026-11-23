@@ -648,7 +648,7 @@ uint64_t leaf_prim(uint64_t fp, uint64_t fn, uint64_t n)
     prim_base = b;
     prim_status = PS_NONE;
     fn_2();
-    if (__builtin_expect((prim_status == PS_FAIL) && follow_args(n_2, b), 0)) {
+    if (__builtin_expect((prim_status == PS_FAIL) && ((young_forwarders + old_forwarders != 0) && follow_args(n_2, b)), 0)) {
         prim_status = PS_NONE;
         fn_2();
     }
@@ -788,7 +788,7 @@ exit_site_of:;
     opt = h->mode == JIT_OPT;
     kind = (s->info >> 24) & 3;
     r = rcv;
-    if (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0)) {
+    if ((young_forwarders + old_forwarders != 0) && (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0))) {
         r = ({
     p = r;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
@@ -1085,7 +1085,7 @@ exit_site_of:;
     opt = h->mode == JIT_OPT;
     kind = (s->info >> 24) & 3;
     r = rcv;
-    if (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0)) {
+    if ((young_forwarders + old_forwarders != 0) && (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0))) {
         r = ({
     p = r;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {

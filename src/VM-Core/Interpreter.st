@@ -870,7 +870,7 @@ callPrimitive: fn base: b argc: n
 	primBaseIndex := b - self activeSlots.
 	primStatus := PS_NONE.
 	fn call.
-	(self unlikely: (primStatus = PS_FAIL and: [self followArgs: n at: primBase])) ifTrue: [
+	(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: n at: primBase]])) ifTrue: [
 		primStatus := PS_NONE.
 		fn call].
 	^primStatus
@@ -881,7 +881,7 @@ callLeafPrimitive: fn base: b argc: n
 	primBase := b.
 	primStatus := PS_NONE.
 	fn call.
-	(self unlikely: (primStatus = PS_FAIL and: [self followArgs: n at: b])) ifTrue: [
+	(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: n at: b]])) ifTrue: [
 		primStatus := PS_NONE.
 		fn call].
 	^primStatus
@@ -946,7 +946,8 @@ thawFor: code
 	n := self intVal: (s at: CTX_STACKP).
 	m := s at: CTX_METHOD.
 	f := frames + 0.
-	cstack at: 0 put: (memory follow: (s at: CTX_RECEIVER)).
+	cstack at: 0 put: (s at: CTX_RECEIVER).
+	(self unlikely: gc forwardersExist) ifTrue: [cstack at: 0 put: (memory follow: (cstack at: 0))].
 	libc memcpy: cstack + 1 from: s + CTX_FIXED size: n asUInt64 * 8.
 	f method: m.
 	f closure: (s at: CTX_CLOSURE).
@@ -1980,7 +1981,7 @@ haveEntry: e
 		primBase := sp - argc.
 		primStatus := PS_NONE.
 		e prim call.
-		(self unlikely: (primStatus = PS_FAIL and: [self followArgs: argc at: sp - argc])) ifTrue: [
+		(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: argc at: sp - argc]])) ifTrue: [
 			primStatus := PS_NONE.
 			e prim call].
 		(self likely: primStatus = PS_OK) ifTrue: [
@@ -2023,7 +2024,7 @@ haveEntry: e
 		epoch := gc gcEpoch.
 		tmpRoots at: 0 put: newMethod.
 		e prim call.
-		(self unlikely: (primStatus = PS_FAIL and: [gc gcEpoch = epoch and: [self followArgs: argc at: primBase]])) ifTrue: [
+		(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [gc gcEpoch = epoch and: [self followArgs: argc at: primBase]]])) ifTrue: [
 			primStatus := PS_NONE.
 			e prim call].
 		primStatus caseOf: {

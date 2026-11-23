@@ -1217,7 +1217,7 @@ specialFast: k base: base
 	b := base at: 1.
 	k = 19 ifTrue: [^self bool: (a = b or: [gc forwardersExist and: [(memory follow: a) = (memory follow: b)]])].
 	k = 20 ifTrue: [^self bool: (a = b or: [gc forwardersExist and: [(memory follow: a) = (memory follow: b)]]) not].
-	k = 29 ifTrue: [^memory classOf: (memory follow: a)].
+	k = 29 ifTrue: [^memory classOf: (gc forwardersExist ifTrue: [memory follow: a] ifFalse: [a])].
 	(k = 27 or: [k = 28]) ifTrue: [
 		((self isPtr: a) and: [(self rawClass: a) = memory clsPoint]) ifTrue: [^self loadRef: a at: k - 27].
 		^0].

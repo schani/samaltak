@@ -545,7 +545,7 @@ send: f index: k site: key
 		interpreter printActivation: h method receiver: memory nilOop closure: memory nilOop on: libc stderr].
 	base := f fp + h slots asInt64.
 	r := base at: 0.
-	(memory isForwarder: r) ifTrue: [
+	(gc forwardersExist and: [memory isForwarder: r]) ifTrue: [
 		r := memory follow: r.
 		base at: 0 put: r].
 	kind = 2 ifTrue: [
@@ -791,7 +791,7 @@ noteReceiverAt: m pc: pc
 		ifTrue: [(p at: 1) asInt64]
 		ifFalse: [(g sp - (analysis sendArgcOf: p) - 1) asInt64].
 	i >= 0 ifTrue: [
-		feedback noteSend: m pc: pc class: (interpreter receiverClass: (memory follow: (g fp at: i))).
+		feedback noteSend: m pc: pc class: (interpreter receiverClass: (self followed: (g fp at: i))).
 		(libc getenv: 'SAMALTAK_OPT_TRACE') notNull ifTrue: [
 			libc fprintf: libc stderr format: 'deopt receiver %lld (Array %lld): ' with: (interpreter receiverClass: (g fp at: i)) with: memory clsArray.
 			interpreter printClassName: (interpreter receiverClass: (g fp at: i)) on: libc stderr.
@@ -890,7 +890,7 @@ writeFrames: fi from: fp0
 		m := rtActMethod at: i.
 		d := rtActDepth at: i.
 		i > 0 ifTrue: [fp := fp + (rtActDepth at: i - 1) + 1].
-		fp at: -1 put: (memory follow: (rtDeoptVals at: (rtActRcv at: i))).
+		fp at: -1 put: (self followed: (rtDeoptVals at: (rtActRcv at: i))).
 		0 to: d - 1 do: [:s | fp at: s put: (rtDeoptVals at: (rtActVals at: i) + s)].
 		cl := (rtActClosure at: i) >= 0 ifTrue: [rtDeoptVals at: (rtActClosure at: i)] ifFalse: [memory nilOop].
 		(i >= rtWritten and: [i > 0]) ifTrue: [g ctx: memory nilOop].
@@ -1095,7 +1095,7 @@ materialize: f
 		s at: CTX_STACKP put: (self intOop: (rtActDepth at: i)).
 		s at: CTX_METHOD put: (rtActMethod at: i).
 		s at: CTX_CLOSURE put: ((rtActClosure at: i) >= 0 ifTrue: [rtDeoptVals at: (rtActClosure at: i)] ifFalse: [memory nilOop]).
-		s at: CTX_RECEIVER put: (memory follow: (rtDeoptVals at: (rtActRcv at: i))).
+		s at: CTX_RECEIVER put: (self followed: (rtDeoptVals at: (rtActRcv at: i))).
 		0 to: (rtActDepth at: i) - 1 do: [:j | s at: CTX_FIXED + j put: (rtDeoptVals at: (rtActVals at: i) + j)].
 		gc rememberIfOld: c.
 		interpreter activeCtx: c].
@@ -1250,6 +1250,11 @@ invalidateSelector: sel
 	0 to: rtAllCount - 1 do: [:i |
 		o := rtAll at: i.
 		0 to: o depCount asInt64 - 1 do: [:k | (self poolAt: (o deps at: k) of: o) = sel ifTrue: [self invalidate: o]]]
+!
+followed: o
+	"o, or its target if o is a forwarder (becomeForward:)."
+	gc forwardersExist ifFalse: [^o].
+	^memory follow: o
 !
 invalidateEmbedding: o
 	"becomeForward: made o a forwarder: code with o in its pool is invalidated (it may have folded o's class or fields)."

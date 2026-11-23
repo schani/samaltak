@@ -1175,13 +1175,16 @@ void prim_class(void)
     oop p;
     oop v;
     o = prim_nargs > 0 ? prim_base[1] : prim_base[0];
-    v = class_of(({
+    if (young_forwarders + old_forwarders != 0) {
+        o = ({
     p = o;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
         p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
     }
     r_follow = p;
-    r_follow; }));
+    r_follow; });
+    }
+    v = class_of(o);
     prim_result = v;
     prim_status = PS_OK;
 }

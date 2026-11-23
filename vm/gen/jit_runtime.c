@@ -2771,13 +2771,13 @@ oop special_fast(int32_t k, oop *base)
         return a_boolean_2 ? true_oop : false_oop;
     }
     if (k == 29) {
-        return class_of(({
+        return class_of(young_forwarders + old_forwarders != 0 ? ({
     p_5 = a;
     while (((p_5 & 7) == 0) && (((*(uint64_t *)p_5) & H_FORWARDED) != 0)) {
         p_5 = (*(uint64_t *)(p_5 + 8)) & 18446744073709551609ULL;
     }
     r_follow_5 = p_5;
-    r_follow_5; }));
+    r_follow_5; }) : a);
     }
     if ((k == 27) || (k == 28)) {
         if (((a & 7) == 0) && (*(uint64_t *)(a + 8) == cls_point)) {

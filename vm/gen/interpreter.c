@@ -277,7 +277,7 @@ int32_t call_primitive(prim_fn fn, oop *b, int32_t n)
     prim_base_index = b - active_slots();
     prim_status = PS_NONE;
     fn();
-    if (__builtin_expect((prim_status == PS_FAIL) && follow_args(n, prim_base), 0)) {
+    if (__builtin_expect((prim_status == PS_FAIL) && ((young_forwarders + old_forwarders != 0) && follow_args(n, prim_base)), 0)) {
         prim_status = PS_NONE;
         fn();
     }
@@ -14113,7 +14113,7 @@ have_entry:;
         prim_base = sp - argc;
         prim_status = PS_NONE;
         e_6->prim();
-        if (__builtin_expect((prim_status == PS_FAIL) && follow_args(argc, sp - argc), 0)) {
+        if (__builtin_expect((prim_status == PS_FAIL) && ((young_forwarders + old_forwarders != 0) && follow_args(argc, sp - argc)), 0)) {
             prim_status = PS_NONE;
             e_6->prim();
         }
@@ -14370,7 +14370,7 @@ have_entry:;
         epoch = gc_epoch;
         tmp_roots[0] = new_method;
         e_6->prim();
-        if (__builtin_expect((prim_status == PS_FAIL) && ((gc_epoch == epoch) && follow_args(argc, prim_base)), 0)) {
+        if (__builtin_expect((prim_status == PS_FAIL) && ((young_forwarders + old_forwarders != 0) && ((gc_epoch == epoch) && follow_args(argc, prim_base))), 0)) {
             prim_status = PS_NONE;
             e_6->prim();
         }
@@ -15533,14 +15533,17 @@ frame *thaw_for(uint64_t code)
     n = ((int64_t)o_2) >> 1;
     m = s[CTX_METHOD];
     f = frames + 0;
-    o_3 = s[CTX_RECEIVER];
-    cstack[0] = ({
+    cstack[0] = s[CTX_RECEIVER];
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        o_3 = cstack[0];
+        cstack[0] = ({
     p = o_3;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
         p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
     }
     r_follow = p;
     r_follow; });
+    }
     memcpy(cstack + 1, s + CTX_FIXED, (uint64_t)n * 8);
     f->method = m;
     f->closure = s[CTX_CLOSURE];

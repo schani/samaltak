@@ -590,6 +590,7 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     oop m;
     int32_t d;
     oop o;
+    oop r_followed;
     oop r_follow;
     oop p;
     int32_t s;
@@ -607,6 +608,7 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     oop m_2;
     int32_t d_2;
     oop o_4;
+    oop r_followed_2;
     oop r_follow_2;
     oop p_2;
     int32_t s_2;
@@ -625,6 +627,7 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
     oop m_3;
     int32_t d_3;
     oop o_7;
+    oop r_followed_3;
     oop r_follow_3;
     oop p_3;
     int32_t s_3;
@@ -654,12 +657,19 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
         }
         o = rt_deopt_vals[rt_act_rcv[i]];
         fp[-1] = ({
+    if (!(young_forwarders + old_forwarders != 0)) {
+        r_followed = o;
+        goto exit_followed;
+    }
+    r_followed = ({
     p = o;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
         p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
     }
     r_follow = p;
     r_follow; });
+exit_followed:;
+    r_followed; });
         for (s = 0; s <= d - 1; s++) {
             fp[s] = rt_deopt_vals[rt_act_vals[i] + s];
         }
@@ -709,12 +719,19 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             }
             o_4 = rt_deopt_vals[rt_act_rcv[i_3]];
             fp_2[-1] = ({
+    if (!(young_forwarders + old_forwarders != 0)) {
+        r_followed_2 = o_4;
+        goto exit_followed_2;
+    }
+    r_followed_2 = ({
     p_2 = o_4;
     while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
         p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
     }
     r_follow_2 = p_2;
     r_follow_2; });
+exit_followed_2:;
+    r_followed_2; });
             for (s_2 = 0; s_2 <= d_2 - 1; s_2++) {
                 fp_2[s_2] = rt_deopt_vals[rt_act_vals[i_3] + s_2];
             }
@@ -755,12 +772,19 @@ static uint64_t deopt_frame(frame *f, int64_t k, uint64_t *regs, int mode)
             }
             o_7 = rt_deopt_vals[rt_act_rcv[i_4]];
             fp_3[-1] = ({
+    if (!(young_forwarders + old_forwarders != 0)) {
+        r_followed_3 = o_7;
+        goto exit_followed_3;
+    }
+    r_followed_3 = ({
     p_3 = o_7;
     while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
         p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
     }
     r_follow_3 = p_3;
     r_follow_3; });
+exit_followed_3:;
+    r_followed_3; });
             for (s_3 = 0; s_3 <= d_3 - 1; s_3++) {
                 fp_3[s_3] = rt_deopt_vals[rt_act_vals[i_4] + s_3];
             }
@@ -875,6 +899,7 @@ uint64_t deopt_guard(frame *f, int64_t k)
     int k_4;
     int64_t i_8;
     oop o_4;
+    oop r_followed;
     oop r_follow;
     oop p_3;
     oop r_3;
@@ -1181,12 +1206,19 @@ exit_send_argc_of:;
             if (i_8 >= 0) {
                 o_4 = g_2->fp[i_8];
                 r_3 = ({
+    if (!(young_forwarders + old_forwarders != 0)) {
+        r_followed = o_4;
+        goto exit_followed;
+    }
+    r_followed = ({
     p_3 = o_4;
     while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
         p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
     }
     r_follow = p_3;
     r_follow; });
+exit_followed:;
+    r_followed; });
                 note_send(m, pc, (r_3 & 7) != 0 ? tag_class[r_3 & 7] : *(uint64_t *)(r_3 + 8));
                 if (getenv("SAMALTAK_OPT_TRACE") != NULL) {
                     r_4 = g_2->fp[i_8];
@@ -1602,6 +1634,7 @@ void materialize(frame *f)
     int32_t v_2;
     int32_t v_3;
     oop o_2;
+    oop r_followed;
     oop r_follow;
     oop p;
     int32_t j_3;
@@ -1697,12 +1730,19 @@ exit_frame_size_of_act:;
         s[CTX_CLOSURE] = rt_act_closure[i_5] >= 0 ? rt_deopt_vals[rt_act_closure[i_5]] : nil_oop;
         o_2 = rt_deopt_vals[rt_act_rcv[i_5]];
         s[CTX_RECEIVER] = ({
+    if (!(young_forwarders + old_forwarders != 0)) {
+        r_followed = o_2;
+        goto exit_followed;
+    }
+    r_followed = ({
     p = o_2;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
         p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
     }
     r_follow = p;
     r_follow; });
+exit_followed:;
+    r_followed; });
         for (j_3 = 0; j_3 <= rt_act_depth[i_5] - 1; j_3++) {
             s[CTX_FIXED + j_3] = rt_deopt_vals[rt_act_vals[i_5] + j_3];
         }
@@ -2140,7 +2180,7 @@ static oop opt_runtime_send(frame *f, int64_t k, uint64_t key)
     }
     base = f->fp + (int64_t)h->slots;
     r = base[0];
-    if (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0)) {
+    if ((young_forwarders + old_forwarders != 0) && (((r & 7) == 0) && (((*(uint64_t *)r) & H_FORWARDED) != 0))) {
         r = ({
     p = r;
     while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {

@@ -14,7 +14,10 @@ declarations
 primClass
 	<vmPrimitive: 78 name: 'class'>
 	<leaf>
-	self answer: (memory classOf: (memory follow: (self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver])))
+	| o |
+	o := self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver].
+	gc forwardersExist ifTrue: [o := memory follow: o].
+	self answer: (memory classOf: o)
 !
 primIdentical
 	<vmPrimitive: 79 name: 'identical'>

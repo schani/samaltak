@@ -451,7 +451,7 @@ miss: f receiver: rcv ret: ret
 	opt := h mode = jit optMode.
 	kind := (s info >> 24) bitAnd: 3.
 	r := rcv.
-	(memory isForwarder: r) ifTrue: [
+	(gc forwardersExist and: [memory isForwarder: r]) ifTrue: [
 		"a forwarder (becomeForward:) misses every class check: the send goes to its target (the stub reloads the receiver from its slot)"
 		r := memory follow: r.
 		opt
