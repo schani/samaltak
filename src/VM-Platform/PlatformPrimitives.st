@@ -121,7 +121,7 @@ rect: r into: out
 	| v |
 	((self isPtr: r) and: [(self formatOf: r) = F_VAR and: [(self numSlots: r) = 4]]) ifFalse: [^false].
 	0 to: 3 do: [:i |
-		v := self loadRef: r at: i.
+		v := self element: r at: i.
 		(self isInt: v) ifFalse: [^false].
 		out at: i put: (self intVal: v) asInt32].
 	^true
@@ -135,7 +135,7 @@ stringVector: a nonEmpty: nonEmpty
 	v := self cCoerce: (libc calloc: n asUInt64 + 1 size: (self sizeof: 'char *')) to: 'char **'.
 	v isNull ifTrue: [^self null].
 	0 to: n asInt64 - 1 do: [:i |
-		s := self loadRef: a at: i.
+		s := self element: a at: i.
 		(self isText: s) ifTrue: [v at: i put: (memory utf8Of: s)].
 		((self isText: s) not or: [(v at: i) isNull]) ifTrue: [
 			0 to: i - 1 do: [:k | libc free: (v at: k)].
@@ -410,20 +410,20 @@ primInjectEvent
 	a := self arg: 0.
 	((self isPtr: a) and: [(self formatOf: a) = F_VAR and: [(self numSlots: a) >= 8]]) ifFalse: [^self fail].
 	e := self local: 'pf_event'.
-	o := self loadRef: a at: 0.
+	o := self element: a at: 0.
 	ok := (self isInt: o) and: [(self intVal: o) > 0].
 	ok ifTrue: [e type: (self intVal: o) asInt32].
-	o := self loadRef: a at: 1.
+	o := self element: a at: 1.
 	e timeMs: ((self isInt: o) ifTrue: [self intVal: o] ifFalse: [common nowMs]).
-	ok := ok and: [(self numberOf: (self loadRef: a at: 2) into: (e fieldAddress: #x))
-		and: [self numberOf: (self loadRef: a at: 3) into: (e fieldAddress: #y)]].
-	o := self loadRef: a at: 4.
+	ok := ok and: [(self numberOf: (self element: a at: 2) into: (e fieldAddress: #x))
+		and: [self numberOf: (self element: a at: 3) into: (e fieldAddress: #y)]].
+	o := self element: a at: 4.
 	e key: ((self isInt: o) ifTrue: [self intVal: o] ifFalse: [0]).
-	o := self loadRef: a at: 5.
+	o := self element: a at: 5.
 	e mods: ((self isInt: o) ifTrue: [(self intVal: o) asInt32] ifFalse: [0]).
-	o := self loadRef: a at: 7.
+	o := self element: a at: 7.
 	e window: ((self isInt: o) ifTrue: [(self intVal: o) asInt32] ifFalse: [0]).
-	ok := ok and: [self textOrDelta: (self loadRef: a at: 6) into: e].
+	ok := ok and: [self textOrDelta: (self element: a at: 6) into: e].
 	ok ifTrue: [events push: e].
 	libc free: e text.
 	ok ifFalse: [^self fail].
@@ -447,8 +447,8 @@ textOrDelta: o into: e
 	((self isPtr: o) and: [((memory classOf: o) = (memory special: SO_POINT) and: [(self numSlots: o) >= 2])
 			or: [(self formatOf: o) = F_VAR and: [(self numSlots: o) = 2]]]) ifTrue: [
 		e xkind: PF_X_POINT.
-		^(self numberOf: (self loadRef: o at: 0) into: (e fieldAddress: #dx))
-			and: [self numberOf: (self loadRef: o at: 1) into: (e fieldAddress: #dy)]].
+		^(self numberOf: (self element: o at: 0) into: (e fieldAddress: #dx))
+			and: [self numberOf: (self element: o at: 1) into: (e fieldAddress: #dy)]].
 	(self isText: o) ifTrue: [
 		e xkind: PF_X_TEXT.
 		^(e text: (memory utf8Of: o)) notNull].
@@ -608,8 +608,8 @@ primGpuCreatePipeline
 	va := self local: 'pf_vattr[16]'.
 	n := ((self numSlots: attrs) quo: 2) asInt32.
 	0 to: n - 1 do: [:i |
-		f := self loadRef: attrs at: 2 * i.
-		off := self loadRef: attrs at: (2 * i) + 1.
+		f := self element: attrs at: 2 * i.
+		off := self element: attrs at: (2 * i) + 1.
 		((self isInt: f) and: [self isInt: off]) ifFalse: [^self fail].
 		(va at: i) format: (self intVal: f) asInt32.
 		(va at: i) offset: (self intVal: off) asInt32].
@@ -736,7 +736,7 @@ primGpuBeginPass
 	cl ~= memory nilOop ifTrue: [
 		((self isPtr: cl) and: [(self formatOf: cl) = F_VAR and: [(self numSlots: cl) = 4]]) ifFalse: [^self fail].
 		0 to: 3 do: [:i |
-			(self numberOf: (self loadRef: cl at: i) into: d) ifFalse: [^self fail].
+			(self numberOf: (self element: cl at: i) into: d) ifFalse: [^self fail].
 			rgba at: i put: d value]].
 	self answerHandle: (gpu beginPass: c asInt32 target: t asInt32 clear: (cl = memory nilOop ifTrue: [self null] ifFalse: [rgba]))
 !
@@ -1665,7 +1665,7 @@ slot: a at: i
 	"SmallInteger slot i of a (bad set if it is none)."
 	<function>
 	| o |
-	o := self loadRef: a at: i.
+	o := self element: a at: i.
 	(self isInt: o) ifFalse: [
 		bad := true.
 		^0].
@@ -1676,7 +1676,7 @@ floatSlot: a at: i
 	<returns: 'double'>
 	| d |
 	d := self local: 'double'.
-	(self numberOf: (self loadRef: a at: i) into: d) ifFalse: [bad := true].
+	(self numberOf: (self element: a at: i) into: d) ifFalse: [bad := true].
 	^d value
 !
 pointerSlot: a at: i
@@ -1685,7 +1685,7 @@ pointerSlot: a at: i
 	<returns: 'uint8_t *'>
 	| w |
 	w := self local: 'uint64_t'.
-	(memory u64Of: (self loadRef: a at: i) into: w) ifFalse: [bad := true].
+	(memory u64Of: (self element: a at: i) into: w) ifFalse: [bad := true].
 	^self cCoerce: w value to: 'uint8_t *'
 !
 isFormat: f
@@ -1732,8 +1732,8 @@ primRasterDraw
 	st textureWidth: (self slot: a at: 18).
 	st textureHeight: (self slot: a at: 19).
 	st textureFormat: (self slot: a at: 20) asInt32.
-	st linear: (self loadRef: a at: 21) = memory trueOop.
-	st wrap: (self loadRef: a at: 22) = memory trueOop.
+	st linear: (self element: a at: 21) = memory trueOop.
+	st wrap: (self element: a at: 22) = memory trueOop.
 	v := self addressArg: 1.
 	first := self intArg: 2.
 	n := self intArg: 3.

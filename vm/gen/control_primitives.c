@@ -621,6 +621,10 @@ void prim_try_primitive(void)
     uint32_t n;
     oop *b;
     int64_t i;
+    int64_t i_2;
+    oop o;
+    oop r_follow;
+    oop p;
     oop res;
     if (prim_nargs != 3) {
         prim_status = PS_FAIL;
@@ -648,6 +652,18 @@ void prim_try_primitive(void)
     b[0] = b[2];
     for (i = 0; i <= (int64_t)n - 1; i++) {
         b[1 + i] = ((oop *)(arr + 16))[i];
+    }
+    if (young_forwarders + old_forwarders != 0) {
+        for (i_2 = 0; i_2 <= (int64_t)n; i_2++) {
+            o = b[i_2];
+            b[i_2] = ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+        }
     }
     active_set_stackp(bi + 1 + (int64_t)n);
     set_prim_base((int32_t)n);

@@ -299,6 +299,8 @@ primTryPrimitive
 	b := interpreter activeSlots + bi.
 	b at: 0 put: (b at: 2).
 	0 to: n asInt64 - 1 do: [:i | b at: 1 + i put: ((self slotsOf: arr) at: i)].
+	"a simulated activation's receiver and arguments come from Contexts and an Array, which becomeForward: does not rewrite"
+	gc forwardersExist ifTrue: [0 to: n asInt64 do: [:i | b at: i put: (memory follow: (b at: i))]].
 	interpreter activeSetStackp: bi + 1 + n asInt64.
 	interpreter setPrimBase: n asInt32.
 	interpreter primStatus: PS_NONE.

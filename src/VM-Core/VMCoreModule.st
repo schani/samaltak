@@ -86,6 +86,31 @@ rawClass: o
 rawClass: o put: c
 	self uint64At: o + 8 put: c
 !
+literalsOf: m
+	"Method m's literals, followed: becomeForward: may have forwarded the Array, whose old body the collector no longer updates (the bytecodes need not be followed: their old body keeps its bytes)."
+	| l |
+	l := self loadRef: m at: CM_LITERALS.
+	(self unlikely: gc forwardersExist) ifTrue: [l := memory follow: l].
+	^l
+!
+bytecodesOf: m
+	"Method m's bytecodes, followed (as literalsOf:): a forwarder's body keeps its bytes, but not its size."
+	| b |
+	b := self loadRef: m at: CM_BYTECODES.
+	(self unlikely: gc forwardersExist) ifTrue: [b := memory follow: b].
+	^b
+!
+isForwarder: o
+	"o was forwarded by becomeForward: (outside a collection only forwarders have H_FORWARDED set)."
+	^(self isPtr: o) and: [((self header: o) bitAnd: H_FORWARDED) ~= 0]
+!
+follow: o
+	"The object o forwards to, o if it is not a forwarder."
+	| p |
+	p := o.
+	[self isForwarder: p] whileTrue: [p := (self rawClass: p) bitClear: FWD_TAG].
+	^p
+!
 objBytes: o
 	^16 + (8 * (self numSlots: o) asUInt64)
 !

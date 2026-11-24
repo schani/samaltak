@@ -22,7 +22,15 @@ static int32_t work_count;
 /* BytecodeAnalysis>>analyze: */
 bool analyze(oop m)
 {
+    uint64_t r_bytecodes_of;
+    uint64_t b;
+    uint64_t r_follow;
+    uint64_t p;
     uint64_t bc;
+    uint64_t r_literals_of;
+    uint64_t l;
+    uint64_t r_follow_2;
+    uint64_t p_2;
     uint64_t lo;
     uint64_t o;
     uint64_t o_2;
@@ -32,9 +40,9 @@ bool analyze(oop m)
     uint64_t o_6;
     int32_t v;
     int64_t r_method_prim;
-    uint64_t p;
+    uint64_t p_3;
     int64_t r_method_prim_2;
-    uint64_t p_2;
+    uint64_t p_4;
     int32_t i;
     int32_t d_2;
     bool r_flow_to;
@@ -60,12 +68,12 @@ bool analyze(oop m)
     int64_t r_effect_of;
     uint8_t op_2;
     int32_t n;
-    uint8_t *p_3;
+    uint8_t *p_5;
     int32_t r_send_argc_of;
     uint8_t op_3;
     int k_2;
     int k_3;
-    uint8_t *p_4;
+    uint8_t *p_6;
     int32_t r_send_argc_of_2;
     uint8_t op_4;
     int k_4;
@@ -74,8 +82,32 @@ bool analyze(oop m)
     bool r_flow_to_6;
     bool r_sends;
     uint8_t op_5;
-    bc = *(uint64_t *)(m + 16 + 24);
-    lo = *(uint64_t *)(m + 16 + 16);
+    bc = ({
+    b = *(uint64_t *)(m + 16 + 24);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        b = ({
+    p = b;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    r_bytecodes_of = b;
+    r_bytecodes_of; });
+    lo = ({
+    l = *(uint64_t *)(m + 16 + 16);
+    if (__builtin_expect(young_forwarders + old_forwarders != 0, 0)) {
+        l = ({
+    p_2 = l;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    }
+    r_literals_of = l;
+    r_literals_of; });
     if (!(((bc & 7) == 0) && (((int32_t)(((*(uint64_t *)bc) >> H_FMT_SHIFT) & H_FMT_MASK) >= F_BYTES) && (((lo & 7) == 0) && ({
     o = *(uint64_t *)(m + 16 + 32);
     ((o & 1) != 0) && ({
@@ -110,12 +142,12 @@ bool analyze(oop m)
         ana_frame_size = num_args + num_temps;
     }
     prim_index = (int32_t)(({
-    p = *(uint64_t *)(m + 16 + 56);
-    r_method_prim = (p & 1) != 0 ? ((int64_t)p) >> 1 : 0;
+    p_3 = *(uint64_t *)(m + 16 + 56);
+    r_method_prim = (p_3 & 1) != 0 ? ((int64_t)p_3) >> 1 : 0;
     r_method_prim; }) & CM_PRIM_MASK);
     prim_error = ((({
-    p_2 = *(uint64_t *)(m + 16 + 56);
-    r_method_prim_2 = (p_2 & 1) != 0 ? ((int64_t)p_2) >> 1 : 0;
+    p_4 = *(uint64_t *)(m + 16 + 56);
+    r_method_prim_2 = (p_4 & 1) != 0 ? ((int64_t)p_4) >> 1 : 0;
     r_method_prim_2; }) & CM_PRIM_ERROR_FLAG) != 0) && (num_temps > 0);
     has_closures = false;
     for (i = 0; i <= bc_size - 1; i++) {
@@ -357,11 +389,11 @@ exit_flow_to_5:;
     }
     if (((op_2 >= 0x97) && (op_2 <= 0x9F)) || (op_2 >= 0xF0)) {
         if ((op_2 <= 0x99) && ((ana_bcs[pc + 3] < 0xA0) || ((ana_bcs[pc + 3] >= 0xC0) || ({
-    p_3 = ana_bcs + pc;
+    p_5 = ana_bcs + pc;
     ({
-    op_3 = p_3[0];
+    op_3 = p_5[0];
     if ((op_3 == 0x8D) || (op_3 == 0x8E)) {
-        r_send_argc_of = (int32_t)p_3[2];
+        r_send_argc_of = (int32_t)p_5[2];
         goto exit_send_argc_of;
     }
     if (op_3 >= 0xC0) {
@@ -378,7 +410,7 @@ exit_flow_to_5:;
         goto exit_send_argc_of;
     }
     if ((op_3 >= 0x97) && (op_3 <= 0x99)) {
-        k_3 = p_3[3] - 0xA0;
+        k_3 = p_5[3] - 0xA0;
         r_send_argc_of = (k_3 == 19) || (k_3 == 20) ? 1 : special_argc[k_3];
         goto exit_send_argc_of;
     }
@@ -391,11 +423,11 @@ exit_send_argc_of:;
         r_effect_of = 1;
         goto exit_effect_of;
     }
-    p_4 = ana_bcs + pc;
+    p_6 = ana_bcs + pc;
     n = ({
-    op_4 = p_4[0];
+    op_4 = p_6[0];
     if ((op_4 == 0x8D) || (op_4 == 0x8E)) {
-        r_send_argc_of_2 = (int32_t)p_4[2];
+        r_send_argc_of_2 = (int32_t)p_6[2];
         goto exit_send_argc_of_2;
     }
     if (op_4 >= 0xC0) {
@@ -412,7 +444,7 @@ exit_send_argc_of:;
         goto exit_send_argc_of_2;
     }
     if ((op_4 >= 0x97) && (op_4 <= 0x99)) {
-        k_5 = p_4[3] - 0xA0;
+        k_5 = p_6[3] - 0xA0;
         r_send_argc_of_2 = (k_5 == 19) || (k_5 == 20) ? 1 : special_argc[k_5];
         goto exit_send_argc_of_2;
     }

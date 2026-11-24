@@ -206,7 +206,7 @@ signatureOf: f method: m
 	<returns: 'uint32_t'>
 	| w c |
 	w := self closureSignatureOf: f.
-	c := interpreter receiverClass: (f fp at: -1).
+	c := interpreter receiverClass: (memory follow: (f fp at: -1)).
 	c = (self loadRef: m at: CM_CLASS) ifTrue: [^w].
 	w := ((self mix: w asUInt64 with: (self hashOf: c) asUInt64 + 1) bitAnd: 16rFFFFFFFF) asUInt32.
 	w = 0 ifTrue: [^1].
@@ -558,6 +558,9 @@ send: f index: k site: key
 		interpreter printActivation: h method receiver: memory nilOop closure: memory nilOop on: libc stderr].
 	base := f fp + h slots asInt64.
 	r := base at: 0.
+	(gc forwardersExist and: [memory isForwarder: r]) ifTrue: [
+		r := memory follow: r.
+		base at: 0 put: r].
 	kind = 2 ifTrue: [
 		r := runtime specialFast: sp base: base.
 		r ~= 0 ifTrue: [
@@ -578,7 +581,8 @@ send: f index: k site: key
 	(e cls = cls and: [e sel = key]) ifFalse: [
 		e := interpreter siteEntry: (self cCoerce: key to: 'uint8_t *') class: cls selector: sel.
 		e isNull ifTrue: [^self doesNotUnderstand: sel class: cls frame: f index: k argc: n]].
-	(e kind bitAnd: runtime kConst) ~= 0 ifTrue: [
+	((e kind bitAnd: runtime kConst) ~= 0 and: [gc forwardersExist not or: [e lits = (self slotsOf: (self literalsOf: e method))]]) ifTrue: [
+		"(the cached constant is stale if becomeForward: forwarded the method's literal Array since)"
 		e qconst ~= 0 ifTrue: [base at: 0 put: e qconst].
 		^self sent: f].
 	((e kind bitAnd: runtime kQuick) ~= 0 and: [n = 0 and: [(self isPtr: r) and: [(self formatOf: r) <= F_FIXVAR and: [(self numSlots: r) > e quick asUInt32]]]]) ifTrue: [
@@ -780,7 +784,7 @@ noteHoisted: rec of: h frame: f
 	rtDeoptCount := 0.
 	k := self value: (rec at: 2) - 1 h: h frame: f regs: runtime state dump.
 	sig := self signatureAt: m pc: pc.
-	feedback noteSend: m pc: pc class: (interpreter receiverClass: (rtDeoptVals at: k)).
+	feedback noteSend: m pc: pc class: (interpreter receiverClass: (self followed: (rtDeoptVals at: k))).
 	^(self signatureAt: m pc: pc) ~= sig or: [(feedback siteAt: m pc: pc) stamp > h stamp]
 !
 signatureAt: m pc: pc
@@ -801,10 +805,10 @@ noteReceiverAt: m pc: pc
 		ifTrue: [(p at: 1) asInt64]
 		ifFalse: [(g sp - (analysis sendArgcOf: p) - 1) asInt64].
 	i >= 0 ifTrue: [
-		feedback noteSend: m pc: pc class: (interpreter receiverClass: (g fp at: i)).
+		feedback noteSend: m pc: pc class: (interpreter receiverClass: (self followed: (g fp at: i))).
 		(libc getenv: 'SAMALTAK_OPT_TRACE') notNull ifTrue: [
-			libc fprintf: libc stderr format: 'deopt receiver %lld (Array %lld): ' with: (interpreter receiverClass: (g fp at: i)) with: memory clsArray.
-			interpreter printClassName: (interpreter receiverClass: (g fp at: i)) on: libc stderr.
+			libc fprintf: libc stderr format: 'deopt receiver %lld (Array %lld): ' with: (interpreter receiverClass: (self followed: (g fp at: i))) with: memory clsArray.
+			interpreter printClassName: (interpreter receiverClass: (self followed: (g fp at: i))) on: libc stderr.
 			libc fputc: 10 to: libc stderr]]
 !
 operandFlagsAt: m pc: pc
@@ -900,7 +904,7 @@ writeFrames: fi from: fp0
 		m := rtActMethod at: i.
 		d := rtActDepth at: i.
 		i > 0 ifTrue: [fp := fp + (rtActDepth at: i - 1) + 1].
-		fp at: -1 put: (rtDeoptVals at: (rtActRcv at: i)).
+		fp at: -1 put: (self followed: (rtDeoptVals at: (rtActRcv at: i))).
 		0 to: d - 1 do: [:s | fp at: s put: (rtDeoptVals at: (rtActVals at: i) + s)].
 		cl := (rtActClosure at: i) >= 0 ifTrue: [rtDeoptVals at: (rtActClosure at: i)] ifFalse: [memory nilOop].
 		(i >= rtWritten and: [i > 0]) ifTrue: [g ctx: memory nilOop].
@@ -910,7 +914,7 @@ writeFrames: fi from: fp0
 		g fp: fp.
 		g ip: (self methodBytecodes: m) + (rtActPc at: i).
 		g pc: (rtActPc at: i).
-		g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+		g lits: (self slotsOf: (self literalsOf: m)).
 		g sp: d].
 	rtWritten := rtActCount.
 	interpreter nframes: fi + rtActCount.
@@ -1105,7 +1109,7 @@ materialize: f
 		s at: CTX_STACKP put: (self intOop: (rtActDepth at: i)).
 		s at: CTX_METHOD put: (rtActMethod at: i).
 		s at: CTX_CLOSURE put: ((rtActClosure at: i) >= 0 ifTrue: [rtDeoptVals at: (rtActClosure at: i)] ifFalse: [memory nilOop]).
-		s at: CTX_RECEIVER put: (rtDeoptVals at: (rtActRcv at: i)).
+		s at: CTX_RECEIVER put: (self followed: (rtDeoptVals at: (rtActRcv at: i))).
 		0 to: (rtActDepth at: i) - 1 do: [:j | s at: CTX_FIXED + j put: (rtDeoptVals at: (rtActVals at: i) + j)].
 		gc rememberIfOld: c.
 		interpreter activeCtx: c].
@@ -1260,6 +1264,26 @@ invalidateSelector: sel
 	0 to: rtAllCount - 1 do: [:i |
 		o := rtAll at: i.
 		0 to: o depCount asInt64 - 1 do: [:k | (self poolAt: (o deps at: k) of: o) = sel ifTrue: [self invalidate: o]]]
+!
+followed: o
+	"o, or its target if o is a forwarder (becomeForward:)."
+	gc forwardersExist ifFalse: [^o].
+	^memory follow: o
+!
+invalidateEmbedding: o
+	"becomeForward: made o a forwarder: code with o in its pool is invalidated (it may have folded o's class or fields). A young o can only be in the pools of the units scavenges visit."
+	<function>
+	((self isYoung: o) and: [rtOptYoungOverflow not])
+		ifTrue: [0 to: rtOptYoungCount - 1 do: [:i | self invalidate: (rtOptYoung at: i) ifPoolHas: o]]
+		ifFalse: [0 to: rtAllCount - 1 do: [:i | self invalidate: (rtAll at: i) ifPoolHas: o]]
+!
+invalidate: h ifPoolHas: o
+	| pool found |
+	(self isAlive: h) ifFalse: [^self].
+	pool := self cCoerce: h codeStart + h poolOffset to: 'oop *'.
+	found := false.
+	0 to: h poolCount asInt64 - 1 do: [:k | (pool at: k) = o ifTrue: [found := true]].
+	found ifTrue: [self invalidate: h]
 !
 invalidateAll
 	<function>

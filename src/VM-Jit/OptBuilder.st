@@ -180,7 +180,7 @@ guardReceiverClass: a
 	"A variant of a loop's unit whose method the frame's receiver inherits (OptRuntime>>signatureOf:method:: the variant is that class's): the receiver is of that class, guarded once at the entry, so the sends to self are bound."
 	| cls |
 	(obFrame isNull or: [obForeign not]) ifTrue: [^self].
-	cls := interpreter receiverClass: (obFrame fp at: -1).
+	cls := interpreter receiverClass: (memory follow: (obFrame fp at: -1)).
 	cls = (self loadRef: obRootMethod at: CM_CLASS) ifTrue: [^self].
 	(ir act: a) receiver: (self guard: (ir act: a) receiver class: cls state: ir osrState)
 !
@@ -193,7 +193,8 @@ frameClassOf: v
 	nd := ir node: n.
 	(nd op asInt32 = O_PARAM and: [nd tkind asInt32 = T_ANY and: [nd aux >= 0 and: [nd aux < (obValidSlots min: 64)]]]) ifFalse: [^0 asUInt64].
 	o := obFrame fp at: nd aux.
-	(self isPtr: o) ifFalse: [^0 asUInt64].
+	"a forwarder (becomeForward:) has no class to guard for"
+	((self isPtr: o) and: [(memory isForwarder: o) not]) ifFalse: [^0 asUInt64].
 	cls := self rawClass: o.
 	(cls = memory clsBlock or: [cls = memory clsContext]) ifTrue: [^0 asUInt64].
 	((feedback flagsAt: obRootMethod pc: obOsrPc) bitAnd: feedback deoptHoisted) ~= 0 ifTrue: [^0 asUInt64].
@@ -326,8 +327,8 @@ inlinableClosure: c
 	((self isPtr: ctx) and: [(self rawClass: ctx) = memory clsContext]) ifFalse: [^false].
 	m := self loadRef: ctx at: CTX_METHOD.
 	((self isPtr: m) and: [(self formatOf: m) = F_FIXED and: [(self numSlots: m) > CM_PRIMITIVE]]) ifFalse: [^false].
-	((self isPtr: (self loadRef: m at: CM_BYTECODES)) and: [(self formatOf: (self loadRef: m at: CM_BYTECODES)) >= F_BYTES]) ifFalse: [^false].
-	((self isPtr: (self loadRef: m at: CM_LITERALS)) and: [(self formatOf: (self loadRef: m at: CM_LITERALS)) <= F_WEAK]) ifFalse: [^false].
+	((self isPtr: (self bytecodesOf: m)) and: [(self formatOf: (self bytecodesOf: m)) >= F_BYTES]) ifFalse: [^false].
+	((self isPtr: (self literalsOf: m)) and: [(self formatOf: (self literalsOf: m)) <= F_WEAK]) ifFalse: [^false].
 	((self isInt: (self loadRef: c at: BC_STARTPC)) and: [self isInt: (self loadRef: c at: BC_NUMARGS)]) ifFalse: [^false].
 	sp := (self intVal: (self loadRef: c at: BC_STARTPC)) asInt32.
 	n := self intVal: (self loadRef: c at: BC_NUMARGS).
@@ -403,7 +404,7 @@ inlineForeignClosure: x pc: pc act: a rcvSlot: r argc: argc
 	obForeignM at: obForeignDepth put: m.
 	obForeignS at: obForeignDepth put: sp.
 	obForeignDepth := obForeignDepth + 1.
-	self inlineBody: g info: d method: m ana: (self analysisOf: m) outer: -2 home: -1 receiver: (self loadField: CTX_RECEIVER of: outer) pc: pc act: a rcvSlot: r argc: argc.
+	self inlineBody: g info: d method: m ana: (self analysisOf: m) outer: -2 home: -1 receiver: (self loadFollowed: CTX_RECEIVER of: outer) pc: pc act: a rcvSlot: r argc: argc.
 	obForeignDepth := obForeignDepth - 1.
 	^true
 !
@@ -796,10 +797,12 @@ param: i
 	(ir node: n) aux: i.
 	^n
 !
-constant: v
-	"A constant oop (in the entry block, so that it dominates every use): one node per value (up to 256 values a unit), so that the values merged of equal constants are that constant (a branch on it folds where it is built)."
+constant: w
+	"A constant oop (in the entry block, so that it dominates every use): one node per value (up to 256 values a unit), so that the values merged of equal constants are that constant (a branch on it folds where it is built). A forwarder (becomeForward:) is its target."
 	<function>
-	| n nd i k |
+	| n nd i k v |
+	v := memory follow: w.
+	self noteConstant: v.
 	i := ((v * 2654435761) >> 8 bitAnd: 255) asInt32.
 	k := 0.
 	[k < 256 and: [(obConstNodes at: i) >= 0 and: [(obConstVals at: i) ~= v]]] whileTrue: [
@@ -1265,6 +1268,13 @@ loadField: i of: o
 	(ir node: n) aux: i.
 	^n
 !
+loadFollowed: i of: o
+	"loadField:of: of a field that may hold a forwarder (becomeForward:): its target."
+	| n |
+	n := self loadField: i of: o.
+	(ir node: n) flags: ((ir node: n) flags bitOr: NF_FOLLOW).
+	^n
+!
 storeField: i of: o value: v checked: s
 	"Store v into o's field i; s >= 0: the state if o is immutable (the interpreter sends attemptToAssign:withIndex:)."
 	| n st r |
@@ -1435,7 +1445,7 @@ guessedClassOf: x
 	n := self liveValueOf: x.
 	(ir node: n) op asInt32 = O_OUTERLOAD ifTrue: [
 		o := self knownObject: n.
-		(o ~= 0 and: [(self isPtr: o) and: [(self rawClass: o) ~= memory clsBlock and: [(self rawClass: o) ~= memory clsContext]]]) ifTrue: [^self rawClass: o]].
+		(o ~= 0 and: [(self isPtr: o) and: [(memory isForwarder: o) not and: [(self rawClass: o) ~= memory clsBlock and: [(self rawClass: o) ~= memory clsContext]]]]) ifTrue: [^self rawClass: o]].
 	ir nodeCount - 1 to: (ir nodeCount - 512 max: 0) by: -1 do: [:i |
 		nd := ir node: i.
 		(nd op asInt32 = O_GUARDCLASS and: [nd block >= 0 and: [nd a = n or: [nd a = x]]]) ifTrue: [^nd aux asUInt64]].
@@ -1652,11 +1662,12 @@ inlineSend: sel argc: argc kind: kind special: k pc: pc act: a rcvSlot: r
 	merge := ir newBlock.
 	(ir block: merge) act: a.
 	andInts ifTrue: [n := n + 1].
-	"between classes of objects (no immediates): the class loaded once, compared with each (value numbering shares the load with other switches on the value)"
+	"between classes of objects (no immediates): the class loaded once, compared with each (value numbering shares the load with other switches on the value); not followed (aux 1): a forwarder matches no case, as at a class guard, since the cases use rcv itself"
 	rcvClass := -1.
 	(andInts not and: [n > 1 and: [(self anyImmediate: site count: n) not]]) ifTrue: [
 		rcvClass := self add: O_CLASSOF rep: R_OOP.
-		(ir node: rcvClass) a: rcv].
+		(ir node: rcvClass) a: rcv.
+		(ir node: rcvClass) aux: 1].
 	0 to: n - 1 do: [:i |
 		cls := (andInts and: [i = (n - 1)]) ifTrue: [memory clsSmallint] ifFalse: [site classes at: i].
 		rcvClass >= 0
@@ -2182,7 +2193,7 @@ global: assoc pc: pc act: a depth: d
 	"The value of the literal variable assoc pushed at a's pc: a class it holds now is a constant, guarded (it changed: deoptimize to the push, where it is loaded from then on), else loaded."
 	| v c n |
 	v := self loadField: ASSOC_VALUE of: (self constant: assoc).
-	c := self loadRef: assoc at: ASSOC_VALUE.
+	c := memory follow: (self loadRef: assoc at: ASSOC_VALUE).
 	((self isBehavior: c) and: [((feedback flagsAt: (ir act: a) method pc: pc) bitAnd: feedback deoptOther) = 0]) ifFalse: [^v].
 	n := self add: O_GUARDEQ rep: R_NONE.
 	(ir node: n) a: v.
@@ -2194,16 +2205,22 @@ global: assoc pc: pc act: a depth: d
 isBehavior: o
 	"o is a class or a metaclass: its class's class is Metaclass (Metaclass class's class is Metaclass)."
 	| m |
-	(self isPtr: o) ifFalse: [^false].
+	((self isPtr: o) and: [(memory isForwarder: o) not]) ifFalse: [^false].
 	m := self rawClass: (self rawClass: o).
 	^m = (self rawClass: (self rawClass: m))
+!
+noteConstant: v
+	"The code may fold v's class or fields: becomeForward: of v must invalidate it, so v goes into its pool (as a dependency) even if no instruction keeps it; code that cannot record it is not made."
+	((self isPtr: v) and: [(memory forwardsEagerly: v) not]) ifFalse: [^self].
+	self noteDependency: v
 !
 noteDependency: sel
 	"The code depends on what sel finds (inlined or speculated): a method change for sel invalidates it."
 	0 to: obDepCount - 1 do: [:i | (obDeps at: i) = sel ifTrue: [^self]].
-	obDepCount < OPT_MAX_DEPS ifTrue: [
-		obDeps at: obDepCount put: sel.
-		obDepCount := obDepCount + 1]
+	"a dependency that cannot be recorded: no code"
+	obDepCount < OPT_MAX_DEPS ifFalse: [^self bail].
+	obDeps at: obDepCount put: sel.
+	obDepCount := obDepCount + 1
 !
 depCount
 	^obDepCount

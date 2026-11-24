@@ -14,6 +14,7 @@ size_t max_heap_bytes;
 static uint64_t old_alt_hi;
 static uint64_t old_alt_lo;
 size_t old_budget;
+uint64_t old_forwarders;
 static uint64_t old_hi;
 uint64_t old_lo;
 static size_t old_reserve;
@@ -29,6 +30,10 @@ uint64_t stat_scavenge_us;
 uint64_t stat_scavenges;
 uint64_t stat_tenured;
 uint64_t stat_weak_cleared;
+static int64_t stress = -1LL;
+static uint64_t stress_count;
+static uint64_t stress_old;
+static uint64_t stress_young;
 static uint64_t surv_hi;
 static uint64_t surv_lo;
 static uint64_t surv_other_hi;
@@ -42,6 +47,7 @@ static uint64_t vlo;
 static size_t weak_cap;
 static size_t weak_count;
 static oop *weak_list;
+uint64_t young_forwarders;
 uint64_t young_hi;
 uint64_t young_lo;
 
@@ -49,6 +55,7 @@ static void garbage_collector_after_gc(void);
 static void become_root(oop *p);
 static void clear_weak_slots(bool (*is_dead)(oop *));
 static void discard(uint64_t p, uint64_t n);
+static void follow_root(oop *p);
 static void for_each_root(void (*fn)(oop *));
 static uint64_t full_copy(oop o);
 static bool full_dead(oop *v);
@@ -61,6 +68,8 @@ static uint64_t scav_copy(oop o);
 static bool scav_dead(oop *v);
 static void scav_root(oop *p);
 static bool scav_scan(oop o);
+static void stress_forward(uint64_t o);
+static bool stress_picks(oop o);
 static uint32_t traced_slots(oop o);
 static bool valid_ref(oop v);
 static void verify_heap(void);
@@ -177,6 +186,27 @@ static void discard(uint64_t p, uint64_t n)
     }
 }
 
+/* GarbageCollector>>followRoot: */
+static void follow_root(oop *p)
+{
+    oop o;
+    oop o_2;
+    oop r_follow;
+    oop p_2;
+    if ((*p != 0) && ({
+    o = *p;
+    ((o & 7) == 0) && (((*(uint64_t *)o) & H_FORWARDED) != 0); })) {
+        o_2 = *p;
+        *p = ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p_2;
+    r_follow; });
+    }
+}
+
 /* GarbageCollector>>forEachRoot: */
 static void for_each_root(void (*fn)(oop *))
 {
@@ -227,17 +257,62 @@ static void for_each_root(void (*fn)(oop *))
     interpreter_roots(fn);
 }
 
+/* GarbageCollector>>forward:to: */
+void forward(oop from, oop to)
+{
+    uint64_t h;
+    uint64_t h_2;
+    oop c;
+    oop *s;
+    int64_t i;
+    h = *(uint64_t *)from;
+    h_2 = (h & 18446743940565565439ULL & 17870283321406128127ULL) | 21474836480ULL | H_FORWARDED;
+    *(uint64_t *)from = h_2;
+    c = to | FWD_TAG;
+    *(uint64_t *)(from + 8) = c;
+    if ((uint64_t)(from - young_lo) < young_hi - young_lo) {
+        young_forwarders = young_forwarders + 1;
+    } else {
+        old_forwarders = old_forwarders + 1;
+        if (((uint64_t)(to - young_lo) < young_hi - young_lo) && ((h & H_REMEMBERED) == 0)) {
+            remember(from);
+        }
+    }
+    forwarded(from);
+    become_from = from;
+    become_to = to;
+    for_each_root(become_root);
+    if (nframes == 0) {
+        s = (oop *)(active_ctx + 16);
+        for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)active_ctx - 1; i++) {
+            become_root(s + i);
+        }
+        if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
+            remember(active_ctx);
+        }
+    }
+    refresh_literals();
+    become_from = nil_oop;
+    become_to = nil_oop;
+}
+
 /* GarbageCollector>>fullCopy: */
 static uint64_t full_copy(oop o)
 {
     uint64_t h;
-    uint64_t bytes;
     uint64_t dst;
+    uint64_t bytes;
     uint64_t h_2;
     uint64_t h_3;
     h = *(uint64_t *)o;
     if ((h & H_FORWARDED) != 0) {
-        return *(uint64_t *)(o + 8);
+        dst = *(uint64_t *)(o + 8);
+        if ((dst & 7) == 0) {
+            return dst;
+        }
+        dst = full_copy(dst & 18446744073709551609ULL);
+        *(uint64_t *)(o + 8) = dst;
+        return dst;
     }
     bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
     dst = ft_top;
@@ -256,12 +331,18 @@ static bool full_dead(oop *v)
 {
     oop o;
     oop o_2;
+    uint64_t c;
     o = *v;
     if (((*(uint64_t *)o) & H_FORWARDED) == 0) {
         return true;
     }
     o_2 = *v;
-    *v = *(uint64_t *)(o_2 + 8);
+    c = *(uint64_t *)(o_2 + 8);
+    if ((c & 7) != 0) {
+        *v = c & 18446744073709551609ULL;
+        return full_dead(v);
+    }
+    *v = c;
     return false;
 }
 
@@ -329,6 +410,8 @@ void full_gc(void)
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+    young_forwarders = 0;
+    old_forwarders = 0;
     garbage_collector_after_gc();
     stat_full_us = stat_full_us + (uint64_t)(work_clock_held_us() - t0);
     if (live > max_heap_bytes) {
@@ -497,15 +580,25 @@ static uint64_t reserve(size_t n)
 static uint64_t scav_copy(oop o)
 {
     uint64_t h;
+    uint64_t dst;
     uint64_t bytes;
     uint32_t age;
-    uint64_t dst;
     uint64_t h_2;
     uint64_t h_3;
+    bool pick;
     uint64_t h_4;
     h = *(uint64_t *)o;
     if ((h & H_FORWARDED) != 0) {
-        return *(uint64_t *)(o + 8);
+        dst = *(uint64_t *)(o + 8);
+        if ((dst & 7) == 0) {
+            return dst;
+        }
+        dst = dst & 18446744073709551609ULL;
+        if (dst - young_lo < young_hi - young_lo) {
+            dst = scav_copy(dst);
+        }
+        *(uint64_t *)(o + 8) = dst;
+        return dst;
     }
     bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
     age = (uint32_t)(((h >> H_AGE_SHIFT) & 3) + 1);
@@ -523,9 +616,13 @@ static uint64_t scav_copy(oop o)
         h_3 = (h & 1152921504606846975ULL) | (((uint64_t)age) << H_AGE_SHIFT);
         *(uint64_t *)dst = h_3;
     }
+    pick = (stress > 0) && stress_picks(o);
     h_4 = h | H_FORWARDED;
     *(uint64_t *)o = h_4;
     *(uint64_t *)(o + 8) = dst;
+    if (pick) {
+        stress_forward(dst);
+    }
     return dst;
 }
 
@@ -535,6 +632,7 @@ static bool scav_dead(oop *v)
     oop o;
     oop o_2;
     oop o_3;
+    uint64_t c;
     o = *v;
     if ((!((uint64_t)(o - young_lo) < young_hi - young_lo)) || ((*v >= to_lo) && (*v < to_hi))) {
         return false;
@@ -544,7 +642,12 @@ static bool scav_dead(oop *v)
         return true;
     }
     o_3 = *v;
-    *v = *(uint64_t *)(o_3 + 8);
+    c = *(uint64_t *)(o_3 + 8);
+    if ((c & 7) != 0) {
+        *v = c & 18446744073709551609ULL;
+        return scav_dead(v);
+    }
+    *v = c;
     return false;
 }
 
@@ -563,12 +666,22 @@ static bool scav_scan(oop o)
 {
     bool young;
     uint64_t c;
+    uint64_t c_2;
     oop *s;
     int64_t i;
     int64_t stop;
     oop v;
     young = false;
     c = *(uint64_t *)(o + 8);
+    if (((*(uint64_t *)o) & H_FORWARDED) != 0) {
+        c = c & 18446744073709551609ULL;
+        if (c - young_lo < young_hi - young_lo) {
+            c = scav_copy(c);
+        }
+        c_2 = c | FWD_TAG;
+        *(uint64_t *)(o + 8) = c_2;
+        return c - young_lo < young_hi - young_lo;
+    }
     if (c - young_lo < young_hi - young_lo) {
         c = scav_copy(c);
         *(uint64_t *)(o + 8) = c;
@@ -590,6 +703,7 @@ static bool scav_scan(oop o)
 /* GarbageCollector>>scavenge */
 void scavenge(void)
 {
+    char *e;
     int64_t t0;
     uint64_t tenure_scan;
     int64_t kept;
@@ -600,7 +714,15 @@ void scavenge(void)
     uint64_t scan;
     int64_t k;
     oop w;
+    oop c;
+    int64_t i_2;
     before_gc();
+    if (stress < 0) {
+        e = getenv("SAMALTAK_FORWARD_STRESS");
+        stress = e != NULL ? (int64_t)atoi(e) : 0;
+    }
+    stress_young = 0;
+    stress_old = 0;
     t0 = work_clock_held_us();
     stat_scavenges = stat_scavenges + 1;
     stat_allocated = stat_allocated + (eden_box[0] - eden_lo);
@@ -652,8 +774,75 @@ void scavenge(void)
     if (((active_ctx & 7) == 0) && ((!((uint64_t)(active_ctx - young_lo) < young_hi - young_lo)) && (((*(uint64_t *)active_ctx) & H_REMEMBERED) == 0))) {
         remember(active_ctx);
     }
+    young_forwarders = stress_young;
+    old_forwarders = old_forwarders + stress_old;
+    if (stress_young + stress_old == 0) {
+        goto exit_stress_end;
+    }
+    for_each_root(follow_root);
+    if (nframes == 0) {
+        c = active_ctx;
+        for (i_2 = 0; i_2 <= (int64_t)(uint32_t)*(uint64_t *)c - 1; i_2++) {
+            follow_root((oop *)(c + 16) + i_2);
+        }
+    }
+    jit_runtime_all_roots(follow_root);
+exit_stress_end:;
     garbage_collector_after_gc();
     stat_scavenge_us = stat_scavenge_us + (uint64_t)(work_clock_held_us() - t0);
+}
+
+/* GarbageCollector>>stressForward: */
+static void stress_forward(uint64_t o)
+{
+    uint64_t bytes;
+    uint64_t t;
+    uint64_t h;
+    uint64_t h_2;
+    uint64_t c;
+    bytes = 16 + 8 * (uint64_t)(uint32_t)*(uint64_t *)o;
+    t = old_top;
+    old_top = old_top + bytes;
+    memcpy((void *)t, (void *)o, bytes);
+    h = (*(uint64_t *)o) & 1152921504606846975ULL;
+    *(uint64_t *)t = h;
+    h_2 = ((*(uint64_t *)o) & 18446743940565565439ULL) | 21474836480ULL | H_FORWARDED;
+    *(uint64_t *)o = h_2;
+    c = t | FWD_TAG;
+    *(uint64_t *)(o + 8) = c;
+    if (o - young_lo < young_hi - young_lo) {
+        stress_young = stress_young + 1;
+    } else {
+        stress_old = stress_old + 1;
+    }
+}
+
+/* GarbageCollector>>stressPicks: */
+static bool stress_picks(oop o)
+{
+    int32_t f;
+    uint64_t c;
+    uint64_t o_2;
+    stress_count = stress_count + 1;
+    if (!(stress_count % (uint64_t)stress == 0)) {
+        return false;
+    }
+    f = (int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK);
+    if (!((f >= 1) && (f <= 4))) {
+        if ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) < F_W64) {
+            return false;
+        }
+    }
+    if ((int32_t)(((*(uint64_t *)o) >> H_FMT_SHIFT) & H_FMT_MASK) == F_WEAK) {
+        return false;
+    }
+    c = *(uint64_t *)(o + 8);
+    if ((c - young_lo < young_hi - young_lo) || ({
+    o_2 = *(uint64_t *)(c + 8);
+    (o_2 - young_lo < young_hi - young_lo) || (((*(uint64_t *)c) & H_FORWARDED) != 0); })) {
+        return false;
+    }
+    return !forwards_eagerly(o);
 }
 
 /* GarbageCollector>>tracedSlots: */
@@ -762,47 +951,54 @@ static void verify_heap(void)
 static void verify_space_from(uint64_t lo, uint64_t hi, bool is_old)
 {
     uint64_t p;
+    uint64_t v;
     void *a;
     uint64_t o;
-    void *a_2;
-    uint64_t o_2;
     bool young;
+    uint64_t o_2;
+    void *a_2;
+    uint64_t o_3;
     int32_t f;
     int64_t i;
-    oop v;
     void *a_3;
     void *b;
     void *a_4;
     p = lo;
     while (p < hi) {
         if (((*(uint64_t *)p) & H_FORWARDED) != 0) {
-            a = (void *)p;
-            fatal_begin();
-            fprintf(stderr, "verify: forwarded object %p", a);
-            fatal_end();
-        }
-        o = *(uint64_t *)(p + 8);
-        if (!(((o & 7) == 0) && valid_ref(*(uint64_t *)(p + 8)))) {
-            a_2 = (void *)p;
-            fatal_begin();
-            fprintf(stderr, "verify: bad class in %p", a_2);
-            fatal_end();
-        }
-        o_2 = *(uint64_t *)(p + 8);
-        young = o_2 - young_lo < young_hi - young_lo;
-        f = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
-        if ((f >= 1) && (f <= 4)) {
-            for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)p - 1; i++) {
-                v = ((oop *)(p + 16))[i];
-                if (!valid_ref(v)) {
-                    a_3 = (void *)p;
-                    b = (void *)v;
-                    fatal_begin();
-                    fprintf(stderr, "verify: bad slot in %p: %p", a_3, b);
-                    fatal_end();
-                }
-                if (((v & 7) == 0) && ((uint64_t)(v - young_lo) < young_hi - young_lo)) {
-                    young = true;
+            v = *(uint64_t *)(p + 8);
+            if (!(((int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK) == F_FORWARDER) && (((v & 7) == FWD_TAG) && valid_ref(v & 18446744073709551609ULL)))) {
+                a = (void *)p;
+                fatal_begin();
+                fprintf(stderr, "verify: forwarded object %p", a);
+                fatal_end();
+            }
+            o = v & 18446744073709551609ULL;
+            young = o - young_lo < young_hi - young_lo;
+        } else {
+            o_2 = *(uint64_t *)(p + 8);
+            if (!(((o_2 & 7) == 0) && valid_ref(*(uint64_t *)(p + 8)))) {
+                a_2 = (void *)p;
+                fatal_begin();
+                fprintf(stderr, "verify: bad class in %p", a_2);
+                fatal_end();
+            }
+            o_3 = *(uint64_t *)(p + 8);
+            young = o_3 - young_lo < young_hi - young_lo;
+            f = (int32_t)(((*(uint64_t *)p) >> H_FMT_SHIFT) & H_FMT_MASK);
+            if ((f >= 1) && (f <= 4)) {
+                for (i = 0; i <= (int64_t)(uint32_t)*(uint64_t *)p - 1; i++) {
+                    v = ((oop *)(p + 16))[i];
+                    if (!valid_ref(v)) {
+                        a_3 = (void *)p;
+                        b = (void *)v;
+                        fatal_begin();
+                        fprintf(stderr, "verify: bad slot in %p: %p", a_3, b);
+                        fatal_end();
+                    }
+                    if (((v & 7) == 0) && (v - young_lo < young_hi - young_lo)) {
+                        young = true;
+                    }
                 }
             }
         }

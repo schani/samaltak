@@ -276,7 +276,7 @@ The [Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgam
 | AdvYield | 4 Processes, 25,000 `Processor yield` each | 103.1 | 102.5 | 9.8 | 11 | 11 |
 | AdvForkJoin | 3,000 times `fork`, then wait for it | 519.7 | 422.9 | 8.1 | 64 | 52 |
 | AdvFork | 3,000 Processes forked at once, a mutual-exclusion Semaphore | 439.7 | 430.0 | 8.2 | 53 | 52 |
-| AdvBecome | 50 `becomeForward:` | 634.3 | 583.7 | 0.9 | 741 | 682 |
+| AdvBecome | 50 `becomeForward:` | 0.04 | 0.03 | 0.9 | 0.05 | 0.04 |
 | AdvValueWithArguments | 2,000,000 `valueWithArguments:` of 1-argument blocks | 275.6 | 319.9 | 142.2 | 1.94 | 2.25 |
 | AdvBlocks | blocks of 0–4 arguments from an Array, 150,000 rounds: `value…`, `valueWithArguments:`, `numArgs`, `cull:` | 120.8 | 133.6 | 81.4 | 1.48 | 1.64 |
 | AdvPerform3 | 900,000 each of `perform:with:with:with:` and `perform:withArguments:` of 3 | 186.0 | 186.5 | 104.6 | 1.78 | 1.78 |
@@ -290,7 +290,7 @@ Causes:
 - Huge Integers: `LargePositiveInteger>>printString:` (`LargePositiveInteger.st:40-55`) divides the whole number twice (`\\`, `//`) per 9 digits; `NumberParser>>parseDigitsBase:` (`NumberParser.st:65`) multiplies the whole value by 10 per digit.
 - Process switches: `Scheduler>>transferTo:` reads the thread's CPU clock at every switch (`Scheduler.st:424`, `threadCpuUs` `:101-110`, `CLOCK_THREAD_CPUTIME_ID`), a system call here: 825 ns against 26 for `CLOCK_MONOTONIC` (a C loop); AdvPingPong switches 200,000 times an iteration. With the clock shimmed to `CLOCK_MONOTONIC` (`LD_PRELOAD`; wall time, median of 7 runs) AdvPingPong takes 44 ms instead of 221, AdvDeepPingPong 8 instead of 44, AdvYield 22 instead of 103.
 - Forks: `Process class>>register:` (`Process.st:227-238`) scans the registry WeakArray from its first slot for a free one at every fork; a terminated Process's slot frees when a GC clears it (79,600–89,400 slots over AdvForkJoin's 30 iterations, all by scavenges). With `register:` recompiled to answer its argument (wall time, median of 7 runs) AdvForkJoin takes 10 ms instead of 386, AdvFork 8 instead of 396.
-- `becomeForward:` (`ObjectPrimitives.st:243-249`) does a full GC, then `GarbageCollector>>becomeForward:to:` (`GarbageCollector.st:529`) walks old space: 12.7 ms a call. Spur leaves a forwarder instead.
+- `becomeForward:` leaves a forwarder, as Spur does (implementation.md, `becomeForward:` and forwarders): AdvBecome's 50 calls take 43 µs under `opt`, 30 µs under `baseline` (3 invocations, 2026-11-24; Pharo 12's 0.9 ms is from the runs above). It was a full GC and a walk of old space, 12.7 ms a call: 634 and 584 ms.
 - Leaving machine code: `valueWithArguments:` (`ControlPrimitives.st:52-61`) activates the block in the interpreter and machine code calling it leaves (`JitBaselineRuntime.st:808-851`): AdvValueWithArguments counts one exit per call. Machine code's `perform:withArguments:` takes an Array of up to 2 (`JitBaselineCompiler.st:1040`, `JitBaselineRuntime.st:742`): AdvPerform3 counts one exit per `perform:withArguments:`, none per `perform:with:with:with:`.
 
 Tried, and Samaltak won: large heaps, old→young stores, large objects, weak arrays, tenuring; strings, streams, sorting, deep copies; polymorphic sends to 4–8 classes, non-local returns, unwinding, context walks, reflection, LargeInteger hashing arithmetic.

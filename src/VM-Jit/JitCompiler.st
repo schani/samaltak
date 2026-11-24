@@ -47,6 +47,9 @@ falseOffset
 interruptOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #interrupt) to: 'int64_t'
 !
+forwardersOffset
+	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #forwarders) to: 'int64_t'
+!
 framesOffset
 	^self cCoerce: ((self cCoerce: 0 to: 'JitState *') fieldAddress: #frames) to: 'int64_t'
 !
@@ -111,6 +114,42 @@ emitInterruptTestTo: aLabel
 		ifFalse: [
 			asm ldr: W16 base: X22 offset: self interruptOffset.
 			asm cbnz: W16 to: aLabel]
+!
+emitForwardersTestTo: aLabel
+	"Branch to aLabel if some object is a forwarder (becomeForward:: the JitState's forwarders word)."
+	asm isX64
+		ifTrue: [
+			asm cmpStateWord32At: self forwardersOffset imm: 0.
+			asm b: aLabel if: COND_NE]
+		ifFalse: [
+			asm ldr: W16 base: X22 offset: self forwardersOffset.
+			asm cbnz: W16 to: aLabel]
+!
+emitNoForwardersTestTo: aLabel
+	"Branch to aLabel unless some object is a forwarder."
+	asm isX64
+		ifTrue: [
+			asm cmpStateWord32At: self forwardersOffset imm: 0.
+			asm b: aLabel if: COND_EQ]
+		ifFalse: [
+			asm ldr: W16 base: X22 offset: self forwardersOffset.
+			asm cbz: W16 to: aLabel]
+!
+emitFollow: r
+	"r := the object r forwards to (becomeForward:), r itself if it is no forwarder (x16 scratch)."
+	| loop done |
+	loop := asm newLabel.
+	done := asm newLabel.
+	asm comment: 'follow a forwarder: its class word is its target + 6'.
+	asm bind: loop.
+	asm tst: r imm: 7.
+	asm b: done if: COND_NE.
+	asm ldr: X16 base: r offset: 0.
+	asm tbz: X16 bit: 63 to: done.
+	asm ldr: r base: r offset: 8.
+	asm sub: r with: r imm: FWD_TAG.
+	asm b: loop.
+	asm bind: done
 !
 emitReloadReceiver
 	asm comment: 'reload the receiver (a GC may have moved it)'.

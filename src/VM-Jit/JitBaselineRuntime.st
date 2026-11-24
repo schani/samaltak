@@ -297,7 +297,7 @@ noteNilTest: m data: d
 		^self].
 	"^true (16r71) or ^false (16r72), then returnTop"
 	quick := ((k = 1) = (cls ~= root)) ifTrue: [16r71] ifFalse: [16r72].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self bytecodesOf: m.
 	((self isPtr: bc) and: [(memory formatOf: bc) >= F_BYTES and: [(memory byteSize: bc) = 2 and: [((self bytesOf: bc) at: 0) = quick and: [((self bytesOf: bc) at: 1) = 16r79]]]]) ifFalse: [
 		nilInline := false.
 		^self].
@@ -408,7 +408,7 @@ canonicalizeBelow: f
 		g pc: pc.
 		g sp: sp.
 		g ip: (interpreter methodBcs: g method) + pc.
-		g lits: (self slotsOf: (self loadRef: g method at: CM_LITERALS)).
+		g lits: (self slotsOf: (self literalsOf: g method)).
 		g := g - 1]
 ! !
 
@@ -433,7 +433,7 @@ selectorOf: s in: h
 	info := s info.
 	i := (info >> 16) bitAnd: 255.
 	((info >> 24) bitAnd: 3) = 2 ifTrue: [^self loadRef: (memory special: SO_SPECIAL_SELECTORS) at: i].
-	^self loadRef: (self loadRef: h method at: CM_LITERALS) at: i
+	^self loadRef: (self literalsOf: h method) at: i
 !
 miss: f receiver: rcv ret: ret
 	"A send at f's site ret found no target (unlinked, a class check failed, no case of the polymorphic or megamorphic cache): look it up, link the site, answer the target's unchecked entry (1: leave, the interpreter sends). Optimized code's sites link the same way; where baseline code would leave, the runtime sends (OptRuntime>>sendFrom:ret:)."
@@ -442,7 +442,7 @@ miss: f receiver: rcv ret: ret
 	<var: #rcv type: 'oop'>
 	<var: #ret type: 'uint64_t'>
 	<returns: 'uint64_t'>
-	| h s kind sel cls t opt fl |
+	| h s kind sel cls t opt fl r |
 	statMisses := statMisses + 1.
 	h := self cCoerce: f code to: 'JitMethod *'.
 	self setTop: f ret: ret mode: 0.
@@ -451,12 +451,19 @@ miss: f receiver: rcv ret: ret
 	s isNull ifTrue: [self fatal: 'baseline: no send site for %p' with: (self ptr: ret)].
 	opt := h mode = jit optMode.
 	kind := (s info >> 24) bitAnd: 3.
+	r := rcv.
+	(gc forwardersExist and: [memory isForwarder: r]) ifTrue: [
+		"a forwarder (becomeForward:) misses every class check: the send goes to its target (the stub reloads the receiver from its slot)"
+		r := memory follow: r.
+		opt
+			ifTrue: [(f fp + h slots asInt64) at: 0 put: r]
+			ifFalse: [(self calleeFp: f ret: ret) at: -1 put: r]].
 	"an optimized super send: the runtime finds its class (the method it is in may be inlined)"
 	(opt and: [kind = 1]) ifTrue: [^jit optSendFrom: f ret: ret].
 	sel := self selectorOf: s in: h.
 	cls := kind = 1
 		ifTrue: [self loadRef: (self loadRef: h method at: CM_CLASS) at: BEH_SUPERCLASS]
-		ifFalse: [interpreter receiverClass: rcv].
+		ifFalse: [interpreter receiverClass: r].
 	"--jit opt: what the site saw is type feedback"
 	(jit tiering and: [kind ~= 1 and: [opt not]]) ifTrue: [
 		feedback noteSend: h method pc: s pc asInt64 class: cls.
@@ -466,7 +473,8 @@ miss: f receiver: rcv ret: ret
 			feedback noteFlags: h method pc: s pc asInt64 flags: (fl = 0 ifTrue: [feedback overflowed] ifFalse: [fl])]].
 	t := self targetFor: cls selector: sel.
 	t isNull ifTrue: [^opt ifTrue: [jit optSendFrom: f ret: ret] ifFalse: [1]].
-	jit ic ifTrue: [self link: s in: h class: cls selector: sel target: t super: kind = 1].
+	"a forwarder's site keeps its cases: the target's class may be one of them already"
+	(jit ic and: [r = rcv]) ifTrue: [self link: s in: h class: cls selector: sel target: t super: kind = 1].
 	^t uentry
 !
 targetFor: cls selector: sel
@@ -776,6 +784,10 @@ performMiss: f receiver: rcv ret: ret info: info
 	self setTop: f ret: ret mode: 0.
 	jit sync: f.
 	fp := self calleeFp: f ret: ret.
+	(self unlikely: gc forwardersExist) ifTrue: [
+		"the selector and the Array are checked here, not by the C primitive's retry"
+		fp at: 0 put: (memory follow: (fp at: 0)).
+		(info bitAnd: 256) ~= 0 ifTrue: [fp at: 1 put: (memory follow: (fp at: 1))]].
 	sel := fp at: 0.
 	k := n - 1.
 	(info bitAnd: 256) ~= 0 ifTrue: [

@@ -8,6 +8,7 @@ static oop instances_result;
 
 static void convert_case(bool upper);
 static void count_instance(uint64_t o, void *d);
+static void hash(oop from, oop to);
 
 /* ObjectPrimitives>>convertCase: */
 static void convert_case(bool upper)
@@ -63,6 +64,22 @@ static void count_instance(uint64_t o, void *d)
         }
         instances_count = instances_count + 1;
     }
+}
+
+/* ObjectPrimitives>>hash:into: */
+static void hash(oop from, oop to)
+{
+    uint64_t c;
+    uint64_t h;
+    c = *(uint64_t *)(to + 8);
+    if ((c == object_memory_special(SO_BYTESYMBOL)) || (c == object_memory_special(SO_WIDESYMBOL))) {
+        return;
+    }
+    if (c == object_memory_special(SO_COMPILEDMETHOD)) {
+        become_method(to);
+    }
+    h = ((*(uint64_t *)to) & 17870283458845081599ULL) | ((*(uint64_t *)from) & 576460614864470016ULL);
+    *(uint64_t *)to = h;
 }
 
 /* ObjectPrimitives>>primAllInstances */
@@ -336,19 +353,73 @@ void prim_basic_size(void)
 void prim_become_forward(void)
 {
     oop o;
+    oop r_follow;
+    oop p;
+    oop from;
     oop o_2;
+    oop r_follow_2;
+    oop p_2;
+    oop to;
+    oop o_3;
+    oop r_follow_3;
+    oop p_3;
+    oop o_4;
+    oop r_follow_4;
+    oop p_4;
+    bool held;
     oop v;
     o = prim_base[0];
-    if (!(((o & 7) == 0) && ({
+    from = ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
     o_2 = prim_nargs > 0 ? prim_base[1] : nil_oop;
-    ((o_2 & 7) == 0) && (prim_base[0] != nil_oop); }))) {
+    to = ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; });
+    if (!(((from & 7) == 0) && (((to & 7) == 0) && (from != nil_oop)))) {
         prim_status = PS_FAIL;
         prim_error_code = -1;
         return;
     }
-    flush_if_married(prim_base[0]);
-    full_gc();
-    become_forward(prim_base[0], prim_nargs > 0 ? prim_base[1] : nil_oop);
+    if (from == to) {
+        prim_result = to;
+        prim_status = PS_OK;
+        return;
+    }
+    hash(from, to);
+    if (forwards_eagerly(from) || forwards_eagerly(to)) {
+        flush_if_married(from);
+        full_gc();
+        o_3 = prim_base[0];
+        o_4 = prim_nargs > 0 ? prim_base[1] : nil_oop;
+        become_forward(({
+    p_3 = o_3;
+    while (((p_3 & 7) == 0) && (((*(uint64_t *)p_3) & H_FORWARDED) != 0)) {
+        p_3 = (*(uint64_t *)(p_3 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_3 = p_3;
+    r_follow_3; }), ({
+    p_4 = o_4;
+    while (((p_4 & 7) == 0) && (((*(uint64_t *)p_4) & H_FORWARDED) != 0)) {
+        p_4 = (*(uint64_t *)(p_4 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_4 = p_4;
+    r_follow_4; }));
+    } else {
+        held = opt_frames_hold(from);
+        forward(from, to);
+        if (held) {
+            materialize_all();
+        }
+    }
     v = prim_base[0];
     prim_result = v;
     prim_status = PS_OK;
@@ -1047,8 +1118,21 @@ void prim_change_class_to(void)
 /* ObjectPrimitives>>primClass */
 void prim_class(void)
 {
+    oop o;
+    oop r_follow;
+    oop p;
     oop v;
-    v = class_of(prim_nargs > 0 ? prim_base[1] : prim_base[0]);
+    o = prim_nargs > 0 ? prim_base[1] : prim_base[0];
+    if (young_forwarders + old_forwarders != 0) {
+        o = ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; });
+    }
+    v = class_of(o);
     prim_result = v;
     prim_status = PS_OK;
 }
@@ -1056,9 +1140,30 @@ void prim_class(void)
 /* ObjectPrimitives>>primIdentical */
 void prim_identical(void)
 {
+    oop o;
+    oop r_follow;
+    oop p;
+    oop o_2;
+    oop r_follow_2;
+    oop p_2;
     bool a_boolean;
     oop v;
-    a_boolean = prim_base[0] == (prim_nargs > 0 ? prim_base[1] : nil_oop);
+    a_boolean = (prim_base[0] == (prim_nargs > 0 ? prim_base[1] : nil_oop)) || ((young_forwarders + old_forwarders != 0) && ({
+    o = prim_base[0];
+    o_2 = prim_nargs > 0 ? prim_base[1] : nil_oop;
+    ({
+    p = o;
+    while (((p & 7) == 0) && (((*(uint64_t *)p) & H_FORWARDED) != 0)) {
+        p = (*(uint64_t *)(p + 8)) & 18446744073709551609ULL;
+    }
+    r_follow = p;
+    r_follow; }) == ({
+    p_2 = o_2;
+    while (((p_2 & 7) == 0) && (((*(uint64_t *)p_2) & H_FORWARDED) != 0)) {
+        p_2 = (*(uint64_t *)(p_2 + 8)) & 18446744073709551609ULL;
+    }
+    r_follow_2 = p_2;
+    r_follow_2; }); }));
     v = a_boolean ? true_oop : false_oop;
     prim_result = v;
     prim_status = PS_OK;

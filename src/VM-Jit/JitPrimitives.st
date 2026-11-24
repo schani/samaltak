@@ -27,19 +27,19 @@ primJitParameters
 	self argCount = 0 ifTrue: [^self answer: r value].
 	old := self arg: 0.
 	((self isPtr: old) and: [(self rawClass: old) = memory clsArray and: [(self numSlots: old) >= 4]]) ifFalse: [^self fail].
-	((self loadRef: old at: 2) ~= memory nilOop and: [(self isInt: (self loadRef: old at: 2)) not]) ifTrue: [^self fail].
-	((self loadRef: old at: 3) ~= memory nilOop and: [(self isInt: (self loadRef: old at: 3)) not]) ifTrue: [^self fail].
+	((self element: old at: 2) ~= memory nilOop and: [(self isInt: (self element: old at: 2)) not]) ifTrue: [^self fail].
+	((self element: old at: 3) ~= memory nilOop and: [(self isInt: (self element: old at: 3)) not]) ifTrue: [^self fail].
 	m := jit mode.
-	(self loadRef: old at: 0) ~= memory nilOop ifTrue: [
-		(memory isKindOfString: (self loadRef: old at: 0)) ifFalse: [^self fail].
-		p := memory utf8Of: (self loadRef: old at: 0).
+	(self element: old at: 0) ~= memory nilOop ifTrue: [
+		(memory isKindOfString: (self element: old at: 0)) ifFalse: [^self fail].
+		p := memory utf8Of: (self element: old at: 0).
 		p isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 		m := jit modeNamed: p.
 		libc free: p.
 		m < 0 ifTrue: [^self fail]].
-	(self loadRef: old at: 1) ~= memory nilOop ifTrue: [
-		(memory isKindOfString: (self loadRef: old at: 1)) ifFalse: [^self fail].
-		p := memory utf8Of: (self loadRef: old at: 1).
+	(self element: old at: 1) ~= memory nilOop ifTrue: [
+		(memory isKindOfString: (self element: old at: 1)) ifFalse: [^self fail].
+		p := memory utf8Of: (self element: old at: 1).
 		p isNull ifTrue: [^self failCode: PRIM_ERR_NO_MEMORY].
 		saved := jit flags.
 		(jit parseFlags: p) ifFalse: [
@@ -49,8 +49,8 @@ primJitParameters
 		libc free: p.
 		jit setFlags: jit flags].
 	m ~= jit mode ifTrue: [(jit setMode: m) ifFalse: [^self fail]].
-	(self loadRef: old at: 2) ~= memory nilOop ifTrue: [jit threshold: (self intVal: (self loadRef: old at: 2))].
-	(self loadRef: old at: 3) ~= memory nilOop ifTrue: [jit osrThreshold: (self intVal: (self loadRef: old at: 3))].
+	(self element: old at: 2) ~= memory nilOop ifTrue: [jit threshold: (self intVal: (self element: old at: 2))].
+	(self element: old at: 3) ~= memory nilOop ifTrue: [jit osrThreshold: (self intVal: (self element: old at: 3))].
 	self answer: r value
 !
 stringFrom: s
@@ -105,8 +105,8 @@ primJitSendSites
 		k := memory allocObj: memory clsArray format: F_VAR slots: count asUInt32.
 		self storeRef: e value at: 3 put: k.
 		0 to: count - 1 do: [:j |
-			self storeRef: (self loadRef: e value at: 2) at: j put: (jit brtFeedbackClassOf: a value site: i case: j).
-			self storeRef: (self loadRef: e value at: 3) at: j put: (jit brtFeedbackTargetOf: a value site: i case: j)].
+			self storeRef: (self element: e value at: 2) at: j put: (jit brtFeedbackClassOf: a value site: i case: j).
+			self storeRef: (self element: e value at: 3) at: j put: (jit brtFeedbackTargetOf: a value site: i case: j)].
 		self storeRef: e value at: 4 put: (jit brtFeedbackSelectorOf: a value site: i)].
 	memory popRoot.
 	memory popRoot.
@@ -157,18 +157,18 @@ listingOf: h mode: md
 	a := memory allocObj: memory clsArray format: F_VAR slots: (3 * n) asUInt32.
 	self storeRef: r value at: 3 put: a.
 	0 to: n - 1 do: [:i |
-		(self slotsOf: (self loadRef: r value at: 3)) at: 3 * i put: (self intOop: (h noteOffsets at: i)).
-		(self slotsOf: (self loadRef: r value at: 3)) at: 3 * i + 2 put: (self intOop: (h noteValues at: i)).
+		(self slotsOf: (self element: r value at: 3)) at: 3 * i put: (self intOop: (h noteOffsets at: i)).
+		(self slotsOf: (self element: r value at: 3)) at: 3 * i + 2 put: (self intOop: (h noteValues at: i)).
 		(h noteTexts at: i) ~= 0 ifTrue: [
 			s := self stringFrom: (self cCoerce: (h noteTexts at: i) to: 'const char *').
-			self storeRef: (self loadRef: r value at: 3) at: 3 * i + 1 put: s]].
+			self storeRef: (self element: r value at: 3) at: 3 * i + 1 put: s]].
 	n := jit symbolCount.
 	a := memory allocObj: memory clsArray format: F_VAR slots: (2 * n) asUInt32.
 	self storeRef: r value at: 4 put: a.
 	0 to: n - 1 do: [:i |
-		(self slotsOf: (self loadRef: r value at: 4)) at: 2 * i put: (self intOop: (jit symbolAddressAt: i) asInt64).
+		(self slotsOf: (self element: r value at: 4)) at: 2 * i put: (self intOop: (jit symbolAddressAt: i) asInt64).
 		s := self stringFrom: (jit symbolNameAt: i).
-		self storeRef: (self loadRef: r value at: 4) at: 2 * i + 1 put: s].
+		self storeRef: (self element: r value at: 4) at: 2 * i + 1 put: s].
 	s := self stringFrom: (jit modeName: md).
 	self storeRef: r value at: 5 put: s.
 	memory popRoot.

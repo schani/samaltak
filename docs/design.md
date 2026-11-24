@@ -35,7 +35,7 @@ The collector is simple and stop-the-world: copying scavenges of eden and surviv
 6. **Precise roots.** Contexts are heap objects (or precisely mapped stack frames); no conservative scanning.
 7. **Region (page) based heap** with bump allocation, so pages can be evacuated and relocated concurrently.
 8. **Mutator checkpoints instead of global stops.** The mutator polls at safepoints; GC phase changes use per-thread handshakes, not a world stop. With one mutator thread this is cheap.
-9. **`become:` via forwarding** handled by the same load barrier, not by a heap scan. Today `becomeForward:` is a full GC followed by a scan of old space; only the primitive knows.
+9. **`become:` via forwarding**, not by a heap scan. Today: Spur's partial read barrier (implementation.md, `becomeForward:` and forwarders): the forwarder is followed where a reference is used (sends miss, primitives retry, `==`, `class`, block receivers), objects the VM reads unchecked are forwarded eagerly. With the load barrier, forwarding becomes the barrier's job and those checks go.
 10. **Off-heap memory for GPU and I/O buffers**: never moved, referenced by handle objects.
 11. Weak references and ephemerons designed for concurrent marking from the start.
 

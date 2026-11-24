@@ -14,12 +14,15 @@ declarations
 primClass
 	<vmPrimitive: 78 name: 'class'>
 	<leaf>
-	self answer: (memory classOf: (self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver]))
+	| o |
+	o := self argCount > 0 ifTrue: [self arg: 0] ifFalse: [self receiver].
+	gc forwardersExist ifTrue: [o := memory follow: o].
+	self answer: (memory classOf: o)
 !
 primIdentical
 	<vmPrimitive: 79 name: 'identical'>
 	<leaf>
-	self answerBool: self receiver = self arg0
+	self answerBool: (self receiver = self arg0 or: [gc forwardersExist and: [(memory follow: self receiver) = (memory follow: self arg0)]])
 !
 primIdentityHash
 	<vmPrimitive: 77 name: 'identityHash'>
@@ -243,11 +246,33 @@ primAllInstances
 !
 primBecomeForward
 	<vmPrimitive: 88 name: 'becomeForward'>
-	((self isPtr: self receiver) and: [(self isPtr: self arg0) and: [self receiver ~= memory nilOop]]) ifFalse: [^self fail].
-	interpreter flushIfMarried: self receiver.
-	gc fullGC.
-	gc becomeForward: self receiver to: self arg0.
+	| from to held |
+	from := memory follow: self receiver.
+	to := memory follow: self arg0.
+	((self isPtr: from) and: [(self isPtr: to) and: [from ~= memory nilOop]]) ifFalse: [^self fail].
+	from = to ifTrue: [^self answer: to].
+	self hash: from into: to.
+	((memory forwardsEagerly: from) or: [memory forwardsEagerly: to])
+		ifTrue: [
+			interpreter flushIfMarried: from.
+			gc fullGC.
+			gc becomeForward: (memory follow: self receiver) to: (memory follow: self arg0)]
+		ifFalse: [
+			held := jit optFramesHold: from.
+			gc forward: from to: to.
+			"optimized frames that held from may know its class: they continue as Contexts (their code stays), made after the frames refer to to"
+			held ifTrue: [interpreter materializeAll]].
 	self answer: self receiver
+!
+hash: from into: to
+	"to takes over from's identity hash (as Pharo's becomeForward:), so that identity-hashed collections holding from find to; not a Symbol's (method dictionaries are hashed by it). A method's machine code is found by its hash: to's is dropped first."
+	<function>
+	| m c |
+	c := self rawClass: to.
+	(c = (memory special: SO_BYTESYMBOL) or: [c = (memory special: SO_WIDESYMBOL)]) ifTrue: [^self].
+	c = (memory special: SO_COMPILEDMETHOD) ifTrue: [jit becomeMethod: to].
+	m := H_HASH_MASK asUInt64 << H_HASH_SHIFT.
+	self header: to put: (((self header: to) bitClear: m) bitOr: ((self header: from) bitAnd: m))
 !
 primSpecialObjectsArray
 	<vmPrimitive: 89 name: 'specialObjectsArray'>

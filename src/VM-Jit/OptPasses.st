@@ -1401,7 +1401,7 @@ hashOf: nd
 	^(((((nd op asInt64 * 31 + nd a) * 31 + nd b) * 31 + nd aux) * 31 + nd aux2) * 31 + nd tcls asInt64) asUInt64 >> 3 bitAnd: 4095
 !
 same: x as: y
-	^x op = y op and: [x a = y a and: [x b = y b and: [x aux = y aux and: [x aux2 = y aux2 and: [x tcls = y tcls and: [x tkind = y tkind]]]]]]
+	^x op = y op and: [x a = y a and: [x b = y b and: [x aux = y aux and: [x aux2 = y aux2 and: [x tcls = y tcls and: [x tkind = y tkind and: [(x flags bitAnd: NF_FOLLOW) = (y flags bitAnd: NF_FOLLOW)]]]]]]]
 !
 computeOrder: entry
 	"Reverse postorder from entry (iterative depth-first search); block rpo numbers, -1 if unreachable."

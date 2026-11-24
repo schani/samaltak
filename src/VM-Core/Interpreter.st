@@ -161,8 +161,39 @@ roots: fn
 			w := w + 1].
 		w := w max: hi]
 !
+frame: i holds: o
+	"Frame i's receiver, arguments, temps or stack (not an optimized frame's raw slots) include o."
+	<function>
+	<var: #w type: 'int64_t'>
+	<var: #hi type: 'int64_t'>
+	<var: #rlo type: 'int64_t'>
+	<var: #rhi type: 'int64_t'>
+	| f w hi rlo rhi |
+	f := frames + i.
+	hi := i + 1 < nframes ifTrue: [((frames + (i + 1)) fp - cstack) asInt64 - 1] ifFalse: [cstackUsed asInt64].
+	rlo := hi.
+	rhi := hi.
+	(jit isOptFrame: f) ifTrue: [
+		rlo := (f fp - cstack) asInt64 + (jit rawBaseOf: f).
+		rhi := (f fp - cstack) asInt64 + (jit rawTopOf: f)].
+	w := (f fp - cstack) asInt64 - 1.
+	[w < hi] whileTrue: [
+		((w < rlo or: [w >= rhi]) and: [(cstack at: w) = o]) ifTrue: [^true].
+		w := w + 1].
+	^false
+!
 methodBcs: m
+	"Unfollowed: a forwarder's body keeps its bytes, and pcs are offsets from this one address (frames' ip, the method cache's bcs)."
 	^self bytesOf: (self loadRef: m at: CM_BYTECODES)
+!
+refreshLiterals
+	"becomeForward: may have forwarded a method's literal Array: the frames take their pointers into literals again, and the interpreter reloads its registers when the primitive returns."
+	<function>
+	| f |
+	0 to: nframes - 1 do: [:i |
+		f := frames + i.
+		f lits: (self slotsOf: (self literalsOf: f method))].
+	gc gcEpoch: gc gcEpoch + 1
 !
 beforeGC
 	"Frames hold raw pointers into their methods' bytecodes and literals: offsets while objects move."
@@ -191,7 +222,7 @@ afterGC
 	0 to: nframes - 1 do: [:i |
 		f := frames + i.
 		f ip: (self methodBcs: f method) + f pc.
-		f lits: (self slotsOf: (self loadRef: f method at: CM_LITERALS))]
+		f lits: (self slotsOf: (self literalsOf: f method))]
 !
 frameSize: f
 	"frameSize of a frame's method or block (at least its args and temps)."
@@ -483,8 +514,8 @@ lookupMethod: aClass selector: aSelector
 	[(self isPtr: c) and: [c ~= memory nilOop]] whileTrue: [
 		md := self loadRef: c at: BEH_METHODDICT.
 		((self isPtr: md) and: [md ~= memory nilOop]) ifTrue: [
-			keys := self loadRef: md at: MD_KEYS.
-			vals := self loadRef: md at: MD_VALUES.
+			keys := memory follow: (self loadRef: md at: MD_KEYS).
+			vals := memory follow: (self loadRef: md at: MD_VALUES).
 			cap := self numSlots: keys.
 			(cap ~= 0 and: [(self isPtr: vals) and: [(self numSlots: vals) >= cap]]) ifTrue: [
 				mask := cap - 1.
@@ -519,11 +550,11 @@ fillCache: aClass selector: aSelector
 	pf := (p ~= 0 and: [p ~= PRIM_ENSURE_MARKER and: [p ~= PRIM_ONDO_MARKER]])
 		ifTrue: [primitives lookup: p]
 		ifFalse: [self null].
-	bc := self loadRef: m at: CM_BYTECODES.
+	bc := self bytecodesOf: m.
 	na := self loadRef: m at: CM_NUMARGS.
 	nt := self loadRef: m at: CM_NUMTEMPS.
-	e bcs: (self bytesOf: bc).
-	e lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	e bcs: (self methodBcs: m).
+	e lits: (self slotsOf: (self literalsOf: m)).
 	e ntemps: (self intVal: nt) asInt32.
 	e fsize: (self intVal: (self loadRef: m at: CM_FRAMESIZE)) asInt32.
 	e fsize < ((self intVal: na) + e ntemps) ifTrue: [e fsize: ((self intVal: na) + e ntemps) asInt32].
@@ -550,7 +581,7 @@ fillCache: aClass selector: aSelector
 	(p = 0 and: [(self isPtr: bc) and: [(memory formatOf: bc) >= F_BYTES]]) ifTrue: [
 		b := self bytesOf: bc.
 		size := memory byteSize: bc.
-		litsOop := self loadRef: m at: CM_LITERALS.
+		litsOop := self literalsOf: m.
 		(size = 1 and: [(b at: 0) = 16r7A])
 			ifTrue: [qc := true]
 			ifFalse: [
@@ -741,6 +772,18 @@ primResend: aSelector argc: n
 	resendSelector := aSelector.
 	resendArgc := n.
 	primStatus := PS_RESEND
+!
+followArgs: n at: b
+	"A primitive failed: if its receiver or one of its n arguments at b is a forwarder (becomeForward:), replace it by its target and answer true (the primitive runs again)."
+	<function>
+	| found |
+	gc forwardersExist ifFalse: [^false].
+	found := false.
+	0 to: n do: [:i |
+		(memory isForwarder: (b at: i)) ifTrue: [
+			b at: i put: (memory follow: (b at: i)).
+			found := true]].
+	^found
 ! !
 
 !Interpreter methodsFor: 'blocks'!
@@ -764,10 +807,10 @@ blockActivate: n fromArray: fromArray
 				self materializeAll.
 				^self blockActivate: (fromArray ifTrue: [0] ifFalse: [count]) fromArray: fromArray].
 			(frames + (nframes - 1)) sp: base asInt32.
-			b at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			b at: 0 put: (self receiverOfClosure: cl).
 			fromArray ifTrue: [0 to: count - 1 do: [:i | nfp at: i put: (self loadRef: arr at: i)]]]
 		ifFalse: [
-			cstack at: 0 put: (self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER).
+			cstack at: 0 put: (self receiverOfClosure: cl).
 			0 to: count - 1 do: [:i | cstack at: 1 + i put: (fromArray ifTrue: [self loadRef: arr at: i] ifFalse: [b at: 1 + i])].
 			self ctx: activeCtx setStackp: base.
 			nfp := cstack + 1].
@@ -782,10 +825,17 @@ blockActivate: n fromArray: fromArray
 	f fp: nfp.
 	f pc: (self intVal: (self loadRef: cl at: BC_STARTPC)) asInt32.
 	f ip: (self methodBcs: m) + (self intVal: (self loadRef: cl at: BC_STARTPC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self slotsOf: (self literalsOf: m)).
 	f sp: (count + ntemps) asInt32.
 	count to: count + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	cstackUsed := (nfp + count + ntemps - cstack) asUInt64
+!
+receiverOfClosure: cl
+	"The receiver of closure cl's activation: its outer Context's (which may hold a forwarder: Contexts are not fixed when an object is forwarded)."
+	| r |
+	r := self loadRef: (self loadRef: cl at: BC_OUTER) at: CTX_RECEIVER.
+	(self unlikely: gc forwardersExist) ifTrue: [r := memory follow: r].
+	^r
 !
 activateBlock: n
 	<function>
@@ -830,6 +880,9 @@ callPrimitive: fn base: b argc: n
 	primBaseIndex := b - self activeSlots.
 	primStatus := PS_NONE.
 	fn call.
+	(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: n at: primBase]])) ifTrue: [
+		primStatus := PS_NONE.
+		fn call].
 	^primStatus
 !
 callLeafPrimitive: fn base: b argc: n
@@ -838,6 +891,9 @@ callLeafPrimitive: fn base: b argc: n
 	primBase := b.
 	primStatus := PS_NONE.
 	fn call.
+	(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: n at: b]])) ifTrue: [
+		primStatus := PS_NONE.
+		fn call].
 	^primStatus
 !
 pushFrame: m argc: n code: c ecode: ecode
@@ -858,7 +914,7 @@ pushFrame: m argc: n code: c ecode: ecode
 	g code: c.
 	g fp: nfp.
 	g ip: (self methodBcs: m).
-	g lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	g lits: (self slotsOf: (self literalsOf: m)).
 	g sp: (n + ntemps) asInt32.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	ecode >= 0 ifTrue: [nfp at: n put: (self intOop: ecode)].
@@ -883,6 +939,7 @@ pushFrameEntry: e argc: n
 	g fp: nfp.
 	g ip: e bcs.
 	g lits: e lits.
+	(self unlikely: gc forwardersExist) ifTrue: [g lits: (self slotsOf: (self literalsOf: e method))].
 	g sp: n + ntemps.
 	n to: n + ntemps - 1 do: [:i | nfp at: i put: memory nilOop].
 	nframes := nframes + 1.
@@ -901,6 +958,7 @@ thawFor: code
 	m := s at: CTX_METHOD.
 	f := frames + 0.
 	cstack at: 0 put: (s at: CTX_RECEIVER).
+	(self unlikely: gc forwardersExist) ifTrue: [cstack at: 0 put: (memory follow: (cstack at: 0))].
 	libc memcpy: cstack + 1 from: s + CTX_FIXED size: n asUInt64 * 8.
 	f method: m.
 	f closure: (s at: CTX_CLOSURE).
@@ -908,7 +966,7 @@ thawFor: code
 	f code: code.
 	f fp: cstack + 1.
 	f ip: (self methodBcs: m) + (self intVal: (s at: CTX_PC)).
-	f lits: (self slotsOf: (self loadRef: m at: CM_LITERALS)).
+	f lits: (self slotsOf: (self literalsOf: m)).
 	f sp: n asInt32.
 	s at: CTX_SENDER put: (self intOop: 0).
 	s at: CTX_STACKP put: (self intOop: 0).
@@ -1074,8 +1132,9 @@ readInt16: p
 loadCtx
 	| s m |
 	s := self slotsOf: activeCtx.
+	(self unlikely: gc forwardersExist) ifTrue: [self storeRef: activeCtx at: CTX_RECEIVER put: (memory follow: (s at: CTX_RECEIVER))].
 	m := s at: CTX_METHOD.
-	lits := self slotsOf: ((self slotsOf: m) at: CM_LITERALS).
+	lits := self slotsOf: (self literalsOf: m).
 	fp := s + CTX_FIXED.
 	sp := fp + (self intVal: (s at: CTX_STACKP)) - 1.
 	(self isInt: (s at: CTX_PC)) ifFalse: [self fatal: 'resuming a dead context'].
@@ -1744,11 +1803,17 @@ bitOr
 !
 identical
 	<bytecode: 16rB3>
-	^self boolResult: (sp at: -1) = sp value
+	^self boolResult: (self is: (sp at: -1) identicalTo: sp value)
 !
 notIdentical
 	<bytecode: 16rB4>
-	^self boolResult: (sp at: -1) ~= sp value
+	^self boolResult: (self is: (sp at: -1) identicalTo: sp value) not
+!
+is: a identicalTo: b
+	"==: either may be a forwarder (becomeForward:) of the other."
+	a = b ifTrue: [^true].
+	(self unlikely: gc forwardersExist) ifFalse: [^false].
+	^(memory follow: a) = (memory follow: b)
 !
 bcAt
 	<bytecode: 16rB0>
@@ -1840,6 +1905,7 @@ bcClass
 	<bytecode: 16rBD>
 	| r |
 	r := sp value.
+	(self unlikely: ((r bitAnd: 7) = 0 and: [((self rawClass: r) bitAnd: 7) ~= 0])) ifTrue: [r := memory follow: r].
 	sp value: ((r bitAnd: 7) = 0 ifTrue: [self rawClass: r] ifFalse: [(r bitAnd: 1) ~= 0 ifTrue: [memory clsSmallint] ifFalse: [memory classOf: r]])
 ! !
 
@@ -1912,6 +1978,8 @@ haveEntry: e
 	newMethod := e method.
 	newBcs := e bcs.
 	newLits := e lits.
+	"a cached method's literal Array may have been forwarded since"
+	(self unlikely: gc forwardersExist) ifTrue: [newLits := self slotsOf: (self literalsOf: newMethod)].
 	newTemps := e ntemps.
 	newFsize := e fsize.
 	newEcode := -1.
@@ -1926,6 +1994,9 @@ haveEntry: e
 		primBase := sp - argc.
 		primStatus := PS_NONE.
 		e prim call.
+		(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [self followArgs: argc at: sp - argc]])) ifTrue: [
+			primStatus := PS_NONE.
+			e prim call].
 		(self likely: primStatus = PS_OK) ifTrue: [
 			sp := sp - argc.
 			sp value: primResult.
@@ -1934,6 +2005,8 @@ haveEntry: e
 		(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode].
 		^self activate].
 	(e kind bitAnd: K_CONST) ~= 0 ifTrue: [
+		"(the entry has no primitive: its constant takes that place)"
+		((self unlikely: gc forwardersExist) and: [e lits ~= (self slotsOf: (self literalsOf: e method))]) ifTrue: [^self activate].
 		v := e qconst ~= 0 ifTrue: [e qconst] ifFalse: [sp at: argc negated].
 		sp := sp - argc.
 		sp value: v.
@@ -1966,6 +2039,9 @@ haveEntry: e
 		epoch := gc gcEpoch.
 		tmpRoots at: 0 put: newMethod.
 		e prim call.
+		(self unlikely: (primStatus = PS_FAIL and: [gc forwardersExist and: [gc gcEpoch = epoch and: [self followArgs: argc at: primBase]]])) ifTrue: [
+			primStatus := PS_NONE.
+			e prim call].
 		primStatus caseOf: {
 			[PS_OK] -> [
 				gc gcEpoch ~= epoch ifTrue: [self reload].
@@ -1991,7 +2067,7 @@ haveEntry: e
 				newMethod := tmpRoots at: 0.
 				tmpRoots at: 0 put: memory nilOop.
 				newBcs := self methodBcs: newMethod.
-				newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+				newLits := self slotsOf: (self literalsOf: newMethod).
 				(primErrorCode >= 0 and: [newTemps > 0 and: [((self methodPrim: newMethod) bitAnd: CM_PRIM_ERROR_FLAG) ~= 0]]) ifTrue: [newEcode := primErrorCode]]].
 	^self activate
 !
@@ -2008,7 +2084,7 @@ activate
 		newMethod := tmpRoots at: 0.
 		tmpRoots at: 0 put: memory nilOop.
 		newBcs := self methodBcs: newMethod.
-		newLits := self slotsOf: (self loadRef: newMethod at: CM_LITERALS).
+		newLits := self slotsOf: (self literalsOf: newMethod).
 		self loadCtx.
 		^self activateFromContext].
 	fr ip: ip.
@@ -2053,6 +2129,11 @@ enterFrame
 sendDoesNotUnderstand
 	<label>
 	| dnu msg args mc isize |
+	(self unlikely: (cls bitAnd: 7) = FWD_TAG) ifTrue: [
+		"the receiver is a forwarder (becomeForward:): send to its target"
+		sp at: argc negated put: (memory follow: (sp at: argc negated)).
+		cls := self receiverClass: (sp at: argc negated).
+		^self doLookup].
 	dnu := memory special: SO_SEL_DNU.
 	sel = dnu ifTrue: [
 		self externalize.
