@@ -75,7 +75,7 @@ test-core: image test-vm
 	tests/boot/layering_test.sh
 	tests/st_suite.sh $(OUT)/samaltak.image
 	SAMALTAK_VERIFY_GC=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
-	SAMALTAK_VERIFY_GC=1 SAMALTAK_FORWARD_STRESS=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler
+	SAMALTAK_VERIFY_GC=1 SAMALTAK_FORWARD_STRESS=1 tests/st_suite.sh $(OUT)/samaltak.image --eden 1 -- Tests-Kernel Tests-Compiler Tests-VM
 	$(MAKE) fresh-runtime
 	tests/st_suite.sh $(OUT)/runtime.image -- Weather --load apps/Weather
 	tests/st_suite.sh $(OUT)/runtime.image -- Agents --load apps/Agents
