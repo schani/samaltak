@@ -60,6 +60,8 @@ wait: timeoutUs
 	windows videoInited
 		ifTrue: [
 			watching := socks and: [self watcherStart].
+			"The watcher wakes SDL with an event pushed from its thread; should that wakeup be lost (a VM on the recording clock, which nothing else wakes, was seen asleep with connections waiting), the sockets are looked at within a second anyway."
+			(watching and: [ms < 0 or: [ms > 1000]]) ifTrue: [ms := 1000].
 			ms ~= 0 ifTrue: [sdl waitEvent: self null timeout: ms].
 			watching ifTrue: [self watcherStop].
 			events pump]

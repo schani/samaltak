@@ -3020,6 +3020,9 @@ void platform_interface_wait(int64_t timeout_us)
     socks = any_armed();
     if (video_inited()) {
         watching = socks && watcher_start();
+        if (watching && ((ms < 0) || (ms > 1000))) {
+            ms = 1000;
+        }
         if (ms != 0) {
             SDL_WaitEventTimeout((SDL_Event *)NULL, ms);
         }
