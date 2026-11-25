@@ -24,6 +24,12 @@ void platform_interface_poll(void)
 {
 }
 
+/* HeadlessPlatform>>quitStatus: */
+int quit_status(int code)
+{
+    return code;
+}
+
 /* HeadlessPlatform>>shutdown */
 void platform_interface_shutdown(void)
 {

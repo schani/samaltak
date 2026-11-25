@@ -52,4 +52,10 @@ ffiApprovedPlatform: approvedName signature: packedSignature into: targetOut
 	<var: #targetOut type: 'uint64_t *'>
 	<returns: 'int32_t'>
 	^0
+!
+quitStatus: code
+	<export>
+	<var: #code type: 'int'>
+	<returns: 'int'>
+	^code
 ! !

@@ -4,6 +4,10 @@
 
 static atomic_bool in_wait;
 static bool init_done;
+static atomic_int quit_sender;
+static atomic_int quit_signal;
+static sig_t sdl_int;
+static sig_t sdl_term;
 static pthread_cond_t w_cv[1];
 static struct pollfd w_fds[129];
 static pthread_mutex_t w_mu[1];
@@ -131,6 +135,7 @@ static int32_t ffi_window_pixel_size(int64_t win, uint8_t *bytes, uint64_t cap);
 static double ffi_window_refresh_rate(int64_t w);
 static int32_t ffi_window_size(int64_t win, uint8_t *bytes, uint64_t cap);
 static bool invalid_process_record(void);
+static void on_quit_signal(int sig, siginfo_t *info, void *context);
 static int64_t process_le32(pf_process_request *request);
 static char *process_string(int64_t len, pf_process_request *request);
 static char **process_vector(int64_t count, pf_process_request *request);
@@ -141,6 +146,14 @@ static bool watcher_start(void);
 static void watcher_stop(void);
 static uint64_t sdl_platform_window_wire_at_count(const uint8_t *bytes, int32_t offset, int32_t n);
 static void sdl_platform_window_wire_at_put_count(uint8_t *bytes, int32_t offset, uint64_t value, int32_t n);
+static sig_t wrap_quit_signal(int sig);
+
+/* SDLPlatform>>catchQuitSignals */
+void catch_quit_signals(void)
+{
+    sdl_term = wrap_quit_signal(SIGTERM);
+    sdl_int = wrap_quit_signal(SIGINT);
+}
 
 /* SDLPlatform>>decodeProcess:size:pty:into: */
 static bool decode_process(const uint8_t *bytes, uint64_t n, bool pty, pf_process_request *request)
@@ -2819,6 +2832,18 @@ static bool invalid_process_record(void)
     return false;
 }
 
+/* SDLPlatform>>onQuitSignal:info:context: */
+static void on_quit_signal(int sig, siginfo_t *info, void *context)
+{
+    sig_t next;
+    atomic_store_explicit(&quit_sender, info->si_pid, memory_order_relaxed);
+    atomic_store_explicit(&quit_signal, sig, memory_order_relaxed);
+    next = sig == SIGTERM ? sdl_term : sdl_int;
+    if (!(next == NULL)) {
+        next(sig);
+    }
+}
+
 /* SDLPlatform>>poll */
 void platform_interface_poll(void)
 {
@@ -2911,6 +2936,50 @@ static void process_word(uint64_t value, uint8_t *out, int32_t n)
     for (i = 0; i <= n - 1; i++) {
         out[i] = (uint8_t)(value >> (i * 8));
     }
+}
+
+/* SDLPlatform>>quitStatus: */
+int quit_status(int code)
+{
+    int sig;
+    int pid;
+    char local[40];
+    char *path;
+    char local_2[256];
+    char *buf;
+    int64_t n;
+    int fd;
+    int64_t i;
+    sig = atomic_load_explicit(&quit_signal, memory_order_relaxed);
+    if (sig == 0) {
+        return code;
+    }
+    pid = atomic_load_explicit(&quit_sender, memory_order_relaxed);
+    memset(&local, 0, sizeof local);
+    path = local;
+    memset(&local_2, 0, sizeof local_2);
+    buf = local_2;
+    snprintf(path, 40, "/proc/%d/cmdline", pid);
+    n = 0;
+    fd = open(path, O_RDONLY, 0);
+    if (fd >= 0) {
+        n = read(fd, buf, 255);
+        close(fd);
+    }
+    if (n < 0) {
+        n = 0;
+    }
+    while ((n > 0) && (buf[n - 1] == 0)) {
+        n = n - 1;
+    }
+    for (i = 0; i <= n - 1; i++) {
+        if (buf[i] == 0) {
+            buf[i] = 32;
+        }
+    }
+    buf[n] = 0;
+    fprintf(stderr, "samaltak: quit on %s from pid %d (%s): exit status %d\n", sig == SIGTERM ? "SIGTERM" : "SIGINT", pid, n > 0 ? buf : "?", 128 + sig);
+    return 128 + sig;
 }
 
 /* SDLPlatform>>releaseProcess: */
@@ -3094,5 +3163,33 @@ static void sdl_platform_window_wire_at_put_count(uint8_t *bytes, int32_t offset
     for (i = 0; i <= n - 1; i++) {
         bytes[offset + i] = (uint8_t)(value >> (i * 8));
     }
+}
+
+/* SDLPlatform>>wrapQuitSignal: */
+static sig_t wrap_quit_signal(int sig)
+{
+    struct sigaction local;
+    struct sigaction *old;
+    struct sigaction local_2;
+    struct sigaction *act;
+    memset(&local, 0, sizeof local);
+    old = &local;
+    if (sigaction(sig, (const struct sigaction *)NULL, old) != 0) {
+        return (sig_t)NULL;
+    }
+    if ((old->sa_flags & SA_SIGINFO) != 0) {
+        return (sig_t)NULL;
+    }
+    if ((old->sa_handler == SIG_DFL) || (old->sa_handler == SIG_IGN)) {
+        return (sig_t)NULL;
+    }
+    memset(&local_2, 0, sizeof local_2);
+    act = &local_2;
+    act->sa_sigaction = on_quit_signal;
+    act->sa_flags = old->sa_flags | SA_SIGINFO;
+    if (sigaction(sig, act, (struct sigaction *)NULL) != 0) {
+        return (sig_t)NULL;
+    }
+    return old->sa_handler;
 }
 

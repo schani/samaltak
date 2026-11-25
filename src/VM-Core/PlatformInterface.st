@@ -42,6 +42,10 @@ ffiApprovedPlatform: approvedName signature: packedSignature into: targetOut
 	<var: #targetOut type: 'uint64_t *'>
 	<returns: 'int32_t'>
 	self subclassResponsibility
+!
+quitStatus: code
+	"At quit, before shutdown: the status the VM exits with when the image quits with code."
+	self subclassResponsibility
 ! !
 
 PlatformInterface subclass: #HeadlessPlatform
@@ -79,4 +83,10 @@ ffiApprovedPlatform: approvedName signature: packedSignature into: targetOut
 	<var: #targetOut type: 'uint64_t *'>
 	<returns: 'int32_t'>
 	^0
+!
+quitStatus: code
+	<export>
+	<var: #code type: 'int'>
+	<returns: 'int'>
+	^code
 ! !

@@ -180,6 +180,7 @@ test-tools: image
 	tests/tools/desktop_test.sh $(OUT)/samaltak.image
 	tests/tools/snapshot_test.sh $(OUT)/samaltak.image
 	tests/tools/reboot_test.sh $(OUT)/samaltak.image
+	tests/tools/quit_signal_test.sh $(OUT)/samaltak.image
 
 # The VM as a UEFI application for x86-64 or arm64 (UEFI_ARCH, this machine's by default), translated from the
 # same Lowtalk with VM-UEFI in place of the C library (docs/uefi.md): $(UEFI)/esp is a boot volume with it

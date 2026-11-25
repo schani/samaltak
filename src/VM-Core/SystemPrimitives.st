@@ -78,14 +78,15 @@ primWorkClockNextFrame
 primQuit
 	<vmPrimitive: 160 name: 'quit'>
 	<notTryable>
-	| c |
+	| c status |
 	c := self arg0.
 	jit shutdownWorker.
 	jit printBoundSiteTrace.
+	status := platform quitStatus: ((self isInt: c) ifTrue: [(self intVal: c) asInt32] ifFalse: [0]).
 	libc fflush: libc stdout.
 	libc fflush: libc stderr.
 	platform shutdown.
-	libc exit: ((self isInt: c) ifTrue: [(self intVal: c) asInt32] ifFalse: [0])
+	libc exit: status
 !
 primSnapshot
 	<vmPrimitive: 161 name: 'snapshot'>

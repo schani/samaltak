@@ -86,13 +86,15 @@ void prim_primitive_names(void)
 void prim_quit(void)
 {
     oop c;
+    int status;
     c = prim_nargs > 0 ? prim_base[1] : nil_oop;
     shutdown_worker();
     jit_runtime_print_bound_site_trace();
+    status = quit_status((c & 1) != 0 ? (int32_t)(((int64_t)c) >> 1) : 0);
     fflush(stdout);
     fflush(stderr);
     platform_interface_shutdown();
-    exit((c & 1) != 0 ? (int32_t)(((int64_t)c) >> 1) : 0);
+    exit(status);
 }
 
 /* SystemPrimitives>>primReleaseMemory */

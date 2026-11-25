@@ -28,6 +28,7 @@ videoInit
 		common setError: 'SDL_Init: %s' with: sdl getError.
 		^false].
 	videoOk := true.
+	sdlPlatform catchQuitSignals.
 	events updatePollInterval.
 	^true
 !

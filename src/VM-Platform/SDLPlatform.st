@@ -1,5 +1,5 @@
 PlatformInterface subclass: #SDLPlatform
-	instanceVariableNames: 'common events windows gpu files sockets ptys tls vsync sdl posixIO posixThreads initDone wakeEvent inWait wPipe wMu wCv wState wFds wNfds wStarted wStop ownedFFI pagedOutput'
+	instanceVariableNames: 'common events windows gpu files sockets ptys tls vsync sdl posixIO posixThreads initDone wakeEvent inWait wPipe wMu wCv wState wFds wNfds wStarted wStop ownedFFI pagedOutput posixProcesses quitSignal quitSender sdlTerm sdlInt'
 	classVariableNames: 'POLL_FDS'
 	package: 'VM-Platform'!
 
@@ -13,7 +13,8 @@ declarations
 		(sockets PlatformSockets) (ptys PlatformPtys) (tls PlatformTLS) (vsync PlatformVsync) (sdl SDL) (posixIO PosixIO) (posixThreads PosixThreads)
 		(initDone bool) (wakeEvent atomic_int) (inWait atomic_bool) (wPipe 'int32_t[2]' #(-1 -1))
 		(wMu 'pthread_mutex_t[1]') (wCv 'pthread_cond_t[1]') (wState int32_t) (wFds 'struct pollfd[POLL_FDS]') (wNfds int32_t)
-		(wStarted bool) (wStop atomic_bool) (ownedFFI FFIPrimitives) (pagedOutput PlatformPagedOutput))
+		(wStarted bool) (wStop atomic_bool) (ownedFFI FFIPrimitives) (pagedOutput PlatformPagedOutput)
+		(posixProcesses PosixProcesses) (quitSignal atomic_int) (quitSender atomic_int) (sdlTerm sig_t) (sdlInt sig_t))
 !
 initialize
 	"the wake pipe and up to 128 sockets"
@@ -171,6 +172,69 @@ ffiPtyForeground: h
 	<var: #h type: 'int64_t'>
 	<returns: 'int32_t'>
 	^(ptys foreground: h asInt32) asInt32
+! !
+
+!SDLPlatform methodsFor: 'quit signals'!
+catchQuitSignals
+	"After SDL_Init. SDL catches SIGTERM and SIGINT (when they have the default action) and makes them a quit event, which the World answers with Smalltalk quit: 0, so a VM killed so used to exit with 0, as if it had finished: a test run cut short by someone's pkill looked like one that had ended normally, but without its summary. Wrap SDL's handlers: the quit then says which signal asked for it and from which process, and the VM exits with 128 + the signal, as the signal's default action would have (quitStatus:)."
+	<export>
+	sdlTerm := self wrapQuitSignal: posixProcesses SIGTERM.
+	sdlInt := self wrapQuitSignal: posixProcesses SIGINT
+!
+wrapQuitSignal: sig
+	"Put onQuitSignal:info:context: in place of SDL's handler of sig; answer SDL's handler, or NULL (nothing changed) if sig has none."
+	<function>
+	<var: #sig type: 'int'>
+	<returns: 'sig_t'>
+	| old act |
+	old := self local: 'struct sigaction'.
+	(posixProcesses sigaction: sig action: self null old: old) ~= 0 ifTrue: [^self null].
+	(old sa_flags bitAnd: posixProcesses SA_SIGINFO) ~= 0 ifTrue: [^self null].
+	(old sa_handler = posixProcesses SIG_DFL or: [old sa_handler = posixIO SIG_IGN]) ifTrue: [^self null].
+	act := self local: 'struct sigaction'.
+	act sa_sigaction: (self functionPointer: #onQuitSignal:info:context:).
+	act sa_flags: (old sa_flags bitOr: posixProcesses SA_SIGINFO).
+	(posixProcesses sigaction: sig action: act old: self null) ~= 0 ifTrue: [^self null].
+	^old sa_handler
+!
+onQuitSignal: sig info: info context: context
+	"The handler of SIGTERM and SIGINT (async-signal-safe): note the signal and its sender, then run SDL's handler, which makes the quit event."
+	<function>
+	<var: #sig type: 'int'>
+	<var: #info type: 'siginfo_t *'>
+	<var: #context type: 'void *'>
+	| next |
+	self atomicStore: #quitSender value: info si_pid.
+	self atomicStore: #quitSignal value: sig.
+	next := sig = posixProcesses SIGTERM ifTrue: [sdlTerm] ifFalse: [sdlInt].
+	next isNull ifFalse: [next call: sig]
+!
+quitStatus: code
+	"128 + the signal if SIGTERM or SIGINT asked for the quit (onQuitSignal:info:context:), said on stderr with the sender's command line (from /proc: ? where there is none, or once the sender has gone); else code."
+	<export>
+	<var: #code type: 'int'>
+	<returns: 'int'>
+	<var: #sig type: 'int'>
+	<var: #pid type: 'int'>
+	| sig pid path buf fd n |
+	sig := self atomicLoad: #quitSignal.
+	sig = 0 ifTrue: [^code].
+	pid := self atomicLoad: #quitSender.
+	path := self local: 'char[40]'.
+	buf := self local: 'char[256]'.
+	libc snprintf: path size: 40 format: '/proc/%d/cmdline' with: pid.
+	n := 0.
+	fd := posixIO open: path flags: posixIO O_RDONLY mode: 0.
+	fd >= 0 ifTrue: [
+		n := posixIO read: fd into: buf count: 255.
+		posixIO close: fd].
+	n < 0 ifTrue: [n := 0].
+	[n > 0 and: [(buf at: n - 1) = 0]] whileTrue: [n := n - 1].
+	0 to: n - 1 do: [:i | (buf at: i) = 0 ifTrue: [buf at: i put: 32]].
+	buf at: n put: 0.
+	libc fprintf: libc stderr format: 'samaltak: quit on %s from pid %d (%s): exit status %d
+' with: (sig = posixProcesses SIGTERM ifTrue: ['SIGTERM'] ifFalse: ['SIGINT']) with: pid with: (n > 0 ifTrue: [buf] ifFalse: ['?']) with: 128 + sig.
+	^128 + sig
 ! !
 
 !SDLPlatform methodsFor: 'waking'!

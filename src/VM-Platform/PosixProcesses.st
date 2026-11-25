@@ -52,6 +52,18 @@ kill: pid signal: sig
 SIGHUP
 	<cMacro: 'int SIGHUP'>
 	^1
+!
+SIGINT
+	<cMacro: 'int SIGINT'>
+	^2
+!
+SIGTERM
+	<cMacro: 'int SIGTERM'>
+	^15
+!
+SA_SIGINFO
+	<cMacro: 'int SA_SIGINFO'>
+	^4
 ! !
 
 !PosixProcesses methodsFor: 'pseudo-terminals'!
@@ -145,7 +157,21 @@ cName
 	^'struct sigaction'
 !
 fields
-	^#((sa_handler sig_t) (sa_mask sigset_t) (sa_flags int))
+	"sa_sigaction (with SA_SIGINFO): void (*)(int, siginfo_t *, void *)"
+	^#((sa_handler sig_t) (sa_sigaction 'void *') (sa_mask sigset_t) (sa_flags int))
+! !
+
+ExternStruct subclass: #Siginfo
+	instanceVariableNames: ''
+	classVariableNames: ''
+	package: 'VM-Platform'!
+
+!Siginfo class methodsFor: 'declaring'!
+cName
+	^'siginfo_t'
+!
+fields
+	^#((si_signo int) (si_pid int))
 ! !
 
 ExternStruct subclass: #Winsize
