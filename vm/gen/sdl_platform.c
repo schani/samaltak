@@ -3016,7 +3016,7 @@ void platform_interface_wait(int64_t timeout_us)
         atomic_store_explicit(&wake_event, (int32_t)SDL_RegisterEvents(1), memory_order_relaxed);
     }
     atomic_store_explicit(&in_wait, true, memory_order_relaxed);
-    ms = (q_len != 0) || platform_vsync_pending() ? 0 : timeout_us < 0 ? -1 : (int32_t)((timeout_us + 999) / 1000);
+    ms = ((q_len != 0) && ((input_sem != 0) && input_armed)) || platform_vsync_pending() ? 0 : timeout_us < 0 ? -1 : (int32_t)((timeout_us + 999) / 1000);
     socks = any_armed();
     if (video_inited()) {
         watching = socks && watcher_start();

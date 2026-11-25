@@ -16,7 +16,8 @@ lastPumpNs
 	^lastPumpNs
 !
 pending
-	^qLen ~= 0
+	"Events signalReady signals now: queued ones and a reader armed for them. The platform's wait does not sleep over these; it does over events nobody reads yet (no input semaphore, as after a window a test opened and closed; or the reader was signaled and has not read them yet): else the idle VM would spin without end."
+	^qLen ~= 0 and: [inputSem ~= 0 and: [inputArmed]]
 ! !
 
 !PlatformEvents methodsFor: 'queue'!

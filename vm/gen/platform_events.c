@@ -2,8 +2,8 @@
 /* PlatformEvents (VM-Platform) */
 #include "samaltak.h"
 
-static bool input_armed = true;
-static int32_t input_sem;
+bool input_armed = true;
+int32_t input_sem;
 static SDL_Keymod key_mods;
 uint64_t last_pump_ns;
 static double mouse_x;

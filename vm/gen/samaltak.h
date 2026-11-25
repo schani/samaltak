@@ -1691,6 +1691,8 @@ extern char **argv;
 #endif
 #ifndef SAMALTAK_NO_PLATFORM
 extern char last_error[1024];
+extern bool input_armed;
+extern int32_t input_sem;
 extern uint64_t last_pump_ns;
 extern int32_t q_len;
 #ifdef __APPLE__
