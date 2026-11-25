@@ -25,6 +25,11 @@ environment
 	"The process's environment (NAME=value strings, NULL-terminated)."
 	self subclassResponsibility
 !
+videoStarted
+	"SDL's video has just started (SDL_Init): what this OS needs done then."
+	self subclassResponsibility
+!
+
 socketOpened: fd
 	"A new socket: a write to it after the peer closed must fail (EPIPE), not kill the VM with SIGPIPE."
 	self subclassResponsibility
@@ -156,6 +161,11 @@ environment
 	<export>
 	^darwin environment value
 !
+videoStarted
+	<export>
+	^self
+!
+
 socketOpened: fd
 	<export>
 	| one |
@@ -300,7 +310,7 @@ closingDesktopWindow: sw
 ! !
 
 PlatformHost subclass: #LinuxPlatformHost
-	instanceVariableNames: 'linux desktop shaderc compiler vertexOptions fragmentOptions vsyncOn vsyncPeriodUs vsyncStarted'
+	instanceVariableNames: 'linux desktop shaderc compiler vertexOptions fragmentOptions vsyncOn vsyncPeriodUs vsyncStarted xPrevious'
 	classVariableNames: ''
 	package: 'VM-Platform'!
 
@@ -309,7 +319,12 @@ LinuxPlatformHost comment: 'The platform layer on Linux: a thread that wakes at 
 !LinuxPlatformHost class methodsFor: 'declaring'!
 declarations
 	^#((linux LinuxPlatform) (desktop WaylandDesktop) (shaderc Shaderc) (compiler shaderc_compiler_t) (vertexOptions shaderc_compile_options_t)
-		(fragmentOptions shaderc_compile_options_t) (vsyncOn atomic_bool) (vsyncPeriodUs atomic_int) (vsyncStarted bool))
+		(fragmentOptions shaderc_compile_options_t) (vsyncOn atomic_bool) (vsyncPeriodUs atomic_int) (vsyncStarted bool)
+		(xPrevious x_error_handler))
+!
+typedefs
+	"XSetErrorHandler's handler and XSetErrorHandler itself (Xlib, found with dlsym: no X11 headers needed)"
+	^#((x_error_handler 'int (*)(void *, void *)') (x_set_error_handler 'x_error_handler (*)(x_error_handler)'))
 !
 targetOS
 	^#linux
@@ -366,6 +381,34 @@ environment
 	<export>
 	^linux environ
 !
+videoStarted
+	"On X11, an X error ends the process unless an error handler says otherwise, and SDL causes one it cannot help: it
+	wakes a wait (SDL_PushEvent from another thread: the vsync thread's wake) with a client message to a window of the
+	wait, sent on a connection of its own, which can reach the server after that window was destroyed on the main
+	connection: a BadWindow of X_SendEvent (it reproduces opening and closing a window in a loop on a loaded machine).
+	So onXError:event: ignores that one and passes every other error on to Xlib's handler. libX11 is SDL's (dlopen
+	RTLD_NOLOAD: nothing when SDL is not on X11)."
+	<export>
+	| x11 set |
+	x11 := linux dlopen: 'libX11.so.6' mode: (linux RTLD_NOW bitOr: linux RTLD_NOLOAD).
+	x11 isNull ifTrue: [^self].
+	set := self cCoerce: (linux dlsym: x11 name: 'XSetErrorHandler') to: 'x_set_error_handler'.
+	set isNull ifFalse: [xPrevious := set call: (self functionPointer: #onXError:event:)]
+!
+onXError: display event: event
+	"Xlib's error handler (videoStarted): a BadWindow (3) of X_SendEvent (25) is ignored, any other error goes to the
+	handler before (Xlib's: prints it and exits). In an XErrorEvent (LP64) error_code is byte 32, request_code byte 33."
+	<function>
+	<var: #display type: 'void *'>
+	<var: #event type: 'void *'>
+	<returns: 'int'>
+	| e |
+	e := self cCoerce: event to: 'uint8_t *'.
+	((e at: 32) = 3 and: [(e at: 33) = 25]) ifTrue: [^0].
+	xPrevious isNull ifTrue: [^0].
+	^xPrevious call: display with: event
+!
+
 socketOpened: fd
 	<export>
 	posixIO signal: posixIO SIGPIPE handler: posixIO SIG_IGN
@@ -532,7 +575,7 @@ LinuxPlatform comment: 'The Linux calls of LinuxPlatformHost (environ needs _GNU
 
 !LinuxPlatform class methodsFor: 'declaring'!
 headers
-	^#('<unistd.h>' '<time.h>')
+	^#('<unistd.h>' '<time.h>' '<dlfcn.h>')
 !
 targetOS
 	^#linux
@@ -550,7 +593,24 @@ clockNanosleep: clock flags: flags request: request remain: remain
 TIMER_ABSTIME
 	<cMacro: 'int TIMER_ABSTIME'>
 	^1
+!
+dlopen: file mode: mode
+	<c: 'void *dlopen(const char *file, int mode)'>
+	^self error: 'not simulated'
+!
+dlsym: handle name: name
+	<c: 'void *dlsym(void *handle, const char *name)'>
+	^self error: 'not simulated'
+!
+RTLD_NOW
+	<cMacro: 'int RTLD_NOW'>
+	^2
+!
+RTLD_NOLOAD
+	<cMacro: 'int RTLD_NOLOAD'>
+	^4
 ! !
+
 
 CLibrary subclass: #Shaderc
 	instanceVariableNames: ''

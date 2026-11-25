@@ -74,6 +74,8 @@ typedef uint64_t oop;
 typedef void (*prim_fn)(void);
 typedef bool (*prim_try_guard)(oop);
 #ifndef SAMALTAK_NO_PLATFORM
+typedef int (*x_error_handler)(void *, void *);
+typedef x_error_handler (*x_set_error_handler)(x_error_handler);
 #endif
 
 #define ANA_BLOCK 32
@@ -2568,6 +2570,7 @@ bool set_window_background(SDL_Window *sw, uint32_t rgb);
 SDL_GPUShaderFormat shader_formats(void);
 void socket_opened(int fd);
 char *utf8_ctype(void);
+void video_started(void);
 bool vsync_start(void);
 void vsync_stop(void);
 double wheel_point_scale(void);
@@ -2592,6 +2595,7 @@ bool set_window_background(SDL_Window *sw, uint32_t rgb);
 SDL_GPUShaderFormat shader_formats(void);
 void socket_opened(int fd);
 char *utf8_ctype(void);
+void video_started(void);
 bool vsync_start(void);
 void vsync_stop(void);
 double wheel_point_scale(void);

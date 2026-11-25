@@ -591,6 +591,12 @@ char *utf8_ctype(void)
     return "LC_CTYPE=UTF-8";
 }
 
+/* DarwinPlatformHost>>videoStarted */
+void video_started(void)
+{
+    return;
+}
+
 /* DarwinPlatformHost>>vsyncStart */
 bool vsync_start(void)
 {

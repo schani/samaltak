@@ -29,6 +29,7 @@ videoInit
 		^false].
 	videoOk := true.
 	sdlPlatform catchQuitSignals.
+	host videoStarted.
 	events updatePollInterval.
 	^true
 !

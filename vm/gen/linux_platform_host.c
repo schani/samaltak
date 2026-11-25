@@ -10,7 +10,9 @@ static shaderc_compile_options_t vertex_options;
 static atomic_bool vsync_on;
 static atomic_int vsync_period_us;
 static bool vsync_started;
+static x_error_handler x_previous;
 
+static int on_x_error(void *display, void *event);
 static void *vsync_run(void *arg);
 
 /* LinuxPlatformHost>>altKeymod */
@@ -117,6 +119,20 @@ bool move_desktop_window(SDL_Window *sw, int32_t x, int32_t y)
     return place_surface(sw, x, y);
 }
 
+/* LinuxPlatformHost>>onXError:event: */
+static int on_x_error(void *display, void *event)
+{
+    uint8_t *e;
+    e = (uint8_t *)event;
+    if ((e[32] == 3) && (e[33] == 25)) {
+        return 0;
+    }
+    if (x_previous == NULL) {
+        return 0;
+    }
+    return x_previous(display, event);
+}
+
 /* LinuxPlatformHost>>openDesktopWindow:width:height:flags: */
 SDL_Window *open_desktop_window(char *title, int32_t w, int32_t h, SDL_WindowFlags flags)
 {
@@ -174,6 +190,21 @@ void socket_opened(int fd)
 char *utf8_ctype(void)
 {
     return "LC_CTYPE=C.UTF-8";
+}
+
+/* LinuxPlatformHost>>videoStarted */
+void video_started(void)
+{
+    void *x11;
+    x_set_error_handler set;
+    x11 = dlopen("libX11.so.6", RTLD_NOW | RTLD_NOLOAD);
+    if (x11 == NULL) {
+        return;
+    }
+    set = (x_set_error_handler)dlsym(x11, "XSetErrorHandler");
+    if (!(set == NULL)) {
+        x_previous = set(on_x_error);
+    }
 }
 
 /* LinuxPlatformHost>>vsyncRun: */
