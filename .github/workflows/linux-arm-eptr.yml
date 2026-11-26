@@ -1,0 +1,171 @@
+name: Native Linux ARM64 tagged pointer loads
+on:
+  push:
+    branches: [validate/linux-arm-eptr-b66a749c]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    if: github.repository == 'schani/samaltak' && github.event_name == 'push' && github.ref == 'refs/heads/validate/linux-arm-eptr-b66a749c' && github.event.deleted == false
+    runs-on: ubuntu-24.04-arm
+    container: debian:bookworm-slim
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      A: '50b7a63369eb9f4c50d84470310a042514caa432'
+      B: 'b66a749c07b894830eaa7286bd0fe9973ee15a9b'
+      LC_ALL: C
+      DEBIAN_FRONTEND: noninteractive
+      SDL_VIDEO_DRIVER: samaltak_no_video
+      SDL_VIDEODRIVER: samaltak_no_video
+    steps:
+      - name: Confirm native ARM64 and install checkout prerequisites
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          [[ "$RUNNER_ARCH" == ARM64 && "$(uname -sm)" == 'Linux aarch64' ]]
+          [[ "$(dpkg --print-architecture)" == arm64 && "$(id -u)" == 0 ]]
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 3 # validation -> B -> A
+          persist-credentials: false
+
+      - name: Verify commits and archive exact trees
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [[ "$A" =~ ^[0-9a-f]{40}$ && "$B" =~ ^[0-9a-f]{40}$ && "$A" != "$B" ]]
+          [[ "$GITHUB_REF" == "refs/heads/validate/linux-arm-eptr-${B:0:8}" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ "$(git show -s --format=%P HEAD)" == "$B" ]]
+          [[ "$(git show -s --format=%P "$B")" == "$A" ]]
+          logs="$RUNNER_TEMP/eptr-logs"
+          mkdir "$logs" /tmp/eptr-ab /tmp/eptr-ab/{A,B}
+          git diff --name-status --no-renames "$B" HEAD > "$logs/validation-paths.txt"
+          diff -u <(printf 'A\t%s\n' .github/scripts/arm64-eptr-ab.py \
+            .github/scripts/arm64-eptr-target.st .github/workflows/linux-arm-eptr.yml) \
+            "$logs/validation-paths.txt"
+          for path in .github/scripts/arm64-eptr-ab.py .github/scripts/arm64-eptr-target.st \
+            .github/workflows/linux-arm-eptr.yml; do
+            [[ "$(git ls-tree HEAD -- "$path" | cut -d ' ' -f1)" == 100644 ]]
+          done
+          git diff --name-status --no-renames "$A" "$B" > "$logs/candidate-paths.txt"
+          diff -u <(printf 'M\t%s\n' src/Tests-VM/JitOptRuntimeTest.st \
+            src/VM-Jit/OptCodegen.st vm/gen/opt_codegen.c) "$logs/candidate-paths.txt"
+          [[ "$(git rev-parse "$A:vm/tests/bench")" == "$(git rev-parse "$B:vm/tests/bench")" ]]
+          {
+            printf 'event=%s ref=%s\n' "$GITHUB_EVENT_NAME" "$GITHUB_REF"
+            uname -a
+            printf 'runner=%s arch=%s\n' "$RUNNER_NAME" "$RUNNER_ARCH"
+            git show -s --format='%H %T %s' "$A" "$B" HEAD
+            printf 'awfy_tree=%s\n' "$(git rev-parse "$A:vm/tests/bench")"
+            sha256sum .github/scripts/arm64-eptr-{ab.py,target.st} .github/workflows/linux-arm-eptr.yml
+          } | tee "$logs/refs.txt"
+          for side in A B; do
+            git archive "${!side}" | tar -xf - -C "/tmp/eptr-ab/$side"
+          done
+          grep -qx 'testUncheckedPointerLoadAddressing' /tmp/eptr-ab/B/src/Tests-VM/JitOptRuntimeTest.st
+
+      - name: Install platform VM dependencies (headless equivalent of .agents/setup)
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          {
+            # Full platform link and file I/O; no display server, UEFI, or Node tools.
+            apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build pkg-config python3 perl binutils \
+              libshaderc-dev spirv-tools libssl-dev libwayland-dev libvulkan-dev \
+              libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+            git clone --depth 1 --branch release-3.2.24 https://github.com/libsdl-org/SDL.git /tmp/eptr-ab/sdl
+            git -C /tmp/eptr-ab/sdl rev-parse HEAD
+            [[ "$(git -C /tmp/eptr-ab/sdl rev-parse HEAD)" == a8589a84226a6202831a3d49ff4edda4acab9acd ]]
+            cmake -S /tmp/eptr-ab/sdl -B /tmp/eptr-ab/sdl/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_UNIX_CONSOLE_BUILD=ON
+            cmake --build /tmp/eptr-ab/sdl/build --parallel 4
+            cmake --install /tmp/eptr-ab/sdl/build
+            ldconfig
+            # Bookworm's shared shaderc has unresolved glslang/SPIRV-Tools symbols.
+            mkdir -p /usr/local/lib/pkgconfig
+            cat > /usr/local/lib/pkgconfig/shaderc.pc <<'PC'
+          Name: shaderc
+          Description: shaderc with its static dependencies (bookworm)
+          Version: 2023.2.1
+          Libs: -lshaderc_combined -Wl,--start-group -lglslang -lSPIRV -lMachineIndependent -lGenericCodeGen -lOSDependent -lOGLCompiler -lglslang-default-resource-limits -lSPIRV-Tools-opt -lSPIRV-Tools -Wl,--end-group -lstdc++ -lpthread -lm
+          Cflags:
+          PC
+            pkg-config --modversion sdl3 openssl shaderc wayland-client
+            /usr/bin/gcc --version
+            make --version
+            python3 --version
+          } 2>&1 | tee "$RUNNER_TEMP/eptr-logs/toolchain.log"
+
+      - name: Build separate native platform VMs and full images
+        id: build
+        timeout-minutes: 19
+        run: |
+          set -euo pipefail
+          unset OUT BOOT_IMAGE PACKAGES NO_PLATFORM PGO_GEN MAKEFLAGS MFLAGS GNUMAKEFLAGS MAKEOVERRIDES
+          unset CC CFLAGS CPPFLAGS LDFLAGS LDLIBS DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          for side in A B; do
+            (
+              cd "/tmp/eptr-ab/$side"
+              # Environment CFLAGS lets the Makefile append required platform flags.
+              CFLAGS='-O2 -g' timeout --kill-after=15s 8m make -j4 image CC=/usr/bin/gcc NO_PGO=1 BRIEF=1
+              test -f vm/build/.variant-platform
+              test -s build/samaltak.image
+              readelf -h vm/build/samaltak | grep -E 'Machine:[[:space:]]+AArch64$'
+              ldd vm/build/samaltak | tee "$RUNNER_TEMP/eptr-logs/$side-ldd.txt"
+              grep -F libSDL3 "$RUNNER_TEMP/eptr-logs/$side-ldd.txt"
+              sha256sum vm/build/samaltak build/samaltak.image | tee "$RUNNER_TEMP/eptr-logs/$side.sha256"
+            ) 2>&1 | tee "$RUNNER_TEMP/eptr-logs/build-$side.log"
+          done
+
+      - name: ARM64 bounds-hoist semantics (both) and tagged-load codegen (B)
+        id: focused
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          unset DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          run_one() (
+            cd "/tmp/eptr-ab/$1"
+            log="$RUNNER_TEMP/eptr-logs/$1-$2.log"
+            expr="| r | Smalltalk vm jitArchitecture = #arm64 ifFalse: [Smalltalk quit: 1].
+              r := (JitOptRuntimeTest selector: #$2) run.
+              Transcript show: r summary; cr.
+              Smalltalk quit: ((r passed size = 1 and: [r runCount = 1]) ifTrue: [0] ifFalse: [1])"
+            timeout --kill-after=5s 120s vm/build/samaltak --jit opt --jit-threshold 0 --jit-flags eager \
+              build/samaltak.image --headless --eval "$expr" 2>&1 | tee "$log"
+            grep -Fx '1 run, 1 passed, 0 failed, 0 errors' "$log"
+          )
+          run_one A testCountedLoopsCheckBoundsOnce
+          run_one B testCountedLoopsCheckBoundsOnce
+          run_one B testUncheckedPointerLoadAddressing
+
+      - name: Paired target and AWFY thread-CPU timings
+        timeout-minutes: 15
+        run: python3 .github/scripts/arm64-eptr-ab.py /tmp/eptr-ab "$RUNNER_TEMP/eptr-logs"
+
+      - name: Verify the VM and image pairs stayed unchanged
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          for side in A B; do
+            (cd "/tmp/eptr-ab/$side" && sha256sum -c "$RUNNER_TEMP/eptr-logs/$side.sha256")
+          done | tee "$RUNNER_TEMP/eptr-logs/integrity.log"
+
+      - name: Upload evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-arm-eptr-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/eptr-logs/
+          if-no-files-found: warn
+          retention-days: 7
