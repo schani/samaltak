@@ -1202,14 +1202,14 @@ guard: a or: k atMost: b for: m in: entry state: s
 	ir insert: g before: (ir block: entry) last
 !
 isHoistable: n outOf: h
-	"n is a guard of a value from before loop h, or a sum or difference of SmallIntegers from before it (its overflow check a guard), and no guard moved out of a loop has failed at its site."
+	"n guards or does a checked unbox of a value from before loop h, or checks a sum or difference of SmallIntegers from before it. No hoisted guard has failed at its site."
 	| nd op b |
 	nd := ir node: n.
 	op := nd op asInt32.
 	(op = O_IADD or: [op = O_ISUB])
 		ifTrue: [((self isBefore: (ir resolve: nd a) loop: h) and: [self isBefore: (ir resolve: nd b) loop: h]) ifFalse: [^false]]
 		ifFalse: [
-			(op = O_GUARDCLASS or: [op = O_GUARDINT or: [op = O_GUARDCLOSURE or: [op = O_GUARDEQ]]]) ifFalse: [^false].
+			(op = O_GUARDCLASS or: [op = O_GUARDINT or: [op = O_GUARDCLOSURE or: [op = O_GUARDEQ or: [op = O_UNBOXF and: [nd state >= 0]]]]]) ifFalse: [^false].
 			b := (ir node: nd a) block.
 			b < 0 ifTrue: [^false].
 			(self dominates: h block: b) ifTrue: [^false]].

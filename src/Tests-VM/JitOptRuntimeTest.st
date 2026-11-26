@@ -370,6 +370,16 @@ testLoopValuesAcrossInterruptChecks
 		self assert: r equals: {19999900000. 200000. 19999900000}].
 	done := true
 !
+testLoopInvariantFloatUnbox
+	"An unused operand in a skipped loop need not be a number. If a hoisted unbox fails on entry, resume with each iteration's store executed once."
+	| o |
+	Smalltalk vm jitParameters: #(nil '-eager' nil nil).
+	self define: 'sum: n by: delta | sum | sum := 0.0. a := 0. 1 to: n do: [:i | a := a + 1. sum := sum + delta]. ^{sum. a}'.
+	o := JitRuntimeTestSubject new.
+	100 timesRepeat: [self assert: (o sum: 8 by: 0.5) equals: #(4.0 8)].
+	self assert: (o sum: 0 by: nil) equals: #(0.0 0).
+	2 timesRepeat: [self assert: (o sum: 8 by: 1/4) equals: #(2.0 8)]
+!
 testFloatLoopsKeepTheirSumsOnDoubles
 	"A loop's running Float stays on doubles (its phi's twin), across interrupt checks where Processes switch and the collector runs; a SmallInteger sum beside it stays one; a loop unit entered with a SmallInteger, a Fraction or nil where it was compiled with a Float answers what the interpreter answers; a loop that sends keeps its Float on doubles too; more running Floats than d registers spill to raw slots."
 	| o done many |
