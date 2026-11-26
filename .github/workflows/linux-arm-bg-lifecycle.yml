@@ -1,0 +1,155 @@
+name: Native ARM64 background JIT fixture verification
+on:
+  push:
+    branches: [validate/linux-arm-bg-lifecycle-fixture-55a51821]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    if: github.repository == 'schani/samaltak' && github.event_name == 'push' && github.ref == 'refs/heads/validate/linux-arm-bg-lifecycle-fixture-55a51821' && github.event.deleted == false
+    runs-on: ubuntu-24.04-arm
+    container: debian:bookworm-slim
+    timeout-minutes: 32
+    defaults:
+      run:
+        shell: bash
+    env:
+      B: '892aad8a539b3ce264a795dc65190a0ae612f083'
+      LC_ALL: C
+      DEBIAN_FRONTEND: noninteractive
+      SDL_VIDEO_DRIVER: samaltak_no_video
+      SDL_VIDEODRIVER: samaltak_no_video
+    steps:
+      - name: Confirm native ARM64 and install checkout prerequisites
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          [[ "$RUNNER_ARCH" == ARM64 && "$(uname -sm)" == 'Linux aarch64' ]]
+          [[ "$(dpkg --print-architecture)" == arm64 && "$(id -u)" == 0 ]]
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 4 # verification -> fixture -> C flags fix -> exact candidate
+          persist-credentials: false
+
+      - name: Archive exact candidate
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [[ "$(git rev-parse HEAD^^^)" == "$B" ]]
+          logs="$RUNNER_TEMP/bg-jit-logs"
+          mkdir "$logs" /tmp/bg-jit-ab /tmp/bg-jit-ab/B
+          git show -s --format='%H %T %s' "$B" HEAD^ HEAD | tee "$logs/refs.txt"
+          git archive "$B" -o /tmp/bg-jit-ab/B.tar
+          git get-tar-commit-id < /tmp/bg-jit-ab/B.tar | grep -Fx "$B"
+          tar -xf /tmp/bg-jit-ab/B.tar -C /tmp/bg-jit-ab/B
+
+      - name: Install platform VM dependencies (headless equivalent of .agents/setup)
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          {
+            # Full platform link and file I/O; no display server, UEFI, or Node tools.
+            apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build pkg-config python3 perl binutils \
+              libshaderc-dev spirv-tools libssl-dev libwayland-dev libvulkan-dev \
+              libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+            git clone --depth 1 --branch release-3.2.24 https://github.com/libsdl-org/SDL.git /tmp/bg-jit-ab/sdl
+            git -C /tmp/bg-jit-ab/sdl rev-parse HEAD
+            [[ "$(git -C /tmp/bg-jit-ab/sdl rev-parse HEAD)" == a8589a84226a6202831a3d49ff4edda4acab9acd ]]
+            cmake -S /tmp/bg-jit-ab/sdl -B /tmp/bg-jit-ab/sdl/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_UNIX_CONSOLE_BUILD=ON
+            cmake --build /tmp/bg-jit-ab/sdl/build --parallel 4
+            cmake --install /tmp/bg-jit-ab/sdl/build
+            ldconfig
+            # Bookworm's shared shaderc has unresolved glslang/SPIRV-Tools symbols.
+            mkdir -p /usr/local/lib/pkgconfig
+            cat > /usr/local/lib/pkgconfig/shaderc.pc <<'PC'
+          Name: shaderc
+          Description: shaderc with its static dependencies (bookworm)
+          Version: 2023.2.1
+          Libs: -lshaderc_combined -Wl,--start-group -lglslang -lSPIRV -lMachineIndependent -lGenericCodeGen -lOSDependent -lOGLCompiler -lglslang-default-resource-limits -lSPIRV-Tools-opt -lSPIRV-Tools -Wl,--end-group -lstdc++ -lpthread -lm
+          Cflags:
+          PC
+            pkg-config --modversion sdl3 openssl shaderc wayland-client
+            /usr/bin/gcc --version
+            make --version
+            python3 --version
+          } 2>&1 | tee "$RUNNER_TEMP/bg-jit-logs/toolchain.log"
+
+      - name: Build exact platform VM and full image
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          cd /tmp/bg-jit-ab/B
+          CFLAGS='-O2 -g' timeout --kill-after=15s 8m make -j4 image CC=/usr/bin/gcc NO_PGO=1 BRIEF=1 \
+            2>&1 | tee "$RUNNER_TEMP/bg-jit-logs/build.log"
+          test -f vm/build/.variant-platform
+          readelf -h vm/build/samaltak | grep -E 'Machine:[[:space:]]+AArch64$'
+          sha256sum vm/build/samaltak build/samaltak.image | tee "$RUNNER_TEMP/bg-jit-logs/exact.sha256"
+
+      - name: Admit and pin two distinct guest-visible cores
+        run: python3 .github/scripts/bg-jit-ab.py topology "$RUNNER_TEMP/bg-jit-logs"
+
+      - name: Verify fixed lifecycle against the exact VM, fresh processes
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          root=/tmp/bg-jit-ab/B
+          logs="$RUNNER_TEMP/bg-jit-logs"
+          for i in $(seq 1 8); do
+            d=$(mktemp -d)
+            status=0
+            (cd "$d"; env -i PATH=/usr/bin:/bin HOME="$d" LC_ALL=C \
+              SDL_VIDEO_DRIVER=samaltak_no_video SDL_VIDEODRIVER=samaltak_no_video \
+              taskset -c "$(cat "$logs/cpus.txt")" sh "$GITHUB_WORKSPACE/tests/vm/jit_worker_test.sh" \
+              "$root/build/samaltak.image" "$root/vm/build/samaltak") \
+              >"$logs/fixture-$i.log" 2>&1 || status=$?
+            cat "$logs/fixture-$i.log"
+            echo "$i $status" | tee -a "$logs/fixture-status.txt"
+          done
+          awk '$2 != 0 { bad = 1 } END { exit bad || NR != 8 }' "$logs/fixture-status.txt"
+
+      - name: Trace lifecycle discard call sites and selectors on the same image
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          root=/tmp/bg-jit-ab/B
+          logs="$RUNNER_TEMP/bg-jit-logs"
+          (cd "$root"; mv vm/build/samaltak vm/build/samaltak-exact
+            python3 "$GITHUB_WORKSPACE/.github/scripts/trace-bg-lifecycle.py"
+            CFLAGS='-O2 -g' make -C vm -j4 CC=/usr/bin/gcc NO_PGO=1 BRIEF=1
+          ) 2>&1 | tee "$logs/build-trace.log"
+          for lane in lifecycle contention; do
+            case $lane in
+              lifecycle) src='JitWorkerProof install. JitWorkerProof collections. JitWorkerProof invalidation. JitWorkerProof interleavedDiscards' ;;
+              contention) src='JitWorkerProof scratchContention' ;;
+            esac
+            d=$(mktemp -d)
+            (cd "$d"; env -i PATH=/usr/bin:/bin HOME="$d" LC_ALL=C SAMALTAK_OPT_BG_TEST=1 SAMALTAK_VERIFY_GC=1 \
+              SDL_VIDEO_DRIVER=samaltak_no_video SDL_VIDEODRIVER=samaltak_no_video \
+              taskset -c "$(cat "$logs/cpus.txt")" "$root/vm/build/samaltak" \
+              --jit opt --jit-threshold 0 --jit-flags eager,-inline,bg "$root/build/samaltak.image" \
+              --headless --load "$GITHUB_WORKSPACE/tests/vm/jit_worker.st" --eval \
+              "[Profiler default stop. $src] on: Error do: [:e | Smalltalk vm stderrWrite: e messageText, (String with: Character lf). Smalltalk quit: 1]") \
+              2>&1 | tee "$logs/trace-$lane.log"
+            grep -Fx true "$logs/trace-$lane.log"
+          done
+
+          grep -F 'BG competing compile start=0 osr=0 method=UndefinedObject(JitWorkerProof class)>>competingSum:' "$logs/trace-contention.log"
+          grep -F 'BG bg_quiesce opt_runtime_compile' "$logs/trace-contention.log"
+          ! grep -F 'BG competing compile' "$logs/trace-lifecycle.log"
+
+      - name: Upload evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-arm-bg-jit-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bg-jit-logs/
+          if-no-files-found: warn
+          retention-days: 7
