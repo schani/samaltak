@@ -14,12 +14,13 @@ check: got is: wanted
 	got = wanted ifFalse: [self error: 'wanted ', wanted printString, '; got ', got printString]
 !
 queue: selector
-	| m |
+	| m status |
 	m := self class >> selector.
 	self check: (m workerTest: 0) is: 0.
 	self check: (self perform: selector with: 40) is: 42.
 	self check: (self perform: selector with: 40) is: 42.
-	self check: (m workerTest: 2) is: 2.
+	status := m workerTest: 2.
+	status = 2 ifFalse: [self error: selector, ' queue: wanted 2; got ', status printString].
 	self check: (m workerTest: 4) is: 0.
 	^m
 !
@@ -58,16 +59,20 @@ collections
 	^true
 !
 invalidation
-	| m |
+	| m flushes |
 	m := self queue: #addForInvalidation:.
 	Smalltalk vm flushCacheForSelector: #addForInvalidation:.
 	self discard: m.
 	m := self queue: #addForFlush:.
 	Smalltalk vm jitParameters: #(nil 'bg' nil nil).
 	self discard: m.
+	flushes := Smalltalk vm statistics jitCacheFlushes.
 	m := self queue: #addForRelease:.
+	self check: (m workerTest: 1) is: 1.
 	Smalltalk vm releaseMemory.
+	self check: (m workerTest: 1) is: 4.
 	self discard: m.
+	self check: Smalltalk vm statistics jitCacheFlushes is: flushes + 1.
 	self check: (self addForRelease: 40) is: 42.
 	^true
 !
@@ -97,6 +102,19 @@ interleavedDiscards
 	self check: (self addForRedoB: 40) is: 42.
 	self check: (b workerTest: 1) is: 0.
 	self check: (b workerTest: 4) is: 1.
+	^true
+!
+scratchContention
+	| m competing |
+	competing := self class >> #competingSum:.
+	m := self queue: #addForContention:.
+	"An unrelated loop tiers up synchronously and must take back the scratch slot."
+	self check: (self competingSum: 10) is: 55.
+	self check: (competing workerTest: 4) is: 1.
+	self check: (m workerTest: 1) is: 4.
+	self discard: m.
+	self check: (self addForContention: 40) is: 42.
+	self check: (m workerTest: 4) is: 1.
 	^true
 !
 boundFfi
@@ -148,6 +166,16 @@ addForRedoA: x
 !
 addForRedoB: x
 	^x + 2
+!
+addForContention: x
+	^x + 2
+!
+competingSum: n
+	| i sum |
+	i := n.
+	sum := 0.
+	[i > 0] whileTrue: [sum := sum + i. i := i - 1].
+	^sum
 ! !
 
 !JitWorkerProof class methodsFor: 'FFI target'!

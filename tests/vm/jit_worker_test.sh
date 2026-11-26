@@ -14,15 +14,18 @@ run() {
     result=$1; flags=$2; src=$3; shift 3
     if ! "$@" "$VM" --jit opt --jit-threshold 0 --jit-flags "$flags" "$IMAGE" --headless \
         --load "$ROOT/tests/vm/jit_worker.st" --eval \
-        "[$src] on: Error do: [:e | Smalltalk vm stderrWrite: e messageText, (String with: Character lf). Smalltalk quit: 1]" >"$LOG" 2>&1 ||
+        "[Profiler default stop. $src] on: Error do: [:e | Smalltalk vm stderrWrite: e messageText, (String with: Character lf). Smalltalk quit: 1]" >"$LOG" 2>&1 ||
         { [ "$result" = true ] && ! grep -Fxq true "$LOG"; }; then
         cat "$LOG" >&2
         echo "jit_worker_test: $src failed ($flags)" >&2
         exit 1
     fi
 }
+# Timer sampling can tier up an unrelated loop and take back the worker's scratch.
+# Stop it in each process; drive scratch contention explicitly in its own lane.
 run true eager,-inline 'JitWorkerProof fallback: -2'
 run true eager,-inline,bg 'JitWorkerProof install. JitWorkerProof collections. JitWorkerProof invalidation. JitWorkerProof interleavedDiscards'
+run true eager,-inline,bg 'JitWorkerProof scratchContention'
 run quit eager,-inline,bg 'JitWorkerProof quitWithJob. Smalltalk quit: 1'
 SAMALTAK_OPT_LIMIT=999999 run true eager,-inline,bg 'JitWorkerProof fallback: -1'
 if [ "$(uname -s)" = Linux ] && command -v taskset >/dev/null 2>&1; then
@@ -38,4 +41,4 @@ lib="$TMP/wrapped.$ext"
 "${CC:-cc}" -std=c99 -Wall -Wextra -Werror "$link" -fPIC -o "$lib" "$ROOT/tests/vm/wrapped_ffi_fixture.c"
 SAMALTAK_NATIVE_GRANTS="wrapped|wrapped_step|i32(i32)|$lib" \
     run true eager,-inline,bg 'JitWorkerProof boundFfi'
-echo 'jit_worker_test: real worker, stale discard, quit and synchronous fallback passed'
+echo 'jit_worker_test: real worker, stale discard, scratch contention, quit and synchronous fallback passed'
