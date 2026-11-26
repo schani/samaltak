@@ -1,0 +1,369 @@
+name: Float x2 on Apple Silicon (Linux stage2)
+
+on:
+  push:
+    branches: [validate/floatx2-stage2-50b7a633]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: floatx2-stage2-50b7a633
+  cancel-in-progress: true
+
+env:
+  A: f12e0457dfd9e7d3411e11f86f01471d616ea95d
+  B: 50b7a63369eb9f4c50d84470310a042514caa432
+  STAGE2_SOURCE: ${{ vars.FLOATX2_STAGE2_SOURCE || 'source' }}
+  # In pinned mode, blank selects the reviewed compact files in the validation commit.
+  STAGE2_RUN_ID: ${{ vars.FLOATX2_STAGE2_RUN_ID }}
+  LC_ALL: C
+  BASH_ENV: /dev/null
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_INSTALL_UPGRADE: '1'
+
+jobs:
+  produce:
+    if: github.repository == 'schani/samaltak' && github.event.deleted == false && (vars.FLOATX2_STAGE2_SOURCE || 'source') == 'source'
+    runs-on: ubuntu-24.04
+    container: debian:bookworm-slim
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      a: ${{ steps.build.outputs.a }}
+      b: ${{ steps.build.outputs.b }}
+    steps:
+      - name: Install checkout prerequisites
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          [[ "$RUNNER_ARCH" == X64 && "$(uname -sm)" == 'Linux x86_64' && "$(id -u)" == 0 ]]
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 3
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 3
+          persist-credentials: false
+      - name: Verify A/B refs and archive separate trees
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          [[ -z "$STAGE2_RUN_ID" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ "$(git show -s --format=%P HEAD)" == "$B" ]]
+          [[ "$(git show -s --format=%P "$B")" == "$A" ]]
+          diff -u <(printf '%s\n' .github/scripts/mac-floatx2.py .github/workflows/floatx2-stage2.yml) \
+            <(git diff --name-only --no-renames "$B" HEAD | sort)
+          root="$RUNNER_TEMP/floatx2-producer"
+          mkdir -p "$root/A" "$root/B" "$root/artifact"
+          git archive "$A" | tar -xf - -C "$root/A"
+          git archive "$B" | tar -xf - -C "$root/B"
+      - name: Install Linux platform dependencies using repository CI setup
+        timeout-minutes: 14
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/floatx2-producer/A"
+          .agents/setup
+          pkg-config --modversion sdl3 openssl shaderc wayland-client
+      - name: Build and hash both stage2 images
+        id: build
+        timeout-minutes: 18
+        env:
+          SDL_VIDEO_DRIVER: samaltak_no_video
+          SDL_VIDEODRIVER: samaltak_no_video
+        run: |
+          set -euo pipefail
+          unset BOOT_IMAGE PACKAGES NO_PLATFORM PGO_GEN MAKEFLAGS MFLAGS GNUMAKEFLAGS MAKEOVERRIDES
+          unset CC CFLAGS CPPFLAGS LDFLAGS LDLIBS DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          while IFS= read -r key; do
+            if [[ "$key" == SAMALTAK_* ]]; then unset "$key"; fi
+          done < <(compgen -e)
+          root="$RUNNER_TEMP/floatx2-producer"
+          for side in A B; do
+            (
+              cd "$root/$side"
+              CFLAGS='-O2 -g' make -j3 image CC=/usr/bin/gcc NO_PGO=1
+              test -f vm/build/.variant-platform
+              test -s build/samaltak.image
+              read -r sha _ < <(sha256sum build/samaltak.image)
+              size="$(stat -c %s build/samaltak.image)"
+              gzip -n -6 -c build/samaltak.image > "$root/artifact/$side.image.gz"
+              packed_sum="$(gzip -dc "$root/artifact/$side.image.gz" | sha256sum)"
+              [[ "${packed_sum%% *}" == "$sha" ]]
+              printf '%s=%s:%s:%s\n' "${side,,}" "${!side}" "$size" "$sha" >> "$GITHUB_OUTPUT"
+              printf '%s %s %s %s\n' "$side" "${!side}" "$size" "$sha"
+            )
+          done
+      - name: Upload stage2 image pair for this run
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        timeout-minutes: 3
+        with:
+          name: floatx2-stage2-source-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/floatx2-producer/artifact/*.image.gz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 3
+
+  compare:
+    needs: produce
+    if: >-
+      !cancelled() && github.repository == 'schani/samaltak' && github.event.deleted == false &&
+      (needs.produce.result == 'success' || needs.produce.result == 'skipped')
+    runs-on: macos-15
+    name: mac-platform
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 3
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 3 # validation -> candidate -> base
+          persist-credentials: false
+
+      - name: Verify native runner and archive exact trees
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          [[ "$RUNNER_ARCH" == ARM64 && "$(uname -sm)" == 'Darwin arm64' ]]
+          [[ "$(sysctl -in sysctl.proc_translated)" != 1 ]]
+          [[ "$(brew --prefix)" == /opt/homebrew ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ "$(git show -s --format=%P HEAD)" == "$B" ]]
+          [[ "$(git show -s --format=%P "$B")" == "$A" ]]
+          allowed=(.github/scripts/mac-floatx2.py .github/workflows/floatx2-stage2.yml)
+          case "$STAGE2_SOURCE" in
+            source) [[ -z "$STAGE2_RUN_ID" ]] ;;
+            pinned)
+              if [[ -z "$STAGE2_RUN_ID" ]]; then
+                allowed+=(.github/floatx2-stage2/A.image.gz .github/floatx2-stage2/B.image.gz)
+              else
+                [[ "$STAGE2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+              fi
+              ;;
+            *) echo "Invalid FLOATX2_STAGE2_SOURCE: $STAGE2_SOURCE" >&2; exit 1 ;;
+          esac
+          diff -u <(printf '%s\n' "${allowed[@]}" | sort) \
+            <(git diff --name-only --no-renames "$B" HEAD | sort)
+          printf '%s\n' '6a73c7e42b988689ac5d96330a6d078d9387c023b701d0438c457629e1c55ea1  .github/scripts/mac-floatx2.py' \
+            | shasum -a 256 -c -
+          root="$RUNNER_TEMP/floatx2-src"
+          logs="$RUNNER_TEMP/floatx2-logs"
+          mkdir -p "$root/A" "$root/B" "$logs"
+          {
+            printf 'Runner=%s Arch=%s ImageOS=%s ImageVersion=%s\n' \
+              "$RUNNER_NAME" "$RUNNER_ARCH" "${ImageOS:-unknown}" "${ImageVersion:-unknown}"
+            uname -a
+            git show -s --format='%H %T %s' "$A" "$B" HEAD
+            printf 'Stage2 source=%s external_run_id=%s\n' "$STAGE2_SOURCE" "${STAGE2_RUN_ID:-none}"
+          } | tee "$logs/refs.txt"
+          git archive "$A" | tar -xf - -C "$root/A"
+          git archive "$B" | tar -xf - -C "$root/B"
+
+      - name: Download Linux source-built stage2 images
+        if: env.STAGE2_SOURCE == 'source'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        timeout-minutes: 4
+        with:
+          name: floatx2-stage2-source-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/floatx2-artifact
+
+      - name: Download trusted same-repo image artifact
+        if: env.STAGE2_SOURCE == 'pinned' && env.STAGE2_RUN_ID != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        timeout-minutes: 4
+        with:
+          name: floatx2-stage2-50b7a633
+          github-token: ${{ github.token }}
+          run-id: ${{ env.STAGE2_RUN_ID }}
+          path: ${{ runner.temp }}/floatx2-artifact
+
+      - name: Verify and install the stage2 images
+        timeout-minutes: 3
+        env:
+          A_SOURCE_IMAGE: ${{ needs.produce.outputs.a }}
+          B_SOURCE_IMAGE: ${{ needs.produce.outputs.b }}
+        run: |
+          set -euo pipefail
+          inputs="$GITHUB_WORKSPACE/.github/floatx2-stage2"
+          if [[ "$STAGE2_SOURCE" == source || -n "$STAGE2_RUN_ID" ]]; then
+            inputs="$RUNNER_TEMP/floatx2-artifact"
+          fi
+          python3 - "$inputs" "$RUNNER_TEMP/floatx2-src" <<'PY' | tee "$RUNNER_TEMP/floatx2-logs/images.sha256"
+          import gzip
+          import hashlib
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          src, root = map(Path, sys.argv[1:])
+          pins = {
+              "A": (53339088, "e63360ed298bd439703450d7599099531de5a2748804dac687faf297d145e5c8"),
+              "B": (53345280, "b9d49e3afb91887907283b47eb7a693f3c5ee720652eb882c120f46a0351c07b"),
+          }
+          if os.environ["STAGE2_SOURCE"] == "source":
+              pins = {}
+              for side in ("A", "B"):
+                  metadata = os.environ[f"{side}_SOURCE_IMAGE"]
+                  match = re.fullmatch(r"([0-9a-f]{40}):([1-9][0-9]{0,8}):([0-9a-f]{64})", metadata)
+                  if not match or match[1] != os.environ[side]:
+                      raise SystemExit(f"{side}: missing or mismatched Linux image provenance")
+                  size, sha = int(match[2]), match[3]
+                  if size > 128 * 1024 * 1024:
+                      raise SystemExit(f"{side}: stage2 image exceeds size limit")
+                  pins[side] = (size, sha)
+          for side, (size, sha) in pins.items():
+              package = src / f"{side}.image.gz"
+              if package.is_symlink() or not package.is_file():
+                  raise SystemExit(f"Missing or non-regular stage2 input: {package}")
+              with gzip.open(package, "rb") as image:
+                  data = image.read(size + 1)
+              if len(data) != size or hashlib.sha256(data).hexdigest() != sha:
+                  raise SystemExit(f"{side}: unexpected stage2 length or SHA-256")
+              dest = root / side / "build/samaltak.image"
+              dest.parent.mkdir(exist_ok=True)
+              with dest.open("xb") as image:
+                  image.write(data)
+              dest.chmod(0o444)
+              print(f"{sha}  {side}/build/samaltak.image")
+          PY
+
+      - name: Install macOS VM dependencies
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          brew install --force-bottle sdl3 openssl@3 pkgconf
+          brew list --versions sdl3 openssl@3 pkgconf
+          export PKG_CONFIG_PATH="$(brew --prefix sdl3)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig"
+          pkg-config --modversion sdl3 openssl
+          printf 'PKG_CONFIG_PATH=%s\n' "$PKG_CONFIG_PATH" >> "$GITHUB_ENV"
+
+      - name: Build both native VMs (no image target)
+        id: build
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          unset BOOT_IMAGE PACKAGES NO_PLATFORM PGO_GEN MAKEFLAGS MFLAGS GNUMAKEFLAGS MAKEOVERRIDES
+          unset CC CFLAGS CPPFLAGS LDFLAGS LDLIBS SDKROOT COMPILER_PATH LIBRARY_PATH CPATH C_INCLUDE_PATH
+          unset DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          while IFS= read -r key; do
+            if [[ "$key" == SAMALTAK_* ]]; then unset "$key"; fi
+          done < <(compgen -e)
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          test -f "$SDKROOT/usr/include/string.h"
+          cc="$(xcrun --sdk macosx --find clang)"
+          flags=("CC=$cc" NO_PGO=1)
+          root="$RUNNER_TEMP/floatx2-src"
+          logs="$RUNNER_TEMP/floatx2-logs"
+          {
+            "$cc" --version
+            make --version
+            python3 --version
+            printf 'CFLAGS=%s; make -j3 vm' '-O2 -g'
+            printf ' %q' "${flags[@]}"
+            printf '\n'
+          } | tee "$logs/toolchain.txt"
+          for side in A B; do
+            (
+              cd "$root/$side"
+              # Set CFLAGS in the environment so the Makefile adds its required flags.
+              CFLAGS='-O2 -g' make -j3 vm "${flags[@]}"
+              test -f vm/build/.variant-platform
+              test -x vm/build/samaltak
+              [[ "$(lipo -archs vm/build/samaltak)" == arm64 ]]
+              otool -L vm/build/samaltak
+              shasum -a 256 vm/build/samaltak > "$logs/$side-vm.sha256"
+            ) 2>&1 | tee "$logs/build-$side.log"
+          done
+
+      - name: Check verified image pair before smoke and timing
+        id: preflight
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/floatx2-src"
+          shasum -a 256 -c "$RUNNER_TEMP/floatx2-logs/images.sha256"
+
+      - name: Smoke-test Linux stage2 images on the Apple VMs
+        timeout-minutes: 3
+        env:
+          SDL_VIDEO_DRIVER: samaltak_no_video
+          SDL_VIDEODRIVER: samaltak_no_video
+        run: |
+          set -euo pipefail
+          unset DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          while IFS= read -r key; do
+            if [[ "$key" == SAMALTAK_* ]]; then unset "$key"; fi
+          done < <(compgen -e)
+          root="$RUNNER_TEMP/floatx2-src"
+          logs="$RUNNER_TEMP/floatx2-logs"
+          # Exercise the same source file-in and CPU timer as the full run.
+          for side in A B; do
+            (
+              cd "$root/$side"
+              "$root/A/vm/tests/bench/awfy.sh" --vm "$root/$side/vm/build/samaltak" \
+                --image "$root/$side/build/samaltak.image" --vm-args '--jit opt' \
+                --cpu -n 1 -o "$logs/$side-smoke.csv" Bounce:1
+              grep -Eq '^Bounce,1,[1-9][0-9]*$' "$logs/$side-smoke.csv"
+            ) 2>&1 | tee "$logs/$side-smoke.log"
+          done
+          (cd "$root" && shasum -a 256 -c "$logs/images.sha256")
+
+      - name: Paired AWFY CPU timings
+        timeout-minutes: 15
+        run: |
+          python3 .github/scripts/mac-floatx2.py "$RUNNER_TEMP/floatx2-src" "$RUNNER_TEMP/floatx2-logs"
+
+      - name: Focused Float x2 ARM64 test (candidate)
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        timeout-minutes: 3
+        env:
+          SDL_VIDEO_DRIVER: samaltak_no_video
+          SDL_VIDEODRIVER: samaltak_no_video
+        run: |
+          set -euo pipefail
+          unset DISPLAY WAYLAND_DISPLAY XAUTHORITY
+          while IFS= read -r key; do
+            if [[ "$key" == SAMALTAK_* ]]; then unset "$key"; fi
+          done < <(compgen -e)
+          cd "$RUNNER_TEMP/floatx2-src/B"
+          expr="| r | Smalltalk vm jitArchitecture = #arm64 ifFalse: [Smalltalk quit: 1].
+            r := (JitOptRuntimeTest selector: #testFloatMultiplyByTwo) run.
+            Transcript show: r summary; cr.
+            Smalltalk quit: ((r passed size = 1 and: [r runCount = 1]) ifTrue: [0] ifFalse: [1])"
+          vm/build/samaltak --jit opt --jit-threshold 0 --jit-flags eager \
+            build/samaltak.image --headless --eval "$expr" 2>&1 | tee "$RUNNER_TEMP/floatx2-logs/focused-test.log"
+          grep -Fx '1 run, 1 passed, 0 failed, 0 errors' "$RUNNER_TEMP/floatx2-logs/focused-test.log"
+
+      - name: Verify VMs and images after execution
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/floatx2-src"
+          logs="$RUNNER_TEMP/floatx2-logs"
+          {
+            shasum -a 256 -c "$logs/images.sha256"
+            for side in A B; do
+              (cd "$side" && shasum -a 256 -c "$logs/$side-vm.sha256")
+            done
+          } | tee "$logs/integrity.log"
+
+      - name: Upload evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        timeout-minutes: 3
+        with:
+          name: floatx2-stage2-mac-platform-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/floatx2-logs/
+          if-no-files-found: warn
+          retention-days: 7
