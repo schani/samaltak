@@ -50,14 +50,26 @@ Version: 2023.2.1
 Libs: -lshaderc_combined -Wl,--start-group -lglslang -lSPIRV -lMachineIndependent -lGenericCodeGen -lOSDependent -lOGLCompiler -lglslang-default-resource-limits -lSPIRV-Tools-opt -lSPIRV-Tools -Wl,--end-group -lstdc++ -lpthread -lm
 Cflags:'
 shaderc_links() {
-    local dir ok=0
-    dir=$(mktemp -d)
+    local libs dir ok=0
+    libs=$(pkg-config --libs "$1" 2>/dev/null) || return 1
+    dir=$(mktemp -d) || return 1
     printf '#include <shaderc/shaderc.h>\nint main(void) { shaderc_compiler_release(shaderc_compiler_initialize()); return 0; }\n' > "$dir/t.c"
-    cc "$dir/t.c" -o "$dir/t" $(pkg-config --libs shaderc 2>/dev/null) >/dev/null 2>&1 || ok=1
+    cc "$dir/t.c" -o "$dir/t" $libs >/dev/null 2>&1 || ok=1
     rm -rf "$dir"
     return $ok
 }
-if [ "$(cat "$PC" 2>/dev/null)" != "$WANT" ] && ! shaderc_links; then
-    $SUDO mkdir -p "${PC%/*}"
-    printf '%s\n' "$WANT" | $SUDO tee "$PC" >/dev/null
+if [ ! -e "$PC" ] && [ ! -L "$PC" ]; then
+    if ! shaderc_links shaderc; then
+        $SUDO mkdir -p "${PC%/*}"
+        printf '%s\n' "$WANT" | $SUDO tee "$PC" >/dev/null
+    fi
+elif [ ! -L "$PC" ] && [ -f "$PC" ] && cmp -s "$PC" <(printf '%s\n' "$WANT"); then
+    # Use the package's file directly so the shim cannot shadow the probe.
+    if DISTRO_PC=$(dpkg-query -L "libshaderc-dev:$(dpkg --print-architecture)" | grep '^/.*/pkgconfig/shaderc\.pc$') \
+        && shaderc_links "$DISTRO_PC"; then
+        $SUDO rm "$PC"
+    fi
+elif ! shaderc_links shaderc; then
+    printf 'shaderc does not link. Move %s aside and rerun setup.\n' "$PC" >&2
+    exit 1
 fi
