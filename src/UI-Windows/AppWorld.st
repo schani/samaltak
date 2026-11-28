@@ -70,10 +70,6 @@ closeMilliseconds
 	"No fade: the window manager animates my host window away (or not), as for any other application."
 	^0
 !
-processQuitRequested
-	"The process was asked to quit: the application quits, whichever of its host windows I am."
-	^self quitProcess
-!
 quitRequested
 	"The window manager closed my host window: the application quits, unless I am one of its other host windows."
 	self isMain ifTrue: [^self quitProcess].

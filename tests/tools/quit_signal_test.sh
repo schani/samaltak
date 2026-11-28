@@ -1,47 +1,53 @@
 #!/bin/sh
-# A VM with a display that gets SIGTERM quits (SDL makes the signal a quit event, the World quits) with 128 + 15 and
-# says so on stderr, with the sender: before, it exited with 0, so a test run that someone's pkill cut short looked
-# like one that ended normally, only without its summary (st_suite: no test summary (exit 0)).
+# A signal quits the World with 128 + the signal number, and reports the sender on stderr.
 # usage: tests/tools/quit_signal_test.sh [image]   (default: build/samaltak.image)
-set -u
+set -eu
 cd "$(dirname "$0")/../.."
 IMAGE=${1:-build/samaltak.image}
 CTL=tools/samaltak-ctl
-export SAMALTAK_SESSION=quit-signal-test-$$
-SESSIONS=${TMPDIR:-/tmp}/samaltak-ctl
+umask 077
 TMP=$(mktemp -d)
+export TMPDIR="$TMP" SAMALTAK_SESSION=quit-signal-test
 pid=
-fails=0
-pass() { echo "ok   $1"; }
-fail() { echo "FAIL $1"; fails=$((fails + 1)); }
-check() { # name expected actual
-  if [ "$2" = "$3" ]; then pass "$1"; else fail "$1: expected [$2], got [$3]"; fi
-}
-contains() { # name haystack needle
-  case "$2" in *"$3"*) pass "$1" ;; *) fail "$1: [$3] not in [$2]" ;; esac
-}
 cleanup() {
-  [ -n "$pid" ] && kill -KILL "$pid" 2>/dev/null
-  rm -rf "$TMP" "$SESSIONS/$SAMALTAK_SESSION.json"
+  [ -z "$pid" ] || kill -KILL "$pid" 2>/dev/null || :
+  rm -rf "$TMP"
 }
 trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
 
-# The VM is this shell's child, so that wait sees its exit status; samaltak-ctl reaches it through a session file.
-vm/build/samaltak "$IMAGE" --hidden --control --control-port 0 --control-port-file "$TMP/port" >"$TMP/log" 2>&1 &
-pid=$!
-i=0; until [ -s "$TMP/port" ] || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
-[ -s "$TMP/port" ] || { cat "$TMP/log"; echo "FAIL the VM did not start"; exit 1; }
-mkdir -p "$SESSIONS"
-printf '{"pid": %s, "port": %s}\n' "$pid" "$(cat "$TMP/port")" >"$SESSIONS/$SAMALTAK_SESSION.json"
-# the ref condition fails at once until the World registers its snapshot root
-i=0; until $CTL wait '@w6' 10000 >/dev/null 2>&1 || [ $i -ge 100 ]; do i=$((i + 1)); sleep 0.1; done
-check "the World is up" "6" "$($CTL snapshot --depth 1 | grep -c '^window')"
+fail() { echo "FAIL SIG$signal: $1"; cat "$TMP/log"; exit 1; }
+run_case() {
+  signal=$1 expected=$2
+  shift 2
+  rm -f "$TMP/port"
+  python3 -c 'import secrets; print(secrets.token_hex(16))' >"$TMP/token"
+  # Reset the SIGINT ignored by background shell jobs, then exec so wait sees the VM's status.
+  python3 -c 'import os, signal, sys; signal.signal(signal.SIGINT, signal.SIG_DFL); os.execv(sys.argv[1], sys.argv[1:])' \
+    vm/build/samaltak "$IMAGE" --control --control-port 0 --control-port-file "$TMP/port" \
+    --control-token-file "$TMP/token" "$@" >"$TMP/log" 2>&1 &
+  pid=$!
+  timeout 60 sh -c 'until [ -s "$1" ]; do kill -0 "$2" 2>/dev/null || exit 1; sleep 0.1; done' sh "$TMP/port" "$pid" ||
+    fail "the VM did not start"
+  "$CTL" connect --port "$(cat "$TMP/port")" --token-file "$TMP/token" >/dev/null ||
+    fail "could not connect"
+  # The World hosts the control server once its input dispatcher is ready. The wait command
+  # advances the work clock if needed, then pauses it again before replying.
+  timeout 30 "$CTL" wait '{"eval":"ControlServer current host notNil"}' 20000 >/dev/null ||
+    fail "the World did not start"
 
-kill -TERM "$pid"
-wait "$pid"
-check "SIGTERM: exit status 143" "143" "$?"
-pid=
-contains "SIGTERM: says so, with the sender" "$(cat "$TMP/log")" "samaltak: quit on SIGTERM from pid $$ ("
+  kill -s "$signal" "$pid" || fail "could not send the signal"
+  timeout 20 sh -c 'while kill -0 "$1" 2>/dev/null; do sleep 0.1; done' sh "$pid" ||
+    fail "the VM did not quit"
+  status=0
+  wait "$pid" || status=$?
+  pid=
+  [ "$status" = "$expected" ] || fail "expected exit status $expected, got $status"
+  grep -Fq "samaltak: quit on SIG$signal from pid $$ (" "$TMP/log" || fail "missing quit diagnostic with sender PID"
+  echo "ok   SIG$signal: exit status $expected and sender PID"
+}
 
-[ $fails -eq 0 ] && echo "quit signal test: all passed" || { cat "$TMP/log"; echo "quit signal test: $fails failed"; }
-[ $fails -eq 0 ]
+run_case TERM 143 --hidden
+# A visible World must finish its quit fade even with the clock paused.
+run_case INT 130 --work-clock --window-size 640x400
+echo "quit signal test: all passed"

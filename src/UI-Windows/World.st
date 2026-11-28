@@ -310,7 +310,8 @@ quitRequested
 	^self quitProcess
 !
 processQuitRequested
-	"The process was asked to quit (SIGTERM, SIGINT, the session ending)."
+	"The process was asked to quit. Let the fade finish even on a paused recording clock."
+	Smalltalk vm workClockRunning: true.
 	^self quitProcess
 !
 quitProcess
