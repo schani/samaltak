@@ -16,10 +16,10 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
-fail() { echo "FAIL SIG$signal: $1"; cat "$TMP/log"; exit 1; }
+fail() { echo "FAIL SIG$signal ($clock): $1"; cat "$TMP/log"; exit 1; }
 run_case() {
-  signal=$1 expected=$2
-  shift 2
+  signal=$1 expected=$2 clock=$3
+  shift 3
   rm -f "$TMP/port"
   python3 -c 'import secrets; print(secrets.token_hex(16))' >"$TMP/token"
   # Reset the SIGINT ignored by background shell jobs, then exec so wait sees the VM's status.
@@ -36,6 +36,14 @@ run_case() {
   timeout 30 "$CTL" wait '{"eval":"ControlServer current host notNil"}' 20000 >/dev/null ||
     fail "the World did not start"
 
+  if [ "$clock" = active ]; then
+    # Finish an in-flight command as soon as a quit fade starts, pausing the work clock.
+    timeout 30 "$CTL" eval "Smalltalk vm stderrWrite: 'quit test command active', (String with: Character lf).
+      [World current curtain ifNil: [false] ifNotNil: [:c | c isLeaving]] whileFalse: [(Delay forMilliseconds: 10) wait]" \
+      >/dev/null 2>&1 &
+    timeout 10 sh -c 'until grep -q "quit test command active" "$1"; do sleep 0.1; done' sh "$TMP/log" ||
+      fail "the active command did not start"
+  fi
   kill -s "$signal" "$pid" || fail "could not send the signal"
   timeout 20 sh -c 'while kill -0 "$1" 2>/dev/null; do sleep 0.1; done' sh "$pid" ||
     fail "the VM did not quit"
@@ -44,10 +52,11 @@ run_case() {
   pid=
   [ "$status" = "$expected" ] || fail "expected exit status $expected, got $status"
   grep -Fq "samaltak: quit on SIG$signal from pid $$ (" "$TMP/log" || fail "missing quit diagnostic with sender PID"
-  echo "ok   SIG$signal: exit status $expected and sender PID"
+  echo "ok   SIG$signal ($clock): exit status $expected and sender PID"
 }
 
-run_case TERM 143 --hidden
-# A visible World must finish its quit fade even with the clock paused.
-run_case INT 130 --work-clock --window-size 640x400
+run_case TERM 143 normal --hidden
+# An external quit must not wait for a fade on the work clock.
+run_case INT 130 paused --work-clock --window-size 640x400
+run_case TERM 143 active --work-clock --window-size 640x400
 echo "quit signal test: all passed"

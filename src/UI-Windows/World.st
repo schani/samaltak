@@ -1,6 +1,6 @@
 Object subclass: #World
 	instanceVariableNames: 'displayWindow extent scale windows overlays activeWindow compositor dispatcher topBar toasts tooltip lock windowCounter closingWindows needsFrame remotePointer hidden imageName clipboardText running curtain closingFrontWindows resizingSince'
-	classVariableNames: 'All Current HelpHandler UserInterruptHandler WorldMenuBuilder QuitHandler'
+	classVariableNames: 'All Current HelpHandler UserInterruptHandler WorldMenuBuilder QuitHandler SkipQuitFade'
 	package: 'UI-Windows'!
 
 World comment: 'I am the desktop: the host window (a DisplayWindow), the halftone desk, the windows (z-order, front to back), the active window, the top bar, and the overlays (menus, toasts, the tooltip, the remote pointer). The Compositor (priority 70, vsync) draws me; the InputDispatcher (priority 60) routes input and moves and resizes windows. World current is the running one (an application''s other host windows are Worlds of their own: World all).
@@ -310,9 +310,12 @@ quitRequested
 	^self quitProcess
 !
 processQuitRequested
-	"The process was asked to quit. Let the fade finish even on a paused recording clock."
-	Smalltalk vm workClockRunning: true.
-	^self quitProcess
+	"The recording clock can pause during shutdown. Skip the fade even if another World receives the quit."
+	| previous |
+	Smalltalk vm isOnWorkClock ifFalse: [^self quitProcess].
+	previous := SkipQuitFade.
+	SkipQuitFade := true.
+	^[self quitProcess] ensure: [SkipQuitFade := previous]
 !
 quitProcess
 	QuitHandler isNil ifFalse: [^QuitHandler cull: self].
@@ -463,6 +466,7 @@ showRestartSplash
 !
 leave
 	"Before the VM goes away (a quit, the exec of a rebuilt VM): the screen fades to black; answer once it was shown. Not when nobody can see it (hidden and not recorded)."
+	SkipQuitFade == true ifTrue: [^self].
 	(running not or: [compositor isNil or: [hidden and: [compositor recorder isNil]]]) ifTrue: [^self].
 	curtain := WorldCurtain leaving: self.
 	self changed.
